@@ -1,29 +1,40 @@
-const UserController = require("./controllers/UserController");
+const AccountController = require("./controllers/AccountController");
+const CreditCardController = require('./controllers/CreditCardController');
 
 module.exports = [
     {
-        endpoint: '/users',
+        endpoint: '/accounts',
         method: 'GET',
-        handler: UserController.getUsers
+        handler: AccountController.get
     },
     {
-        endpoint: '/users/:param',
+        endpoint: '/accounts/:param',
         method: 'GET',
-        handler: UserController.findById
+        handler: AccountController.findById
     },
     {
-        endpoint: '/users',
+        endpoint: '/accounts',
         method: 'POST',
-        handler: UserController.create
+        handler: AccountController.create
     },
     {
-        endpoint: '/users/:param',
+        endpoint: '/accounts/:param',
         method: 'PUT',
-        handler: UserController.update
+        handler: AccountController.update
     },
     {
-        endpoint: '/users/:param',
+        endpoint: '/accounts/:param',
         method: 'DELETE',
-        handler: UserController.delete
+        handler: AccountController.delete
+    },
+    {
+        endpoint: '/credits_cards',
+        method: 'GET',
+        handler: CreditCardController.get
+    },
+    {
+        endpoint: '/credits_cards/:param',
+        method: 'GET',
+        handler: CreditCardController.findById
     }
 ];
