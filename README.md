@@ -87,25 +87,58 @@ The system follows the shape common to most personal finance tools:
 
 ## Technology Choices
 
-Nothing here is final — the whole stack is open to revision as the database and
-backend design progress. Current thinking:
+The database is settled. The rest of the stack is still open to revision.
+
+### Database — SQLite
+
+**SQLite**, stored as a single file on the user's device. This is the one piece of the
+stack that is locked in, and it was chosen precisely because it does not constrain the
+choices that are still open:
+
+- **It is already present on every target platform.** Android and iOS both ship
+  SQLite, so whichever mobile technology gets picked later can open the same schema.
+  The mobile decision cannot invalidate the data model.
+- **It fits the reporting goal.** The reports this project exists to produce are
+  relational and month-oriented; window functions and CTEs turn running balances and
+  month-over-month comparisons into ordinary queries rather than application code.
+- **Data ownership becomes literal** — one file to copy, back up and inspect with any
+  of a hundred tools, in a format committed to staying readable for decades. For a
+  financial archive meant to span years, that longevity is the point.
+- **Zero infrastructure and zero recurring cost**, permanently.
+- **Sync stays reachable** without changing engines later.
+
+One consequence worth stating up front: the schema is identical across platforms, but
+the SQLite *driver* is not — a desktop shell and a mobile shell use different bindings
+with different APIs. The Repository layer is therefore written against a narrow
+internal port with a thin platform-specific adapter behind it, so the SQL stays shared
+and only the adapter is rewritten.
+
+Full reasoning, the alternatives that were rejected, and the type and configuration
+conventions live in **[docs/plans/database-design.md](docs/plans/database-design.md)**,
+which is the home for every database decision in the project.
+
+### Still open
 
 - **Electron** as the leading candidate for the desktop shell, primarily to reuse a
   single backend implementation across desktop and (eventually) mobile, and to keep
   the door open to exposing that same backend as a web service later.
-- **Local, embedded database** (specific engine TBD) — no external DB server, so the
-  app has zero always-on infrastructure and zero recurring cost. Whatever is chosen
-  must support an eventual sync story between devices.
 - Mobile app technology (native vs. cross-platform) is still to be decided, guided
-  by how well it can share code/logic with the desktop backend.
+  by how well it can share code/logic with the desktop backend. Note that Electron
+  does not itself run on mobile — reuse in practice means a wrapper such as Capacitor
+  or Tauri, or sharing logic rather than UI with a native shell.
 
 ## Diagrams
 
-Architecture and design diagrams will be produced with [draw.io](https://draw.io) and
-kept under [drawio/](drawio/). Diagramming is the **last** step of this phase — no
-diagrams will be created until the architecture and database design are settled.
+Architecture and design diagrams are produced with [draw.io](https://draw.io) and kept
+under [docs/drawio/](docs/drawio/). The entity relationship diagram in
+[project.drawio](docs/drawio/project.drawio) is the visual source of truth for the data
+model; [docs/plans/database-design.md](docs/plans/database-design.md) carries the
+reasoning behind it. When the two disagree, both get updated.
 
 ## Status
 
-Early design phase: goals and high-level architecture are being defined, and the
-database schema is the next concrete step.
+Early design phase. The database engine is chosen and the schema is fully specified —
+entities, types, constraints, foreign-key actions and indexes — in
+[docs/plans/database-design.md](docs/plans/database-design.md), and transcribed into
+the first migration, [db/migrations/0001_initial_schema.sql](db/migrations/0001_initial_schema.sql).
+Application stack decisions are the next step.
