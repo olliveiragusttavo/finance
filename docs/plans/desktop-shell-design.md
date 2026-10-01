@@ -31,8 +31,9 @@ Herdadas do [README](../../README.md) e dos documentos anteriores:
 - O mobile já está decidido: **React Native / Expo**
   ([backend-design.md §3.8](backend-design.md#38-consequência-o-mobile-é-react-native--expo)).
 
-Fora do escopo: a biblioteca de gráficos e o desenho das telas de relatório
-([§6](#6-próximos-passos)).
+Fora do escopo: a biblioteca de gráficos ([§6](#6-próximos-passos)). O desenho das telas
+não é decidido aqui: está nos mockups aprovados em [docs/design/mockups/](../design/mockups/);
+este documento decide só como elas são estilizadas ([§4.5](#45-estilo-e-tokens-de-design)).
 
 ---
 
@@ -44,6 +45,7 @@ Fora do escopo: a biblioteca de gráficos e o desenho das telas de relatório
 | O argumento do "shell mobile" ainda vale? | Não. O mobile é React Native por conta própria; a comparação passa a ser **só desktop**, e mesmo assim o Electron vence | [§3.1](#31-a-pergunta-mudou) |
 | Framework de UI? | **React** (React DOM + Vite no renderer), por ser o único que o mobile também usa | [§4](#4-framework-de-ui) |
 | O que se compartilha com o mobile? | **Lógica de apresentação, não componentes**: um pacote `client` headless com o contrato tipado dos Controllers, hooks de dados, view-models e formatadores | [§4.2](#42-o-que-é-compartilhado-é-a-camada-headless) |
+| Como a UI é estilizada? | **Tailwind CSS + shadcn/ui**, com os tokens dos mockups num pacote `tokens` que também alimenta o NativeWind do mobile | [§4.5](#45-estilo-e-tokens-de-design) |
 | Como a UI fala com o núcleo? | Por uma interface `CoreClient` com duas implementações: IPC (desktop) e chamada direta (mobile). Erros atravessam como resultado tipado, não como exceção | [§5](#5-a-fronteira-ui--núcleo) |
 
 ---
@@ -211,6 +213,48 @@ Seria possível escrever as telas uma vez em React Native e rodá-las no desktop
   escuro, e acessibilidade dos valores (tooltip e tabela equivalente).
 - **TypeScript no mesmo modo estrito** do núcleo ([backend-design.md §3.9](backend-design.md#39-estrutura-e-ferramentas)).
 
+### 4.5 Estilo e tokens de design
+
+As telas estão desenhadas e aprovadas em [docs/design/mockups/](../design/mockups/). Os
+mockups fixam o que o estilo precisa sustentar: **tema claro e escuro desde o início**,
+uma paleta de tokens de cor, IBM Plex Sans com algarismos tabulares, e o mesmo
+vocabulário visual no desktop e no celular. São referência de layout e conteúdo, não
+código para copiar.
+
+**Decisão:** **Tailwind CSS** com **shadcn/ui** no renderer, e os tokens num pacote
+próprio, sem dependências, consumido pelos dois apps:
+
+```
+packages/tokens     cores (claro e escuro), tipografia e espaçamentos como dados,
+                    e o preset do Tailwind gerado a partir deles
+```
+
+- **Tailwind porque o mobile fala a mesma língua.** O NativeWind leva as classes do
+  Tailwind para o React Native ([mobile-shell-design.md §9](mobile-shell-design.md#9-telas-e-estilo)).
+  Os componentes continuam separados por plataforma ([§4.2](#42-o-que-é-compartilhado-é-a-camada-headless)),
+  mas um `bg-surface text-ink` significa a mesma coisa nos dois, e os tokens vivem num
+  lugar só.
+- **O tema troca por variável CSS.** Cada token vira uma variável com valor claro e
+  escuro; o Tailwind referencia a variável, e trocar de tema é trocar uma classe na raiz,
+  sem re-renderizar a árvore.
+- **shadcn/ui porque o código é nosso.** Os componentes são copiados para o repositório,
+  sobre primitivos do Radix, em vez de importados de uma biblioteca fechada. O desktop
+  precisa de menus de contexto, diálogos, popovers e navegação por teclado acessíveis
+  ([§4.3](#43-por-que-não-uma-ui-única-com-react-native-web)), e o Radix resolve isso; o
+  visual fica nos tokens, sem briga com o tema de terceiros.
+- **TanStack Table** ([§4.4](#44-bibliotecas-do-renderer)) continua cuidando da lógica
+  das tabelas; a renderização usa os componentes de tabela do shadcn/ui.
+
+| Alternativa | Por que foi descartada |
+|---|---|
+| CSS Modules / CSS puro | Funciona no desktop, mas nada é compartilhado com o mobile: os tokens seriam escritos uma vez em CSS e outra em `StyleSheet`, e as duas cópias divergiriam. |
+| CSS-in-JS (styled-components, Emotion) | O tema vira objeto JavaScript resolvido a cada render, um custo no renderer que o CSS estático do Tailwind não tem. A troca de tema re-renderiza a árvore. |
+| Biblioteca de componentes pronta (MUI, Mantine, Ant) | Traz uma linguagem visual própria que teria de ser desfeita para chegar aos mockups, e não tem equivalente em React Native com a mesma API. |
+
+O que reabriria a decisão: o NativeWind deixar de acompanhar as versões do Expo. Como os
+tokens são dados em `packages/tokens`, a saída seria gerar `StyleSheet` a partir deles no
+mobile, sem tocar no desktop.
+
 ---
 
 ## 5. A fronteira UI ↔ núcleo
@@ -266,7 +310,8 @@ conforto de UX, não como garantia.
    React) no monorepo da [backend-design.md §7](backend-design.md#7-próximos-passos),
    com a configuração de segurança da [§3.6](#36-segurança-do-renderer) e o lint de
    fronteira da [§4.2](#42-o-que-é-compartilhado-é-a-camada-headless) desde o primeiro
-   commit.
+   commit, junto com `packages/tokens` e o Tailwind já configurado com o tema claro e
+   escuro ([§4.5](#45-estilo-e-tokens-de-design)).
 2. **Definir o mapa de rotas e o `CoreResult`** ([§5](#5-a-fronteira-ui--núcleo)) junto
    com o primeiro Controller, para que o contrato nasça tipado.
 3. **Listar os relatórios do desktop** — as perguntas concretas que o README diz que os

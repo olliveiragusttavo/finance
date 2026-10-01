@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Ajustes</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+.light{--bg:#F4F5F2;--surface:#FFFFFF;--surface2:#FAFAF8;--line:#DDE1DC;--line2:#EEF0EC;--ink:#1B1F1D;--ink2:#3D4541;--muted:#5A625E;--accent:#1F5F8B;--on-accent:#FFFFFF;--soft:#E6EEF4;--soft-ink:#163F5C;--in:#1F5F8B;--out:#A04A12;--warn-bg:#FFF1D6;--warn-ink:#5C3D00;--ok-bg:#E2F1E8;--ok-ink:#1E5A3F;--track:#EEF0EC;--danger:#9B2C1F;--dot:#2E7D5B}
+.dark{--bg:#111413;--surface:#1A1E1C;--surface2:#151917;--line:#2E3431;--line2:#242926;--ink:#E7EAE7;--ink2:#C3C9C5;--muted:#9AA29E;--accent:#6AAAD8;--on-accent:#0B1A24;--soft:#1D3040;--soft-ink:#B5D7F0;--in:#7DB8E2;--out:#E89A63;--warn-bg:#3A2C10;--warn-ink:#F2D38F;--ok-bg:#16302A;--ok-ink:#8FD9B4;--track:#2A302D;--danger:#F08A7A;--dot:#5BC08F}
+a{color:var(--accent);text-decoration:none}a:hover{color:var(--soft-ink)}
+.n{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+button,input,select{font:inherit;color:inherit}button{cursor:pointer}
+.app{min-height:100vh;display:flex;font-family:'IBM Plex Sans',system-ui,sans-serif;color:var(--ink);background:var(--bg)}
+.side{width:232px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:20px 14px;gap:20px;box-sizing:border-box}
+.brand{font-weight:600;font-size:17px;padding:0 8px}
+.prof{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-size:14px;text-align:left}
+.nav{display:flex;flex-direction:column;gap:2px;font-size:14px}
+.nav a{padding:9px 12px;border-radius:6px;color:var(--ink)}
+.nav a.on{background:var(--soft);color:var(--soft-ink);font-weight:500}
+.sync{margin-top:auto;padding:12px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.dotl{display:flex;align-items:center;gap:6px;color:var(--ink)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--dot);flex-shrink:0}
+.col{flex-grow:1;min-width:0;display:flex;flex-direction:column}
+.top{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 32px;background:var(--surface);border-bottom:1px solid var(--line)}
+.row{display:flex;align-items:center;gap:10px}
+.month{display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.month button{border:0;background:none;padding:8px 12px}
+.month span{font-size:14px;font-weight:600;min-width:150px;text-align:center}
+.link{border:0;background:none;color:var(--accent);font-size:13px;padding:8px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 12px;font-size:13px;display:inline-flex;align-items:center;gap:6px}
+.btn-p{border:0;border-radius:8px;background:var(--accent);color:var(--on-accent);padding:9px 16px;font-size:14px;font-weight:500}
+main{padding:24px 32px;display:flex;flex-direction:column;gap:20px;min-width:0;flex-grow:1;max-width:880px}
+h1{margin:0;font-size:24px;font-weight:600}
+h2{margin:0;font-size:16px;font-weight:600}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.cardhd{padding:14px 20px;border-bottom:1px solid var(--line2)}
+.set{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 20px;border-bottom:1px solid var(--line2);font-size:14px}
+.set:last-child{border-bottom:0}
+.sm{font-size:12px;color:var(--muted)}
+.stack{display:flex;flex-direction:column}
+.inp{border:1px solid var(--line);border-radius:6px;padding:8px 10px;background:var(--bg);min-width:200px}
+.radio{display:flex;align-items:center;gap:6px;font-size:14px}
+.kbd{font-family:inherit;font-size:12px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:1px 6px;background:var(--bg)}
+</style>
+</helmet>
+<div class="app {{themeClass}}">
+<nav aria-label="Navegação principal" class="side">
+<div class="brand">Finanças</div>
+<button type="button" class="prof"><span class="stack" style="gap: 2px"><span style="font-weight: 500">Gustavo</span><span class="sm">Pessoal · BRL</span></span><span aria-hidden="true">▾</span></button>
+<div class="nav">
+<a href="Main.dc.html">Visão geral</a>
+<a href="DesktopTransacoes.dc.html">Transações</a>
+<a href="DesktopContas.dc.html">Contas</a>
+<a href="DesktopCartoes.dc.html">Cartões</a>
+<a href="DesktopRelCategoria.dc.html">Relatórios</a>
+<a href="DesktopMetas.dc.html">Metas</a>
+<a href="DesktopCadastros.dc.html">Cadastros</a>
+<a href="DesktopDispositivos.dc.html">Dispositivos</a>
+<a href="DesktopAjustes.dc.html" class="on" aria-current="page">Ajustes</a>
+</div>
+<div class="sync"><span class="dotl"><span class="dot" aria-hidden="true"></span>Sincronizado com iPhone de Gustavo · agora</span><span>Dados só neste aparelho e nos seus dispositivos pareados</span></div>
+</nav>
+<div class="col">
+<div class="top">
+<div class="row"><span class="sm">Mês de referência</span><div class="month"><button type="button" aria-label="Mês anterior" onClick="{{prevMonth}}">‹</button><span>{{monthLabel}}</span><button type="button" aria-label="Próximo mês" onClick="{{nextMonth}}">›</button></div><sc-if value="{{notCurrent}}" hint-placeholder-val="{{ false }}"><button type="button" class="link" onClick="{{goToday}}">Voltar ao mês atual</button></sc-if></div>
+<div class="row"><button type="button" class="btn" onClick="{{toggleTheme}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/></svg>{{themeLabel}}</button><button type="button" class="btn-p">+ Lançamento</button></div>
+</div>
+<main>
+<h1>Ajustes</h1>
+<section class="card">
+<div class="cardhd"><h2>Aparência</h2></div>
+<div class="set" role="radiogroup" aria-label="Tema"><span>Tema</span><span class="row" style="gap: 18px"><label class="radio"><input type="radio" name="tema" checked>Seguir o sistema</label><label class="radio"><input type="radio" name="tema">Claro</label><label class="radio"><input type="radio" name="tema">Escuro</label></span></div>
+</section>
+<section class="card">
+<div class="cardhd"><h2>Perfil atual</h2></div>
+<label class="set"><span>Nome</span><input class="inp" type="text" value="Gustavo"></label>
+<div class="set"><span>Tipo</span><span class="sm">Pessoal</span></div>
+<label class="set"><span class="stack"><span>Moeda</span><span class="sm">Valores de outras moedas são digitados já convertidos</span></span><select class="inp"><option>BRL — Real</option><option>USD — Dólar</option></select></label>
+</section>
+<section class="card">
+<div class="cardhd"><h2>Cópia dos dados</h2></div>
+<div class="set"><span class="stack"><span>Exportar cópia do banco</span><span class="sm">Não há backup em nuvem. Última cópia: [data]</span></span><button type="button" class="btn">Exportar…</button></div>
+<label class="set"><span>Lembrete de exportação</span><select class="inp"><option>Mensal</option><option>Semanal</option><option>Desligado</option></select></label>
+<div class="set"><span>Local do arquivo</span><span class="sm">[caminho do arquivo SQLite]</span></div>
+</section>
+<section class="card">
+<div class="cardhd"><h2>Atalhos de teclado</h2></div>
+<div class="set"><span>Novo lançamento</span><span class="kbd">N</span></div>
+<div class="set"><span>Mês anterior / seguinte</span><span class="row" style="gap: 4px"><span class="kbd">[</span><span class="kbd">]</span></span></div>
+<div class="set"><span>Buscar</span><span class="row" style="gap: 4px"><span class="kbd">Ctrl</span><span class="kbd">K</span></span></div>
+</section>
+<section class="card">
+<div class="set"><span>Versão</span><span class="sm">[versão]</span></div>
+</section>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1080}}'>
+class Component extends DCLogic {
+renderVals() {
+const s = this.state || {};
+const M = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const base = 2026 * 12 + 9;
+const idx = s.idx ?? base;
+const dark = s.dark ?? (this.props.dark ?? false);
+return {
+themeClass: dark ? 'dark' : 'light',
+themeLabel: dark ? 'Tema claro' : 'Tema escuro',
+toggleTheme: () => this.setState({ dark: !dark }),
+monthLabel: M[idx % 12] + ' de ' + Math.floor(idx / 12),
+prevMonth: () => this.setState({ idx: idx - 1 }),
+nextMonth: () => this.setState({ idx: idx + 1 }),
+goToday: () => this.setState({ idx: base }),
+notCurrent: idx !== base
+};
+}
+}
+</script>
+</body>
+</html>

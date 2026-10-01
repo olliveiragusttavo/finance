@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Visão geral</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+.light{--bg:#F4F5F2;--surface:#FFFFFF;--surface2:#FAFAF8;--line:#DDE1DC;--line2:#EEF0EC;--ink:#1B1F1D;--ink2:#3D4541;--muted:#5A625E;--accent:#1F5F8B;--on-accent:#FFFFFF;--soft:#E6EEF4;--soft-ink:#163F5C;--in:#1F5F8B;--out:#A04A12;--warn-bg:#FFF1D6;--warn-ink:#5C3D00;--ok-bg:#E2F1E8;--ok-ink:#1E5A3F;--track:#EEF0EC;--danger:#9B2C1F;--dot:#2E7D5B}
+.dark{--bg:#111413;--surface:#1A1E1C;--surface2:#151917;--line:#2E3431;--line2:#242926;--ink:#E7EAE7;--ink2:#C3C9C5;--muted:#9AA29E;--accent:#6AAAD8;--on-accent:#0B1A24;--soft:#1D3040;--soft-ink:#B5D7F0;--in:#7DB8E2;--out:#E89A63;--warn-bg:#3A2C10;--warn-ink:#F2D38F;--ok-bg:#16302A;--ok-ink:#8FD9B4;--track:#2A302D;--danger:#F08A7A;--dot:#5BC08F}
+a{color:var(--accent);text-decoration:none}a:hover{color:var(--soft-ink)}
+.n{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+button{font:inherit;color:inherit;cursor:pointer}
+</style>
+</helmet>
+<div class="{{themeClass}}" style="min-height: 100vh; display: flex; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: var(--ink); background: var(--bg)">
+
+<nav aria-label="Navegação principal" style="width: 232px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 20px 14px; gap: 20px; box-sizing: border-box">
+<div style="font-weight: 600; font-size: 17px; padding: 0 8px">Finanças</div>
+<button type="button" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); font-size: 14px">
+<span style="display: flex; flex-direction: column; align-items: flex-start; gap: 2px"><span style="font-weight: 500">Gustavo</span><span style="font-size: 12px; color: var(--muted)">Pessoal · BRL</span></span><span aria-hidden="true">▾</span>
+</button>
+<div style="display: flex; flex-direction: column; gap: 2px; font-size: 14px">
+<a href="Main.dc.html" aria-current="page" style="padding: 9px 12px; border-radius: 6px; background: var(--soft); color: var(--soft-ink); font-weight: 500">Visão geral</a>
+<a href="DesktopTransacoes.dc.html" style="padding: 9px 12px; border-radius: 6px; color: var(--ink)">Transações</a>
+<a href="DesktopContas.dc.html" style="padding: 9px 12px; border-radius: 6px; color: var(--ink)">Contas</a>
+<a href="DesktopCartoes.dc.html" style="padding: 9px 12px; border-radius: 6px; color: var(--ink)">Cartões</a>
+<a href="DesktopRelCategoria.dc.html" style="padding: 9px 12px; border-radius: 6px; color: var(--ink)">Relatórios</a>
+<a href="DesktopMetas.dc.html" style="padding: 9px 12px; border-radius: 6px; color: var(--ink)">Metas</a>
+<a href="DesktopCadastros.dc.html" style="padding: 9px 12px; border-radius: 6px; color: var(--ink)">Cadastros</a>
+<a href="DesktopDispositivos.dc.html" style="padding: 9px 12px; border-radius: 6px; color: var(--ink)">Dispositivos</a>
+<a href="DesktopAjustes.dc.html" style="padding: 9px 12px; border-radius: 6px; color: var(--ink)">Ajustes</a>
+</div>
+<div style="margin-top: auto; padding: 12px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 4px">
+<span style="display: flex; align-items: center; gap: 6px; color: var(--ink)"><span aria-hidden="true" style="width: 8px; height: 8px; border-radius: 50%; background: var(--dot)"></span>Sincronizado com iPhone de Gustavo · agora</span>
+<span>Dados só neste aparelho e nos seus dispositivos pareados</span>
+</div>
+</nav>
+
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column">
+<div style="position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 32px; background: var(--surface); border-bottom: 1px solid var(--line)">
+<div style="display: flex; align-items: center; gap: 10px">
+<span style="font-size: 12px; color: var(--muted)">Mês de referência</span>
+<div style="display: flex; align-items: center; border: 1px solid var(--line); border-radius: 8px; background: var(--bg)">
+<button type="button" aria-label="Mês anterior" onClick="{{prevMonth}}" style="border: 0; background: none; padding: 8px 12px">‹</button>
+<span style="font-size: 14px; font-weight: 600; min-width: 150px; text-align: center">{{monthLabel}}</span>
+<button type="button" aria-label="Próximo mês" onClick="{{nextMonth}}" style="border: 0; background: none; padding: 8px 12px">›</button>
+</div>
+<sc-if value="{{notCurrent}}" hint-placeholder-val="{{ false }}"><button type="button" onClick="{{goToday}}" style="border: 0; background: none; color: var(--accent); font-size: 13px; padding: 8px">Voltar ao mês atual</button></sc-if>
+</div>
+<div style="display: flex; align-items: center; gap: 10px">
+<button type="button" onClick="{{toggleTheme}}" style="display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px 12px; font-size: 13px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/></svg>{{themeLabel}}</button>
+<button type="button" style="border: 0; border-radius: 8px; background: var(--accent); color: var(--on-accent); padding: 9px 16px; font-size: 14px; font-weight: 500">+ Lançamento</button>
+</div>
+</div>
+
+<main style="padding: 24px 32px; display: flex; flex-direction: column; gap: 20px">
+<h1 style="margin: 0; font-size: 24px; font-weight: 600">Visão geral</h1>
+
+<section aria-label="Indicadores" style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px">
+<div style="background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 6px"><span style="font-size: 13px; color: var(--muted)">Saldo consolidado</span><span class="n" style="font-size: 24px; font-weight: 600">R$ 23.970,15</span><span style="font-size: 12px; color: var(--muted)">Já pago/recebido · 3 contas</span></div>
+<div style="background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 6px"><span style="font-size: 13px; color: var(--muted)">Saldo previsto</span><span class="n" style="font-size: 24px; color: var(--ink2)">R$ 22.020,40</span><span style="font-size: 12px; color: var(--muted)">Fim do mês, com tudo lançado</span></div>
+<div style="background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 6px"><span style="font-size: 13px; color: var(--muted)">↑ Receitas</span><span class="n" style="font-size: 24px; font-weight: 600; color: var(--in)">+R$ 9.500,00</span><span style="font-size: 12px; color: var(--muted)">1 lançamento</span></div>
+<div style="background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 6px"><span style="font-size: 13px; color: var(--muted)">↓ Despesas</span><span class="n" style="font-size: 24px; font-weight: 600; color: var(--out)">−R$ 3.219,32</span><span style="font-size: 12px; color: var(--muted)">−12% vs mês anterior</span></div>
+<div style="background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 6px"><span style="font-size: 13px; color: var(--muted)">Faturas em aberto</span><span class="n" style="font-size: 24px; font-weight: 600">R$ 2.449,75</span><span style="font-size: 12px; color: var(--muted)">1 cartão · vence 10/10</span></div>
+</section>
+
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px">
+<section style="grid-column: span 2; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; justify-content: space-between; align-items: center">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600">Evolução do saldo</h2>
+<div style="display: flex; gap: 4px">
+<button type="button" style="border: 1px solid var(--accent); background: var(--soft); color: var(--soft-ink); border-radius: 6px; padding: 5px 10px; font-size: 13px">Gráfico</button>
+<button type="button" style="border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 5px 10px; font-size: 13px">Tabela</button>
+</div>
+</div>
+<div style="display: flex; gap: 16px; font-size: 12px; color: var(--muted)">
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 12px; height: 12px; background: var(--accent); border-radius: 2px"></span>Consolidado</span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 12px; height: 12px; border: 1.5px dashed var(--accent); box-sizing: border-box; border-radius: 2px"></span>Previsto</span>
+</div>
+<div style="height: 220px; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 24px; align-items: end; border-bottom: 1px solid var(--line); padding: 0 8px">
+<div style="display: flex; gap: 6px; align-items: flex-end; height: 100%"><div style="flex-grow: 1; height: 62%; background: var(--accent); border-radius: 3px 3px 0 0"></div><div style="flex-grow: 1; height: 60%; border: 1.5px dashed var(--accent); border-bottom: 0; border-radius: 3px 3px 0 0"></div></div>
+<div style="display: flex; gap: 6px; align-items: flex-end; height: 100%"><div style="flex-grow: 1; height: 68%; background: var(--accent); border-radius: 3px 3px 0 0"></div><div style="flex-grow: 1; height: 66%; border: 1.5px dashed var(--accent); border-bottom: 0; border-radius: 3px 3px 0 0"></div></div>
+<div style="display: flex; gap: 6px; align-items: flex-end; height: 100%"><div style="flex-grow: 1; height: 71%; background: var(--accent); border-radius: 3px 3px 0 0"></div><div style="flex-grow: 1; height: 70%; border: 1.5px dashed var(--accent); border-bottom: 0; border-radius: 3px 3px 0 0"></div></div>
+<div style="display: flex; gap: 6px; align-items: flex-end; height: 100%"><div style="flex-grow: 1; height: 75%; background: var(--accent); border-radius: 3px 3px 0 0"></div><div style="flex-grow: 1; height: 72%; border: 1.5px dashed var(--accent); border-bottom: 0; border-radius: 3px 3px 0 0"></div></div>
+<div style="display: flex; gap: 6px; align-items: flex-end; height: 100%"><div style="flex-grow: 1; height: 80%; background: var(--accent); border-radius: 3px 3px 0 0"></div><div style="flex-grow: 1; height: 77%; border: 1.5px dashed var(--accent); border-bottom: 0; border-radius: 3px 3px 0 0"></div></div>
+<div style="display: flex; gap: 6px; align-items: flex-end; height: 100%"><div style="flex-grow: 1; height: 88%; background: var(--accent); border-radius: 3px 3px 0 0"></div><div style="flex-grow: 1; height: 80%; border: 1.5px dashed var(--accent); border-bottom: 0; border-radius: 3px 3px 0 0"></div></div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 24px; padding: 0 8px; font-size: 12px; color: var(--muted); text-align: center"><span>−5</span><span>−4</span><span>−3</span><span>−2</span><span>−1</span><span style="color: var(--ink); font-weight: 600">mês ref.</span></div>
+</section>
+
+<section style="background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 14px">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600">Maiores categorias</h2>
+<div style="display: flex; flex-direction: column; gap: 4px"><div style="display: flex; justify-content: space-between; font-size: 14px"><span>Moradia</span><span class="n">R$ 2.300,00</span></div><div style="height: 6px; background: var(--track); border-radius: 3px"><div style="width: 100%; height: 100%; background: var(--out); border-radius: 3px"></div></div></div>
+<div style="display: flex; flex-direction: column; gap: 4px"><div style="display: flex; justify-content: space-between; font-size: 14px"><span>Alimentação</span><span class="n">R$ 487,32</span></div><div style="height: 6px; background: var(--track); border-radius: 3px"><div style="width: 21%; height: 100%; background: var(--out); border-radius: 3px"></div></div></div>
+<div style="display: flex; flex-direction: column; gap: 4px"><div style="display: flex; justify-content: space-between; font-size: 14px"><span>Compras</span><span class="n">R$ 400,00</span></div><div style="height: 6px; background: var(--track); border-radius: 3px"><div style="width: 17%; height: 100%; background: var(--out); border-radius: 3px"></div></div></div>
+<div style="display: flex; flex-direction: column; gap: 4px"><div style="display: flex; justify-content: space-between; font-size: 14px"><span>Assinaturas</span><span class="n">R$ 55,90</span></div><div style="height: 6px; background: var(--track); border-radius: 3px"><div style="width: 3%; height: 100%; background: var(--out); border-radius: 3px"></div></div></div>
+<a href="DesktopRelCategoria.dc.html" style="font-size: 13px; margin-top: auto">Abrir relatório por categoria →</a>
+</section>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
+<section style="background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden">
+<div style="display: flex; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--line)"><h2 style="margin: 0; font-size: 16px; font-weight: 600">Contas</h2><span style="font-size: 12px; color: var(--muted)">consolidado · previsto</span></div>
+<a href="DesktopContas.dc.html" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-bottom: 1px solid var(--line2); color: var(--ink)"><span style="display: flex; flex-direction: column"><span style="font-size: 14px">Nubank</span><span style="font-size: 12px; color: var(--muted)">Corrente</span></span><span style="display: flex; flex-direction: column; align-items: flex-end"><span class="n" style="font-size: 14px; font-weight: 600">R$ 4.320,15</span><span class="n" style="font-size: 12px; color: var(--muted)">previsto R$ 1.870,40</span></span></a>
+<a href="DesktopContas.dc.html" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-bottom: 1px solid var(--line2); color: var(--ink)"><span style="display: flex; flex-direction: column"><span style="font-size: 14px">Itaú</span><span style="font-size: 12px; color: var(--muted)">Corrente</span></span><span style="display: flex; flex-direction: column; align-items: flex-end"><span class="n" style="font-size: 14px; font-weight: 600">R$ 1.250,00</span><span class="n" style="font-size: 12px; color: var(--muted)">previsto R$ 1.250,00</span></span></a>
+<a href="DesktopContas.dc.html" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-bottom: 1px solid var(--line2); color: var(--ink)"><span style="display: flex; flex-direction: column"><span style="font-size: 14px">Tesouro Direto</span><span style="font-size: 12px; color: var(--muted)">Investimentos</span></span><span style="display: flex; flex-direction: column; align-items: flex-end"><span class="n" style="font-size: 14px; font-weight: 600">R$ 18.400,00</span><span class="n" style="font-size: 12px; color: var(--muted)">previsto R$ 18.900,00</span></span></a>
+<a href="DesktopContas.dc.html" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; color: var(--muted)"><span style="display: flex; flex-direction: column"><span style="font-size: 14px">Wise (USD)</span><span style="font-size: 12px">Corrente · fora do total</span></span><span class="n" style="font-size: 14px">R$ 2.100,00</span></a>
+</section>
+<section style="background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden">
+<div style="display: flex; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--line)"><h2 style="margin: 0; font-size: 16px; font-weight: 600">Cartões</h2><span style="font-size: 12px; color: var(--muted)">fatura do mês de referência</span></div>
+<a href="DesktopCartoes.dc.html" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-bottom: 1px solid var(--line2); color: var(--ink)"><span style="display: flex; flex-direction: column"><span style="font-size: 14px">Nubank Roxinho</span><span style="font-size: 12px; color: var(--muted)">vence 10/10 · paga com Nubank</span></span><span style="display: flex; align-items: center; gap: 12px"><span style="font-size: 12px; background: var(--warn-bg); color: var(--warn-ink); border-radius: 999px; padding: 2px 8px">Em aberto</span><span class="n" style="font-size: 14px; font-weight: 600">R$ 2.449,75</span></span></a>
+<a href="DesktopCartoes.dc.html" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; color: var(--ink)"><span style="display: flex; flex-direction: column"><span style="font-size: 14px">Itaú Click</span><span style="font-size: 12px; color: var(--muted)">vence 07/10 · paga com Itaú</span></span><span style="display: flex; align-items: center; gap: 12px"><span style="font-size: 12px; background: var(--ok-bg); color: var(--ok-ink); border-radius: 999px; padding: 2px 8px">Paga</span><span class="n" style="font-size: 14px; font-weight: 600">R$ 612,30</span></span></a>
+</section>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1080}}'>
+class Component extends DCLogic {
+renderVals() {
+const s = this.state || {};
+const M = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const base = 2026 * 12 + 9;
+const idx = s.idx ?? base;
+const dark = s.dark ?? (this.props.dark ?? false);
+return {
+themeClass: dark ? 'dark' : 'light',
+themeLabel: dark ? 'Tema claro' : 'Tema escuro',
+toggleTheme: () => this.setState({ dark: !dark }),
+monthLabel: M[idx % 12] + ' de ' + Math.floor(idx / 12),
+prevMonth: () => this.setState({ idx: idx - 1 }),
+nextMonth: () => this.setState({ idx: idx + 1 }),
+goToday: () => this.setState({ idx: base }),
+notCurrent: idx !== base
+};
+}
+}
+</script>
+</body>
+</html>

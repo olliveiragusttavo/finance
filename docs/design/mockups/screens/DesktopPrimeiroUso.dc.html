@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Primeiro uso</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+.light{--bg:#F4F5F2;--surface:#FFFFFF;--surface2:#FAFAF8;--line:#DDE1DC;--line2:#EEF0EC;--ink:#1B1F1D;--ink2:#3D4541;--muted:#5A625E;--accent:#1F5F8B;--on-accent:#FFFFFF;--soft:#E6EEF4;--soft-ink:#163F5C;--warn-bg:#FFF1D6;--warn-ink:#5C3D00}
+.dark{--bg:#111413;--surface:#1A1E1C;--surface2:#151917;--line:#2E3431;--line2:#242926;--ink:#E7EAE7;--ink2:#C3C9C5;--muted:#9AA29E;--accent:#6AAAD8;--on-accent:#0B1A24;--soft:#1D3040;--soft-ink:#B5D7F0;--warn-bg:#3A2C10;--warn-ink:#F2D38F}
+a{color:var(--accent);text-decoration:none}
+button,input,select{font:inherit;color:inherit}button{cursor:pointer}
+.app{min-height:100vh;display:flex;flex-direction:column;align-items:center;font-family:'IBM Plex Sans',system-ui,sans-serif;color:var(--ink);background:var(--bg);padding:24px 32px 48px;box-sizing:border-box}
+.bar{width:100%;max-width:1040px;display:flex;justify-content:space-between;align-items:center}
+.brand{font-weight:600;font-size:17px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 12px;font-size:13px;display:inline-flex;align-items:center;gap:6px}
+.btn-p{border:0;border-radius:8px;background:var(--accent);color:var(--on-accent);padding:11px 18px;font-size:15px;font-weight:500}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:28px;display:flex;flex-direction:column;gap:16px}
+h1{margin:0;font-size:30px;font-weight:600}
+h2{margin:0;font-size:18px;font-weight:600}
+h3{margin:0;font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.sm{font-size:13px;color:var(--muted)}
+.field{display:flex;flex-direction:column;gap:4px;font-size:13px}
+.field>span{color:var(--muted)}
+.inp{border:1px solid var(--line);border-radius:6px;padding:9px 10px;background:var(--bg);font-size:14px}
+.radio{display:flex;align-items:center;gap:6px;font-size:14px}
+.row{display:flex;align-items:center;gap:12px}
+.wbox{background:var(--warn-bg);color:var(--warn-ink);border-radius:8px;padding:10px 12px;font-size:13px}
+</style>
+</helmet>
+<div class="app {{themeClass}}">
+<div class="bar"><span class="brand">Finanças</span><button type="button" class="btn" onClick="{{toggleTheme}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/></svg>{{themeLabel}}</button></div>
+<div style="width: 100%; max-width: 1040px; display: flex; flex-direction: column; gap: 28px; margin-top: 56px">
+<div style="display: flex; flex-direction: column; gap: 8px"><h1>Vamos começar</h1><span class="sm" style="font-size: 15px">Seus dados ficam só neste aparelho e nos dispositivos que você parear. Não há conta nem nuvem.</span></div>
+<div style="display: grid; grid-template-columns: 3fr 2fr; gap: 20px; align-items: start">
+<section class="card">
+<h2>Começar do zero</h2>
+<h3>Perfil</h3>
+<label class="field"><span>Nome do perfil</span><input class="inp" type="text" placeholder="Ex.: Pessoal" maxlength="45"></label>
+<div class="row" style="gap: 24px">
+<div class="field" role="radiogroup" aria-label="Tipo de perfil"><span>Tipo</span><span class="row" style="gap: 16px; padding-top: 6px"><label class="radio"><input type="radio" name="tipo" checked>Pessoal</label><label class="radio"><input type="radio" name="tipo">Empresarial</label></span></div>
+<label class="field" style="flex-grow: 1"><span>Moeda</span><select class="inp"><option>BRL — Real</option><option>USD — Dólar</option></select></label>
+</div>
+<h3>Primeira conta</h3>
+<div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px">
+<label class="field"><span>Nome</span><input class="inp" type="text" placeholder="Ex.: Nubank" maxlength="45"></label>
+<label class="field"><span>Tipo</span><select class="inp"><option>Corrente</option><option>Investimentos</option></select></label>
+<label class="field"><span>Saldo inicial</span><input class="inp" type="text" placeholder="R$ 0,00"></label>
+</div>
+<span class="sm">Saldo inicial é o que a conta já tinha antes do primeiro mês registrado.</span>
+<div><button type="button" class="btn-p">Criar e começar</button></div>
+</section>
+<section class="card">
+<h2>Já usa em outro aparelho?</h2>
+<span class="sm">Entre no grupo do seu celular ou de outro computador para receber os dados.</span>
+<div class="wbox">Os dados deste aparelho serão substituídos pelos do grupo.</div>
+<div><button type="button" class="btn">Entrar num grupo existente</button></div>
+<span class="sm">Você vai precisar do QR code ou do código de 8 caracteres mostrado no outro aparelho.</span>
+</section>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1080}}'>
+class Component extends DCLogic {
+renderVals() {
+const s = this.state || {};
+const dark = s.dark ?? (this.props.dark ?? false);
+return {
+themeClass: dark ? 'dark' : 'light',
+themeLabel: dark ? 'Tema claro' : 'Tema escuro',
+toggleTheme: () => this.setState({ dark: !dark })
+};
+}
+}
+</script>
+</body>
+</html>

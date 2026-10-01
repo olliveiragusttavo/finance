@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Escopo da exclusão recorrente — celular</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+.light{--bg:#F4F5F2;--surface:#FFFFFF;--line:#DDE1DC;--line2:#EEF0EC;--ink:#1B1F1D;--ink2:#3D4541;--muted:#5A625E;--accent:#1F5F8B;--on-accent:#FFFFFF;--soft:#E6EEF4;--soft-ink:#163F5C;--out:#A04A12;--warn-bg:#FFF1D6;--warn-ink:#5C3D00;--danger:#9B2C1F}
+.dark{--bg:#111413;--surface:#1A1E1C;--line:#2E3431;--line2:#242926;--ink:#E7EAE7;--ink2:#C3C9C5;--muted:#9AA29E;--accent:#6AAAD8;--on-accent:#0B1A24;--soft:#1D3040;--soft-ink:#B5D7F0;--out:#E89A63;--warn-bg:#3A2C10;--warn-ink:#F2D38F;--danger:#F08A7A}
+a{color:var(--accent);text-decoration:none}
+.n{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+button{font:inherit;color:inherit;cursor:pointer}
+.ph{width:390px;height:844px;box-sizing:border-box;overflow:hidden;position:relative;background:var(--bg);font-family:'IBM Plex Sans',system-ui,sans-serif;color:var(--ink);display:flex;flex-direction:column}
+.hdr{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px 8px 4px;background:var(--surface);min-height:66px;box-sizing:border-box}
+.ttl2{margin:0;font-size:17px;font-weight:600}
+.back{width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:24px}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.5)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--surface);border-radius:18px 18px 0 0;padding:10px 16px 24px;display:flex;flex-direction:column;gap:12px;box-shadow:0 -6px 24px rgba(0,0,0,.25)}
+.grab{width:40px;height:4px;border-radius:2px;background:var(--line);align-self:center}
+.opt{display:flex;align-items:flex-start;gap:12px;padding:12px;border:1px solid var(--line);border-radius:12px;text-align:left;background:var(--surface);width:100%;box-sizing:border-box}
+.opt.on{border-color:var(--accent);background:var(--soft)}
+.radio{width:18px;height:18px;border-radius:50%;border:2px solid var(--muted);flex-shrink:0;box-sizing:border-box;margin-top:2px}
+.opt.on .radio{border:5px solid var(--accent)}
+.st{display:flex;flex-direction:column;gap:2px}
+.sm{font-size:12px;color:var(--muted)}
+.wbox{background:var(--warn-bg);color:var(--warn-ink);border-radius:10px;padding:12px;font-size:14px}
+.bs{display:flex;align-items:center;justify-content:center;height:50px;border:1px solid var(--line);border-radius:12px;background:var(--surface);font-size:15px}
+.bx{display:flex;align-items:center;justify-content:center;height:50px;border:0;border-radius:12px;background:var(--danger);color:var(--surface);font-size:16px;font-weight:600}
+</style>
+</helmet>
+<div class="ph {{themeClass}}">
+<header class="hdr"><div style="display: flex; align-items: center"><a href="MobileTransacoes.dc.html" class="back" aria-label="Voltar">‹</a><span class="ttl2">Aluguel</span></div><button type="button" onClick="{{toggleTheme}}" aria-label="{{themeLabel}}" style="width: 44px; height: 44px; border: 0; background: none; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/></svg></button></header>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 24px"><span class="n" style="font-size: 34px; font-weight: 600; color: var(--out)">−R$ 2.300,00</span><span class="sm">Nubank · Moradia › Aluguel · fixa mensal</span></div>
+<div class="scrim" aria-hidden="true"></div>
+<section class="sheet" role="dialog" aria-label="Excluir transação recorrente">
+<div class="grab" aria-hidden="true"></div>
+<div class="st"><h2 style="margin: 0; font-size: 18px; font-weight: 600">Excluir “Aluguel”</h2><span class="sm">Transação fixa mensal · Nubank</span></div>
+<div role="radiogroup" aria-label="O que excluir" style="display: flex; flex-direction: column; gap: 8px">
+<button type="button" role="radio" aria-checked="false" class="opt"><span class="radio"></span><span class="st"><span>Somente esta</span><span class="sm">Só a de out/2026</span></span></button>
+<button type="button" role="radio" aria-checked="false" class="opt"><span class="radio"></span><span class="st"><span>Esta e as futuras</span><span class="sm">De out/2026 em diante</span></span></button>
+<button type="button" role="radio" aria-checked="true" class="opt on"><span class="radio"></span><span class="st"><span style="font-weight: 600">Todas</span><span class="sm">A série inteira, inclusive meses passados</span></span></button>
+</div>
+<div class="wbox"><b>3 ocorrências já pagas</b> serão excluídas. Os saldos de <b>jul, ago e set/2026</b> da conta Nubank vão mudar.</div>
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px"><a href="MobileTransacaoDetalhe.dc.html" class="bs">Cancelar</a><button type="button" class="bx">Excluir todas</button></div>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+const s = this.state || {};
+const dark = s.dark ?? (this.props.dark ?? false);
+return {
+themeClass: dark ? 'dark' : 'light',
+themeLabel: dark ? 'Usar tema claro' : 'Usar tema escuro',
+toggleTheme: () => this.setState({ dark: !dark })
+};
+}
+}
+</script>
+</body>
+</html>

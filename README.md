@@ -196,6 +196,18 @@ mostra as camadas do backend, as portas e os adaptadores de cada plataforma, com
 raciocínio em [docs/plans/backend-design.md](docs/plans/backend-design.md). Quando um
 diagrama e seu documento divergem, ambos são atualizados.
 
+## Design de interface
+
+As telas aprovadas ficam em [docs/design/mockups/](docs/design/mockups/), uma por
+arquivo em `screens/`, e são a referência de layout, conteúdo e navegação — não código
+para copiar. O [README dos mockups](docs/design/mockups/README.md) explica como lê-los e
+reúne as decisões de interface e os tokens de cor (tema claro e escuro). Esses tokens
+alimentam o Tailwind do desktop, com shadcn/ui, e o NativeWind do mobile; o raciocínio
+está em [desktop-shell-design.md §4.5](docs/plans/desktop-shell-design.md#45-estilo-e-tokens-de-design)
+e [mobile-shell-design.md §9](docs/plans/mobile-shell-design.md#9-telas-e-estilo). As
+regras de negócio por trás das telas estão no
+[brief de design](docs/design/claude-design-brief.md).
+
 ## Status
 
 Fase inicial de design. O motor de banco de dados foi escolhido e o schema está
@@ -208,5 +220,7 @@ A sincronização entre dispositivos está projetada em
 runtime, migrations e testes — em
 [docs/plans/backend-design.md](docs/plans/backend-design.md); o shell desktop e a UI em
 [docs/plans/desktop-shell-design.md](docs/plans/desktop-shell-design.md); o shell mobile
-em [docs/plans/mobile-shell-design.md](docs/plans/mobile-shell-design.md). O próximo passo
+em [docs/plans/mobile-shell-design.md](docs/plans/mobile-shell-design.md). As telas do
+desktop e do celular estão desenhadas e aprovadas em
+[docs/design/mockups/](docs/design/mockups/). O próximo passo
 é montar o monorepo — núcleo, pacote `client` e esqueleto do desktop.

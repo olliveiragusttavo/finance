@@ -34,7 +34,8 @@ Herdadas do [README](../../README.md) e dos documentos anteriores:
 - **Os dados não saem da rede do usuário** ([sync-design.md §7.1](sync-design.md#71-somente-a-mesma-rede-local))
   e nada pode ter custo recorrente ([README](../../README.md)).
 
-Fora do escopo: o desenho das telas e a navegação em detalhe, widgets e extensões do
+Fora do escopo: o desenho das telas e a navegação em detalhe, que estão nos mockups
+aprovados ([§9](#9-telas-e-estilo)), widgets e extensões do
 sistema ([§4.5](#45-quando-uma-api-local-passaria-a-valer)) e a importação do histórico
 do app atual.
 
@@ -49,6 +50,7 @@ do app atual.
 | Como o app fala com o banco? | **O mesmo mecanismo embarcado**: o núcleo roda no runtime JavaScript do app e chama o SQLite pela API síncrona do `expo-sqlite`, via JSI. Sem servidor local, sem segundo runtime | [§4](#4-como-o-app-fala-com-o-banco) |
 | E o bloqueio da thread JavaScript? | Orçamento medido para chamadas interativas; operações longas viram telas de progresso explícitas. Um runtime secundário fica como rota de escape atrás do `CoreClient` | [§4.3](#43-o-custo-é-a-thread-javascript) |
 | Onde fica a criptografia da sincronização? | **No núcleo, em TypeScript puro**: Noise para o canal e CPace para o código digitado. Por plataforma ficam só socket, mDNS e chaveiro | [§5](#5-a-sincronização-no-celular) |
+| Como as telas são estilizadas? | **NativeWind** sobre o mesmo preset de tokens do desktop: classes e tema iguais, componentes próprios do mobile | [§9](#9-telas-e-estilo) |
 | O banco entra no backup do iCloud / Google? | **Não.** Fica fora do backup em nuvem; a recuperação de um celular perdido é parear de novo a partir de outro dispositivo | [§6.1](#61-fora-do-backup-em-nuvem) |
 | Como o app é distribuído? | Android por instalação direta, de graça. **iOS ainda depende de uma escolha do usuário**: conta gratuita (reassinar a cada 7 dias) ou programa pago da Apple | [§7](#7-distribuição-sem-custo-recorrente) |
 
@@ -94,7 +96,7 @@ plataforma — cada um verificado por uma suíte de contrato
 
 Em volume, a expectativa é de algumas centenas de linhas de adaptadores contra alguns
 milhares de linhas de núcleo; o número real é medido quando o monorepo existir
-([§10](#10-próximos-passos)). O que importa não é a porcentagem, e sim que **nenhuma
+([§11](#11-próximos-passos)). O que importa não é a porcentagem, e sim que **nenhuma
 regra de negócio nem de convergência exista duas vezes**.
 
 ### 3.3 As alternativas medidas pelo inventário
@@ -216,7 +218,7 @@ em regra verificável:
   dados. Editar uma transação antiga recalcula os meses seguintes da conta
   ([backend-design.md §3.3](backend-design.md#33-aritmética-monetária-no-núcleo)), e esse
   é o caso que define o orçamento. A medição é um passo explícito
-  ([§10](#10-próximos-passos)), não uma suposição.
+  ([§11](#11-próximos-passos)), não uma suposição.
 - **Operações longas são telas, não chamadas escondidas.** Migrations, aplicação do
   snapshot de pareamento, o primeiro lote de uma sincronização, a importação do
   histórico e a exportação mostram uma tela de progresso com animação dirigida pela thread
@@ -306,7 +308,7 @@ informa, e não em cada adaptador: é regra de produto, não da plataforma.
 
 **Risco aceito:** o Hermes não tem JIT, e uma cifra em JavaScript puro é mais lenta que a
 nativa. O volume é pequeno — lotes de sincronização, um snapshot de alguns megabytes e os
-anexos —, mas a vazão é medida ([§10](#10-próximos-passos)). Se não bastar, a primitiva de
+anexos —, mas a vazão é medida ([§11](#11-próximos-passos)). Se não bastar, a primitiva de
 cifra passa a vir de um módulo nativo por trás de uma porta, e o handshake continua
 compartilhado.
 
@@ -420,7 +422,7 @@ numa plataforma — e isso independe do framework: um app nativo teria o mesmo p
 
 **Pendente — decisão do usuário.** As duas opções são compatíveis com a arquitetura, e
 nada neste documento muda entre elas. A escolha define só o processo de release do iOS
-([§10](#10-próximos-passos)). Enquanto ela não sai, o Android vem primeiro: a
+([§11](#11-próximos-passos)). Enquanto ela não sai, o Android vem primeiro: a
 implementação, a suíte de contrato e a medição de desempenho começam lá.
 
 ---
@@ -463,7 +465,33 @@ macOS disponível.
 
 ---
 
-## 9. Impacto nos outros documentos
+## 9. Telas e estilo
+
+As telas do celular estão desenhadas e aprovadas em
+[docs/design/mockups/](../design/mockups/) — barra inferior com Início, Transações,
+Contas, Cartões e Mais; mês de referência numa faixa abaixo do cabeçalho; alvos de toque
+de pelo menos 44px; escolhas em folhas inferiores; tema claro e escuro desde o início.
+São referência de layout e conteúdo, não código para copiar.
+
+**Decisão:** **NativeWind**, sobre o mesmo preset de tokens do desktop
+([desktop-shell-design.md §4.5](desktop-shell-design.md#45-estilo-e-tokens-de-design)).
+Os componentes são do mobile — `View` e `Text`, não os do shadcn/ui
+([desktop-shell-design.md §4.2](desktop-shell-design.md#42-o-que-é-compartilhado-é-a-camada-headless)) —,
+mas as classes e os tokens são os mesmos, e o tema escuro troca pelas mesmas variáveis.
+
+| Alternativa | Por que foi descartada |
+|---|---|
+| `StyleSheet` puro | Os tokens seriam reescritos num segundo formato e o tema escuro, ligado à mão em cada componente. É a rota de escape se o NativeWind falhar, gerada a partir de `packages/tokens`. |
+| Tamagui | Traz um sistema de design e um compilador próprios; o desktop teria de adotá-lo também para manter o vocabulário, e a decisão do desktop deixaria de ser independente. |
+| Restyle | Tema tipado e leve, mas com um vocabulário diferente do Tailwind: os tokens seriam os mesmos, as classes não. |
+
+O custo é uma etapa a mais no build do Metro, que precisa acompanhar as versões do Expo
+e a Nova Arquitetura. Por isso a validação entra no esqueleto do app, antes da primeira
+tela ([§11](#11-próximos-passos)).
+
+---
+
+## 10. Impacto nos outros documentos
 
 - **[backend-design.md §3.4](backend-design.md#34-o-núcleo-só-enxerga-portas):** a
   sincronização acrescenta as portas `Transport`, `Discovery`, `KeyStore` e
@@ -477,19 +505,23 @@ macOS disponível.
   `utilityProcess` continua fornecendo socket, mDNS e o `safeStorage` como adaptadores.
 - **[desktop-shell-design.md §4.2](desktop-shell-design.md#42-o-que-é-compartilhado-é-a-camada-headless):**
   os formatadores de dinheiro não usam `Intl.NumberFormat` ([§8](#8-paridade-entre-runtimes)).
+- **[desktop-shell-design.md §4.5](desktop-shell-design.md#45-estilo-e-tokens-de-design):**
+  o pacote `tokens` tem dois consumidores, o Tailwind do desktop e o NativeWind do mobile
+  ([§9](#9-telas-e-estilo)).
 - **[sync-design.md §7.4 e §11](sync-design.md#74-uma-sessão):** a biblioteca do canal
   está escolhida — Noise KK sobre `@noble`, com CPace no código digitado.
 - **[README](../../README.md):** o shell mobile deixa de estar em aberto.
 
 ---
 
-## 10. Próximos passos
+## 11. Próximos passos
 
 1. **Decidir a distribuição do iOS** ([§7](#7-distribuição-sem-custo-recorrente)) —
    Apple ID gratuito com reassinatura semanal ou programa pago.
 2. **Incluir `apps/mobile` e `packages/sqlite-expo` no monorepo** depois do esqueleto do
    desktop ([desktop-shell-design.md §6](desktop-shell-design.md#6-próximos-passos)),
-   com development build no Android e o `DirectCoreClient` sobre o mesmo mapa de rotas.
+   com development build no Android e o `DirectCoreClient` sobre o mesmo mapa de rotas,
+   e o NativeWind lendo o preset de `packages/tokens` ([§9](#9-telas-e-estilo)).
 3. **Montar `apps/mobile-contract` no CI** com a suíte de contrato e os vetores de ouro
    ([§8](#8-paridade-entre-runtimes)) antes da primeira tela.
 4. **Medir no aparelho de referência**, com um banco de dez anos de dados: tempo de
