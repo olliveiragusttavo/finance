@@ -33,7 +33,7 @@ Herdadas do [README](../../README.md) e dos dois documentos anteriores:
 - Não existe administrador nem DBA: o schema evolui sozinho no aparelho do usuário,
   e dispositivos sincronizados podem estar em versões diferentes do app.
 
-Fora do escopo: a camada de UI, o framework mobile em detalhe (só a consequência da
+Fora do escopo: a camada de UI ([desktop-shell-design.md](desktop-shell-design.md)), o framework mobile em detalhe (só a consequência da
 [§3.8](#38-consequência-o-mobile-é-react-native--expo)) e a biblioteca de criptografia
 da sincronização ([sync-design.md §11](sync-design.md#11-próximos-passos)).
 
@@ -229,8 +229,9 @@ bem um listener TCP ([sync-design.md §7.5](sync-design.md#75-restrições-de-pl
 o **React Native com Expo** atende os requisitos de sincronização e é o caminho que
 preserva o núcleo.
 
-O Electron continua sendo o shell desktop. O que é compartilhado é a **lógica**, não a
-UI — exatamente a ressalva que o README já fazia.
+O Electron continua sendo o shell desktop — confirmado frente ao Tauri em
+[desktop-shell-design.md §3](desktop-shell-design.md#3-electron-ou-tauri). O que é
+compartilhado é a **lógica**, não a UI — exatamente a ressalva que o README já fazia.
 
 ### 3.9 Estrutura e ferramentas
 
@@ -239,7 +240,8 @@ Um monorepo com workspaces do **pnpm**:
 ```
 packages/core            domínio, Services, Repositories, portas, runner de migrations
 packages/sqlite-better   adaptador Database para better-sqlite3 (desktop e testes)
-apps/desktop             Electron: utilityProcess do núcleo, IPC, UI
+packages/client          contrato tipado, hooks e view-models compartilhados pelas UIs
+apps/desktop             Electron: utilityProcess do núcleo, IPC, UI em React DOM
 apps/mobile              React Native / Expo (quando chegar a vez)
 db/migrations            os arquivos .sql — fonte da verdade do schema
 ```

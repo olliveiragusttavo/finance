@@ -63,7 +63,10 @@ limitação, o objetivo é ser dono dos dados e da camada de relatórios.
 A direção foi confirmada no design do backend: o Electron é o shell desktop, o React
 Native / Expo é o shell mobile, e o que se compartilha entre eles é um núcleo TypeScript
 com a lógica de negócio, não a UI
-([docs/plans/backend-design.md](docs/plans/backend-design.md)).
+([docs/plans/backend-design.md](docs/plans/backend-design.md)). O Electron foi confirmado
+frente ao Tauri, e a UI é React nas duas pontas — React DOM no desktop, React Native no
+mobile —, compartilhando a camada de apresentação headless, não os componentes
+([docs/plans/desktop-shell-design.md](docs/plans/desktop-shell-design.md)).
 
 ### Camadas do backend (MVC)
 
@@ -98,8 +101,7 @@ O sistema segue a forma comum à maioria das ferramentas de finanças pessoais:
 
 ## Escolhas de tecnologia
 
-O banco de dados e o backend compartilhado estão definidos; a UI de cada shell ainda está
-aberta.
+O banco de dados, o backend compartilhado e o shell desktop estão definidos.
 
 ### Banco de dados — SQLite
 
@@ -145,6 +147,21 @@ transações. O schema evolui por migrations somente para a frente, versionadas 
 Raciocínio, alternativas rejeitadas, estratégia de migrations e estratégia de testes em
 **[docs/plans/backend-design.md](docs/plans/backend-design.md)**.
 
+### Shell desktop e UI — Electron + React
+
+O **Electron** foi confirmado como shell desktop. O Tauri foi avaliado e descartado: o
+JavaScript dele só roda na webview, onde o SQLite chega por IPC assíncrono ou como WASM
+fora de um arquivo comum — ou exige um sidecar Node, que anula a economia de recursos. O
+Electron hospeda o núcleo num `utilityProcess` com o `better-sqlite3` síncrono e o
+transporte da sincronização, e embarca o mesmo Chromium em todo sistema operacional.
+
+A UI é **React**, por ser o framework que o mobile (React Native) também usa. O que se
+compartilha é um pacote `client` headless — contrato tipado dos Controllers, hooks de
+dados, view-models dos relatórios e formatadores —, não os componentes visuais.
+
+Raciocínio, custos aceitos e o que reabriria a decisão em
+**[docs/plans/desktop-shell-design.md](docs/plans/desktop-shell-design.md)**.
+
 ## Diagramas
 
 Os diagramas de arquitetura e de design são feitos com [draw.io](https://draw.io) e
@@ -166,5 +183,6 @@ transcrito na primeira migration,
 A sincronização entre dispositivos está projetada em
 [docs/plans/sync-design.md](docs/plans/sync-design.md), e o backend compartilhado —
 runtime, migrations e testes — em
-[docs/plans/backend-design.md](docs/plans/backend-design.md). O próximo passo é fechar
-as regras de negócio de saldos e faturas que os testes pressupõem e montar o monorepo.
+[docs/plans/backend-design.md](docs/plans/backend-design.md); o shell desktop e a UI em
+[docs/plans/desktop-shell-design.md](docs/plans/desktop-shell-design.md). O próximo passo
+é montar o monorepo — núcleo, pacote `client` e esqueleto do desktop.
