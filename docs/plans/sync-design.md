@@ -6,7 +6,8 @@ determinísticos da
 [§5.6](#56-linhas-identificadas-pelo-conteúdo-recebem-ids-determinísticos), já
 incorporada à [database-design.md §3.5](database-design.md#35-chaves-primárias-são-uuids).
 **Relacionado:** [docs/plans/database-design.md](database-design.md) — o schema que este
-design replica.
+design replica; [docs/plans/backend-design.md](backend-design.md) — o núcleo onde a
+sincronização roda e a política de versões de schema entre dispositivos.
 
 Este documento é o lugar de toda decisão sobre como os dispositivos de um usuário
 compartilham dados. A [§2](#2-decisões-em-resumo) é o resumo; as seções seguintes guardam
@@ -212,10 +213,11 @@ por qualquer escrita sincronizada posterior na mesma célula. Aceito e documenta
 
 | Coluna | Regra |
 |---|---|
-| `accounts.balance`, `bank_statements.balance`, `invoices.balance` | **Não sincronizadas.** Caches derivados ([database-design.md §3.7](database-design.md#37-dinheiro)); uma linha recebida é gravada com `0` e recalculada após a aplicação ([§5.9](#59-após-a-aplicação)). Mesclar dois caches seria mesclar duas respostas em vez dos fatos por trás delas. |
+| `accounts.balance`, `accounts.projected_balance`, `bank_statements.opening_balance`, `closing_balance`, `projected_opening_balance`, `projected_closing_balance`, `invoices.balance` | **Não sincronizadas.** Caches derivados ([database-design.md §3.7](database-design.md#37-dinheiro)); uma linha recebida é gravada com `0` e recalculada após a aplicação ([§5.9](#59-após-a-aplicação)). Mesclar dois caches seria mesclar duas respostas em vez dos fatos por trás delas. |
 | `recurrences.materialized_through` | **Sincronizada, mesclada como máximo**, e não por last-writer-wins. A marca d'água só avança; ficar com a maior das duas nunca pode reemitir uma ocorrência. |
 
-Todo o resto — `created_at` e `updated_at` incluídos — sincroniza como uma célula comum.
+Todo o resto — `created_at`, `updated_at` e `accounts.opening_balance`, que é dado do
+usuário e não cache, incluídos — sincroniza como uma célula comum.
 Um insert recebido traz o `created_at` da origem; o receptor nunca deixa o próprio
 default preenchê-lo.
 
@@ -442,7 +444,9 @@ Quaisquer dois membros podem sincronizar; não há hub.
    escolhida junto com a stack. Os dados nunca trafegam sem criptografia, nem mesmo na
    rede doméstica. Um par que não seja um membro ativo é recusado.
 2. **Verificação de relógio** ([§5.2](#52-o-relógio-é-um-relógio-lógico-híbrido)) —
-   recusar em caso de divergência excessiva.
+   recusar em caso de divergência excessiva — **e de versão do schema**: recusar quando
+   os `user_version` diferem, dizendo qual aparelho atualizar
+   ([backend-design.md §4.9](backend-design.md#49-migrations-e-sincronização)).
 3. **Membros primeiro:** trocar e aplicar as entradas de `sync_members`, para que uma
    remoção aprendida de um par tenha efeito antes de qualquer troca de dados.
 4. **Trocar vetores:** cada lado informa a maior sequência de origem que possui por
@@ -467,6 +471,8 @@ Quaisquer dois membros podem sincronizar; não há hub.
 listener e um cliente TCP, fazer descoberta via mDNS, ler QR codes com a câmera, usar o
 armazenamento seguro de chaves e rodar a criptografia. React Native / Expo, Flutter e
 nativo conseguem; o Capacitor é fraco para hospedar um listener, o que conta contra ele.
+**Decidido:** React Native / Expo, o único dos três que reaproveita o núcleo TypeScript
+([backend-design.md §3.8](backend-design.md#38-consequência-o-mobile-é-react-native--expo)).
 
 ### 7.6 Anexos
 

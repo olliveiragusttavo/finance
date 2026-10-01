@@ -60,9 +60,10 @@ limitação, o objetivo é ser dono dos dados e da camada de relatórios.
   um app desktop quanto, eventualmente, em um shell mobile — com um futuro serviço web
   como outro possível consumidor desse mesmo backend.
 
-Esta é a direção atual, não uma decisão fechada — a stack ainda pode mudar se aparecer
-algo que se encaixe melhor nessas restrições (local-first, gratuito, multiplataforma)
-enquanto as camadas de banco de dados e de backend são projetadas.
+A direção foi confirmada no design do backend: o Electron é o shell desktop, o React
+Native / Expo é o shell mobile, e o que se compartilha entre eles é um núcleo TypeScript
+com a lógica de negócio, não a UI
+([docs/plans/backend-design.md](docs/plans/backend-design.md)).
 
 ### Camadas do backend (MVC)
 
@@ -97,7 +98,8 @@ O sistema segue a forma comum à maioria das ferramentas de finanças pessoais:
 
 ## Escolhas de tecnologia
 
-O banco de dados está definido. O restante da stack ainda está aberto a revisão.
+O banco de dados e o backend compartilhado estão definidos; a UI de cada shell ainda está
+aberta.
 
 ### Banco de dados — SQLite
 
@@ -129,17 +131,19 @@ O raciocínio completo, as alternativas rejeitadas e as convenções de tipos e 
 configuração estão em **[docs/plans/database-design.md](docs/plans/database-design.md)**,
 que é o lugar de toda decisão de banco de dados do projeto.
 
-### Ainda em aberto
+### Backend compartilhado — núcleo TypeScript
 
-- **Electron** como principal candidato para o shell desktop, principalmente para
-  reutilizar uma única implementação de backend entre desktop e (eventualmente) mobile,
-  e para manter aberta a possibilidade de expor esse mesmo backend como um serviço web
-  no futuro.
-- A tecnologia do app mobile (nativa vs. multiplataforma) ainda será decidida,
-  orientada por quão bem ela consegue compartilhar código/lógica com o backend desktop.
-  Observe que o Electron em si não roda em mobile — na prática, reutilizar significa um
-  wrapper como Capacitor ou Tauri, ou compartilhar a lógica, e não a UI, com um shell
-  nativo.
+A lógica de negócio é um núcleo em **TypeScript puro**, sem dependência do Node, que
+roda igual no **Electron** (desktop), no **React Native / Expo** (mobile) e, no futuro,
+num servidor. Tudo que é da plataforma — driver SQLite, relógio, geração de ids,
+sistema de arquivos — entra por portas com um adaptador fino por plataforma. O volume de
+cálculo é pequeno e a agregação pesada fica no SQL; o risco real é a exatidão dos
+saldos, tratada com um Value Object `Money` e saldos sempre recalculados a partir das
+transações. O schema evolui por migrations somente para a frente, versionadas em
+`PRAGMA user_version` e aplicadas na abertura do app com backup prévio.
+
+Raciocínio, alternativas rejeitadas, estratégia de migrations e estratégia de testes em
+**[docs/plans/backend-design.md](docs/plans/backend-design.md)**.
 
 ## Diagramas
 
@@ -147,7 +151,10 @@ Os diagramas de arquitetura e de design são feitos com [draw.io](https://draw.i
 ficam em [docs/drawio/](docs/drawio/). O diagrama entidade-relacionamento em
 [project.drawio](docs/drawio/project.drawio) é a fonte da verdade visual do modelo de
 dados; [docs/plans/database-design.md](docs/plans/database-design.md) traz o raciocínio
-por trás dele. Quando os dois divergem, ambos são atualizados.
+por trás dele. Da mesma forma, [backend-layers.drawio](docs/drawio/backend-layers.drawio)
+mostra as camadas do backend, as portas e os adaptadores de cada plataforma, com o
+raciocínio em [docs/plans/backend-design.md](docs/plans/backend-design.md). Quando um
+diagrama e seu documento divergem, ambos são atualizados.
 
 ## Status
 
@@ -157,6 +164,7 @@ totalmente especificado — entidades, tipos, restrições, ações de chave est
 transcrito na primeira migration,
 [db/migrations/0001_initial_schema.sql](db/migrations/0001_initial_schema.sql).
 A sincronização entre dispositivos está projetada em
-[docs/plans/sync-design.md](docs/plans/sync-design.md); seus requisitos de plataforma
-(listener TCP local, descoberta via mDNS, leitura de QR code, armazenamento seguro de
-chaves) alimentam as decisões de stack da aplicação, que são o próximo passo.
+[docs/plans/sync-design.md](docs/plans/sync-design.md), e o backend compartilhado —
+runtime, migrations e testes — em
+[docs/plans/backend-design.md](docs/plans/backend-design.md). O próximo passo é fechar
+as regras de negócio de saldos e faturas que os testes pressupõem e montar o monorepo.

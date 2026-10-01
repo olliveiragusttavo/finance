@@ -7,6 +7,8 @@
 **Fonte da verdade visual:** [docs/drawio/project.drawio](../drawio/project.drawio)
 **Sincronização:** [docs/plans/sync-design.md](sync-design.md) — como este schema é
 replicado entre dispositivos.
+**Backend:** [docs/plans/backend-design.md](backend-design.md) — o núcleo que lê e
+escreve este schema, e como ele evolui por migrations.
 
 Este documento é o lugar de toda decisão de banco de dados do projeto. O arquivo draw.io
 guarda a imagem; este arquivo guarda o raciocínio e os contratos dos atributos. Quando
@@ -192,8 +194,11 @@ offline, sem coordenação e sem colisão.
 
 **Consequência:**
 
-- **Versão 4 (aleatória)**, gerada com o `crypto.randomUUID()` embutido na plataforma
-  — sem biblioteca, sem relógio, sem monotonicidade para acertar. Um UUID ordenado por
+- **Versão 4 (aleatória)**, gerada pela fonte de aleatoriedade segura da plataforma por
+  meio da porta `IdGenerator`
+  ([backend-design.md §3.4](backend-design.md#34-o-núcleo-só-enxerga-portas)) — sem
+  relógio, sem monotonicidade para acertar. O `crypto.randomUUID()` serve no desktop,
+  mas o React Native não o oferece, por isso a geração é uma porta. Um UUID ordenado por
   tempo (v7) foi considerado pela localidade no índice e rejeitado: na escala deste
   projeto — dezenas de milhares de linhas — a diferença é imensurável, nada ordena pela
   chave (toda consulta cronológica ordena por `due_date`), e a única propriedade sendo
@@ -270,8 +275,9 @@ Essa decisão é maior do que parece:
 ### 3.7 Dinheiro
 
 **Toda coluna monetária é `REAL`** — `transactions.value`, `transactions.charges`,
-`transactions.conversion_rate`, `accounts.balance`, `bank_statements.balance`,
-`invoices.balance`, `goals.value`, `credit_cards.limit_value`. O conselho comum de usar
+`transactions.conversion_rate`, os saldos de `accounts` e `bank_statements`
+([§4.4](#44-accounts), [§4.6](#46-bank_statements)), `invoices.balance`, `goals.value`,
+`credit_cards.limit_value`. O conselho comum de usar
 unidades menores inteiras (centavos) é **deliberadamente rejeitado**: o sistema não se
 restringe a moedas com duas casas decimais, taxas de câmbio têm precisão muito maior que
 duas casas, e uma escala fixa é errada para algum valor que o app legitimamente precisa
@@ -279,7 +285,9 @@ armazenar. O banco, portanto, não protege contra desvios de arredondamento, e
 **validação e arredondamento são responsabilidade da aplicação** — aplicados nas
 fronteiras de persistência e de apresentação, nunca em valores intermediários
 acumulados; por moeda, guiados pela precisão decimal de cada uma; e nunca comparados por
-igualdade exata de float, sempre com um epsilon.
+igualdade exata de float, sempre com um epsilon. O modo de arredondamento é **meio para
+longe do zero** (`2,345 → 2,35`; `-2,345 → -2,35`) — implementação em
+[backend-design.md §3.3](backend-design.md#33-aritmética-monetária-no-núcleo).
 
 **Toda coluna monetária está denominada na moeda do perfil.** Existem três colunas de
 moeda, com três papéis diferentes:
@@ -298,11 +306,23 @@ portanto, só soma, inclusive as estrangeiras, porque suas transações já fora
 convertidas na entrada. O arredondamento fica trivialmente concreto: uma moeda, uma
 precisão, a do perfil.
 
-**Saldos armazenados são valores derivados.** `accounts.balance`,
-`bank_statements.balance` e `invoices.balance` são agregados desnormalizados das
+**Saldos armazenados são valores derivados.** Os saldos de `accounts`,
+`bank_statements` e `invoices` são agregados desnormalizados das
 transações subjacentes — recalculá-los a partir de todo o histórico a cada leitura é a
 troca errada para um app local-first que abre em uma tela de saldo no celular. Eles são
-um cache, e a camada Service é responsável por mantê-los corretos. Uma rotina de
+um cache, e a camada Service é responsável por mantê-los corretos.
+
+Regra de negócio (Saldos): todo saldo de conta e de extrato existe em duas versões,
+expostas lado a lado com esses nomes:
+
+| Saldo | O que entra |
+|---|---|
+| **Consolidado** | Só transações pagas e faturas pagas — o que já aconteceu |
+| **Previsto** | Todas as transações vivas, pagas ou não, e as faturas em aberto no mês do vencimento ([§4.7](#47-invoices)) — o que vai acontecer se nada mudar |
+
+Os dois seguem a mesma cadeia de fechamentos e a mesma rotina de recálculo; só o filtro
+muda. Quem consolida é o `paid` de cada transação e o vínculo de cada fatura com um
+extrato. Uma rotina de
 recálculo que os reconstrói a partir das transações precisa existir desde o primeiro
 dia, tanto como ferramenta de reparo quanto como oráculo de testes; ela também serve
 como detector de desvio — um saldo recalculado que diverge do armazenado além do epsilon
@@ -378,7 +398,8 @@ completado com uma restrição `CHECK`. O catálogo, usado literalmente na [§4]
 | filename | 1–255 bytes, sem `/` ou `\` — usado apenas por `attachments.name`, que é um componente de caminho |
 
 **Defaults só existem onde a ausência de um valor tem significado no domínio** —
-`paid = 0`, `charges = 0`, `conversion_rate = 1`, `consider_balance = 1` — nunca para
+`paid = 0`, `charges = 0`, `conversion_rate = 1`, `consider_balance = 1`,
+`opening_balance = 0` — nunca para
 cobrir um repositório que esqueceu de escrever uma coluna.
 
 O SQLite não consegue alterar um `CHECK` sem reconstruir a tabela, então só invariantes
@@ -539,8 +560,29 @@ Uma conta corrente ou de investimentos pertencente a um perfil.
 
 #### `balance` é um cache, na moeda do perfil
 
-`balance` é um valor derivado, reconstruído a partir das transações pela camada Service
-([§3.7](#37-dinheiro)). Ele é mantido na moeda do **perfil**, não na da conta.
+`balance` (consolidado) e `projected_balance` (previsto) são valores derivados,
+reconstruídos a partir das transações pela camada Service ([§3.7](#37-dinheiro)), e
+mantidos na moeda do **perfil**, não na da conta. São o saldo final do extrato do **mês
+corrente** — o número que a tela inicial mostra sem consultar extrato nenhum.
+
+#### `opening_balance` é dado do usuário, não cache
+
+Regra de negócio (Contas): `opening_balance` é o saldo que a conta já tinha **antes do
+seu primeiro extrato** — digitado no cadastro de uma conta que já existe no mundo real,
+ou informado na importação de um histórico que não começa do zero. Ele é o ponto de
+partida da cadeia de fechamentos: o saldo inicial (consolidado e previsto) do primeiro
+extrato vivo da conta é o `opening_balance`
+([§4.6](#46-bank_statements)).
+
+- **Não é uma transação.** Um lançamento "Saldo inicial" apareceria como receita em todo
+  relatório por categoria — e o saldo que a conta já tinha não é receita de nenhum mês.
+- **Não é recalculado.** Ao contrário dos saldos acima, é um fato informado pelo usuário;
+  a rotina de recálculo o lê e nunca o escreve. Pelo mesmo motivo, **sincroniza** como
+  uma coluna comum
+  ([sync-design.md §5.5](sync-design.md#55-colunas-que-nunca-sincronizam)).
+- **Editá-lo recalcula todos os extratos da conta**, já que todos dependem dele.
+- O default `0` tem significado no domínio — uma conta aberta agora, sem dinheiro
+  ([§3.9](#39-tipos-e-domínios-de-colunas)).
 
 #### `currency` é um rótulo, e `consider_balance` é o mecanismo de isolamento
 
@@ -559,7 +601,9 @@ estrangeiro está fora do escopo.
 |---|---|---|---|
 | `profile_id` | TEXT | NN, FK | |
 | `name` | TEXT | NN, `CHECK (length(name) <= 45)` | Não é único — duas contas "Corrente" em bancos diferentes são legítimas |
-| `balance` | REAL | NN | money — saldo atual, cache derivado |
+| `balance` | REAL | NN | money — saldo consolidado atual, cache derivado |
+| `projected_balance` | REAL | NN | money — saldo previsto ao fim do mês corrente, cache derivado |
+| `opening_balance` | REAL | NN, `DEFAULT 0` | money — saldo anterior ao primeiro extrato. Informado pelo usuário, não é cache |
 | `currency` | TEXT | NN, currency | ISO 4217. Apenas descritivo |
 | `consider_balance` | INTEGER | NN, `DEFAULT 1`, `CHECK (consider_balance IN (0, 1))` | bool — entra no saldo consolidado |
 | `type` | INTEGER | NN, `CHECK (type IN (1, 2))` | enum — `1: checking account`, `2: investment account` |
@@ -594,6 +638,17 @@ Que a conta pertença ao **mesmo** perfil é uma regra da aplicação.
 determinado mês fecha no `closing_date` e vence no `due_date` — geralmente do mês
 seguinte, e é por isso que uma fatura e o extrato que a absorve caem em meses diferentes
 ([§4.7](#47-invoices)).
+
+Regras de negócio (Cartão de crédito):
+
+- **Dia inexistente vira o último dia do mês.** Um cartão que fecha no dia 31 fecha em
+  30/04, em 28/02 e em 29/02 nos anos bissextos. O dia guardado continua 31 — o ajuste
+  é feito a cada mês, para que maio volte a fechar no dia 31.
+- **A compra feita no dia do fechamento entra na fatura seguinte.** A fatura de um mês
+  reúne as compras feitas *depois* do fechamento anterior e *antes* do seu próprio
+  fechamento.
+- **Essa é só a sugestão.** O usuário pode escolher outra fatura ao lançar a despesa
+  ([§4.7](#47-invoices)).
 
 #### Colunas
 
@@ -630,9 +685,35 @@ Os relatórios que o projeto existe para produzir são orientados a mês. Materi
 consolidação mensal mantém as consultas de relatório baratas e dá um registro histórico
 estável mesmo quando transações passadas são editadas. Por isso `(account_id, year,
 month)` é uma chave única, e as linhas de consolidação são criadas e recalculadas pela
-camada Service sempre que as transações daquele mês mudam. `balance` é o saldo de
-fechamento do mês — um cache derivado ([§3.7](#37-dinheiro)). `invoices`
+camada Service sempre que as transações daquele mês mudam. `invoices`
 ([§4.7](#47-invoices)) segue a mesma regra para cartões de crédito.
+
+#### Cada extrato guarda o saldo inicial e o final
+
+O extrato guarda **quatro** saldos: inicial e final, consolidado e previsto
+([§3.7](#37-dinheiro)). O final de um mês depende do final do mês anterior, que depende
+do anterior a ele; sem o inicial armazenado, abrir um relatório de março de 2024 ou
+navegar para o mês anterior obrigaria a reconstruir a cadeia inteira de fechamentos — e
+a encontrar o extrato anterior, que pode não ser o mês imediatamente anterior, já que um
+mês sem movimento não tem linha.
+
+- `opening_balance` é o `closing_balance` do extrato vivo **anterior** da mesma conta;
+  `closing_balance` é o inicial mais o movimento do mês. O mesmo vale para o par
+  previsto.
+- Os quatro são cache: a rotina de recálculo os reconstrói, e editar um mês recalcula
+  esse mês e todos os seguintes da conta
+  ([backend-design.md §3.3](backend-design.md#33-aritmética-monetária-no-núcleo)).
+- O saldo inicial do **primeiro** extrato vivo da conta é o `accounts.opening_balance`
+  ([§4.4](#44-accounts)).
+
+#### O que entra no movimento do mês
+
+- As transações do extrato (`bank_statement_id`), com o efeito da [§4.13](#413-transactions).
+- As transferências e investimentos que **chegam** a esta conta
+  (`destination_account_id`), no mês do seu `due_date`.
+- As faturas pagas vinculadas a este extrato, pelo `balance` de cada uma.
+- No previsto, também as faturas em aberto dos cartões quitados por esta conta, no mês
+  do vencimento ([§4.7](#47-invoices)).
 
 #### Colunas
 
@@ -641,7 +722,10 @@ fechamento do mês — um cache derivado ([§3.7](#37-dinheiro)). `invoices`
 | `account_id` | TEXT | NN, FK | |
 | `month` | INTEGER | NN, `CHECK (month BETWEEN 1 AND 12)` | |
 | `year` | INTEGER | NN, `CHECK (year BETWEEN 1900 AND 9999)` | |
-| `balance` | REAL | NN | money — saldo de fechamento do mês, cache derivado |
+| `opening_balance` | REAL | NN | money — saldo consolidado inicial, cache derivado |
+| `closing_balance` | REAL | NN | money — saldo consolidado final, cache derivado |
+| `projected_opening_balance` | REAL | NN | money — saldo previsto inicial, cache derivado |
+| `projected_closing_balance` | REAL | NN | money — saldo previsto final, cache derivado |
 
 #### Chaves estrangeiras
 
@@ -671,6 +755,45 @@ o modelo não pode supor que sejam iguais. `bank_statement_id` é nulo até a fa
 paga, e `SET NULL` na exclusão: a fatura sobrevive ao extrato que a absorveu e
 simplesmente volta a ficar em aberto.
 
+#### O usuário escolhe a fatura de cada despesa
+
+Regra de negócio (Cartão de crédito): ao lançar uma despesa de cartão, o app **sugere** a
+fatura pela data da compra e pelo dia de fechamento ([§4.5](#45-credit_cards)), e o
+usuário pode escolher qualquer outra fatura do mesmo cartão — o banco às vezes lança uma
+compra num ciclo diferente do esperado, e o app precisa conseguir espelhar a fatura real.
+O `invoice_id` gravado é a verdade; a sugestão nunca é recalculada depois, nem quando a
+data da compra é editada, para não mover em silêncio uma despesa que o usuário colocou à
+mão numa fatura. Escolher uma fatura já paga a **reabre**.
+
+#### Reabrir desfaz o pagamento; pagamento parcial é uma transferência
+
+Regra de negócio (Fatura): uma fatura está **paga** ou **em aberto** — não existe fatura
+paga pela metade. Reabrir limpa `bank_statement_id`, e com isso o valor da fatura **sai**
+do extrato onde tinha sido pago: o saldo da conta volta como se o pagamento não tivesse
+acontecido, até o usuário pagá-la de novo.
+
+Pagar só uma parte é lançar uma **transação na fatura**: tipo `transference`, com
+`invoice_id` da fatura, `destination_account_id` da conta que pagou e `value`
+**negativo**. Pela regra de sinal da [§4.13](#413-transactions), uma transferência de
+valor negativo inverte a direção — o dinheiro sai da conta e abate a fatura —, então o
+pagamento parcial não é um caso especial: é uma transferência comum, numa linha só. Ela
+nasce paga, porque registra um pagamento já feito. Excluí-la devolve o valor à conta e à
+fatura. Quando a fatura for paga por inteiro, o `balance` vinculado ao extrato já está
+líquido dos pagamentos parciais, sem contar nada duas vezes.
+
+#### `balance` tem o sinal do efeito na conta, e o vencimento decide o mês no previsto
+
+`balance` é a soma dos efeitos das transações da fatura e tem o **sinal do efeito na
+conta que a quita**: negativo quando há valor a pagar, positivo quando estornos superam
+as compras. Assim um extrato soma faturas como soma transações, sem inverter nada; a
+tela mostra o valor a pagar em módulo.
+
+Uma fatura em aberto entra no saldo **previsto** do extrato da conta que quita o cartão
+no mês do **vencimento**: o primeiro dia `due_date` do cartão (com o ajuste para o
+último dia do mês, [§4.5](#45-credit_cards)) **depois** do fechamento da fatura. Paga,
+ela sai do vencimento e entra, no consolidado e no previsto, no extrato vinculado — o
+mês em que o pagamento de fato aconteceu.
+
 #### Colunas
 
 | Coluna | Tipo | Restrições | Notas |
@@ -679,7 +802,7 @@ simplesmente volta a ficar em aberto.
 | `bank_statement_id` | TEXT | null, FK | O extrato do mês em que a fatura é paga |
 | `month` | INTEGER | NN, `CHECK (month BETWEEN 1 AND 12)` | |
 | `year` | INTEGER | NN, `CHECK (year BETWEEN 1900 AND 9999)` | |
-| `balance` | REAL | NN | money — total da fatura no mês, cache derivado |
+| `balance` | REAL | NN | money — total da fatura com o sinal do efeito na conta, cache derivado |
 
 #### Chaves estrangeiras
 
@@ -868,6 +991,14 @@ total mensal por um fator igual ao número de parcelas, então o usuário escolh
 explicitamente. Uma recorrência `fixed` é sempre por ocorrência, por definição, então
 `value_type` é nulo para ela.
 
+Regra de negócio (Parcelamento): com `value_type = total`, cada parcela é o total dividido
+pelo número de parcelas, arredondado na precisão da moeda, e **a diferença do
+arredondamento vai para a primeira parcela** — R$ 1.000,00 em 3x gera
+`333,34 + 333,33 + 333,33`, e a soma é sempre exatamente o total. Depois de gerada, cada
+parcela é uma transação comum e pode ser editada individualmente; manter a soma coerente
+com a compra a partir daí é responsabilidade do usuário, e o app não reequilibra as
+outras parcelas.
+
 Qual das três precisa estar preenchida para cada `type` é uma regra da aplicação
 ([§3.10](#310-o-que-o-banco-garante-e-o-que-a-aplicação-garante)); as
 verificações abaixo apenas limitam cada valor quando presente.
@@ -1003,11 +1134,33 @@ sem join com uma taxa, sem multiplicação, sem caso de borda de taxa nula.
 - Esta é a justificativa mais forte para manter dinheiro como `REAL`: `value` é de moeda
   única, mas `conversion_rate` ainda precisa de muito mais do que duas casas decimais.
 
+#### O sinal de `value`: o tipo dá a direção, o negativo é um estorno
+
+Regra de negócio (Transações): `value` é lançado **positivo** — quem diz se o dinheiro
+entra ou sai é o `type` (`income` soma ao saldo, `expense` subtrai; `transference` e
+`investment` saem da conta de origem). O usuário pode inverter o sinal no formulário, e
+um `value` negativo inverte o efeito do tipo: uma despesa de cartão negativa é um
+**estorno** e reduz a fatura; uma receita negativa é uma devolução. Assim um estorno
+continua sendo classificado na mesma subcategoria da compra que desfaz, e os relatórios
+por categoria mostram o gasto líquido. Nenhum relatório lê o sinal sem o `type`.
+
 #### Transferências e investimentos têm uma conta de destino
 
 Uma transação do tipo `3: transference` ou `4: investment` se vincula a uma segunda
 conta — o destino dos recursos — por meio de `destination_account_id`, nulo para todos
-os outros tipos. Os relatórios precisam evitar contagem dupla: uma transferência não é
+os outros tipos.
+
+Regra de negócio (Transferência): **uma transferência é uma única linha**, no contêiner
+da origem, e não duas pernas. Ela sai da origem e entra no destino no mês do seu
+`due_date`, com o mesmo valor e o mesmo `paid` dos dois lados. Uma linha só não pode
+ficar pela metade: editar ou excluir afeta as duas contas ao mesmo tempo, e duas edições
+concorrentes em dispositivos diferentes não conseguem deixar as pontas com valores
+diferentes ([sync-design.md §5.1](sync-design.md#51-a-unidade-de-merge-é-a-coluna-a-escrita-mais-recente-vence)).
+O preço aceito é que origem e destino compartilham a data — uma TED que sai no dia 30 e
+cai no dia 1º é registrada numa data só — e que o saldo do destino soma as próprias
+transações mais as que chegam por `destination_account_id`
+([§4.6](#46-bank_statements)). O pagamento parcial de fatura é uma transferência com a
+fatura como origem ([§4.7](#47-invoices)). Os relatórios precisam evitar contagem dupla: uma transferência não é
 receita nem despesa líquida no nível do perfil, apenas no nível da conta.
 
 #### Uma transação registra qual sócio a pagou
@@ -1200,7 +1353,9 @@ for refatorado. O texto original é mantido como está no diagrama, seguido da t
    test runner existirem, junto com o teste de configuração da conexão que verifica que
    `PRAGMA foreign_keys = ON` é de fato aplicado
    ([§3.2](#32-a-configuração-da-conexão-faz-parte-do-contrato-do-schema)).
-   A escolha do runner de migrations faz parte da decisão de stack.
+   O runner de migrations e a estratégia de evolução do schema estão em
+   [backend-design.md §4](backend-design.md#4-migrations-no-banco-embarcado), e esses
+   testes, em [backend-design.md §5.9](backend-design.md#59-testes-de-migration).
 3. **Construir o ponto de controle de validação na camada Service** e a rotina de
    verificação de integridade
    ([§3.10](#310-o-que-o-banco-garante-e-o-que-a-aplicação-garante)): desvio de
