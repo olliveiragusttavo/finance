@@ -107,6 +107,13 @@ CREATE TABLE accounts (
     profile_id        TEXT    NOT NULL,
     name              TEXT    NOT NULL,
     balance           REAL    NOT NULL,           -- derived cache, in the profile's currency
+    -- Saldo previsto (todas as transações vivas, pagas ou não) exposto ao lado do
+    -- consolidado em `balance`; cache derivado, como ele (design doc seção 4.4).
+    projected_balance REAL NOT NULL,
+    -- Saldo que a conta já tinha antes do primeiro extrato: é dado do usuário, não cache,
+    -- e é o ponto de partida da cadeia de fechamentos. Regra de negócio (Contas): uma conta
+    -- cadastrada sem informar valor começa em zero, por isso o default (design doc seção 4.4).
+    opening_balance REAL NOT NULL DEFAULT 0,
     currency          TEXT    NOT NULL,           -- ISO 4217; descriptive only
     consider_balance  INTEGER NOT NULL DEFAULT 1, -- bool: counts toward the consolidated balance
     type              INTEGER NOT NULL,           -- 1: checking account, 2: investment account
@@ -170,7 +177,13 @@ CREATE TABLE bank_statements (
     account_id  TEXT    NOT NULL,
     month       INTEGER NOT NULL,
     year        INTEGER NOT NULL,
-    balance     REAL    NOT NULL,                 -- closing balance, derived cache
+    -- Saldos inicial e final, consolidado e previsto, guardados por mês para que
+    -- relatórios e a navegação entre períodos não precisem reconstruir a cadeia de
+    -- fechamentos; todos são cache derivado (design doc seção 4.6).
+    opening_balance REAL NOT NULL,
+    closing_balance REAL NOT NULL,
+    projected_opening_balance REAL NOT NULL,
+    projected_closing_balance REAL NOT NULL,
     created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%S', 'now')),
     updated_at  TEXT    NOT NULL,
     deleted_at  TEXT,
@@ -201,6 +214,7 @@ CREATE TABLE invoices (
     month              INTEGER NOT NULL,
     year               INTEGER NOT NULL,
     balance            REAL    NOT NULL,          -- invoice total, derived cache
+    -- Sinal do efeito na conta: negativo quando há valor a pagar (design doc seção 4.7).
     created_at         TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%S', 'now')),
     updated_at         TEXT    NOT NULL,
     deleted_at         TEXT,
