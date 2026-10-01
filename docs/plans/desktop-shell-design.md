@@ -93,12 +93,15 @@ na versão fixada pelo projeto.
 
 ### 3.4 O transporte da sincronização
 
-O `utilityProcess` do Electron tem os módulos `net`, `dgram` e `crypto` do Node: o
-listener TCP, a descoberta mDNS e o canal criptografado
-([sync-design.md §7](sync-design.md#7-transporte-somente-a-mesma-rede-local)) rodam ao
-lado do núcleo, no mesmo processo que é dono da conexão com o banco — o que a captura e
-a aplicação da sincronização exigem. O armazenamento seguro das chaves usa o
-`safeStorage` do Electron, que delega ao chaveiro do sistema operacional.
+O `utilityProcess` do Electron tem os módulos `net` e `dgram` do Node: o listener TCP e
+a descoberta mDNS ([sync-design.md §7](sync-design.md#7-transporte-somente-a-mesma-rede-local))
+rodam ao lado do núcleo, no mesmo processo que é dono da conexão com o banco — o que a
+captura e a aplicação da sincronização exigem. O armazenamento seguro das chaves usa o
+`safeStorage` do Electron, que delega ao chaveiro do sistema operacional. O canal
+criptografado não usa o `crypto` do Node: ele é código do núcleo, em TypeScript puro, o
+mesmo no desktop e no celular
+([mobile-shell-design.md §5.1](mobile-shell-design.md#51-protocolo-e-criptografia-ficam-no-núcleo));
+o `utilityProcess` só fornece os adaptadores de socket, mDNS e chaveiro.
 
 No Tauri, essa parte seria escrita em Rust (plugins próprios ou de terceiros) e
 conversaria com o núcleo pelo IPC — mais uma fronteira assíncrona no caminho da
@@ -178,7 +181,9 @@ packages/client     contrato tipado do núcleo, CoreClient, hooks de dados,
   de apresentação e a que mais se paga compartilhar.
 - **Formatadores** de `Money`, datas e períodos, com a mesma regra de arredondamento de
   apresentação do núcleo ([backend-design.md §3.3](backend-design.md#33-aritmética-monetária-no-núcleo)),
-  para que o celular e o desktop nunca mostrem o mesmo saldo de dois jeitos.
+  para que o celular e o desktop nunca mostrem o mesmo saldo de dois jeitos. Pelo mesmo
+  motivo, o dinheiro não é formatado com `Intl.NumberFormat`, cujo resultado difere entre
+  o Chromium e o Hermes ([mobile-shell-design.md §8](mobile-shell-design.md#8-paridade-entre-runtimes)).
 
 A fronteira é verificada por lint, como a do núcleo: `packages/client` não importa
 `react-dom`, `react-native` nem `electron`.

@@ -66,7 +66,10 @@ com a lógica de negócio, não a UI
 ([docs/plans/backend-design.md](docs/plans/backend-design.md)). O Electron foi confirmado
 frente ao Tauri, e a UI é React nas duas pontas — React DOM no desktop, React Native no
 mobile —, compartilhando a camada de apresentação headless, não os componentes
-([docs/plans/desktop-shell-design.md](docs/plans/desktop-shell-design.md)).
+([docs/plans/desktop-shell-design.md](docs/plans/desktop-shell-design.md)). No celular,
+o núcleo roda no próprio runtime JavaScript do app e acessa o mesmo SQLite embarcado,
+sem servidor local nem segundo runtime
+([docs/plans/mobile-shell-design.md](docs/plans/mobile-shell-design.md)).
 
 ### Camadas do backend (MVC)
 
@@ -101,7 +104,7 @@ O sistema segue a forma comum à maioria das ferramentas de finanças pessoais:
 
 ## Escolhas de tecnologia
 
-O banco de dados, o backend compartilhado e o shell desktop estão definidos.
+O banco de dados, o backend compartilhado e os shells desktop e mobile estão definidos.
 
 ### Banco de dados — SQLite
 
@@ -162,6 +165,26 @@ dados, view-models dos relatórios e formatadores —, não os componentes visua
 Raciocínio, custos aceitos e o que reabriria a decisão em
 **[docs/plans/desktop-shell-design.md](docs/plans/desktop-shell-design.md)**.
 
+### Shell mobile — React Native + Expo
+
+O **React Native com Expo** foi confirmado como shell mobile pela régua do que seria
+reimplementado: é a única opção em que nenhuma regra de negócio nem de convergência da
+sincronização existe duas vezes. Nativo, Flutter e Kotlin Multiplatform reescreveriam o
+núcleo; o Capacitor compartilharia até a UI, mas rodaria o núcleo numa webview com SQLite
+assíncrono — o mesmo problema do Tauri. O que o mobile escreve são adaptadores sem regra
+e as telas.
+
+O app fala com o banco pelo **mesmo mecanismo embarcado**: o núcleo roda na thread
+JavaScript e chama o SQLite pela API síncrona do `expo-sqlite`, via JSI. Uma API local
+(servidor HTTP no aparelho, Node embarcado) foi descartada: o único consumidor é o próprio
+app. A criptografia da sincronização também é código do núcleo (Noise e CPace em
+TypeScript puro), o banco fica fora do backup em nuvem do iCloud e do Google, e a
+distribuição no iOS ainda depende de uma escolha entre conta gratuita e programa pago da
+Apple.
+
+Raciocínio, orçamento de desempenho e paridade entre runtimes em
+**[docs/plans/mobile-shell-design.md](docs/plans/mobile-shell-design.md)**.
+
 ## Diagramas
 
 Os diagramas de arquitetura e de design são feitos com [draw.io](https://draw.io) e
@@ -184,5 +207,6 @@ A sincronização entre dispositivos está projetada em
 [docs/plans/sync-design.md](docs/plans/sync-design.md), e o backend compartilhado —
 runtime, migrations e testes — em
 [docs/plans/backend-design.md](docs/plans/backend-design.md); o shell desktop e a UI em
-[docs/plans/desktop-shell-design.md](docs/plans/desktop-shell-design.md). O próximo passo
+[docs/plans/desktop-shell-design.md](docs/plans/desktop-shell-design.md); o shell mobile
+em [docs/plans/mobile-shell-design.md](docs/plans/mobile-shell-design.md). O próximo passo
 é montar o monorepo — núcleo, pacote `client` e esqueleto do desktop.

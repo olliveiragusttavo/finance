@@ -440,9 +440,10 @@ Quaisquer dois membros podem sincronizar; não há hub.
 
 1. **Handshake** sobre TCP: autenticação mútua com as chaves dos dispositivos obtidas no
    pareamento, que também estabelece um canal criptografado — um handshake do protocolo
-   Noise, ou TLS 1.3 com certificados fixados (pinned) por dispositivo; a biblioteca é
-   escolhida junto com a stack. Os dados nunca trafegam sem criptografia, nem mesmo na
-   rede doméstica. Um par que não seja um membro ativo é recusado.
+   **Noise KK**, implementado no núcleo em TypeScript puro sobre as bibliotecas
+   `@noble` ([mobile-shell-design.md §5.1](mobile-shell-design.md#51-protocolo-e-criptografia-ficam-no-núcleo)).
+   Os dados nunca trafegam sem criptografia, nem mesmo na rede doméstica. Um par que não
+   seja um membro ativo é recusado.
 2. **Verificação de relógio** ([§5.2](#52-o-relógio-é-um-relógio-lógico-híbrido)) —
    recusar em caso de divergência excessiva — **e de versão do schema**: recusar quando
    os `user_version` diferem, dizendo qual aparelho atualizar
@@ -472,7 +473,9 @@ listener e um cliente TCP, fazer descoberta via mDNS, ler QR codes com a câmera
 armazenamento seguro de chaves e rodar a criptografia. React Native / Expo, Flutter e
 nativo conseguem; o Capacitor é fraco para hospedar um listener, o que conta contra ele.
 **Decidido:** React Native / Expo, o único dos três que reaproveita o núcleo TypeScript
-([backend-design.md §3.8](backend-design.md#38-consequência-o-mobile-é-react-native--expo)).
+([backend-design.md §3.8](backend-design.md#38-consequência-o-mobile-é-react-native--expo));
+os adaptadores, as permissões e o ciclo de vida do celular estão em
+[mobile-shell-design.md §5](mobile-shell-design.md#5-a-sincronização-no-celular).
 
 ### 7.6 Anexos
 
@@ -539,9 +542,9 @@ Reunidas em um só lugar:
 
 ## 11. Próximos passos
 
-1. **Escolher a biblioteca do canal** — Noise ou TLS 1.3 com certificados fixados — e a
-   implementação de PAKE, como parte da decisão de stack; a escolha mobile também
-   precisa satisfazer a [§7.5](#75-restrições-de-plataforma).
+1. ~~Escolher a biblioteca do canal e a implementação de PAKE.~~ Decidido: Noise KK
+   sobre `@noble`, com CPace no código digitado
+   ([mobile-shell-design.md §5.1](mobile-shell-design.md#51-protocolo-e-criptografia-ficam-no-núcleo)).
 2. **Fixar o namespace do UUID v5** — uma constante, gerada uma vez, commitada, nunca
    alterada.
 3. **Escrever a migration de sincronização** (`sync_rows`, `sync_cells`, `sync_members`,

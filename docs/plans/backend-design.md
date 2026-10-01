@@ -33,9 +33,11 @@ Herdadas do [README](../../README.md) e dos dois documentos anteriores:
 - Não existe administrador nem DBA: o schema evolui sozinho no aparelho do usuário,
   e dispositivos sincronizados podem estar em versões diferentes do app.
 
-Fora do escopo: a camada de UI ([desktop-shell-design.md](desktop-shell-design.md)), o framework mobile em detalhe (só a consequência da
-[§3.8](#38-consequência-o-mobile-é-react-native--expo)) e a biblioteca de criptografia
-da sincronização ([sync-design.md §11](sync-design.md#11-próximos-passos)).
+Fora do escopo: a camada de UI ([desktop-shell-design.md](desktop-shell-design.md)), o
+shell mobile em detalhe (só a consequência da
+[§3.8](#38-consequência-o-mobile-é-react-native--expo); o resto em
+[mobile-shell-design.md](mobile-shell-design.md)) e a biblioteca de criptografia da
+sincronização ([mobile-shell-design.md §5.1](mobile-shell-design.md#51-protocolo-e-criptografia-ficam-no-núcleo)).
 
 ---
 
@@ -169,6 +171,11 @@ banco em toda fronteira.
 Os adaptadores são finos e não têm regra de negócio. Cada um passa pela mesma suíte de
 contrato ([§5.10](#510-contrato-dos-adaptadores)).
 
+A sincronização acrescenta mais quatro portas — `Transport`, `Discovery`, `KeyStore` e
+`RandomSource` —, porque o protocolo e a criptografia do canal também ficam no núcleo
+([mobile-shell-design.md §5.1](mobile-shell-design.md#51-protocolo-e-criptografia-ficam-no-núcleo)).
+Elas entram no diagrama junto com a implementação da sincronização.
+
 ### 3.5 A porta de banco é síncrona
 
 `Database` expõe chamadas **síncronas**, e `transaction(fn)` recebe uma função síncrona.
@@ -227,7 +234,8 @@ toda a camada Service em Dart, Kotlin ou Swift — o problema que o README exist
 evitar. Entre os shells JavaScript, o Capacitor já foi desfavorecido por não hospedar
 bem um listener TCP ([sync-design.md §7.5](sync-design.md#75-restrições-de-plataforma));
 o **React Native com Expo** atende os requisitos de sincronização e é o caminho que
-preserva o núcleo.
+preserva o núcleo. O inventário do que é compartilhado e o acesso ao banco no celular
+estão em [mobile-shell-design.md](mobile-shell-design.md).
 
 O Electron continua sendo o shell desktop — confirmado frente ao Tauri em
 [desktop-shell-design.md §3](desktop-shell-design.md#3-electron-ou-tauri). O que é
@@ -240,9 +248,11 @@ Um monorepo com workspaces do **pnpm**:
 ```
 packages/core            domínio, Services, Repositories, portas, runner de migrations
 packages/sqlite-better   adaptador Database para better-sqlite3 (desktop e testes)
+packages/sqlite-expo     adaptador Database para expo-sqlite (mobile)
 packages/client          contrato tipado, hooks e view-models compartilhados pelas UIs
 apps/desktop             Electron: utilityProcess do núcleo, IPC, UI em React DOM
-apps/mobile              React Native / Expo (quando chegar a vez)
+apps/mobile              React Native / Expo: núcleo na thread JS, UI em React Native
+apps/mobile-contract     app de teste: contrato do expo-sqlite e vetores de ouro no Hermes
 db/migrations            os arquivos .sql — fonte da verdade do schema
 ```
 
