@@ -1,144 +1,162 @@
-# Personal Finance System
+# Sistema de Finanças Pessoais
 
-A personal finance system built to get the reports that off-the-shelf finance apps
-don't provide. It is a hobby / personal-use project: no monetization is planned, and
-the design deliberately avoids any recurring cost (hosted databases, servers, paid
-services).
+Um sistema de finanças pessoais criado para obter os relatórios que os aplicativos de
+finanças prontos não oferecem. É um projeto hobby / de uso pessoal: não há monetização
+planejada, e o design evita deliberadamente qualquer custo recorrente (bancos de dados
+hospedados, servidores, serviços pagos).
 
-## Motivation
+## Motivação
 
-I've used commercial finance-tracking apps for a while, but their built-in reports
-don't answer the questions I actually have about my own money — custom breakdowns by
-category/subcategory, cross-account views, credit card statement impact on monthly
-balances, etc. Rather than working around that limitation, the goal is to own the
-data and the reporting layer.
+Uso aplicativos comerciais de controle financeiro há algum tempo, mas os relatórios
+embutidos neles não respondem às perguntas que eu realmente tenho sobre o meu próprio
+dinheiro — detalhamentos personalizados por categoria/subcategoria, visões entre contas,
+o impacto da fatura do cartão de crédito no saldo mensal etc. Em vez de contornar essa
+limitação, o objetivo é ser dono dos dados e da camada de relatórios.
 
-## Goals
+## Objetivos
 
-- Accurate day-to-day tracking of accounts, cards, and transactions.
-- Flexible, personal-report generation that isn't limited by a third-party app's UI.
-- Data ownership: everything lives on my own device(s), in a format I control.
-- Ability to import the transaction history already accumulated in the app I use
-  today.
+- Controle preciso do dia a dia de contas, cartões e transações.
+- Geração de relatórios pessoais flexíveis, sem as limitações da interface de um app de
+  terceiros.
+- Propriedade dos dados: tudo fica no(s) meu(s) próprio(s) dispositivo(s), em um formato
+  que eu controlo.
+- Capacidade de importar o histórico de transações já acumulado no app que uso
+  hoje.
 
-## Focus
+## Foco
 
-- **Daily use on mobile** (Android or iPhone) — entering transactions, checking
-  balances, quick lookups.
-- **Reporting on desktop** — the heavier, more flexible analysis work happens on a
-  bigger screen, where custom reports and views make more sense.
-- **No paid infrastructure** — no managed databases, no cloud hosting, no
-  subscriptions. Whatever is chosen must be able to run for free, indefinitely.
+- **Uso diário no celular** (Android e iPhone, ambos suportados) — lançar transações,
+  consultar saldos, consultas rápidas.
+- **Relatórios no desktop** — o trabalho de análise mais pesado e flexível acontece em
+  uma tela maior, onde relatórios e visões personalizados fazem mais sentido.
+- **Sem infraestrutura paga** — sem bancos de dados gerenciados, sem hospedagem em
+  nuvem, sem assinaturas. O que for escolhido precisa poder rodar de graça,
+  indefinidamente.
 
-### Non-goals (for now)
+### Fora do escopo (por enquanto)
 
-- Multi-tenant / SaaS deployment.
-- Bank/open-finance integrations or automatic transaction import from institutions.
-- Anything that requires an always-on server to function day to day.
+- Implantação multi-tenant / SaaS.
+- Integrações com bancos/open finance ou importação automática de transações das
+  instituições.
+- Qualquer coisa que exija um servidor sempre ligado para funcionar no dia a dia.
 
-## Architecture
+## Arquitetura
 
-### High-level shape
+### Forma geral
 
-- **Local-first data**: the database lives on the user's device. There is no
-  central server requirement for the app to work.
-- **Future sync**: the local-first constraint is designed to allow (not require) a
-  future network-based synchronization mechanism between a user's own devices
-  (e.g. phone ↔ desktop), and potentially a lightweight web service down the line.
-- **Shared backend logic**: the desire to avoid rewriting the same business logic
-  twice (once for mobile, once for desktop) is the main driver behind evaluating
-  **Electron** as a way to reuse one backend/codebase across both a desktop app and,
-  eventually, a mobile shell — with a future web service as another possible
-  consumer of that same backend.
+- **Dados local-first**: o banco de dados fica no dispositivo do usuário. Não há
+  exigência de um servidor central para o app funcionar.
+- **Sincronização entre dispositivos, somente na mesma rede**: os dispositivos de um
+  usuário (desktop, Android, iOS) são pares iguais, cada um com o conjunto completo de
+  dados e escrevendo offline. Os dispositivos são vinculados por QR code ou código curto
+  e sincronizam diretamente — com criptografia, sem servidor — somente enquanto ambos
+  estão na mesma rede local com o app aberto. A sincronização remota é recusada por
+  design. Edições concorrentes são resolvidas por campo, e a edição mais recente vence.
+  Projetado, ainda não implementado:
+  **[docs/plans/sync-design.md](docs/plans/sync-design.md)**.
+- **Lógica de backend compartilhada**: o desejo de não reescrever a mesma lógica de
+  negócio duas vezes (uma para mobile, outra para desktop) é o principal motivo para
+  avaliar o **Electron** como forma de reutilizar um único backend/código-base tanto em
+  um app desktop quanto, eventualmente, em um shell mobile — com um futuro serviço web
+  como outro possível consumidor desse mesmo backend.
 
-This is the current direction, not a locked-in decision — the stack is still open to
-change if a better fit for these constraints (local-first, free, cross-platform)
-turns up while the database and backend layers are being designed.
+Esta é a direção atual, não uma decisão fechada — a stack ainda pode mudar se aparecer
+algo que se encaixe melhor nessas restrições (local-first, gratuito, multiplataforma)
+enquanto as camadas de banco de dados e de backend são projetadas.
 
-### Backend layering (MVC)
+### Camadas do backend (MVC)
 
-The backend follows an MVC-style layering, chosen for being the most familiar and
-easiest to reason about pattern for this kind of CRUD-and-reports application:
+O backend segue uma divisão em camadas no estilo MVC, escolhida por ser o padrão mais
+familiar e mais fácil de raciocinar para este tipo de aplicação de CRUD e relatórios:
 
-| Layer | Responsibility |
+| Camada | Responsabilidade |
 |---|---|
-| **Request** | Validates permissions and incoming form/request data before it reaches business logic. |
-| **Controller** | Receives requests, delegates to the service layer, shapes and returns responses. |
-| **Service** | Owns all business logic (balance calculations, statement rollups, category rules, etc.). |
-| **Repository** | Owns all data access/queries — the only layer that talks to the database. |
-| **Model** | The object classes representing the domain (User, Account, Transaction, Card, Statement, ...). |
+| **Request** | Valida permissões e os dados de formulário/requisição recebidos antes que cheguem à lógica de negócio. |
+| **Controller** | Recebe as requisições, delega para a camada de serviço, formata e devolve as respostas. |
+| **Service** | Concentra toda a lógica de negócio (cálculo de saldos, consolidação de faturas, regras de categoria etc.). |
+| **Repository** | Concentra todo o acesso a dados/consultas — a única camada que conversa com o banco de dados. |
+| **Model** | As classes de objeto que representam o domínio (User, Account, Transaction, Card, Statement, ...). |
 
-### Domain overview
+### Visão geral do domínio
 
-The system follows the shape common to most personal finance tools:
+O sistema segue a forma comum à maioria das ferramentas de finanças pessoais:
 
-- A **User** owns one or more **Accounts**.
-- Each **Account** tracks monthly **expenses**, **income**, **transfers**, and
-  **investments** — collectively modeled as **Transactions**.
-- Every transaction has a name, description, amount, category, subcategory, and an
-  associated account.
-- Each transaction *type* adds its own attributes on top of that shared base — e.g.
-  a credit card expense links to a **Statement**, a transfer has a destination
-  account, an investment may track an instrument/position, etc. (Exact per-type
-  attributes are to be defined during database design.)
-- **Accounts** may have **Credit** or **Debit Cards**. Card activity rolls up into
-  monthly **Statements**, which in turn factor into the owning account's monthly
-  balance.
+- Um **Usuário** (User) possui uma ou mais **Contas** (Accounts).
+- Cada **Conta** registra mensalmente **despesas**, **receitas**, **transferências** e
+  **investimentos** — modelados coletivamente como **Transações** (Transactions).
+- Toda transação tem nome, descrição, valor, categoria, subcategoria e uma conta
+  associada.
+- Cada *tipo* de transação adiciona seus próprios atributos sobre essa base comum — por
+  exemplo, uma despesa no cartão de crédito é vinculada a uma **Fatura** (Statement),
+  uma transferência tem uma conta de destino, um investimento pode acompanhar um
+  ativo/posição etc. (Os atributos exatos de cada tipo serão definidos durante o design
+  do banco de dados.)
+- **Contas** podem ter **Cartões de Crédito** ou **de Débito**. A movimentação dos
+  cartões é consolidada em **Faturas** mensais, que por sua vez entram no saldo mensal
+  da conta à qual pertencem.
 
-## Technology Choices
+## Escolhas de tecnologia
 
-The database is settled. The rest of the stack is still open to revision.
+O banco de dados está definido. O restante da stack ainda está aberto a revisão.
 
-### Database — SQLite
+### Banco de dados — SQLite
 
-**SQLite**, stored as a single file on the user's device. This is the one piece of the
-stack that is locked in, and it was chosen precisely because it does not constrain the
-choices that are still open:
+**SQLite**, armazenado como um único arquivo no dispositivo do usuário. Esta é a única
+peça da stack que está fechada, e foi escolhida justamente porque não restringe as
+escolhas que ainda estão em aberto:
 
-- **It is already present on every target platform.** Android and iOS both ship
-  SQLite, so whichever mobile technology gets picked later can open the same schema.
-  The mobile decision cannot invalidate the data model.
-- **It fits the reporting goal.** The reports this project exists to produce are
-  relational and month-oriented; window functions and CTEs turn running balances and
-  month-over-month comparisons into ordinary queries rather than application code.
-- **Data ownership becomes literal** — one file to copy, back up and inspect with any
-  of a hundred tools, in a format committed to staying readable for decades. For a
-  financial archive meant to span years, that longevity is the point.
-- **Zero infrastructure and zero recurring cost**, permanently.
-- **Sync stays reachable** without changing engines later.
+- **Ele já está presente em todas as plataformas-alvo.** Android e iOS já vêm com
+  SQLite, então qualquer tecnologia mobile escolhida depois consegue abrir o mesmo
+  schema. A decisão sobre o mobile não tem como invalidar o modelo de dados.
+- **Ele se encaixa no objetivo de relatórios.** Os relatórios que este projeto existe
+  para produzir são relacionais e orientados a mês; window functions e CTEs transformam
+  saldos acumulados e comparações mês a mês em consultas comuns, em vez de código de
+  aplicação.
+- **A propriedade dos dados passa a ser literal** — um arquivo para copiar, fazer backup
+  e inspecionar com qualquer uma de centenas de ferramentas, em um formato com
+  compromisso de continuar legível por décadas. Para um arquivo financeiro pensado para
+  abranger anos, essa longevidade é justamente o ponto.
+- **Zero infraestrutura e zero custo recorrente**, permanentemente.
+- **A sincronização continua alcançável** sem trocar de motor depois.
 
-One consequence worth stating up front: the schema is identical across platforms, but
-the SQLite *driver* is not — a desktop shell and a mobile shell use different bindings
-with different APIs. The Repository layer is therefore written against a narrow
-internal port with a thin platform-specific adapter behind it, so the SQL stays shared
-and only the adapter is rewritten.
+Uma consequência que vale deixar clara desde já: o schema é idêntico entre plataformas,
+mas o *driver* do SQLite não — um shell desktop e um shell mobile usam bindings
+diferentes, com APIs diferentes. Por isso a camada Repository é escrita contra uma porta
+interna estreita, com um adaptador fino específico de cada plataforma por trás, de modo
+que o SQL continua compartilhado e só o adaptador é reescrito.
 
-Full reasoning, the alternatives that were rejected, and the type and configuration
-conventions live in **[docs/plans/database-design.md](docs/plans/database-design.md)**,
-which is the home for every database decision in the project.
+O raciocínio completo, as alternativas rejeitadas e as convenções de tipos e de
+configuração estão em **[docs/plans/database-design.md](docs/plans/database-design.md)**,
+que é o lugar de toda decisão de banco de dados do projeto.
 
-### Still open
+### Ainda em aberto
 
-- **Electron** as the leading candidate for the desktop shell, primarily to reuse a
-  single backend implementation across desktop and (eventually) mobile, and to keep
-  the door open to exposing that same backend as a web service later.
-- Mobile app technology (native vs. cross-platform) is still to be decided, guided
-  by how well it can share code/logic with the desktop backend. Note that Electron
-  does not itself run on mobile — reuse in practice means a wrapper such as Capacitor
-  or Tauri, or sharing logic rather than UI with a native shell.
+- **Electron** como principal candidato para o shell desktop, principalmente para
+  reutilizar uma única implementação de backend entre desktop e (eventualmente) mobile,
+  e para manter aberta a possibilidade de expor esse mesmo backend como um serviço web
+  no futuro.
+- A tecnologia do app mobile (nativa vs. multiplataforma) ainda será decidida,
+  orientada por quão bem ela consegue compartilhar código/lógica com o backend desktop.
+  Observe que o Electron em si não roda em mobile — na prática, reutilizar significa um
+  wrapper como Capacitor ou Tauri, ou compartilhar a lógica, e não a UI, com um shell
+  nativo.
 
-## Diagrams
+## Diagramas
 
-Architecture and design diagrams are produced with [draw.io](https://draw.io) and kept
-under [docs/drawio/](docs/drawio/). The entity relationship diagram in
-[project.drawio](docs/drawio/project.drawio) is the visual source of truth for the data
-model; [docs/plans/database-design.md](docs/plans/database-design.md) carries the
-reasoning behind it. When the two disagree, both get updated.
+Os diagramas de arquitetura e de design são feitos com [draw.io](https://draw.io) e
+ficam em [docs/drawio/](docs/drawio/). O diagrama entidade-relacionamento em
+[project.drawio](docs/drawio/project.drawio) é a fonte da verdade visual do modelo de
+dados; [docs/plans/database-design.md](docs/plans/database-design.md) traz o raciocínio
+por trás dele. Quando os dois divergem, ambos são atualizados.
 
 ## Status
 
-Early design phase. The database engine is chosen and the schema is fully specified —
-entities, types, constraints, foreign-key actions and indexes — in
-[docs/plans/database-design.md](docs/plans/database-design.md), and transcribed into
-the first migration, [db/migrations/0001_initial_schema.sql](db/migrations/0001_initial_schema.sql).
-Application stack decisions are the next step.
+Fase inicial de design. O motor de banco de dados foi escolhido e o schema está
+totalmente especificado — entidades, tipos, restrições, ações de chave estrangeira e
+índices — em [docs/plans/database-design.md](docs/plans/database-design.md), e
+transcrito na primeira migration,
+[db/migrations/0001_initial_schema.sql](db/migrations/0001_initial_schema.sql).
+A sincronização entre dispositivos está projetada em
+[docs/plans/sync-design.md](docs/plans/sync-design.md); seus requisitos de plataforma
+(listener TCP local, descoberta via mDNS, leitura de QR code, armazenamento seguro de
+chaves) alimentam as decisões de stack da aplicação, que são o próximo passo.
