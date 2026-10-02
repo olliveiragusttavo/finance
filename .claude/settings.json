@@ -1,0 +1,17 @@
+{
+  "model": "opus",
+  "language": "portuguese",
+  "effortLevel": "medium",
+  "modelSettings": {
+    "claude-opus-5-5": {
+      "effortLevel": "medium"
+    }
+  },
+  "theme": "dark",
+  "remoteControlAtStartup": false,
+  "agentPushNotifEnabled": true,
+  "enabledPlugins": {
+    "mattpocock-skills@claude-plugins-official": true
+  },
+  "disableRemoteControl": true
+}
