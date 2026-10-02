@@ -639,12 +639,21 @@ cobertura de linhas é exigida: o mutation testing mede o que ela fingiria medir
    fatura em aberto no previsto do mês do vencimento (§4.7); transferência numa linha só
    (§4.13); saldo anterior ao primeiro extrato em `accounts.opening_balance` (§4.4).
    Nenhuma regra pendente.
-2. **Montar o monorepo** ([§3.9](#39-estrutura-e-ferramentas)) com lint, tipos e Vitest
-   rodando no CI, antes de qualquer regra de negócio.
-3. **Implementar as portas, o adaptador `better-sqlite3` e o runner de migrations**,
-   com a suíte de contrato e os testes de migration — `0001` como primeiro caso.
-4. **Implementar `Money` e o domínio puro de datas** (fatura de uma compra, expansão de
-   recorrências), com testes de mesa.
-5. **Implementar a rotina de recálculo e a verificação de integridade** antes de
-   qualquer Service que escreva transações — elas são o oráculo de tudo que vem depois.
-6. Só então os Services de lançamento, com testes de propriedade desde o primeiro.
+2. ~~**Montar o monorepo**~~ — feito: `packages/core` e `packages/sqlite-better`, com
+   lint (regras de fronteira incluídas), tipos e Vitest. Falta o CI rodando a suíte nos
+   dois fusos da [§5.7](#57-tempo-e-fuso-horário).
+3. ~~**Implementar as portas, o adaptador `better-sqlite3` e o runner de migrations**~~ —
+   feito, com a suíte de contrato e os testes de migration. Pendentes no runner: o backup
+   com `VACUUM INTO` ([§4.6](#46-backup-antes-de-migrar)), o `checksums.lock`
+   ([§4.3](#43-migrations-são-somente-para-a-frente-e-imutáveis)) e o tratamento de
+   `foreign_keys` para reconstrução de tabelas ([§4.7](#47-mudanças-que-o-alter-table-não-faz)).
+4. ~~**Implementar `Money` e o domínio puro de datas**~~ — feito para a fatura de uma
+   compra e o vencimento; falta a expansão de recorrências e a divisão de parcelas.
+5. ~~**Implementar a rotina de recálculo**~~ — feita (`BalanceRecalculationService`), com
+   testes de mesa e teste de propriedade contra um oráculo independente. Falta a
+   **verificação de integridade** (desvio de saldo, órfãs, anexos ausentes).
+6. ~~Os Services de lançamento~~ — CRUD de transações (escopo "somente esta"), consolidação
+   de extrato, pagamento e reabertura de fatura e saldo do perfil, expostos pelo mapa de
+   rotas. Faltam o serviço de recorrências (escopos "esta e as futuras" e "todas"), os
+   cadastros (perfil, conta, cartão, categorias, tags), anexos e o Stryker
+   ([§5.11](#511-mutation-testing-no-núcleo-de-saldos)).
