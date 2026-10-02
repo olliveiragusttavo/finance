@@ -1,0 +1,285 @@
+import { Currency } from '../../domain/shared/Currency.ts';
+import { CorruptRowError } from '../../domain/shared/errors.ts';
+import {
+    AccountId,
+    BankStatementId,
+    CreditCardId,
+    GoalId,
+    InvoiceId,
+    PartnerId,
+    ProfileId,
+    RecurrenceId,
+    SubCategoryId,
+    TransactionId,
+} from '../../domain/shared/ids.ts';
+import { LocalDate } from '../../domain/shared/LocalDate.ts';
+import { Money } from '../../domain/shared/Money.ts';
+import { YearMonth } from '../../domain/shared/YearMonth.ts';
+import { Transaction } from '../../domain/transaction/Transaction.ts';
+import type { TransactionContainer } from '../../domain/transaction/TransactionContainer.ts';
+import type { Clock } from '../../ports/Clock.ts';
+import type { Database, SqlParams, SqlRow } from '../../ports/Database.ts';
+import type { TransactionRepository } from '../../repositories/TransactionRepository.ts';
+import { decodeEnum, TRANSACTION_TYPE_CODE } from './enumCodes.ts';
+import { monthBounds } from './periodSql.ts';
+import { RowReader } from './RowReader.ts';
+
+// O perfil e a moeda vêm do contêiner (extrato → conta, fatura → cartão), porque a
+// transação não tem `profile_id` próprio. Contêineres excluídos ficam de fora: uma
+// transação num extrato excluído não existe mais para o usuário.
+const SELECT_TRANSACTION = `
+    SELECT t.id, t.sub_category_id, t.bank_statement_id, t.invoice_id, t.destination_account_id,
+        t.partner_id, t.goal_id, t.recurrence_id, t.name, t.description, t.value, t.currency,
+        t.conversion_rate, t.due_date, t.paid, t.payment_date, t.charges, t.type,
+        bs.account_id AS statement_account_id, bs.year AS statement_year, bs.month AS statement_month,
+        i.credit_card_id AS invoice_card_id, i.year AS invoice_year, i.month AS invoice_month,
+        p.id AS profile_id, p.currency AS profile_currency
+    FROM transactions t
+    LEFT JOIN bank_statements bs ON bs.id = t.bank_statement_id AND bs.deleted_at IS NULL
+    LEFT JOIN accounts a ON a.id = bs.account_id
+    LEFT JOIN invoices i ON i.id = t.invoice_id AND i.deleted_at IS NULL
+    LEFT JOIN credit_cards c ON c.id = i.credit_card_id
+    JOIN profiles p ON p.id = COALESCE(a.profile_id, c.profile_id)
+`;
+
+const ORDER = 'ORDER BY t.due_date, t.created_at, t.id';
+
+/** Implementação SQLite de `TransactionRepository`. */
+export class SqliteTransactionRepository implements TransactionRepository {
+    /**
+     * @param database Conexão compartilhada da unidade de trabalho.
+     * @param clock Relógio que carimba `updated_at` e `deleted_at`.
+     */
+    public constructor(private readonly database: Database, private readonly clock: Clock) {}
+
+    /**
+     * @param id Transação procurada.
+     * @return A transação viva, ou `null`.
+     */
+    public findById(id: TransactionId): Transaction | null {
+        const row = this.database.get(`${SELECT_TRANSACTION} WHERE t.id = :id AND t.deleted_at IS NULL`, { id });
+        return row === undefined ? null : this.toTransaction(row);
+    }
+
+    /**
+     * @param transaction Transação nova.
+     * @return void
+     */
+    public insert(transaction: Transaction): void {
+        this.database.run(
+            `INSERT INTO transactions (id, sub_category_id, bank_statement_id, invoice_id, destination_account_id,
+                partner_id, goal_id, recurrence_id, name, description, value, currency, conversion_rate,
+                due_date, paid, payment_date, charges, type, updated_at)
+            VALUES (:id, :subCategoryId, :statementId, :invoiceId, :destinationAccountId,
+                :partnerId, :goalId, :recurrenceId, :name, :description, :value, :currency, :conversionRate,
+                :dueDate, :paid, :paymentDate, :charges, :type, :now)`,
+            { ...this.contentParams(transaction), recurrenceId: transaction.recurrenceId },
+        );
+    }
+
+    /**
+     * Regrava todos os campos editáveis; `recurrence_id` fica de fora porque o vínculo com a
+     * regra nunca muda depois de emitido.
+     *
+     * @param transaction Transação editada.
+     * @return void
+     */
+    public update(transaction: Transaction): void {
+        this.database.run(
+            `UPDATE transactions SET sub_category_id = :subCategoryId, bank_statement_id = :statementId,
+                invoice_id = :invoiceId, destination_account_id = :destinationAccountId, partner_id = :partnerId,
+                goal_id = :goalId, name = :name, description = :description, value = :value, currency = :currency,
+                conversion_rate = :conversionRate, due_date = :dueDate, paid = :paid, payment_date = :paymentDate,
+                charges = :charges, type = :type, updated_at = :now
+            WHERE id = :id AND deleted_at IS NULL`,
+            this.contentParams(transaction),
+        );
+    }
+
+    /**
+     * @param id Transação a excluir.
+     * @return void
+     */
+    public softDelete(id: TransactionId): void {
+        const params = { id, now: this.clock.now() };
+        this.database.run('UPDATE transactions SET deleted_at = :now, updated_at = :now WHERE id = :id AND deleted_at IS NULL', params);
+        this.database.run('UPDATE transactions_tags SET deleted_at = :now, updated_at = :now WHERE transaction_id = :id AND deleted_at IS NULL', params);
+        this.database.run('UPDATE attachments SET deleted_at = :now, updated_at = :now WHERE transaction_id = :id AND deleted_at IS NULL', params);
+    }
+
+    /**
+     * Consulta só a tabela de transações, sem os joins do contêiner, porque o índice único
+     * `uq_transactions_recurrence_due_date` que esta checagem antecipa também não olha o
+     * contêiner.
+     *
+     * @param recurrenceId Recorrência da série.
+     * @param dueDate Data de vencimento procurada.
+     * @param excluding Ocorrência sendo editada.
+     * @return `true` quando outra ocorrência viva da série já vence nessa data.
+     */
+    public hasOccurrenceOn(recurrenceId: RecurrenceId, dueDate: LocalDate, excluding: TransactionId): boolean {
+        const row = this.database.get(
+            `SELECT 1 AS found FROM transactions
+            WHERE recurrence_id = :recurrenceId AND due_date = :dueDate AND id <> :excluding AND deleted_at IS NULL
+            LIMIT 1`,
+            { recurrenceId, dueDate: dueDate.toString(), excluding },
+        );
+        return row !== undefined;
+    }
+
+    /**
+     * @param statementId Extrato de origem.
+     * @return As transações vivas do extrato.
+     */
+    public listByStatement(statementId: BankStatementId): readonly Transaction[] {
+        return this.list(`WHERE t.bank_statement_id = :statementId AND t.invoice_id IS NULL AND t.deleted_at IS NULL ${ORDER}`, { statementId });
+    }
+
+    /**
+     * @param invoiceId Fatura de origem.
+     * @return As transações vivas da fatura.
+     */
+    public listByInvoice(invoiceId: InvoiceId): readonly Transaction[] {
+        return this.list(`WHERE t.invoice_id = :invoiceId AND t.bank_statement_id IS NULL AND t.deleted_at IS NULL ${ORDER}`, { invoiceId });
+    }
+
+    /**
+     * @param accountId Conta de destino.
+     * @param period Mês do `due_date`.
+     * @return As transferências e investimentos vivos que chegam à conta no mês.
+     */
+    public listIncoming(accountId: AccountId, period: YearMonth): readonly Transaction[] {
+        const { start, end } = monthBounds(period);
+        return this.list(
+            `WHERE t.destination_account_id = :accountId AND t.type IN (3, 4) AND t.deleted_at IS NULL
+                AND t.due_date BETWEEN :start AND :end ${ORDER}`,
+            { accountId, start, end },
+        );
+    }
+
+    /**
+     * @param profileId Perfil dono.
+     * @param from Primeira data incluída.
+     * @param to Última data incluída.
+     * @return As transações vivas do perfil no intervalo.
+     */
+    public listByProfileBetween(profileId: ProfileId, from: LocalDate, to: LocalDate): readonly Transaction[] {
+        return this.list(
+            `WHERE p.id = :profileId AND t.deleted_at IS NULL AND t.due_date BETWEEN :from AND :to ${ORDER}`,
+            { profileId, from: from.toString(), to: to.toString() },
+        );
+    }
+
+    /**
+     * @param clause `WHERE` e `ORDER BY` aplicados sobre `SELECT_TRANSACTION`.
+     * @param params Parâmetros nomeados.
+     * @return As transações de domínio.
+     */
+    private list(clause: string, params: SqlParams): readonly Transaction[] {
+        return this.database.all(`${SELECT_TRANSACTION} ${clause}`, params).map((row) => this.toTransaction(row));
+    }
+
+    /**
+     * Parâmetros dos campos editáveis, comuns ao insert e ao update. Dinheiro é arredondado
+     * aqui, na fronteira de persistência (database-design §3.7).
+     *
+     * @param transaction Transação de origem.
+     * @return Os parâmetros nomeados.
+     */
+    private contentParams(transaction: Transaction): SqlParams {
+        return {
+            id: transaction.id,
+            subCategoryId: transaction.subCategoryId,
+            statementId: transaction.container.kind === 'statement' ? transaction.container.statementId : null,
+            invoiceId: transaction.container.kind === 'invoice' ? transaction.container.invoiceId : null,
+            destinationAccountId: transaction.destinationAccountId,
+            partnerId: transaction.partnerId,
+            goalId: transaction.goalId,
+            name: transaction.name,
+            description: transaction.description,
+            value: transaction.value.rounded().amount,
+            currency: transaction.origin.currency.code,
+            conversionRate: transaction.origin.conversionRate,
+            dueDate: transaction.dueDate.toString(),
+            paid: transaction.isPaid() ? 1 : 0,
+            paymentDate: transaction.paymentDate?.toString() ?? null,
+            charges: transaction.charges.rounded().amount,
+            type: TRANSACTION_TYPE_CODE[transaction.type],
+            now: this.clock.now(),
+        };
+    }
+
+    /**
+     * @param row Linha do `SELECT_TRANSACTION`.
+     * @return A transação de domínio.
+     * @throws {CorruptRowError} Quando `paid` e `payment_date` discordam ou o arco exclusivo
+     * está quebrado — estados que a aplicação nunca grava.
+     */
+    private toTransaction(row: SqlRow): Transaction {
+        const reader = new RowReader('transactions', row);
+        const currency = Currency.of(reader.text('profile_currency'));
+        const paid = reader.boolean('paid');
+        const paymentDate = reader.nullableText('payment_date');
+        if (paid !== (paymentDate !== null)) {
+            throw new CorruptRowError('transactions', `paid e payment_date discordam na transação ${reader.text('id')}`);
+        }
+        /**
+         * Lê uma referência anulável já como id marcado, para que cada FK opcional passe pela
+         * mesma validação de UUID das obrigatórias.
+         *
+         * @param column Coluna da chave estrangeira.
+         * @param parse Conversor do id marcado da entidade referenciada.
+         * @return O id, ou `null` quando a referência está vazia.
+         */
+        const nullableId = <T>(column: string, parse: (raw: string) => T): T | null => {
+            const value = reader.nullableText(column);
+            return value === null ? null : parse(value);
+        };
+        return Transaction.restore({
+            id: TransactionId(reader.text('id')),
+            profileId: ProfileId(reader.text('profile_id')),
+            recurrenceId: nullableId('recurrence_id', RecurrenceId),
+            type: decodeEnum(TRANSACTION_TYPE_CODE, reader.number('type'), 'transactions'),
+            container: this.toContainer(reader),
+            subCategoryId: SubCategoryId(reader.text('sub_category_id')),
+            destinationAccountId: nullableId('destination_account_id', AccountId),
+            partnerId: nullableId('partner_id', PartnerId),
+            goalId: nullableId('goal_id', GoalId),
+            name: reader.text('name'),
+            description: reader.nullableText('description'),
+            value: Money.of(reader.number('value'), currency),
+            charges: Money.of(reader.number('charges'), currency),
+            origin: { currency: Currency.of(reader.text('currency')), conversionRate: reader.number('conversion_rate') },
+            dueDate: LocalDate.parse(reader.text('due_date')),
+            paymentDate: paymentDate === null ? null : LocalDate.parse(paymentDate),
+        });
+    }
+
+    /**
+     * @param reader Leitor da linha da transação.
+     * @return O contêiner da transação.
+     * @throws {CorruptRowError} Quando a linha não está em exatamente um contêiner vivo —
+     * a "ausência silenciosa" que a verificação de integridade procura (database-design §4.13).
+     */
+    private toContainer(reader: RowReader): TransactionContainer {
+        const statementId = reader.nullableText('bank_statement_id');
+        const invoiceId = reader.nullableText('invoice_id');
+        if (statementId !== null && invoiceId === null) {
+            return {
+                kind: 'statement',
+                statementId: BankStatementId(statementId),
+                accountId: AccountId(reader.text('statement_account_id')),
+                period: YearMonth.of(reader.number('statement_year'), reader.number('statement_month')),
+            };
+        }
+        if (invoiceId !== null && statementId === null) {
+            return {
+                kind: 'invoice',
+                invoiceId: InvoiceId(invoiceId),
+                creditCardId: CreditCardId(reader.text('invoice_card_id')),
+                period: YearMonth.of(reader.number('invoice_year'), reader.number('invoice_month')),
+            };
+        }
+        throw new CorruptRowError('transactions', `transação ${reader.text('id')} fora de exatamente um contêiner`);
+    }
+}

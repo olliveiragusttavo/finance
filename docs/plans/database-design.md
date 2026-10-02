@@ -1144,6 +1144,23 @@ um `value` negativo inverte o efeito do tipo: uma despesa de cartão negativa é
 continua sendo classificado na mesma subcategoria da compra que desfaz, e os relatórios
 por categoria mostram o gasto líquido. Nenhum relatório lê o sinal sem o `type`.
 
+#### Encargos são sempre custo da origem
+
+Regra de negócio (Encargos): `charges` — juros e tarifas — **sempre sai do contêiner de
+origem**, em qualquer tipo, e nunca chega ao destino. O efeito na origem é
+`direção(type) × value − charges`; o efeito no destino de uma transferência ou
+investimento é `+value`:
+
+| Lançamento | Origem | Destino |
+|---|---|---|
+| Despesa 100, encargos 2 | −102 | — |
+| Receita 1.000, tarifa 10 | +990 | — |
+| Transferência 500, TED 8 | −508 | +500 |
+
+A fórmula é linear em `value` e `charges`, o que permite aplicá-la sobre somas agregadas
+por tipo no SQL. No total do perfil, uma transferência interna soma só `−charges`: o
+dinheiro que mudou de conta se anula, a tarifa não.
+
 #### Transferências e investimentos têm uma conta de destino
 
 Uma transação do tipo `3: transference` ou `4: investment` se vincula a uma segunda

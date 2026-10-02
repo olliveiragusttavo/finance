@@ -222,5 +222,16 @@ runtime, migrations e testes — em
 [docs/plans/desktop-shell-design.md](docs/plans/desktop-shell-design.md); o shell mobile
 em [docs/plans/mobile-shell-design.md](docs/plans/mobile-shell-design.md). As telas do
 desktop e do celular estão desenhadas e aprovadas em
-[docs/design/mockups/](docs/design/mockups/). O próximo passo
-é montar o monorepo — núcleo, pacote `client` e esqueleto do desktop.
+[docs/design/mockups/](docs/design/mockups/).
+
+O núcleo começou a ser implementado em `packages/core`, nas camadas Request → Controller
+→ Service → Repository → Model: modelos de domínio, Repositories SQLite, CRUD de
+transações, cálculo de saldo (consolidado e previsto) e consolidação de extratos e
+faturas, com o adaptador `better-sqlite3` em `packages/sqlite-better`. O que falta está
+em [backend-design.md §7](docs/plans/backend-design.md#7-próximos-passos).
+
+### Desenvolvimento
+
+Requer Node 24 e pnpm 12. `pnpm install` e depois `pnpm check` (lint, tipos e testes).
+Depois de alterar `db/migrations`, `pnpm embed:migrations` regenera as migrations
+embutidas no núcleo — um teste falha se elas divergirem dos arquivos `.sql`.
