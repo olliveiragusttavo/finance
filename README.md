@@ -232,6 +232,19 @@ em [backend-design.md §7](docs/plans/backend-design.md#7-próximos-passos).
 
 ### Desenvolvimento
 
-Requer Node 24 e pnpm 12. `pnpm install` e depois `pnpm check` (lint, tipos e testes).
+O ambiente roda em Docker, sem Node nem pnpm instalados na máquina. No VS Code, com a
+extensão Dev Containers, use **Reopen in Container**: a imagem é construída e o
+`pnpm install` roda sozinho. Fora do editor, os comandos passam pelo compose:
+
+```sh
+docker compose -f .devcontainer/compose.yaml run --rm dev pnpm install
+docker compose -f .devcontainer/compose.yaml run --rm dev pnpm check
+```
+
+O container usa a rede do host (Metro/Expo e o sync precisam da rede local) e recebe o
+socket do Wayland e a GPU, para a janela do Electron abrir direto no desktop. Fora do
+Docker, o requisito é Node 24 e pnpm 12.
+
+`pnpm check` roda lint, tipos e testes.
 Depois de alterar `db/migrations`, `pnpm embed:migrations` regenera as migrations
 embutidas no núcleo — um teste falha se elas divergirem dos arquivos `.sql`.

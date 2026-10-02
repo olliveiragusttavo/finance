@@ -1,0 +1,32 @@
+{
+    "name": "finance",
+    "dockerComposeFile": "compose.yaml",
+    "service": "dev",
+    "workspaceFolder": "/workspace",
+    "remoteUser": "node",
+    // Roda no host antes do compose: grava o GID do grupo dono do render node da GPU,
+    // que varia por máquina, para o compose repassá-lo ao container via group_add.
+    "initializeCommand": "echo RENDER_GID=$(stat -c %g /dev/dri/renderD128 2>/dev/null || getent group video | cut -d: -f3) > .devcontainer/.env",
+    // Instala as dependências dentro do container: o better-sqlite3 é nativo e tem de
+    // ser compilado para o Node da imagem, não para um Node do host.
+    "postCreateCommand": "pnpm install",
+    "customizations": {
+        "vscode": {
+            // Extensões que precisam do Node e do node_modules do container para
+            // funcionar — instaladas no host, não achariam o ESLint nem o Vitest.
+            "extensions": [
+                "anthropic.claude-code",
+                "dbaeumer.vscode-eslint",
+                "EditorConfig.EditorConfig",
+                "vitest.explorer",
+                "shardulm94.trailing-spaces",
+                "eamodio.gitlens",
+                "mhutchie.git-graph",
+                "usernamehw.errorlens",
+                "cedricverlinden.cursor-dark",
+                "alefragnani.Bookmarks",
+                "vscode-icons-team.vscode-icons"
+            ]
+        }
+    }
+}

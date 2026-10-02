@@ -6,3 +6,5 @@ dist/
 coverage/
 .pnpm-store/
 *.tsbuildinfo
+.devcontainer/.env
+.env
