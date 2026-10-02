@@ -1,0 +1,63 @@
+# Nome fixo para a imagem e os volumes não herdarem o nome genérico da pasta .devcontainer.
+name: finance
+
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # Mantém o container vivo para o VS Code se conectar; comandos avulsos usam
+    # `docker compose run`, que substitui este comando.
+    command: sleep infinity
+    user: node
+    working_dir: /workspace
+    # Rede do host em vez de portas mapeadas: o Metro/Expo precisa ser alcançado pelo
+    # celular na rede local, e o sync (descoberta e TCP entre dispositivos) só funciona
+    # se o container enxergar a mesma rede que o host. Também dispensa listar as portas
+    # do Vite e do Metro uma a uma.
+    network_mode: host
+    # O Chromium do Electron usa /dev/shm para a memória compartilhada entre processos;
+    # os 64 MB padrão do Docker fazem as abas do renderer travarem.
+    shm_size: 1gb
+    # Segredos locais (ex.: CLAUDE_CODE_OAUTH_TOKEN, para o Claude Code da extensão do
+    # VS Code já entrar logado após cada rebuild). Ficam no .env da raiz, e não no
+    # .devcontainer/.env, porque este é sobrescrito pelo initializeCommand a cada abertura.
+    # Opcional para o compose subir mesmo sem o arquivo — aí o login volta a ser interativo.
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      # Corepack baixaria o pnpm perguntando no terminal, o que trava o postCreate.
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+      # Store fora do repositório e num volume: sem isso o pnpm, ao ver o projeto num
+      # sistema de arquivos diferente do home, cria um .pnpm-store na raiz do repositório.
+      npm_config_store_dir: /home/node/.pnpm-store
+      # Janela do Electron direto no compositor Wayland do host.
+      XDG_RUNTIME_DIR: /tmp/runtime-node
+      XDG_SESSION_TYPE: wayland
+      WAYLAND_DISPLAY: ${WAYLAND_DISPLAY:-wayland-0}
+      ELECTRON_OZONE_PLATFORM_HINT: auto
+      # Fallback via XWayland para o que ainda não fala Wayland.
+      DISPLAY: ${DISPLAY:-:0}
+    volumes:
+      - ..:/workspace
+      - pnpm-store:/home/node/.pnpm-store
+      - corepack:/home/node/.cache/node/corepack
+      - ${XDG_RUNTIME_DIR:-/run/user/1000}/${WAYLAND_DISPLAY:-wayland-0}:/tmp/runtime-node/${WAYLAND_DISPLAY:-wayland-0}
+      - /tmp/.X11-unix:/tmp/.X11-unix:ro
+    # GPU para o Chromium. No host o acesso a /dev/dri vem da ACL que o logind dá ao
+    # usuário logado, mas o nó criado no container não herda essa ACL — então o acesso
+    # tem de vir pelos grupos donos dos dispositivos. O GID do render muda de uma máquina
+    # para outra; o initializeCommand do devcontainer.json o grava em .devcontainer/.env.
+    # Sem o .env (compose rodado à mão), cai no video e só a GPU fica de fora.
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+      - ${RENDER_GID:-video}
+
+volumes:
+  # Store do pnpm sobrevive a rebuilds da imagem, então reinstalar é só criar links.
+  pnpm-store:
+  # Binário do pnpm baixado pelo corepack; sem o volume, cada `docker compose run` baixa de novo.
+  corepack:
