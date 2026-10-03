@@ -1,0 +1,32 @@
+{
+    "name": "@finance/client",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "sideEffects": false,
+    "exports": {
+        ".": "./src/index.ts"
+    },
+    "scripts": {
+        "typecheck": "tsc -p tsconfig.src.json && tsc -p tsconfig.json",
+        "test": "vitest run"
+    },
+    "dependencies": {
+        "@finance/core": "workspace:*",
+        "@tanstack/react-query": "5.104.1"
+    },
+    "peerDependencies": {
+        "react": "^19.2.0"
+    },
+    "devDependencies": {
+        "@finance/sqlite-better": "workspace:*",
+        "@testing-library/react": "16.3.3",
+        "@types/node": "24.19.0",
+        "@types/react": "19.3.0",
+        "happy-dom": "20.14.5",
+        "react": "19.3.0",
+        "react-dom": "19.3.0",
+        "typescript": "6.0.3",
+        "vitest": "5.0.3"
+    }
+}

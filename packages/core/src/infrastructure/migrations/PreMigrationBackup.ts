@@ -103,20 +103,44 @@ export function backupFileName(version: number, now: Timestamp): string {
 }
 
 /**
- * Ordena pelo instante gravado no nome, e não pelo nome inteiro, porque `pre-v10` vem antes
- * de `pre-v9` na ordem de texto e a rotação apagaria a cópia mais nova.
+ * A rotação ordena pelo instante (`newestFirst`); ordenar pelo nome inteiro apagaria a cópia
+ * mais nova, porque `pre-v10` vem antes de `pre-v9` na ordem de texto.
  *
  * @param fileNames Conteúdo da pasta de backups.
  * @return Os backups desta rotina além dos três mais recentes, que podem ser apagados.
  */
 export function staleBackups(fileNames: readonly string[]): readonly string[] {
+    return newestFirst(fileNames).slice(KEPT_BACKUPS);
+}
+
+/**
+ * A cópia que a tela de bloqueio oferece para restaurar quando uma migration falha
+ * (backend-design §4.5, passo 4): a mais recente desta rotina, que é a gravada antes da
+ * tentativa que falhou. Fica aqui, ao lado da rotação, para que o shell não reimplemente o
+ * padrão do nome nem a ordem pelo instante.
+ *
+ * @param fileNames Conteúdo da pasta de backups.
+ * @return O nome do backup mais recente; `null` quando não há nenhum desta rotina.
+ */
+export function newestBackup(fileNames: readonly string[]): string | null {
+    return newestFirst(fileNames)[0] ?? null;
+}
+
+/**
+ * Ordena pelo instante gravado no nome, e não pelo nome inteiro, porque `pre-v10` vem antes
+ * de `pre-v9` na ordem de texto.
+ *
+ * @param fileNames Conteúdo da pasta de backups.
+ * @return Só os backups desta rotina, do mais recente ao mais antigo; arquivos do usuário
+ * na mesma pasta ficam de fora.
+ */
+function newestFirst(fileNames: readonly string[]): readonly string[] {
     return fileNames
         .flatMap((fileName) => {
             const instant = BACKUP_FILE_PATTERN.exec(fileName)?.[1];
             return instant === undefined ? [] : [{ fileName, instant }];
         })
         .sort((a, b) => compareText(b.instant, a.instant) || compareText(b.fileName, a.fileName))
-        .slice(KEPT_BACKUPS)
         .map(({ fileName }) => fileName);
 }
 

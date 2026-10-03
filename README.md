@@ -248,3 +248,27 @@ Docker, o requisito é Node 24 e pnpm 12.
 `pnpm check` roda lint, tipos e testes.
 Depois de alterar `db/migrations`, `pnpm embed:migrations` regenera as migrations
 embutidas no núcleo — um teste falha se elas divergirem dos arquivos `.sql`.
+
+#### Desktop
+
+No container, `pnpm dev:desktop` abre o app com recarga automática. As linhas
+`ERROR:dbus` e `amdgpu: unknown` que aparecem no terminal são avisos do Chromium sem
+D-Bus e do driver de vídeo do container, não erros do app.
+
+Para rodar no host, sem Node nem pnpm, gere o build no container e abra o Electron que já
+está no `node_modules`, a partir da raiz do repositório:
+
+```sh
+# no container
+pnpm build:desktop
+
+# no host
+env -u ELECTRON_RUN_AS_NODE ./apps/desktop/node_modules/electron/dist/electron --no-sandbox apps/desktop
+```
+
+O `env -u` evita que o app suba como Node puro quando o terminal é o do VS Code. O
+`--no-sandbox` é necessário porque o `chrome-sandbox` instalado pelo pnpm não pertence a
+root, e distribuições que restringem namespaces de usuário (Ubuntu 24.04+) fazem o
+Chromium abortar sem ele; o renderer continua isolado (`contextIsolation`, `sandbox: true`
+da janela, CSP). No host, os dados ficam em `~/.config/@finance/desktop/`, separados dos
+do container. Esse modo não tem recarga: após mudar o código, rode o build de novo.

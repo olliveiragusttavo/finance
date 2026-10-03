@@ -26,6 +26,10 @@ jobs:
         tz: [UTC, America/Sao_Paulo]
     env:
       TZ: ${{ matrix.tz }}
+      # O AppArmor do runner bloqueia os namespaces de usuário do sandbox de processo do
+      # Chromium; o teste de fumaça do Electron roda sem ele (o `sandbox: true` das janelas
+      # continua valendo).
+      FINANCE_ELECTRON_NO_SANDBOX: "1"
     steps:
       - uses: actions/checkout@v5
 
@@ -39,4 +43,5 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm check
+      # O teste de fumaça abre uma janela do Electron; no runner sem tela, num X virtual.
+      - run: xvfb-run --auto-servernum pnpm check

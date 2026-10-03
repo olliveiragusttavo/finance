@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { MigrationBackupError, openDatabase, type BackupDirectory, type Database } from '../../src/index.ts';
 import { embeddedMigrations } from '../../src/infrastructure/migrations/embedded.generated.ts';
 import type { Migration } from '../../src/infrastructure/migrations/Migration.ts';
-import { backupFileName, staleBackups } from '../../src/infrastructure/migrations/PreMigrationBackup.ts';
+import { backupFileName, newestBackup, staleBackups } from '../../src/infrastructure/migrations/PreMigrationBackup.ts';
 import { FixedClock } from '../support/adapters.ts';
 
 const clock = new FixedClock('2026-10-02');
@@ -117,5 +117,11 @@ describe('nome e rotação dos backups', () => {
             'pre-v10-2026-04-01-000000.sqlite',
         ];
         expect(staleBackups(files)).toEqual(['pre-v9-2026-01-01-000000.sqlite']);
+    });
+
+    it('oferece para restaurar a cópia mais recente desta rotina, ignorando arquivos do usuário', () => {
+        const files = ['minha-copia.sqlite', 'pre-v9-2026-03-01-000000.sqlite', 'pre-v10-2026-04-01-000000.sqlite', 'pre-v9-2026-02-01-000000.sqlite'];
+        expect(newestBackup(files)).toBe('pre-v10-2026-04-01-000000.sqlite');
+        expect(newestBackup(['minha-copia.sqlite'])).toBeNull();
     });
 });

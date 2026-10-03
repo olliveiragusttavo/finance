@@ -39,8 +39,20 @@ services:
       ELECTRON_OZONE_PLATFORM_HINT: auto
       # Fallback via XWayland para o que ainda não fala Wayland.
       DISPLAY: ${DISPLAY:-:0}
+      # O seccomp padrão do Docker bloqueia os namespaces de usuário de que o sandbox de
+      # processo do Chromium precisa; sem isto o Electron aborta ao abrir. O `sandbox: true`
+      # das janelas continua valendo (apps/desktop/scripts/electron-vite.mjs).
+      FINANCE_ELECTRON_NO_SANDBOX: "1"
+      # Faz o Claude Code gravar também o .claude.json (estado de cada projeto e onboarding)
+      # dentro da pasta montada, em vez de no home do container, que se perde no rebuild.
+      CLAUDE_CONFIG_DIR: /home/node/.claude
     volumes:
       - ..:/workspace
+      # Estado do Claude Code (sessões, memória, settings) numa pasta do host exclusiva
+      # deste projeto: sobrevive a rebuilds e não se mistura com outros devcontainers,
+      # que também usariam o caminho /workspace. Crie a pasta no host antes do rebuild,
+      # senão o Docker a cria como root e o usuário node não consegue gravar nela.
+      - ${HOME}/.claude-devcontainers/finance:/home/node/.claude
       - pnpm-store:/home/node/.pnpm-store
       - corepack:/home/node/.cache/node/corepack
       - ${XDG_RUNTIME_DIR:-/run/user/1000}/${WAYLAND_DISPLAY:-wayland-0}:/tmp/runtime-node/${WAYLAND_DISPLAY:-wayland-0}

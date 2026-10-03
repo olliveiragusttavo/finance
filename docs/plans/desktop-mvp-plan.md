@@ -1,6 +1,6 @@
 # Plano do MVP Desktop — CRUD e primeiros relatórios
 
-**Status:** Em andamento — Fases 0, 1 e 2 concluídas. Primeira entrega com tela do projeto: o app desktop
+**Status:** Em andamento — Fases 0, 1, 2 e 3 concluídas. Primeira entrega com tela do projeto: o app desktop
 (Electron) com os cadastros e lançamentos básicos e os dois primeiros relatórios
 personalizados, que são a motivação original do projeto ([README](../../README.md#motivação)).
 O mobile fica inteiro para depois.
@@ -57,7 +57,8 @@ categoria/subcategoria** e **quanto as faturas do cartão pesam no saldo do mês
 | Pergunta | Decisão | Por quê |
 |---|---|---|
 | Bundler do Electron | **electron-vite** (main, preload, utility e renderer num só build) | O design pede Vite no renderer ([desktop-shell §4.1](desktop-shell-design.md#41-o-critério-o-que-o-mobile-também-usa)); o electron-vite resolve os quatro alvos com HMR, sem montar quatro configs à mão |
-| Empacotamento | **electron-builder**, alvo AppImage/deb | Recompila o `better-sqlite3` para o ABI do Electron (`install-app-deps`) e é o caminho mais curto para Linux, onde o projeto é desenvolvido |
+| Empacotamento | **electron-builder**, alvo AppImage/deb | É o caminho mais curto para Linux, onde o projeto é desenvolvido. O `better-sqlite3` 13 é N-API (com binários prontos no pacote), e o mesmo `.node` carrega no Node e no Electron: não há recompilação para o ABI do Electron (Fase 3.3) |
+| Versão do Tailwind | **Tailwind v4**, com o "preset" como CSS gerado (`@theme`) | É a versão do shadcn/ui atual; o NativeWind 5 lê o mesmo CSS. Os tokens são dados, então uma saída em JS para o NativeWind 4 sai do mesmo gerador se o mobile precisar |
 | Roteamento | **TanStack Router** com histórico em hash | Rotas e *search params* tipados (mês de referência, filtros, drill-down); hash porque o app é servido de `file://` |
 | Dados na UI | **TanStack Query** dentro de `packages/client` | Já decidido ([desktop-shell §4.2](desktop-shell-design.md#42-o-que-é-compartilhado-é-a-camada-headless)) |
 | Formulários | **react-hook-form** + os schemas Zod da camada Request do núcleo | Validação de conforto com a mesma regra do `utilityProcess` ([desktop-shell §5.4](desktop-shell-design.md#54-validação-na-fronteira)) |
@@ -274,32 +275,32 @@ Ordem pensada para que cada fase entregue algo testável. As fases 1–2 (núcle
 ### Fase 3 — Fundação do desktop
 
 **3.1 `packages/tokens`**
-- [ ] Tokens do README dos mockups como dados (claro e escuro), IBM Plex Sans, escala de espaçamento
-- [ ] Gerador do CSS de variáveis (`:root` e `.dark`) e preset do Tailwind
-- [ ] Teste: todo token tem valor nos dois temas
+- [x] Tokens do README dos mockups como dados (claro e escuro), IBM Plex Sans, escala de espaçamento — mais `dot` (já nas variáveis dos mockups) e `scrim`, o véu de diálogos e painéis, que os mockups não desenham. Tamanho de fonte e raio têm escala fechada nomeada pelo px do mockup (`text-13`, `rounded-8`); espaçamento usa a unidade de 4px do Tailwind
+- [x] Gerador do CSS de variáveis (`:root` e `.dark`) e preset do Tailwind — no Tailwind v4 o preset é o bloco `@theme` do mesmo CSS (`theme.generated.css`, versionado e regenerado por `pnpm tokens:css`); as escalas padrão do Tailwind são zeradas, então classe fora dos tokens não gera estilo
+- [x] Teste: todo token tem valor nos dois temas, e o CSS versionado está em dia com os dados
 
 **3.2 `packages/client`**
-- [ ] `CoreClient` (interface) e `DirectCoreClient` (para testes e, depois, mobile)
-- [ ] Erro tipado: `CoreCallError` com tratamento exaustivo por `ErrorCode` e mensagens pt-BR
-- [ ] Chaves de query e **mapa de invalidação** (qual rota de escrita invalida quais leituras — ex.: transação invalida extrato, fatura, saldos e relatórios do mês)
-- [ ] Hooks por rota (`useAccounts`, `useInvoice`, `useCategoryReport`, mutações)
-- [ ] Formatadores sem `Intl`: `R$ 1.234,56`, `−R$`, valor em módulo para fatura, datas `01/10`, `out/2026`, `Outubro de 2026` — com testes de ouro
-- [ ] Parser de valor digitado em pt-BR (`1.234,56`) com a mesma regra de arredondamento do `Money`
-- [ ] View-models: tabela de transações (join com nomes de conta, cartão e categoria, filtros, resultado do filtro), árvore do relatório por categoria, grade do impacto do cartão
-- [ ] Lint de fronteira: `client` não importa `react-dom`, `react-native`, `electron`
+- [x] `CoreClient` (interface) e `DirectCoreClient` (para testes e, depois, mobile)
+- [x] Erro tipado: `CoreCallError` com tratamento exaustivo por `ErrorCode` e mensagens pt-BR — as regras de `BUSINESS_RULE_VIOLATION` viraram a união fechada `BusinessRule` no núcleo, com mensagem por regra num `Record` exaustivo
+- [x] Chaves de query e **mapa de invalidação** — invalida por rota, não pelo mês (a escrita de um mês muda a cadeia de saldos dos meses seguintes e as comparações dos relatórios); o teste executa cada rota de escrita contra o núcleo real e confere que toda leitura que mudou está no mapa
+- [x] Hooks por rota (`useAccounts`, `useInvoice`, `useCategoryReport`...) para as leituras; as escritas usam `useCoreMutation(rota)`, que aplica o mapa
+- [x] Formatadores sem `Intl`: `R$ 1.234,56`, `−R$`, valor em módulo para fatura, datas `01/10`, `out/2026`, `Outubro de 2026`, percentual e variação (`▲ +R$ 162,40`, `novo`) — com testes de ouro
+- [x] Parser de valor digitado em pt-BR (`1.234,56`) com a mesma regra de arredondamento do `Money`
+- [x] View-models: tabela de transações (join com nomes de conta, cartão e categoria, filtros, resultado do filtro), árvore do relatório por categoria, grade do impacto do cartão
+- [x] Lint de fronteira: `client` não importa `react-dom`, `react-native`, `electron` nem Node, e não usa `Intl`
 
 **3.3 `apps/desktop` — esqueleto**
-- [ ] electron-vite com alvos main, preload, utility e renderer; TypeScript estrito igual ao do núcleo
-- [ ] Janela com `contextIsolation`, `sandbox`, `nodeIntegration: false`, CSP `default-src 'self'`, navegação externa e novas janelas bloqueadas ([desktop-shell §3.6](desktop-shell-design.md#36-segurança-do-renderer))
-- [ ] `utilityProcess`: abre `userData/finance.sqlite` com `better-sqlite3`, roda `openDatabase` com `NodeBackupDirectory(userData/backups)`, monta `createCore` com `Clock`/`IdGenerator` reais, roda `integrity.verifyBalances` e registra no log os desvios e os erros inesperados
-- [ ] `MessageChannelMain` entre renderer e `utilityProcess`; `IpcCoreClient` com correlação de requisição/resposta
-- [ ] Preload expõe **só** o `CoreClient` e as preferências do aparelho via `contextBridge`
-- [ ] Telas de bloqueio: banco mais novo que o app; falha de migration com "restaurar backup"
-- [ ] Recompilação do `better-sqlite3` para o Electron em `postinstall`
-- [ ] Renderer: React 19, TanStack Router (hash), TanStack Query, Tailwind com o preset de `tokens`, shadcn/ui inicializado (Button, Input, Select, Dialog, Sheet, Popover, DropdownMenu, ContextMenu, Table, Tabs, Tooltip, Sonner, Chart)
-- [ ] Scripts `pnpm dev:desktop`, `pnpm build:desktop`; `pnpm check` cobrindo lint e tipos do app
-- [ ] Teste de fumaça com Playwright (`_electron`): abre, cria perfil, lança uma despesa, vê no extrato
-- [ ] Medir memória e tempo de abertura ([desktop-shell §6.4](desktop-shell-design.md#6-próximos-passos)) e registrar o número
+- [x] electron-vite com alvos main, preload, utility e renderer; TypeScript estrito igual ao do núcleo
+- [x] Janela com `contextIsolation`, `sandbox`, `nodeIntegration: false`, CSP `default-src 'self'`, navegação externa e novas janelas bloqueadas ([desktop-shell §3.6](desktop-shell-design.md#36-segurança-do-renderer))
+- [x] `utilityProcess`: abre `userData/finance.sqlite` com `better-sqlite3`, roda `openDatabase` com `NodeBackupDirectory(userData/backups)`, monta `createCore` com `Clock`/`IdGenerator` reais, roda `integrity.verifyBalances` e registra no log (`userData/logs/core.log`) os desvios e os erros inesperados
+- [x] `MessageChannelMain` entre renderer e `utilityProcess`; `IpcCoreClient` com correlação de requisição/resposta
+- [x] Preload expõe **só** o `CoreClient`, as preferências do aparelho e o estado da abertura (com "restaurar backup", a única ação que as telas de bloqueio pedem) via `contextBridge`
+- [x] Telas de bloqueio: banco mais novo que o app; falha de migration com "restaurar backup" (o banco que falhou vai para `backups/falha-*.sqlite` e o app pede para usar a versão anterior); falha do backup; arquivo que não abre
+- [x] ~~Recompilação do `better-sqlite3` para o Electron em `postinstall`~~ — desnecessária: o `better-sqlite3` 13 é N-API 10 e traz os binários no pacote; o teste de fumaça prova que o mesmo `.node` abre o banco no `utilityProcess`. Recompilar no lugar ainda quebraria os testes do núcleo, que usam a mesma cópia no Node
+- [x] Renderer: React 19, TanStack Router (hash), TanStack Query, Tailwind com o preset de `tokens`, shadcn/ui inicializado (Button, Input, Select, Dialog, Sheet, Popover, DropdownMenu, ContextMenu, Table, Tabs, Tooltip, Sonner, Chart) — classes traduzidas para os tokens, `Chart` reescrito com cor de série restrita a token e sem `Intl`
+- [x] Scripts `pnpm dev:desktop`, `pnpm build:desktop`; `pnpm check` cobrindo lint e tipos do app
+- [x] Teste de fumaça com Playwright (`_electron`): abre, cria perfil, lança uma despesa, vê no extrato — enquanto as telas das Fases 5, 7 e 9 não existem, pela mesma ponte que elas vão usar; também confere o isolamento do renderer, a CSP e a tela de bloqueio. No devcontainer e no CI roda com `FINANCE_ELECTRON_NO_SANDBOX=1`, porque o container bloqueia os namespaces de usuário do sandbox de processo do Chromium
+- [x] Medir memória e tempo de abertura ([desktop-shell §6.4](desktop-shell-design.md#6-próximos-passos)) e registrar o número — `pnpm --filter @finance/desktop measure`; resultado em [desktop-shell §6](desktop-shell-design.md#6-próximos-passos)
 
 ### Fase 4 — Shell e navegação
 
@@ -379,6 +380,7 @@ Ordem pensada para que cada fase entregue algo testável. As fases 1–2 (núcle
 
 - [ ] KPIs: faturas do mês (cartões, quantas em aberto), peso nas entradas, média dos 3 meses anteriores
 - [ ] Grade mês × cartão com valor, situação ("paga no extrato de jul", "Em aberto · vence 10/10", "Futura"), total e peso
+- [ ] Decidir com o mockup duas diferenças achadas no view-model da Fase 3.2: o mockup mostra "Paga em 07/10" (data) no mês de referência, e o `reports.cardImpact` só traz o mês do extrato; e distingue "Aberta" (ciclo recebendo compras) de "Futura", que o núcleo junta em `future` (reports-design §4)
 - [ ] Linha do mês de referência destacada; links de cada célula para a fatura
 - [ ] Nota explicando que a fatura em aberto pesa no previsto no vencimento e, paga, no extrato do pagamento
 - [ ] Estados: perfil sem cartão; mês sem receitas (peso "—")
@@ -394,7 +396,7 @@ Ordem pensada para que cada fase entregue algo testável. As fases 1–2 (núcle
 
 ### Fase 14 — Empacotamento e validação
 
-- [ ] electron-builder: AppImage e deb, ícone, nome, versão a partir do `package.json`
+- [ ] electron-builder: AppImage e deb, ícone, nome, versão a partir do `package.json`; `better-sqlite3` fora do `asar` (`asarUnpack`), porque o `.node` não carrega de dentro do arquivo
 - [ ] Build empacotado abre um banco existente, migra com backup e funciona sem a árvore do repositório
 - [ ] Rodada de uso real: lançar um mês verdadeiro e conferir os dois relatórios contra o extrato do banco e a fatura do cartão
 - [ ] `change-validator` sobre a entrega e atualização do README (Status) e do `desktop-shell-design.md` (próximos passos)
@@ -407,13 +409,13 @@ Ordem pensada para que cada fase entregue algo testável. As fases 1–2 (núcle
 - Os dois relatórios conferem, centavo a centavo, com um mês real conferido à mão.
 - Tema claro e escuro em todas as telas; nenhuma cor literal fora de `packages/tokens`.
 - `pnpm check` verde, com os testes de mesa dos relatórios e o teste de fumaça do Electron.
-- Renderer sem acesso a Node: o preload expõe só o `CoreClient` e as preferências.
+- Renderer sem acesso a Node: o preload expõe só o `CoreClient`, as preferências e o estado da abertura.
 
 ## 8. Riscos
 
 | Risco | Mitigação |
 |---|---|
-| Recompilar `better-sqlite3` para o Electron quebrar no CI ou no empacotamento | Fazer na Fase 3.3, antes de qualquer tela, e cobrir com o teste de fumaça |
+| Recompilar `better-sqlite3` para o Electron quebrar no CI ou no empacotamento | Resolvido na Fase 3.3: o binário N-API do pacote carrega no Electron sem recompilar, e o teste de fumaça cobre. Resta tirar o `.node` do `asar` no empacotamento (Fase 14) |
 | Regra de período mudar no refinamento dos relatórios | O mês de pagamento é uma expressão SQL única (Fase 2.1); os testes de mesa documentam a regra atual |
 | Exclusão em cadeia apagar mais (ou menos) do que o alerta mostrou | `deletionImpact` e a exclusão usam as mesmas consultas; teste confere que o que foi apagado é exatamente o que foi contado |
 | Invalidação incompleta deixar saldo velho na tela | Mapa de invalidação centralizado e testado (Fase 3.2), não `invalidateQueries` espalhado |

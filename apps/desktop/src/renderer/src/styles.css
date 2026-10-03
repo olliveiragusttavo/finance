@@ -1,0 +1,27 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import '@finance/tokens/theme.css';
+@import '@fontsource/ibm-plex-sans/latin-400.css';
+@import '@fontsource/ibm-plex-sans/latin-500.css';
+@import '@fontsource/ibm-plex-sans/latin-600.css';
+
+/*
+ * Base do app: fonte e cores dos tokens, e algarismos tabulares em todo número
+ * (decisão de interface 8 dos mockups) — valores alinham nas tabelas sem classe por célula.
+ */
+@layer base {
+    html,
+    body,
+    #root {
+        height: 100%;
+    }
+
+    body {
+        @apply bg-bg font-sans text-14 text-ink antialiased;
+        font-variant-numeric: tabular-nums;
+    }
+
+    a {
+        @apply text-accent;
+    }
+}
