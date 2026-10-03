@@ -33,6 +33,23 @@ export class MigrationIntegrityError extends Error {
     }
 }
 
+/**
+ * Uma migration falhou por erro de SQL e foi desfeita. Existe separado do erro cru do driver
+ * porque a abertura precisa distinguir "a migration quebrou" de "o arquivo não abre": num
+ * banco novo não há backup, e sem este tipo um erro de SQL da primeira migration seria
+ * mostrado como arquivo corrompido (backend-design §4.5, passo 4).
+ */
+export class MigrationFailedError extends Error {
+    /**
+     * @param version Migration que falhou; as anteriores continuam aplicadas.
+     * @param cause Erro original do driver, preservado para o log.
+     */
+    public constructor(public readonly version: number, cause: unknown) {
+        super(`Migration ${version} falhou e foi desfeita`, { cause });
+        this.name = 'MigrationFailedError';
+    }
+}
+
 /** O que a execução fez, para log e para a tela de erro de abertura. */
 export interface MigrationReport {
     readonly fromVersion: number;
@@ -76,6 +93,7 @@ export class MigrationRunner {
      * @throws {SchemaNewerThanAppError} Quando o banco é mais novo que o app.
      * @throws {MigrationBackupError} Quando a cópia falha; nada é migrado.
      * @throws {MigrationIntegrityError} Quando uma migration deixa chave estrangeira quebrada.
+     * @throws {MigrationFailedError} Quando o SQL de uma migration falha.
      */
     public migrate(): MigrationReport {
         const fromVersion = this.currentVersion();
@@ -89,6 +107,23 @@ export class MigrationRunner {
 
         const applied: number[] = [];
         for (const migration of pending) {
+            this.apply(migration);
+            applied.push(migration.version);
+        }
+        return { fromVersion, toVersion: this.currentVersion(), applied, backupFile };
+    }
+
+    /**
+     * Aplica uma migration na sua própria transação. O erro do driver é embrulhado em
+     * `MigrationFailedError` para que quem abre o banco saiba que a falha foi da migration, e
+     * não da conexão, mesmo quando não houve backup (banco novo).
+     *
+     * @param migration Migration pendente a aplicar.
+     * @throws {MigrationIntegrityError} Quando a migration deixa chave estrangeira quebrada.
+     * @throws {MigrationFailedError} Quando o SQL da migration falha.
+     */
+    private apply(migration: Migration): void {
+        try {
             this.database.transaction(() => {
                 this.database.exec(migration.sql);
                 const violations = this.database.all('PRAGMA foreign_key_check');
@@ -98,9 +133,9 @@ export class MigrationRunner {
                 // PRAGMA não aceita parâmetro; a versão é um inteiro do próprio bundle.
                 this.database.exec(`PRAGMA user_version = ${String(Math.trunc(migration.version))}`);
             });
-            applied.push(migration.version);
+        } catch (error) {
+            throw error instanceof MigrationIntegrityError ? error : new MigrationFailedError(migration.version, error);
         }
-        return { fromVersion, toVersion: this.currentVersion(), applied, backupFile };
     }
 
     /**

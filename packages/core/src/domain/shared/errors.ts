@@ -73,6 +73,27 @@ export class NotFoundError extends DomainError {
 }
 
 /**
+ * Conjunto fechado das regras que o núcleo recusa com `BUSINESS_RULE_VIOLATION`. É fechado
+ * pelo mesmo motivo do `ErrorCode`: a UI escolhe a mensagem de cada regra num mapa
+ * exaustivo, e uma regra nova precisa quebrar a compilação do `client` em vez de cair na
+ * mensagem genérica sem ninguém perceber.
+ */
+export type BusinessRule =
+    | 'account-disabled'
+    | 'credit-card-disabled'
+    | 'destination-equals-origin'
+    | 'destination-not-allowed'
+    | 'destination-required'
+    | 'invoice-already-paid'
+    | 'invoice-not-paid'
+    | 'move-target-deleted'
+    | 'partner-requires-business-profile'
+    | 'profile-currency-locked'
+    | 'recurrence-occurrence-date-taken'
+    | 'reference-outside-profile'
+    | 'sub-category-in-use';
+
+/**
  * Uma regra de negócio que relaciona colunas ou linhas foi violada — o tipo de regra que
  * o banco deliberadamente não garante (database-design §3.10) e que, por isso, precisa de
  * um único ponto de controle na camada Service.
@@ -81,12 +102,12 @@ export class BusinessRuleViolation extends DomainError {
     public readonly code = 'BUSINESS_RULE_VIOLATION';
 
     /**
-     * @param rule Identificador estável da regra violada (ex.: `transfer-destination-required`);
-     * é o que a UI usa para escolher a mensagem, por isso não muda com o texto.
+     * @param rule Identificador estável da regra violada (ex.: `destination-required`); é o
+     * que a UI usa para escolher a mensagem, por isso não muda com o texto.
      * @param message Descrição técnica da violação, para log.
      * @param details Dados extras da violação para a UI detalhar a mensagem.
      */
-    public constructor(rule: string, message: string, details: ErrorDetails = {}) {
+    public constructor(rule: BusinessRule, message: string, details: ErrorDetails = {}) {
         super(message, { rule, ...details });
     }
 }

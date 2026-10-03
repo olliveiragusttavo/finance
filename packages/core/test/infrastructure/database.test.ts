@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { BetterSqliteDatabase } from '@finance/sqlite-better';
 import { describe, expect, it } from 'vitest';
-import { openDatabase, SchemaNewerThanAppError, type Database } from '../../src/index.ts';
+import { MigrationFailedError, openDatabase, SchemaNewerThanAppError, type Database } from '../../src/index.ts';
 import { embeddedMigrations } from '../../src/infrastructure/migrations/embedded.generated.ts';
 import { FixedClock } from '../support/adapters.ts';
 
@@ -75,6 +75,16 @@ describe('abertura do banco (backend-design §4.5)', () => {
         openDatabase(database, { backups: null, clock });
         database.exec('PRAGMA user_version = 999');
         expect(() => openDatabase(database, { backups: null, clock })).toThrow(SchemaNewerThanAppError);
+    });
+
+    it('erro de SQL numa migration vira MigrationFailedError e mantém as anteriores', () => {
+        const database = freshDatabase();
+        const migrations = [
+            { version: 1, name: '0001_inicial', sql: 'CREATE TABLE notes (id INTEGER PRIMARY KEY) STRICT;' },
+            { version: 2, name: '0002_quebrada', sql: 'INSERT INTO tabela_que_nao_existe VALUES (1);' },
+        ];
+        expect(() => openDatabase(database, { backups: null, clock, migrations })).toThrow(MigrationFailedError);
+        expect(database.get('PRAGMA user_version')).toEqual({ user_version: 1 });
     });
 
     it('as migrations embutidas são idênticas aos arquivos de db/migrations', () => {

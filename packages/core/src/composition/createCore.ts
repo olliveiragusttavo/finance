@@ -104,6 +104,7 @@ export interface OpenDatabaseOptions {
  * @throws {SchemaNewerThanAppError} Quando o banco é mais novo que o app.
  * @throws {MigrationBackupError} Quando a cópia de segurança falha; nada é migrado.
  * @throws {MigrationIntegrityError} Quando uma migration deixa chave estrangeira quebrada.
+ * @throws {MigrationFailedError} Quando o SQL de uma migration falha; ela é desfeita.
  */
 export function openDatabase(database: Database, options: OpenDatabaseOptions): MigrationReport {
     configureConnection(database);
