@@ -1,0 +1,42 @@
+# Lint, tipos e testes em todo push e pull request — o que bloqueia um merge
+# (backend-design §5.12).
+#
+# A suíte roda em dois fusos (backend-design §5.7): datas são texto sem fuso e timestamps
+# são UTC, então um `Date` construído no lugar errado só vira bug perto da meia-noite num
+# fuso diferente de UTC. Rodar também em America/Sao_Paulo faz esse bug aparecer aqui, e
+# não às 22h de um dia 31.
+name: check
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: pnpm check (TZ=${{ matrix.tz }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tz: [UTC, America/Sao_Paulo]
+    env:
+      TZ: ${{ matrix.tz }}
+    steps:
+      - uses: actions/checkout@v5
+
+      # Versão do pnpm vem do campo packageManager do package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm check

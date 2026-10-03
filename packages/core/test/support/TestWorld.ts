@@ -47,7 +47,7 @@ export class TestWorld {
         this.clock = new FixedClock(today);
         this.currency = currency;
         this.database = BetterSqliteDatabase.open(':memory:');
-        openDatabase(this.database);
+        openDatabase(this.database, { backups: null, clock: this.clock });
         this.core = createCore({
             database: this.database,
             clock: this.clock,

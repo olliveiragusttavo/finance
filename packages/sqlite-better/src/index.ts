@@ -107,3 +107,5 @@ export class BetterSqliteDatabase {
         return execute(statement, Object.keys(params).length === 0 ? [] : [params]);
     }
 }
+
+export { NodeBackupDirectory } from './NodeBackupDirectory.ts';

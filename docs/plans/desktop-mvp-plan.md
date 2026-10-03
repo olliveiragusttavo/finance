@@ -1,6 +1,6 @@
 # Plano do MVP Desktop — CRUD e primeiros relatórios
 
-**Status:** Plano — não iniciado. Primeira entrega com tela do projeto: o app desktop
+**Status:** Em andamento — Fase 0 concluída. Primeira entrega com tela do projeto: o app desktop
 (Electron) com os cadastros e lançamentos básicos e os dois primeiros relatórios
 personalizados, que são a motivação original do projeto ([README](../../README.md#motivação)).
 O mobile fica inteiro para depois.
@@ -194,10 +194,10 @@ Ordem pensada para que cada fase entregue algo testável. As fases 1–2 (núcle
 
 ### Fase 0 — Pendências do núcleo que o app real precisa
 
-- [ ] Backup com `VACUUM INTO` em `backups/pre-v{versão}-{data}.sqlite` antes de migrar, mantendo os 3 mais recentes (porta `FileStore` ou caminho passado pelo shell)
-- [ ] `db/migrations/checksums.lock` e o teste de imutabilidade das migrations
-- [ ] Verificação de integridade mínima na abertura (saldo em cache × recálculo), com log
-- [ ] CI (GitHub Actions) rodando `pnpm check` com `TZ=UTC` e `TZ=America/Sao_Paulo`
+- [x] Backup com `VACUUM INTO` em `backups/pre-v{versão}-{data}-{hora}.sqlite` antes de migrar, mantendo os 3 mais recentes — porta `BackupDirectory` (adaptador Node: `NodeBackupDirectory` no `sqlite-better`), obrigatória em `openDatabase`
+- [x] `db/migrations/checksums.lock` (gravado pelo `pnpm embed:migrations`, que recusa migration travada editada) e o teste de imutabilidade das migrations
+- [x] Verificação de integridade mínima na abertura (saldo em cache × recálculo): rota `integrity.verifyBalances`, que recalcula numa unidade de trabalho desfeita e devolve os desvios sem corrigi-los; o shell registra o resultado no log (Fase 3.3)
+- [x] CI (GitHub Actions) rodando `pnpm check` com `TZ=UTC` e `TZ=America/Sao_Paulo`
 
 ### Fase 1 — Núcleo: cadastros
 
@@ -286,7 +286,7 @@ Ordem pensada para que cada fase entregue algo testável. As fases 1–2 (núcle
 **3.3 `apps/desktop` — esqueleto**
 - [ ] electron-vite com alvos main, preload, utility e renderer; TypeScript estrito igual ao do núcleo
 - [ ] Janela com `contextIsolation`, `sandbox`, `nodeIntegration: false`, CSP `default-src 'self'`, navegação externa e novas janelas bloqueadas ([desktop-shell §3.6](desktop-shell-design.md#36-segurança-do-renderer))
-- [ ] `utilityProcess`: abre `userData/finance.sqlite` com `better-sqlite3`, roda `openDatabase`, monta `createCore` com `Clock`/`IdGenerator` reais e log de erros inesperados
+- [ ] `utilityProcess`: abre `userData/finance.sqlite` com `better-sqlite3`, roda `openDatabase` com `NodeBackupDirectory(userData/backups)`, monta `createCore` com `Clock`/`IdGenerator` reais, roda `integrity.verifyBalances` e registra no log os desvios e os erros inesperados
 - [ ] `MessageChannelMain` entre renderer e `utilityProcess`; `IpcCoreClient` com correlação de requisição/resposta
 - [ ] Preload expõe **só** o `CoreClient` e as preferências do aparelho via `contextBridge`
 - [ ] Telas de bloqueio: banco mais novo que o app; falha de migration com "restaurar backup"
