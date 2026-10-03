@@ -22,8 +22,36 @@ const coreBoundaryRules = {
     ],
 };
 
+/**
+ * Fronteira do `client` (desktop-shell-design §4.2): a camada headless é compartilhada com o
+ * React Native, então não pode depender do React DOM, do React Native, do Electron nem do
+ * Node. `Intl` também fica de fora porque formata diferente no Chromium e no Hermes
+ * (mobile-shell-design §8): o mesmo saldo apareceria de dois jeitos.
+ */
+const clientBoundaryRules = {
+    'no-restricted-imports': ['error', {
+        patterns: [
+            { group: ['react-dom', 'react-dom/*', 'react-native', 'react-native/*', 'electron', 'electron/*'], message: 'O client é compartilhado entre desktop e mobile (desktop-shell-design §4.2).' },
+            { group: ['node:*', 'fs', 'path', 'crypto', 'os'], message: 'O client roda também no Hermes do mobile, sem Node.' },
+        ],
+    }],
+    'no-restricted-globals': ['error',
+        { name: 'Intl', message: 'Formate com os formatadores do client: Intl difere entre Chromium e Hermes (desktop-shell-design §4.2).' },
+    ],
+};
+
+/**
+ * Os tokens são dados sem dependências, lidos pelo desktop, pelo mobile e pelo gerador
+ * (desktop-shell-design §4.5); só o script de geração toca o disco.
+ */
+const tokensBoundaryRules = {
+    'no-restricted-imports': ['error', {
+        patterns: [{ regex: '^(?!\\./)', message: 'packages/tokens/src não tem dependências (desktop-shell-design §4.5).' }],
+    }],
+};
+
 export default tseslint.config(
-    { ignores: ['**/node_modules/**', '**/dist/**', '**/*.generated.ts'] },
+    { ignores: ['**/node_modules/**', '**/dist/**', '**/out/**', '**/test-results/**', '**/playwright-report/**', '**/*.generated.ts'] },
     js.configs.recommended,
     ...tseslint.configs.strictTypeChecked,
     {
@@ -44,6 +72,14 @@ export default tseslint.config(
     {
         files: ['packages/core/src/**/*.ts'],
         rules: coreBoundaryRules,
+    },
+    {
+        files: ['packages/client/src/**/*.{ts,tsx}'],
+        rules: clientBoundaryRules,
+    },
+    {
+        files: ['packages/tokens/src/**/*.ts'],
+        rules: tokensBoundaryRules,
     },
     {
         // Scripts de build em JavaScript puro: sem anotação de tipo possível, o tipo de
