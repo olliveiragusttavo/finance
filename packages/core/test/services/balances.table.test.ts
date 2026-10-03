@@ -295,3 +295,69 @@ describe('Extrato consolidado e virada do mês', () => {
         expect(world.accountRow(accountId).balance).toEqualMoney('800');
     });
 });
+
+describe('Extrato pela data de pagamento', () => {
+    it('despesa paga em mês diferente do vencimento cai no extrato do pagamento', async () => {
+        const { world, accountId, base } = setup(1000);
+        const expense = await world.create(base, { source: { kind: 'account', accountId }, value: 300, dueDate: '2026-02-26', paymentDate: '2026-03-02' });
+
+        expect(expense.container.period).toBe('2026-03');
+        expect(world.statementRow(accountId, '2026-02')).toBeUndefined();
+        expect(world.statementRow(accountId, '2026-03')?.closing).toEqualMoney('700');
+    });
+
+    it('em aberto fica no vencimento; marcar pago (hoje) move para o mês de hoje, desmarcar devolve', async () => {
+        const { world, accountId, base } = setup(1000);
+        const expense = await world.create(base, { source: { kind: 'account', accountId }, value: 300, dueDate: '2026-03-28' });
+        expect(world.statementRow(accountId, '2026-03')?.projectedClosing).toEqualMoney('700');
+
+        world.clock.set('2026-04-02');
+        const paid = await world.ok('transactions.setPaid', { id: expense.id, paid: true });
+
+        expect(paid.container.period).toBe('2026-04');
+        expect(world.statementRow(accountId, '2026-03')?.projectedClosing).toEqualMoney('1000');
+        expect(world.statementRow(accountId, '2026-04')?.opening).toEqualMoney('1000');
+        expect(world.statementRow(accountId, '2026-04')?.closing).toEqualMoney('700');
+
+        const reopened = await world.ok('transactions.setPaid', { id: expense.id, paid: false });
+
+        expect(reopened.container.period).toBe('2026-03');
+        expect(world.statementRow(accountId, '2026-03')?.projectedClosing).toEqualMoney('700');
+        // Abril fica sem movimento: repete março — consolidado 1000, previsto 700.
+        expect(world.statementRow(accountId, '2026-04')?.closing).toEqualMoney('1000');
+        expect(world.statementRow(accountId, '2026-04')?.projectedClosing).toEqualMoney('700');
+    });
+
+    it('editar a data de pagamento para outro mês recalcula o extrato antigo e o novo', async () => {
+        const { world, accountId, base } = setup(1000);
+        const source = { kind: 'account', accountId } as const;
+        const expense = await world.create(base, { source, value: 300, dueDate: '2026-03-10', paymentDate: '2026-03-10' });
+
+        await world.update(base, expense.id, { source, value: 300, dueDate: '2026-03-10', paymentDate: '2026-05-03' });
+
+        expect(world.statementRow(accountId, '2026-03')?.closing).toEqualMoney('1000');
+        expect(world.statementRow(accountId, '2026-05')?.closing).toEqualMoney('700');
+    });
+
+    it('transferência paga em outro mês sai da origem e entra no destino no mês do pagamento', async () => {
+        const { world, profileId, accountId, base } = setup(1000);
+        const savings = world.account(profileId, { openingBalance: 0 });
+        await world.create(base, {
+            source: { kind: 'account', accountId },
+            type: 'transference',
+            destinationAccountId: savings,
+            value: 400,
+            dueDate: '2026-02-27',
+            paymentDate: '2026-03-01',
+        });
+
+        expect(world.statementRow(accountId, '2026-02')).toBeUndefined();
+        expect(world.statementRow(savings, '2026-02')).toBeUndefined();
+        expect(world.statementRow(accountId, '2026-03')?.closing).toEqualMoney('600');
+        expect(world.statementRow(savings, '2026-03')?.closing).toEqualMoney('400');
+        const statement = await world.ok('statements.get', { accountId: savings, period: '2026-03' });
+        expect(statement.incomingTransfers.map((transfer) => transfer.value.amount)).toEqual([400]);
+        const balances = await world.ok('balances.ofProfile', { profileId });
+        expect(balances.total.consolidated).toEqualMoney('1000');
+    });
+});

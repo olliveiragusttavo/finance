@@ -1,3 +1,4 @@
+import type { CategoryScope } from '../../domain/report/CategoryScope.ts';
 import { Currency } from '../../domain/shared/Currency.ts';
 import { CorruptRowError } from '../../domain/shared/errors.ts';
 import {
@@ -21,7 +22,7 @@ import type { Clock } from '../../ports/Clock.ts';
 import type { Database, SqlParams, SqlRow } from '../../ports/Database.ts';
 import type { TransactionRepository } from '../../repositories/TransactionRepository.ts';
 import { decodeEnum, TRANSACTION_TYPE_CODE } from './enumCodes.ts';
-import { monthBounds } from './periodSql.ts';
+import { cashDateSql, monthBounds, periodKey, REPORT_SOURCES_CTE } from './periodSql.ts';
 import { RowReader } from './RowReader.ts';
 
 // O perfil e a moeda vêm do contêiner (extrato → conta, fatura → cartão), porque a
@@ -145,14 +146,14 @@ export class SqliteTransactionRepository implements TransactionRepository {
 
     /**
      * @param accountId Conta de destino.
-     * @param period Mês do `due_date`.
+     * @param period Mês da data de caixa (`cashDateSql`), o mesmo critério do recálculo.
      * @return As transferências e investimentos vivos que chegam à conta no mês.
      */
     public listIncoming(accountId: AccountId, period: YearMonth): readonly Transaction[] {
         const { start, end } = monthBounds(period);
         return this.list(
             `WHERE t.destination_account_id = :accountId AND t.type IN (3, 4) AND t.deleted_at IS NULL
-                AND t.due_date BETWEEN :start AND :end ${ORDER}`,
+                AND ${cashDateSql('t')} BETWEEN :start AND :end ${ORDER}`,
             { accountId, start, end },
         );
     }
@@ -168,6 +169,29 @@ export class SqliteTransactionRepository implements TransactionRepository {
             `WHERE p.id = :profileId AND t.deleted_at IS NULL AND t.due_date BETWEEN :from AND :to ${ORDER}`,
             { profileId, from: from.toString(), to: to.toString() },
         );
+    }
+
+    /**
+     * @param profileId Perfil dono.
+     * @param period Mês de pagamento.
+     * @param scope Categoria inteira ou uma subcategoria.
+     * @return As despesas vivas do escopo que pesam no mês, pelo critério de
+     * `REPORT_SOURCES_CTE`.
+     */
+    public listExpensesByPaymentPeriod(profileId: ProfileId, period: YearMonth, scope: CategoryScope): readonly Transaction[] {
+        const filter = scope.kind === 'category'
+            ? { sql: 'sc.category_id = :scopeId', scopeId: scope.categoryId }
+            : { sql: 'sc.id = :scopeId', scopeId: scope.subCategoryId };
+        return this.database
+            .all(
+                `WITH ${REPORT_SOURCES_CTE}
+                ${SELECT_TRANSACTION}
+                JOIN report_transactions rt ON rt.id = t.id
+                JOIN transaction_sub_categories sc ON sc.id = t.sub_category_id
+                WHERE rt.type = :expense AND rt.payment_key = :period AND ${filter.sql} ${ORDER}`,
+                { profileId, expense: TRANSACTION_TYPE_CODE.expense, period: periodKey(period), scopeId: filter.scopeId },
+            )
+            .map((row) => this.toTransaction(row));
     }
 
     /**

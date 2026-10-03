@@ -14,6 +14,11 @@ import type { InvoiceSuggestionResponse } from '../dto/invoices/InvoiceSuggestio
 import type { OnboardingResponse } from '../dto/onboarding/OnboardingResponse.ts';
 import type { ProfileBalancesResponse } from '../dto/profiles/ProfileBalancesResponse.ts';
 import type { ProfileResponse } from '../dto/profiles/ProfileResponse.ts';
+import type { BalanceEvolutionResponse } from '../dto/reports/BalanceEvolutionResponse.ts';
+import type { CardImpactResponse } from '../dto/reports/CardImpactResponse.ts';
+import type { CategoryReportResponse } from '../dto/reports/CategoryReportResponse.ts';
+import type { CategoryTransactionsResponse } from '../dto/reports/CategoryTransactionsResponse.ts';
+import type { MonthSummaryResponse } from '../dto/reports/MonthSummaryResponse.ts';
 import type { StatementResponse } from '../dto/statements/StatementResponse.ts';
 import type { TransactionResponse } from '../dto/transactions/TransactionResponse.ts';
 import type { accountIdRequest, createAccountRequest, listAccountsRequest, updateAccountRequest } from '../requests/accountRequests.ts';
@@ -32,6 +37,13 @@ import type { verifyBalancesRequest } from '../requests/integrityRequests.ts';
 import type { invoiceIdRequest, listInvoicesByCardRequest, payInvoiceRequest, suggestInvoiceRequest } from '../requests/invoiceRequests.ts';
 import type { startOnboardingRequest } from '../requests/onboardingRequests.ts';
 import type { createProfileRequest, listProfilesRequest, updateProfileRequest } from '../requests/profileRequests.ts';
+import type {
+    balanceEvolutionRequest,
+    cardImpactRequest,
+    categoryReportRequest,
+    categoryTransactionsRequest,
+    monthSummaryRequest,
+} from '../requests/reportRequests.ts';
 import type { getStatementRequest } from '../requests/statementRequests.ts';
 import type {
     createTransactionRequest,
@@ -89,6 +101,11 @@ export interface CoreRoutes {
     'invoices.pay': { input: z.input<typeof payInvoiceRequest>; output: InvoiceResponse };
     'invoices.reopen': { input: z.input<typeof invoiceIdRequest>; output: InvoiceResponse };
     'integrity.verifyBalances': { input: z.input<typeof verifyBalancesRequest>; output: IntegrityReportResponse };
+    'reports.monthSummary': { input: z.input<typeof monthSummaryRequest>; output: MonthSummaryResponse };
+    'reports.balanceEvolution': { input: z.input<typeof balanceEvolutionRequest>; output: BalanceEvolutionResponse };
+    'reports.byCategory': { input: z.input<typeof categoryReportRequest>; output: CategoryReportResponse };
+    'reports.categoryTransactions': { input: z.input<typeof categoryTransactionsRequest>; output: CategoryTransactionsResponse };
+    'reports.cardImpact': { input: z.input<typeof cardImpactRequest>; output: CardImpactResponse };
 }
 
 export type CoreRoute = keyof CoreRoutes;

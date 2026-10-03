@@ -1,6 +1,6 @@
 import { invoiceIdFor } from '../shared/DeterministicIds.ts';
 import type { BankStatementId, CreditCardId, InvoiceId } from '../shared/ids.ts';
-import type { Money } from '../shared/Money.ts';
+import { Money } from '../shared/Money.ts';
 import type { YearMonth } from '../shared/YearMonth.ts';
 
 /**
@@ -126,4 +126,17 @@ export class Invoice implements InvoiceProps {
             balance: changes.balance ?? this.balance,
         });
     }
+}
+
+/**
+ * Valor a pagar de uma fatura, em módulo, como a tela mostra (database-design §4.7).
+ * Regra de negócio (Fatura): fatura credora (estornos maiores que as compras) conta como
+ * zero — crédito não paga outra fatura nem libera limite de outro mês. Fica no domínio
+ * para que a lista de cartões e os relatórios apliquem a mesma regra.
+ *
+ * @param balance Total da fatura com o sinal do efeito na conta (negativo quando há o que pagar).
+ * @return O valor a pagar; zero quando a fatura é credora ou está zerada.
+ */
+export function amountDue(balance: Money): Money {
+    return balance.isNegative() ? balance.negate() : Money.zero(balance.currency);
 }

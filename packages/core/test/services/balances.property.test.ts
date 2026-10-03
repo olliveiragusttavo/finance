@@ -5,8 +5,9 @@ import { TestWorld } from '../support/TestWorld.ts';
 
 /** Uma operação aleatória sobre o mundo. */
 type Operation =
-    | { readonly kind: 'create'; readonly type: 'income' | 'expense' | 'transference'; readonly source: number; readonly invoiceShift: number | null; readonly cents: number; readonly chargeCents: number; readonly date: string; readonly paid: boolean }
-    | { readonly kind: 'update'; readonly pick: number; readonly cents: number; readonly date: string; readonly paid: boolean }
+    | { readonly kind: 'create'; readonly type: 'income' | 'expense' | 'transference'; readonly source: number; readonly invoiceShift: number | null; readonly cents: number; readonly chargeCents: number; readonly date: string; readonly paidOn: string | null }
+    | { readonly kind: 'update'; readonly pick: number; readonly cents: number; readonly date: string; readonly paidOn: string | null }
+    | { readonly kind: 'setPaid'; readonly pick: number; readonly paid: boolean }
     | { readonly kind: 'delete'; readonly pick: number }
     | { readonly kind: 'partialPayment'; readonly card: number; readonly cents: number; readonly date: string }
     | { readonly kind: 'pay'; readonly pick: number; readonly date: string }
@@ -17,6 +18,8 @@ const EPSILON = 0.005;
 const dateArb = fc.record({ month: fc.integer({ min: 1, max: 6 }), day: fc.integer({ min: 1, max: 28 }) })
     .map(({ month, day }) => `2026-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`);
 const centsArb = fc.integer({ min: -50_000, max: 500_000 }).filter((cents) => cents !== 0);
+// Pagamento em qualquer mês, não só no do vencimento: a data de pagamento decide o extrato.
+const paidOnArb = fc.option(dateArb, { nil: null });
 
 const operationArb: fc.Arbitrary<Operation> = fc.oneof(
     { weight: 6, arbitrary: fc.record({
@@ -27,9 +30,10 @@ const operationArb: fc.Arbitrary<Operation> = fc.oneof(
         cents: centsArb,
         chargeCents: fc.oneof(fc.constant(0), fc.integer({ min: 1, max: 2_000 })),
         date: dateArb,
-        paid: fc.boolean(),
+        paidOn: paidOnArb,
     }) },
-    { weight: 2, arbitrary: fc.record({ kind: fc.constant('update' as const), pick: fc.nat(), cents: centsArb, date: dateArb, paid: fc.boolean() }) },
+    { weight: 2, arbitrary: fc.record({ kind: fc.constant('update' as const), pick: fc.nat(), cents: centsArb, date: dateArb, paidOn: paidOnArb }) },
+    { weight: 1, arbitrary: fc.record({ kind: fc.constant('setPaid' as const), pick: fc.nat(), paid: fc.boolean() }) },
     { weight: 1, arbitrary: fc.record({ kind: fc.constant('delete' as const), pick: fc.nat() }) },
     { weight: 1, arbitrary: fc.record({ kind: fc.constant('partialPayment' as const), card: fc.integer({ min: 0, max: 1 }), cents: fc.integer({ min: 1, max: 100_000 }), date: dateArb }) },
     { weight: 2, arbitrary: fc.record({ kind: fc.constant('pay' as const), pick: fc.nat(), date: dateArb }) },
@@ -103,7 +107,7 @@ async function apply(s: Scenario, operation: Operation): Promise<void> {
                 value: operation.cents / 100,
                 charges: operation.chargeCents / 100,
                 dueDate: operation.date,
-                paymentDate: operation.paid ? operation.date : null,
+                paymentDate: operation.paidOn,
                 destinationAccountId: operation.type === 'transference' ? s.accounts[(accountIndex + 1) % 2] ?? null : null,
             });
             if (result.ok) {
@@ -138,8 +142,15 @@ async function apply(s: Scenario, operation: Operation): Promise<void> {
                 value: operation.cents / 100,
                 charges: t.charges.amount,
                 dueDate: operation.date,
-                paymentDate: operation.paid ? operation.date : null,
+                paymentDate: operation.paidOn,
             });
+            return;
+        }
+        case 'setPaid': {
+            const id = s.created[operation.pick % Math.max(s.created.length, 1)];
+            if (id !== undefined) {
+                await world.core.call('transactions.setPaid', { id, paid: operation.paid });
+            }
             return;
         }
         case 'delete': {
@@ -230,6 +241,13 @@ function assertInvariants(s: Scenario): void {
     // Toda transação viva está em exatamente um contêiner.
     expect(db.get('SELECT count(*) AS n FROM transactions WHERE deleted_at IS NULL AND (bank_statement_id IS NULL) = (invoice_id IS NULL)')).toEqual({ n: 0 });
 
+    // Transação de conta está no extrato do mês da data de caixa: pagamento, ou vencimento em aberto.
+    expect(db.all(
+        `SELECT t.id FROM transactions t JOIN bank_statements bs ON bs.id = t.bank_statement_id
+        WHERE t.deleted_at IS NULL
+            AND printf('%04d-%02d', bs.year, bs.month) <> substr(CASE WHEN t.paid = 1 THEN t.payment_date ELSE t.due_date END, 1, 7)`,
+    )).toEqual([]);
+
     // Total de cada fatura = soma dos efeitos de todas as transações vivas dela.
     const invoices = db.all(
         `SELECT i.id, i.year, i.month, i.balance, i.credit_card_id, c.account_id, c.closing_date, c.due_date,
@@ -277,11 +295,12 @@ function assertInvariants(s: Scenario): void {
             add(period(num(row, 'year'), num(row, 'month')), direction(num(row, 'type')) * num(row, 'value') - num(row, 'charges'), num(row, 'paid') === 1);
         }
         for (const row of db.all(
-            `SELECT t.due_date, t.value, t.paid FROM transactions t
+            `SELECT t.due_date, t.payment_date, t.value, t.paid FROM transactions t
             WHERE t.destination_account_id = :accountId AND t.type IN (3, 4) AND t.deleted_at IS NULL`,
             { accountId },
         )) {
-            add(String(row['due_date']).slice(0, 7), num(row, 'value'), num(row, 'paid') === 1);
+            const paid = num(row, 'paid') === 1;
+            add(String(paid ? row['payment_date'] : row['due_date']).slice(0, 7), num(row, 'value'), paid);
         }
         for (const invoice of invoices.filter((candidate) => candidate['account_id'] === accountId)) {
             if (invoice['paid_year'] !== null) {

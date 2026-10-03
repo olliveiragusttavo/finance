@@ -5,6 +5,7 @@ import { IntegrityController } from '../controllers/IntegrityController.ts';
 import { InvoiceController } from '../controllers/InvoiceController.ts';
 import type { CoreResult, UnexpectedErrorListener } from '../controllers/CoreResult.ts';
 import { ProfileController } from '../controllers/ProfileController.ts';
+import { ReportController } from '../controllers/ReportController.ts';
 import type { CoreApi, CoreRoute, RouteHandlers } from '../controllers/routes.ts';
 import { StatementController } from '../controllers/StatementController.ts';
 import { TransactionController } from '../controllers/TransactionController.ts';
@@ -22,6 +23,7 @@ import { SqliteDeletionRepository } from '../infrastructure/sqlite/SqliteDeletio
 import { SqliteInvoiceRepository } from '../infrastructure/sqlite/SqliteInvoiceRepository.ts';
 import { SqliteProfileRepository } from '../infrastructure/sqlite/SqliteProfileRepository.ts';
 import { SqliteReferenceRepository } from '../infrastructure/sqlite/SqliteReferenceRepository.ts';
+import { SqliteReportRepository } from '../infrastructure/sqlite/SqliteReportRepository.ts';
 import { SqliteTransactionRepository } from '../infrastructure/sqlite/SqliteTransactionRepository.ts';
 import type { BackupDirectory } from '../ports/BackupDirectory.ts';
 import type { Clock } from '../ports/Clock.ts';
@@ -38,6 +40,7 @@ import { BalanceIntegrityService } from '../services/integrity/BalanceIntegrityS
 import { InvoiceService } from '../services/invoice/InvoiceService.ts';
 import { OnboardingService } from '../services/onboarding/OnboardingService.ts';
 import { ProfileService } from '../services/profile/ProfileService.ts';
+import { ReportService } from '../services/report/ReportService.ts';
 import { StatementConsolidationService } from '../services/statement/StatementConsolidationService.ts';
 import { TransactionService } from '../services/transaction/TransactionService.ts';
 import { UnitOfWork } from '../services/UnitOfWork.ts';
@@ -65,6 +68,7 @@ export interface CoreServices {
     readonly balances: AccountBalanceService;
     readonly recalculation: BalanceRecalculationService;
     readonly integrity: BalanceIntegrityService;
+    readonly reports: ReportService;
 }
 
 /** O núcleo montado. */
@@ -131,6 +135,7 @@ export function createCore(ports: CorePorts): Core {
     const categories = new SqliteCategoryRepository(database, clock);
     const deletions = new SqliteDeletionRepository(database, clock);
     const ledger = new SqliteBalanceLedgerRepository(database);
+    const reportRepository = new SqliteReportRepository(database);
 
     const recalculation = new BalanceRecalculationService(unitOfWork, accounts, statements, invoices, ledger, clock);
     const impacts = new ImpactCalculator(invoices, creditCards);
@@ -147,6 +152,7 @@ export function createCore(ports: CorePorts): Core {
     const cascadeDeletion = new CascadeDeletionService(unitOfWork, deletions, accounts, creditCards, invoices, transactions, recalculation);
     const balances = new AccountBalanceService(unitOfWork, profiles, accounts, recalculation);
     const integrity = new BalanceIntegrityService(unitOfWork, accounts, statements, invoices, recalculation, clock);
+    const reportService = new ReportService(unitOfWork, profileService, reportRepository, transactions, creditCards, categories, clock);
 
     const transactionController = new TransactionController(transactionService, onUnexpected);
     const statementController = new StatementController(consolidation, balances, onUnexpected);
@@ -156,6 +162,7 @@ export function createCore(ports: CorePorts): Core {
     const accountController = new AccountController(accountService, cascadeDeletion, onUnexpected);
     const creditCardController = new CreditCardController(creditCardService, cascadeDeletion, onUnexpected);
     const categoryController = new CategoryController(categoryService, onUnexpected);
+    const reportController = new ReportController(reportService, onUnexpected);
 
     const handlers: RouteHandlers = {
         'profiles.list': (raw) => profileController.list(raw),
@@ -198,6 +205,11 @@ export function createCore(ports: CorePorts): Core {
         'invoices.pay': (raw) => invoiceController.pay(raw),
         'invoices.reopen': (raw) => invoiceController.reopen(raw),
         'integrity.verifyBalances': (raw) => integrityController.verifyBalances(raw),
+        'reports.monthSummary': (raw) => reportController.monthSummary(raw),
+        'reports.balanceEvolution': (raw) => reportController.balanceEvolution(raw),
+        'reports.byCategory': (raw) => reportController.byCategory(raw),
+        'reports.categoryTransactions': (raw) => reportController.categoryTransactions(raw),
+        'reports.cardImpact': (raw) => reportController.cardImpact(raw),
     };
 
     return {
@@ -214,6 +226,7 @@ export function createCore(ports: CorePorts): Core {
             balances,
             recalculation,
             integrity,
+            reports: reportService,
         },
         call: (route, input) => handlers[route](input),
         dispatch: (route, input): Promise<CoreResult<unknown>> => {

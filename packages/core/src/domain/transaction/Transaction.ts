@@ -133,21 +133,25 @@ export class Transaction implements TransactionProps {
     }
 
     /**
-     * Marca ou desmarca o pagamento sem passar pela edição completa. Não revalida o conteúdo
-     * porque só a data de pagamento muda, e ela não participa de nenhum invariante da linha;
-     * revalidar recusaria marcar como paga uma transferência antiga que perdeu o destino por
+     * Marca ou desmarca o pagamento sem passar pela edição completa. Recebe o contêiner junto
+     * porque, numa transação de conta, a data de pagamento decide o extrato (`cashDate`):
+     * pagar em outro mês muda a transação de extrato. Não revalida o conteúdo porque nem a
+     * data de pagamento nem o contêiner participam de um invariante da linha; revalidar
+     * recusaria marcar como paga uma transferência antiga que perdeu o destino por
      * `ON DELETE SET NULL` (database-design §4.13).
      *
      * @param paymentDate Data do pagamento, ou `null` para voltar a ficar em aberto.
+     * @param container Contêiner resolvido para a nova data pelo Service; numa transação de
+     * cartão, a mesma fatura.
      * @return Uma nova transação com a situação trocada.
      */
-    public withPaymentDate(paymentDate: LocalDate | null): Transaction {
+    public withPaymentDate(paymentDate: LocalDate | null, container: TransactionContainer): Transaction {
         return new Transaction({
             id: this.id,
             profileId: this.profileId,
             recurrenceId: this.recurrenceId,
             type: this.type,
-            container: this.container,
+            container,
             subCategoryId: this.subCategoryId,
             destinationAccountId: this.destinationAccountId,
             partnerId: this.partnerId,
@@ -168,6 +172,21 @@ export class Transaction implements TransactionProps {
      */
     public isPaid(): boolean {
         return this.paymentDate !== null;
+    }
+
+    /**
+     * Data em que o dinheiro de fato se move: a do pagamento, ou o vencimento enquanto a
+     * transação está em aberto.
+     * Regra de negócio (Extrato): a transação de conta cai no extrato do mês desta data — paga,
+     * no mês do pagamento; em aberto, no do vencimento. Vale também para a conta de destino de
+     * transferências e investimentos, porque a transferência é uma linha só, com uma data só
+     * dos dois lados (database-design §4.6 e §4.13). Transação de cartão não usa esta data
+     * para o contêiner: quem decide é a fatura escolhida (§4.7).
+     *
+     * @return A data de pagamento, ou o vencimento quando em aberto.
+     */
+    public cashDate(): LocalDate {
+        return this.paymentDate ?? this.dueDate;
     }
 
     /**
