@@ -8,6 +8,7 @@ export type ErrorCode =
     | 'VALIDATION_FAILED'
     | 'NOT_FOUND'
     | 'BUSINESS_RULE_VIOLATION'
+    | 'CONFLICT'
     | 'SCHEMA_NEWER_THAN_APP'
     | 'INTERNAL';
 
@@ -87,6 +88,25 @@ export class BusinessRuleViolation extends DomainError {
      */
     public constructor(rule: string, message: string, details: ErrorDetails = {}) {
         super(message, { rule, ...details });
+    }
+}
+
+/**
+ * O nome escolhido já está em uso por outro cadastro vivo do mesmo escopo (categoria no
+ * perfil, subcategoria na categoria). Tem código próprio, e não `BUSINESS_RULE_VIOLATION`,
+ * porque a UI trata de um jeito específico — aponta o campo do nome e sugere outro —, e
+ * porque sem esta checagem o usuário receberia o `SQLITE_CONSTRAINT` do índice único como
+ * erro genérico (database-design §3.11).
+ */
+export class NameConflictError extends DomainError {
+    public readonly code = 'CONFLICT';
+
+    /**
+     * @param entity Cadastro em que o nome colidiu; diz à UI qual mensagem mostrar.
+     * @param name Nome recusado, como o usuário digitou, para a mensagem citar.
+     */
+    public constructor(entity: string, name: string) {
+        super(`Já existe ${entity} com o nome "${name}"`, { entity, field: 'name', name });
     }
 }
 

@@ -133,6 +133,36 @@ export class Transaction implements TransactionProps {
     }
 
     /**
+     * Marca ou desmarca o pagamento sem passar pela edição completa. Não revalida o conteúdo
+     * porque só a data de pagamento muda, e ela não participa de nenhum invariante da linha;
+     * revalidar recusaria marcar como paga uma transferência antiga que perdeu o destino por
+     * `ON DELETE SET NULL` (database-design §4.13).
+     *
+     * @param paymentDate Data do pagamento, ou `null` para voltar a ficar em aberto.
+     * @return Uma nova transação com a situação trocada.
+     */
+    public withPaymentDate(paymentDate: LocalDate | null): Transaction {
+        return new Transaction({
+            id: this.id,
+            profileId: this.profileId,
+            recurrenceId: this.recurrenceId,
+            type: this.type,
+            container: this.container,
+            subCategoryId: this.subCategoryId,
+            destinationAccountId: this.destinationAccountId,
+            partnerId: this.partnerId,
+            goalId: this.goalId,
+            name: this.name,
+            description: this.description,
+            value: this.value,
+            charges: this.charges,
+            origin: this.origin,
+            dueDate: this.dueDate,
+            paymentDate,
+        });
+    }
+
+    /**
      * @return `true` quando a transação já foi paga. Derivado de `paymentDate` para que
      * `paid` e `payment_date` nunca discordem — regra que o banco não garante (§3.10).
      */

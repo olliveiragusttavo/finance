@@ -1,5 +1,11 @@
 import { toTransactionResponse, type TransactionResponse } from '../dto/transactions/TransactionResponse.ts';
-import { createTransactionRequest, listTransactionsRequest, transactionIdRequest, updateTransactionRequest } from '../requests/transactionRequests.ts';
+import {
+    createTransactionRequest,
+    listTransactionsRequest,
+    setPaidRequest,
+    transactionIdRequest,
+    updateTransactionRequest,
+} from '../requests/transactionRequests.ts';
 import type { TransactionService } from '../services/transaction/TransactionService.ts';
 import { handle, type CoreResult, type UnexpectedErrorListener } from './CoreResult.ts';
 
@@ -31,6 +37,14 @@ export class TransactionController {
      */
     public update(raw: unknown): Promise<CoreResult<TransactionResponse>> {
         return handle(updateTransactionRequest, raw, (command) => toTransactionResponse(this.transactions.update(command)), this.onUnexpected);
+    }
+
+    /**
+     * @param raw Entrada com o id da transação e a situação pedida.
+     * @return A transação marcada como paga (com a data de hoje) ou em aberto.
+     */
+    public setPaid(raw: unknown): Promise<CoreResult<TransactionResponse>> {
+        return handle(setPaidRequest, raw, ({ id, paid }) => toTransactionResponse(this.transactions.setPaid(id, paid)), this.onUnexpected);
     }
 
     /**

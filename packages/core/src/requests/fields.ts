@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { DomainError } from '../domain/shared/errors.ts';
 import { LocalDate } from '../domain/shared/LocalDate.ts';
+import { REGISTRY_NAME_MAX_LENGTH } from '../domain/shared/names.ts';
 import { YearMonth } from '../domain/shared/YearMonth.ts';
 
 /**
@@ -40,3 +41,13 @@ export const moneyField = z.number();
 
 /** Código ISO 4217 de três letras; a caixa é normalizada pelo `Currency`. */
 export const currencyCodeField = z.string().regex(/^[A-Za-z]{3}$/, 'código ISO 4217 de três letras');
+
+/**
+ * Nome de cadastro (perfil, conta, cartão, categoria). Repete o limite do domínio só por
+ * conforto do formulário — a UI valida antes de chamar a rota —; a regra continua sendo a
+ * do `requireName`, que é quem o Service aplica.
+ */
+export const registryNameField = z.string().trim().min(1).max(REGISTRY_NAME_MAX_LENGTH);
+
+/** Dia do mês do ciclo do cartão; o `BillingCycle` repete a checagem no domínio. */
+export const dayOfMonthField = z.number().int().min(1).max(31);

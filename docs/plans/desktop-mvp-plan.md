@@ -1,6 +1,6 @@
 # Plano do MVP Desktop — CRUD e primeiros relatórios
 
-**Status:** Em andamento — Fase 0 concluída. Primeira entrega com tela do projeto: o app desktop
+**Status:** Em andamento — Fases 0 e 1 concluídas. Primeira entrega com tela do projeto: o app desktop
 (Electron) com os cadastros e lançamentos básicos e os dois primeiros relatórios
 personalizados, que são a motivação original do projeto ([README](../../README.md#motivação)).
 O mobile fica inteiro para depois.
@@ -146,6 +146,8 @@ Nenhuma decisão de produto está aberta. Ficaram decididas:
 | Período dos relatórios | Mês do pagamento ([§3.1](#31-regra-mestra-o-período-é-o-do-pagamento)) |
 | Itens do menu sem tela no MVP (Metas, Dispositivos, Fluxo por conta, Por sócio, Por tag) | Aparecem no menu normalmente e levam a uma **tela em branco**, já com a rota e o mês de referência; "Por sócio" continua só no perfil empresarial |
 | Excluir conta ou cartão | Ver [§5.1](#51-desativar-e-excluir-conta-ou-cartão) |
+| Trocar a moeda do perfil | Só enquanto o perfil não tem lançamentos: a moeda é a unidade de todo valor gravado e a troca não converte nada (database-design §4.1). Renomear continua livre |
+| Limite usado do cartão | Valor a pagar somado de **todas** as faturas em aberto do cartão, futuras de parcelas incluídas; fatura credora conta zero |
 
 Pendência técnica: o backup `VACUUM INTO` antes de migrar
 ([backend-design §4.6](backend-design.md#46-backup-antes-de-migrar)) precisa existir antes
@@ -202,47 +204,47 @@ Ordem pensada para que cada fase entregue algo testável. As fases 1–2 (núcle
 ### Fase 1 — Núcleo: cadastros
 
 **1.1 Perfis**
-- [ ] `Profile.create` / `rename` / troca de moeda no domínio, com invariantes (nome ≤ 45, moeda ISO maiúscula)
-- [ ] `ProfileRepository`: `list`, `save`
-- [ ] `ProfileService` + `ProfileController` + requests
-- [ ] Rotas `profiles.list`, `profiles.create`, `profiles.update`
-- [ ] Rota `onboarding.start` (perfil + primeira conta na mesma unidade de trabalho — o primeiro uso não pode deixar perfil sem conta)
-- [ ] Testes de Service (SQLite em memória)
+- [x] `Profile.create` / `rename` / troca de moeda no domínio, com invariantes (nome ≤ 45, moeda ISO maiúscula)
+- [x] `ProfileRepository`: `list`, `save`
+- [x] `ProfileService` + `ProfileController` + requests — troca de moeda só sem lançamentos ([§5](#5-decisões-de-produto))
+- [x] Rotas `profiles.list`, `profiles.create`, `profiles.update`
+- [x] Rota `onboarding.start` (perfil + primeira conta na mesma unidade de trabalho — o primeiro uso não pode deixar perfil sem conta)
+- [x] Testes de Service (SQLite em memória)
 
 **1.2 Contas**
-- [ ] `Account.create` / `revise` no domínio (nome, tipo, moeda, `consider_balance`, `opening_balance`)
-- [ ] `AccountRepository.save` (dados do usuário, separado do `saveBalances` que já existe)
-- [ ] Migration `0002`: `disabled_at` em `accounts` e `credit_cards` ([§5.1](#51-desativar-e-excluir-conta-ou-cartão)), com `pnpm embed:migrations` e registro no `database-design.md`
-- [ ] `AccountService`: criar, editar, desativar, reativar e excluir em cadeia ([§5.1](#51-desativar-e-excluir-conta-ou-cartão))
-- [ ] Editar `opening_balance` recalcula a cadeia inteira da conta (`BalanceRecalculationService`)
-- [ ] Conta desativada recusada como origem, destino ou conta pagadora em **novos** lançamentos e cartões (editar lançamento antigo continua permitido)
-- [ ] Rota `accounts.deletionImpact`: contagem de extratos, transações, cartões, faturas e transferências, e a lista das **outras** contas cujo saldo muda
-- [ ] Exclusão em cadeia: soft delete de tudo numa unidade de trabalho + recálculo de todas as contas afetadas
-- [ ] Rotas `accounts.list` (com consolidado e previsto do mês pedido e a flag de desativada), `accounts.create`, `accounts.update`, `accounts.disable`, `accounts.enable`, `accounts.delete`
-- [ ] Testes de mesa: saldo inicial editado depois de meses lançados; conta fora do total; conta desativada mantém saldos; excluir conta com transferência para outra conta e com cartão cuja fatura foi paga por ela — os saldos da outra conta voltam
+- [x] `Account.create` / `revise` no domínio (nome, tipo, moeda, `consider_balance`, `opening_balance`)
+- [x] `AccountRepository.save` (dados do usuário, separado do `saveBalances` que já existe)
+- [x] Migration `0002`: `disabled_at` em `accounts` e `credit_cards` ([§5.1](#51-desativar-e-excluir-conta-ou-cartão)), com `pnpm embed:migrations` e registro no `database-design.md`
+- [x] `AccountService`: criar, editar, desativar, reativar e excluir em cadeia ([§5.1](#51-desativar-e-excluir-conta-ou-cartão)) — a exclusão em cadeia ficou no `CascadeDeletionService`, compartilhado com cartões
+- [x] Editar `opening_balance` recalcula a cadeia inteira da conta (`BalanceRecalculationService`)
+- [x] Conta desativada recusada como origem, destino ou conta pagadora em **novos** lançamentos e cartões (editar lançamento antigo continua permitido)
+- [x] Rota `accounts.deletionImpact`: contagem de extratos, transações, cartões, faturas e transferências, e a lista das **outras** contas cujo saldo muda
+- [x] Exclusão em cadeia: soft delete de tudo numa unidade de trabalho + recálculo de todas as contas afetadas — alerta e exclusão partem do mesmo `DeletionScope` (`DeletionRepository`), e o teste confere que o apagado é exatamente o contado
+- [x] Rotas `accounts.list` (com consolidado e previsto do mês pedido e a flag de desativada), `accounts.create`, `accounts.update`, `accounts.disable`, `accounts.enable`, `accounts.delete`
+- [x] Testes de mesa: saldo inicial editado depois de meses lançados; conta fora do total; conta desativada mantém saldos; excluir conta com transferência para outra conta e com cartão cuja fatura foi paga por ela — os saldos da outra conta voltam
 
 **1.3 Cartões de crédito**
-- [ ] `CreditCard.create` / `revise` (limite, fechamento e vencimento 1–31, conta pagadora do mesmo perfil)
-- [ ] `CreditCardRepository`: `listByProfile`, `save`
-- [ ] Mudar o dia de fechamento **não** move lançamentos existentes (`invoice_id` gravado é a verdade — database-design §4.7)
-- [ ] Cartão desativado recusado em novos lançamentos; faturas e relatórios continuam
-- [ ] Rota `creditCards.deletionImpact` e exclusão em cadeia (faturas, lançamentos, pagamentos parciais) com recálculo da conta pagadora
-- [ ] Rotas `creditCards.list` (com a fatura do mês: total, situação, vencimento, limite usado), `creditCards.create`, `creditCards.update`, `creditCards.disable`, `creditCards.enable`, `creditCards.delete`
-- [ ] Rota `invoices.listByCard` (fatura do mês e as próximas, para "Próximas faturas")
-- [ ] Rota `invoices.payPartial` (transferência negativa na fatura — ou confirmar que `transactions.create` já cobre e só documentar)
+- [x] `CreditCard.create` / `revise` (limite, fechamento e vencimento 1–31, conta pagadora do mesmo perfil)
+- [x] `CreditCardRepository`: `listByProfile`, `save`
+- [x] Mudar o dia de fechamento **não** move lançamentos existentes (`invoice_id` gravado é a verdade — database-design §4.7)
+- [x] Cartão desativado recusado em novos lançamentos; faturas e relatórios continuam
+- [x] Rota `creditCards.deletionImpact` e exclusão em cadeia (faturas, lançamentos, pagamentos parciais) com recálculo da conta pagadora
+- [x] Rotas `creditCards.list` (com a fatura do mês: total, situação, vencimento, limite usado), `creditCards.create`, `creditCards.update`, `creditCards.disable`, `creditCards.enable`, `creditCards.delete`
+- [x] Rota `invoices.listByCard` (fatura do mês e as próximas, para "Próximas faturas")
+- [x] ~~Rota `invoices.payPartial`~~ — `transactions.create` já cobre: transferência na fatura, `destinationAccountId` da conta que pagou, valor negativo e paga (database-design §4.7); confirmado por teste em `creditCards.test.ts`
 
 **1.4 Categorias e subcategorias**
-- [ ] Domínio `Category` / `SubCategory` com nome ≤ 45
-- [ ] `CategoryRepository` (substitui o trecho de subcategoria do `ReferenceRepository`)
-- [ ] Unicidade sem diferenciar maiúsculas vira erro de domínio legível, não `SQLITE_CONSTRAINT`
-- [ ] Excluir subcategoria em uso exige `moveTo` (mockup: "pede para mover os lançamentos antes"); mover recalcula nada (categoria não afeta saldo), mas é uma unidade de trabalho
-- [ ] Rotas `categories.tree` (com contagem de lançamentos por subcategoria), `categories.create/update/delete`, `subCategories.create/update/delete`
-- [ ] Categorias iniciais sugeridas no primeiro uso (opcional; lista do mockup)
+- [x] Domínio `Category` / `SubCategory` com nome ≤ 45
+- [x] `CategoryRepository` (substitui o trecho de subcategoria do `ReferenceRepository`)
+- [x] Unicidade sem diferenciar maiúsculas vira erro de domínio legível, não `SQLITE_CONSTRAINT`
+- [x] Excluir subcategoria em uso exige `moveTo` (mockup: "pede para mover os lançamentos antes"); mover recalcula nada (categoria não afeta saldo), mas é uma unidade de trabalho
+- [x] Rotas `categories.tree` (com contagem de lançamentos por subcategoria), `categories.create/update/delete`, `subCategories.create/update/delete`
+- [x] Categorias iniciais sugeridas no primeiro uso (lista do mockup; `onboarding.start` cria por padrão, `suggestedCategories: false` dispensa)
 
 **1.5 Transações — complementos para a tela**
-- [ ] Rota `transactions.setPaid` (atalho `P`: marca/desmarca pago com a data de hoje do `Clock`)
-- [ ] Exportar os schemas da camada Request por um subcaminho (`@finance/core/requests`) para os formulários
-- [ ] Revisar `ErrorCode`: incluir `CONFLICT` (nome duplicado) se `BUSINESS_RULE_VIOLATION` ficar genérico demais para a UI
+- [x] Rota `transactions.setPaid` (atalho `P`: marca/desmarca pago com a data de hoje do `Clock`)
+- [x] Exportar os schemas da camada Request por um subcaminho (`@finance/core/requests`) para os formulários
+- [x] Revisar `ErrorCode`: `CONFLICT` incluído (`NameConflictError`, com `details.field = 'name'`) — a UI aponta o campo do nome em vez de mostrar uma violação genérica
 
 ### Fase 2 — Núcleo: relatórios
 

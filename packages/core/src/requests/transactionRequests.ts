@@ -110,3 +110,5 @@ export const updateTransactionRequest = z
 export const transactionIdRequest = z.strictObject({ id: parsedText(TransactionId) });
 
 export const listTransactionsRequest = z.strictObject({ profileId: parsedText(ProfileId), period: yearMonthField });
+
+export const setPaidRequest = z.strictObject({ id: parsedText(TransactionId), paid: z.boolean() });

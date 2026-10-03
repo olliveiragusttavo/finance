@@ -28,9 +28,10 @@ export interface StatementRow {
  * metade dos bugs previstos mora no SQL — o `deleted_at IS NULL` esquecido, o `SUM` no
  * contêiner errado — e um mock os esconderia (backend-design §5.4).
  *
- * Os cadastros que ainda não têm Service (perfil, conta, cartão, categoria) são semeados
- * por SQL direto; as leituras de conferência também vão direto às tabelas, para que a
- * asserção não dependa do código que está sendo testado.
+ * Os cadastros (perfil, conta, cartão, categoria) são semeados por SQL direto mesmo tendo
+ * Service, para que um teste de saldo não falhe por causa de um defeito no cadastro — os
+ * testes dos cadastros usam as rotas. As leituras de conferência também vão direto às
+ * tabelas, para que a asserção não dependa do código que está sendo testado.
  */
 export class TestWorld {
     public readonly clock: FixedClock;

@@ -607,6 +607,19 @@ estrangeiro está fora do escopo.
 | `currency` | TEXT | NN, currency | ISO 4217. Apenas descritivo |
 | `consider_balance` | INTEGER | NN, `DEFAULT 1`, `CHECK (consider_balance IN (0, 1))` | bool — entra no saldo consolidado |
 | `type` | INTEGER | NN, `CHECK (type IN (1, 2))` | enum — `1: checking account`, `2: investment account` |
+| `disabled_at` | TEXT | null, timestamp | Desativação: nula = ativa. Migration `0002` — veja abaixo |
+
+#### Desativar não é excluir
+
+Regra de negócio (Contas): a ação padrão no lugar de excluir é **desativar**
+([desktop-mvp-plan.md §5.1](desktop-mvp-plan.md#51-desativar-e-excluir-conta-ou-cartão)).
+Uma conta desativada some das escolhas de lançamentos novos — origem, destino, conta
+pagadora de cartão —, mas continua em extratos, faturas, saldos e relatórios, e pode ser
+reativada. Editar um lançamento que já está nela continua permitido. É uma coluna própria, e
+não `deleted_at`, porque `deleted_at` significa "não existe mais" para toda leitura e para a
+sincronização ([§3.6](#36-colunas-presentes-em-todas-as-tabelas)); a conta desativada
+continua existindo. Guarda o instante UTC da primeira desativação, no formato de timestamp
+das demais colunas.
 
 #### Chaves estrangeiras
 
@@ -660,6 +673,7 @@ Regras de negócio (Cartão de crédito):
 | `limit_value` | REAL | NN | money — renomeada de `limit`, palavra-chave do SQLite |
 | `closing_date` | INTEGER | NN, `CHECK (closing_date BETWEEN 1 AND 31)` | Dia do mês em que a fatura fecha |
 | `due_date` | INTEGER | NN, `CHECK (due_date BETWEEN 1 AND 31)` | Dia do mês em que a fatura vence |
+| `disabled_at` | TEXT | null, timestamp | Desativação: nula = ativo. Mesma regra da conta ([§4.4](#44-accounts)); faturas e relatórios continuam |
 
 #### Chaves estrangeiras
 
@@ -1363,7 +1377,9 @@ for refatorado. O texto original é mantido como está no diagrama, seguido da t
 2. **A DDL existe** —
    [db/migrations/0001_initial_schema.sql](../../db/migrations/0001_initial_schema.sql),
    um arquivo `.sql` independente de runner, transcrito tabela por tabela a partir da
-   [§4](#4-tabelas). Ela foi exercitada contra o SQLite 3.46: um perfil totalmente
+   [§4](#4-tabelas). A
+   [0002_disabled_registries.sql](../../db/migrations/0002_disabled_registries.sql)
+   acrescenta `disabled_at` a `accounts` e `credit_cards` ([§4.4](#44-accounts)). Ela foi exercitada contra o SQLite 3.46: um perfil totalmente
    populado, após hard delete, deixa as tabelas vazias; uma transação órfã bloqueia essa
    exclusão; toda verificação de domínio e todo índice único parcial se comportam como
    documentado. Esse exercício precisa virar um teste permanente assim que a stack e seu

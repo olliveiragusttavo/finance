@@ -54,6 +54,16 @@ export class SqliteInvoiceRepository implements InvoiceRepository {
     }
 
     /**
+     * @param creditCardId Cartão dono das faturas.
+     * @return As faturas vivas do cartão, em ordem cronológica.
+     */
+    public listByCard(creditCardId: CreditCardId): readonly Invoice[] {
+        return this.database
+            .all(`${SELECT_INVOICE} WHERE i.credit_card_id = :creditCardId AND i.deleted_at IS NULL ORDER BY i.year, i.month`, { creditCardId })
+            .map((row) => this.toInvoice(row));
+    }
+
+    /**
      * @param invoice Fatura a garantir; revive a linha com o mesmo id determinístico.
      * @return void
      */

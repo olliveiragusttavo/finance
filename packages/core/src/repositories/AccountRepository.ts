@@ -11,7 +11,8 @@ export interface AccountRepository {
 
     /**
      * @param profileId Perfil dono das contas.
-     * @return As contas vivas do perfil, por nome.
+     * @return As contas vivas do perfil, ativas e desativadas, por nome — desativada
+     * continua nos saldos e nos relatórios (desktop-mvp-plan §5.1).
      */
     listByProfile(profileId: ProfileId): readonly Account[];
 
@@ -22,6 +23,16 @@ export interface AccountRepository {
      * @return As contas vivas de todos os perfis vivos, em ordem estável de id.
      */
     listAll(): readonly Account[];
+
+    /**
+     * Insere a conta nova ou regrava os dados do usuário de uma existente — nome, tipo,
+     * rótulo de moeda, "considerar no saldo", saldo inicial e desativação. Nunca toca o cache
+     * de saldo de uma conta existente, que é só da rotina de recálculo.
+     *
+     * @param account Conta a gravar; numa inserção, o cache dela é gravado como o inicial.
+     * @return void
+     */
+    save(account: Account): void;
 
     /**
      * Grava só o cache de saldo. Separado de uma gravação completa porque a rotina de

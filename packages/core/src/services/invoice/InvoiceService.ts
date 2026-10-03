@@ -3,6 +3,7 @@ import type { Invoice } from '../../domain/invoice/Invoice.ts';
 import { BusinessRuleViolation, NotFoundError } from '../../domain/shared/errors.ts';
 import type { CreditCardId, InvoiceId } from '../../domain/shared/ids.ts';
 import type { LocalDate } from '../../domain/shared/LocalDate.ts';
+import type { YearMonth } from '../../domain/shared/YearMonth.ts';
 import type { AccountRepository } from '../../repositories/AccountRepository.ts';
 import type { CreditCardRepository } from '../../repositories/CreditCardRepository.ts';
 import type { InvoiceRepository } from '../../repositories/InvoiceRepository.ts';
@@ -12,6 +13,7 @@ import type { BalanceRecalculationService } from '../balance/BalanceRecalculatio
 import type { ImpactCalculator } from '../balance/ImpactCalculator.ts';
 import type { StatementConsolidationService } from '../statement/StatementConsolidationService.ts';
 import type { UnitOfWork } from '../UnitOfWork.ts';
+import { invoiceCycle, type InvoiceCycle } from './InvoiceCycle.ts';
 import type { InvoiceSuggestion, InvoiceView } from './InvoiceViews.ts';
 
 /**
@@ -75,6 +77,29 @@ export class InvoiceService {
                 dueDate: creditCard.billingCycle.dueDateOf(invoice.period),
                 transactions: this.transactions.listByInvoice(invoiceId),
             };
+        });
+    }
+
+    /**
+     * A fatura de um mês e as próximas do cartão — "Próximas faturas" (mockup
+     * `DesktopCartoes`). O mês pedido vem sempre, mesmo sem linha, porque a tela mostra a
+     * fatura do mês com fechamento e vencimento ainda que nada tenha caído nela; os meses
+     * seguintes vêm só quando têm fatura (parcelas e compras já lançadas).
+     *
+     * @param creditCardId Cartão consultado.
+     * @param from Mês de referência da tela.
+     * @return A competência pedida e as faturas existentes depois dela, em ordem cronológica.
+     * @throws {NotFoundError} Quando o cartão não existe.
+     */
+    public listByCard(creditCardId: CreditCardId, from: YearMonth): readonly InvoiceCycle[] {
+        return this.unitOfWork.run(() => {
+            const creditCard = this.requireCard(creditCardId);
+            const invoices = this.invoices.listByCard(creditCardId);
+            const later = invoices.filter((invoice) => from.isBefore(invoice.period));
+            return [
+                invoiceCycle(creditCard, from, invoices.find((invoice) => invoice.period.equals(from)) ?? null),
+                ...later.map((invoice) => invoiceCycle(creditCard, invoice.period, invoice)),
+            ];
         });
     }
 

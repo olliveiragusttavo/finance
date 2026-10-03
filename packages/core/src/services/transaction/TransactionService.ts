@@ -7,8 +7,10 @@ import { Money } from '../../domain/shared/Money.ts';
 import type { YearMonth } from '../../domain/shared/YearMonth.ts';
 import { Transaction, type TransactionContent } from '../../domain/transaction/Transaction.ts';
 import type { TransactionContainer } from '../../domain/transaction/TransactionContainer.ts';
+import type { Clock } from '../../ports/Clock.ts';
 import type { IdGenerator } from '../../ports/IdGenerator.ts';
 import type { AccountRepository } from '../../repositories/AccountRepository.ts';
+import type { CategoryRepository } from '../../repositories/CategoryRepository.ts';
 import type { CreditCardRepository } from '../../repositories/CreditCardRepository.ts';
 import type { ProfileRepository } from '../../repositories/ProfileRepository.ts';
 import type { ReferenceRepository } from '../../repositories/ReferenceRepository.ts';
@@ -45,11 +47,13 @@ export class TransactionService {
      * @param accounts Conta de origem ou de destino.
      * @param creditCards Cartão de origem.
      * @param transactions Transações.
-     * @param references Posse de subcategoria, sócio e meta.
+     * @param references Posse de sócio e meta.
+     * @param categories Posse da subcategoria.
      * @param consolidation Garante extrato e fatura em que a transação cai.
      * @param invoiceService Reabre a fatura paga escolhida para um lançamento.
      * @param impacts Traduz o estado da transação nos saldos afetados.
      * @param recalculation A rotina única de recálculo.
+     * @param clock "Hoje" do usuário, a data de pagamento do atalho de marcar pago.
      */
     public constructor(
         private readonly unitOfWork: UnitOfWork,
@@ -59,10 +63,12 @@ export class TransactionService {
         private readonly creditCards: CreditCardRepository,
         private readonly transactions: TransactionRepository,
         private readonly references: ReferenceRepository,
+        private readonly categories: CategoryRepository,
         private readonly consolidation: StatementConsolidationService,
         private readonly invoiceService: InvoiceService,
         private readonly impacts: ImpactCalculator,
         private readonly recalculation: BalanceRecalculationService,
+        private readonly clock: Clock,
     ) {}
 
     /**
@@ -76,7 +82,7 @@ export class TransactionService {
     public create(command: CreateTransactionCommand): Transaction {
         return this.unitOfWork.run(() => {
             const profile = this.requireProfile(command.profileId);
-            this.assertReferences(profile, command);
+            this.assertReferences(profile, command, null);
             const resolved = this.resolveContainer(profile, command, null);
             const transaction = Transaction.create({
                 ...this.toContent(profile, command, resolved.container),
@@ -106,7 +112,7 @@ export class TransactionService {
             // O impacto do estado antigo é calculado antes de qualquer escrita, enquanto a
             // fatura antiga ainda está no estado (pago ou em aberto) que pesava nos saldos.
             const before = this.impacts.ofTransaction(current);
-            this.assertReferences(profile, command);
+            this.assertReferences(profile, command, current);
             this.assertOccurrenceDateFree(current, command.dueDate);
             const resolved = this.resolveContainer(profile, command, current);
             const revised = current.revise(this.toContent(profile, command, resolved.container));
@@ -130,6 +136,33 @@ export class TransactionService {
             const impact = this.impacts.ofTransaction(current);
             this.transactions.softDelete(id);
             this.recalculation.apply(impact);
+        });
+    }
+
+    /**
+     * Marca ou desmarca o pagamento — o atalho `P` da tela de Transações.
+     * Regra de negócio (Transações): marcar como paga usa a data de **hoje** como data de
+     * pagamento, porque pago e data de pagamento andam juntos (brief §3, Transação); desmarcar
+     * limpa a data. Recalcula o estado antigo e o novo, como qualquer edição: o consolidado
+     * do mês muda. Pedir o estado em que a transação já está não muda nada — nem a data de um
+     * pagamento já registrado.
+     *
+     * @param id Transação a marcar.
+     * @param paid `true` para paga, `false` para em aberto.
+     * @return A transação com a situação pedida, relida do banco.
+     * @throws {NotFoundError} Quando a transação não existe ou foi excluída.
+     */
+    public setPaid(id: TransactionId, paid: boolean): Transaction {
+        return this.unitOfWork.run(() => {
+            const current = this.requireTransaction(id);
+            if (current.isPaid() === paid) {
+                return current;
+            }
+            const before = this.impacts.ofTransaction(current);
+            const revised = current.withPaymentDate(paid ? this.clock.today() : null);
+            this.transactions.update(revised);
+            this.recalculation.apply(before.merge(this.impacts.ofTransaction(revised)));
+            return this.requireTransaction(id);
         });
     }
 
@@ -168,12 +201,14 @@ export class TransactionService {
      *
      * @param profile Perfil dono da transação.
      * @param input Referências a verificar.
+     * @param current Estado atual numa edição; `null` num lançamento novo.
      * @return void
      * @throws {NotFoundError} Quando uma referência não existe.
-     * @throws {BusinessRuleViolation} Quando pertence a outro perfil, ou há sócio num perfil pessoal.
+     * @throws {BusinessRuleViolation} Quando pertence a outro perfil, há sócio num perfil
+     * pessoal ou a conta de destino escolhida está desativada.
      */
-    private assertReferences(profile: Profile, input: TransactionInput): void {
-        this.assertOwnedBy(profile, 'subCategoryId', input.subCategoryId, this.references.subCategoryOwner(input.subCategoryId));
+    private assertReferences(profile: Profile, input: TransactionInput, current: Transaction | null): void {
+        this.assertOwnedBy(profile, 'subCategoryId', input.subCategoryId, this.categories.findSubCategory(input.subCategoryId)?.profileId ?? null);
         if (input.partnerId !== null) {
             // Regra de negócio (Perfil): sócios só existem em perfis empresariais
             // (database-design §4.2), então só eles registram quem pagou.
@@ -186,8 +221,8 @@ export class TransactionService {
             this.assertOwnedBy(profile, 'goalId', input.goalId, this.references.goalOwner(input.goalId));
         }
         if (input.destinationAccountId !== null) {
-            const destination = this.accounts.findById(input.destinationAccountId);
-            this.assertOwnedBy(profile, 'destinationAccountId', input.destinationAccountId, destination?.profileId ?? null);
+            const destination = this.requireOwned(profile, 'destinationAccountId', input.destinationAccountId, this.accounts.findById(input.destinationAccountId));
+            this.assertSelectable(destination, 'destinationAccountId', current?.destinationAccountId === destination.id);
         }
     }
 
@@ -223,17 +258,21 @@ export class TransactionService {
      * escolha, a sugestão pela data da compra — mas numa edição no mesmo cartão a fatura
      * atual é mantida, porque a sugestão nunca é recalculada depois, nem quando a data da
      * compra muda (database-design §4.7). Escolher uma fatura já paga a **reabre**.
+     * Regra de negócio (Contas e Cartões): conta ou cartão desativado não é escolha para um
+     * lançamento novo, mas o lançamento antigo que já está nele continua editável
+     * (desktop-mvp-plan §5.1).
      *
      * @param profile Perfil dono; a conta ou o cartão precisa ser dele.
      * @param input Origem e data da transação.
      * @param current Estado atual numa edição; `null` num lançamento novo.
      * @return O contêiner e o impacto de uma eventual reabertura de fatura.
      * @throws {NotFoundError} Quando a conta ou o cartão não existe.
-     * @throws {BusinessRuleViolation} Quando pertence a outro perfil.
+     * @throws {BusinessRuleViolation} Quando pertence a outro perfil ou foi escolhido desativado.
      */
     private resolveContainer(profile: Profile, input: TransactionInput, current: Transaction | null): ResolvedContainer {
         if (input.source.kind === 'account') {
             const account = this.requireOwned(profile, 'accountId', input.source.accountId, this.accounts.findById(input.source.accountId));
+            this.assertSelectable(account, 'accountId', current?.container.kind === 'statement' && current.container.accountId === account.id);
             const statement = this.consolidation.ensureStatement(account, input.dueDate.period);
             return {
                 container: { kind: 'statement', statementId: statement.id, accountId: statement.accountId, period: statement.period },
@@ -242,6 +281,7 @@ export class TransactionService {
         }
 
         const card = this.requireOwned(profile, 'creditCardId', input.source.creditCardId, this.creditCards.findById(input.source.creditCardId));
+        this.assertSelectable(card, 'creditCardId', current?.container.kind === 'invoice' && current.container.creditCardId === card.id);
         const currentInvoice = current?.container.kind === 'invoice' && current.container.creditCardId === card.id
             ? current.container
             : null;
@@ -319,6 +359,25 @@ export class TransactionService {
         }
         this.assertOwnedBy(profile, field, id, entity.profileId);
         return entity;
+    }
+
+    /**
+     * Regra de negócio (Contas e Cartões): desativado some das escolhas de lançamentos novos
+     * (desktop-mvp-plan §5.1). "Novo" é a escolha, não a transação: editar um lançamento que
+     * já está na conta desativada continua permitido, para que corrigir o histórico não
+     * exija reativar a conta.
+     *
+     * @param entity Conta ou cartão escolhido.
+     * @param field Campo da escolha, para a UI apontar o erro.
+     * @param alreadyChosen `true` quando a transação editada já usava esta conta ou cartão.
+     * @return void
+     * @throws {BusinessRuleViolation} Quando a escolha nova está desativada.
+     */
+    private assertSelectable(entity: { readonly disabled: boolean }, field: string, alreadyChosen: boolean): void {
+        if (entity.disabled && !alreadyChosen) {
+            const rule = field === 'creditCardId' ? 'credit-card-disabled' : 'account-disabled';
+            throw new BusinessRuleViolation(rule, `${field} está desativado(a) e não aceita lançamentos novos`, { field });
+        }
     }
 
     /**
