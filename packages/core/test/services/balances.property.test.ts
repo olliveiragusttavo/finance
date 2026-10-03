@@ -337,6 +337,9 @@ describe('propriedades dos saldos (backend-design §5.6)', () => {
                     await apply(s, operation);
                     assertInvariants(s);
                 }
+                // A verificação da abertura usa o recálculo como oráculo; sobre um banco que
+                // só os Services escreveram — inclusive depois de virar o mês — ela não acusa nada.
+                expect(await s.world.ok('integrity.verifyBalances', {})).toEqual({ checkedAccounts: 2, drifts: [] });
             }),
             { numRuns: 150 },
         );

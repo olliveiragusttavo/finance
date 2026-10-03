@@ -47,6 +47,15 @@ export class SqliteAccountRepository implements AccountRepository {
     }
 
     /**
+     * @return As contas vivas dos perfis vivos, por id.
+     */
+    public listAll(): readonly Account[] {
+        return this.database
+            .all(`${SELECT_ACCOUNT} WHERE a.deleted_at IS NULL AND p.deleted_at IS NULL ORDER BY a.id`)
+            .map((row) => this.toAccount(row));
+    }
+
+    /**
      * @param account Conta com o cache recalculado.
      * @return void
      */

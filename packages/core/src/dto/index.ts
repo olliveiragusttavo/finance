@@ -19,3 +19,4 @@ export * from './invoices/InvoiceSuggestionResponse.ts';
 export * from './statements/StatementResponse.ts';
 export * from './accounts/AccountBalanceResponse.ts';
 export * from './profiles/ProfileBalancesResponse.ts';
+export * from './integrity/IntegrityReportResponse.ts';

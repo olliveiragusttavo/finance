@@ -33,4 +33,49 @@ export class UnitOfWork {
             this.depth--;
         }
     }
+
+    /**
+     * Executa `work` numa transação que é **sempre desfeita**. Existe para conferir o que um
+     * caso de uso gravaria sem gravar — a verificação de integridade roda a rotina de
+     * recálculo de verdade e compara o resultado com o cache, mas um desvio é bug a expor,
+     * não a corrigir em silêncio (database-design §3.7). Reaproveitar a rotina, em vez de
+     * reimplementar o cálculo só para leitura, mantém um único oráculo.
+     *
+     * @param work Trabalho cujas escritas são descartadas; o que ele devolve é preservado.
+     * @return O que `work` devolveu, depois do rollback.
+     * @throws {Error} Quando chamado dentro de outra unidade de trabalho: o rollback desfaria
+     * também as escritas legítimas da unidade externa.
+     */
+    public rehearse<T>(work: () => T): T {
+        if (this.depth > 0) {
+            throw new Error('UnitOfWork.rehearse não pode rodar dentro de outra unidade de trabalho');
+        }
+        const outcome: { result: { readonly value: T } | null } = { result: null };
+        try {
+            this.run(() => {
+                outcome.result = { value: work() };
+                throw new RehearsalRollback();
+            });
+        } catch (error) {
+            if (!(error instanceof RehearsalRollback)) {
+                throw error;
+            }
+        }
+        if (outcome.result === null) {
+            throw new Error('UnitOfWork.rehearse terminou sem resultado');
+        }
+        return outcome.result.value;
+    }
+}
+
+/**
+ * Sinal interno para o driver desfazer a transação: a porta `Database` só faz rollback por
+ * exceção, e um tipo próprio separa esse rollback pedido de uma falha real do trabalho.
+ */
+class RehearsalRollback extends Error {
+    /** Nome fixo, para o caso de o sinal escapar num log por bug. */
+    public constructor() {
+        super('Rollback intencional de UnitOfWork.rehearse');
+        this.name = 'RehearsalRollback';
+    }
 }

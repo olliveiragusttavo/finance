@@ -353,8 +353,11 @@ voltar à 3.
 ### 4.6 Backup antes de migrar
 
 Antes de aplicar qualquer migration, o app grava uma cópia consistente com
-`VACUUM INTO` em `backups/pre-v{versão}-{data}.sqlite`, ao lado do banco. Guardam-se as
-**três** mais recentes. É a mesma operação usada no snapshot de pareamento
+`VACUUM INTO` em `backups/pre-v{versão}-{data}-{hora}.sqlite`, ao lado do banco. Guardam-se as
+**três** mais recentes. A hora (UTC, `HHMMSS`) entra no nome porque o `VACUUM INTO` não
+sobrescreve arquivo existente: duas tentativas de migrar no mesmo dia colidiriam. Banco
+novo (versão 0) não é copiado — não há dado a preservar. A pasta entra no núcleo pela
+porta `BackupDirectory`, e uma falha na cópia impede a migration (`MigrationBackupError`). É a mesma operação usada no snapshot de pareamento
 ([sync-design.md §6.4](sync-design.md#64-entrando-no-grupo-um-novo-dispositivo-começa-vazio)).
 
 Sem DBA, o backup automático é o único `down` que existe. O custo é espaço em disco
@@ -640,18 +643,20 @@ cobertura de linhas é exigida: o mutation testing mede o que ela fingiria medir
    (§4.13); saldo anterior ao primeiro extrato em `accounts.opening_balance` (§4.4).
    Nenhuma regra pendente.
 2. ~~**Montar o monorepo**~~ — feito: `packages/core` e `packages/sqlite-better`, com
-   lint (regras de fronteira incluídas), tipos e Vitest. Falta o CI rodando a suíte nos
-   dois fusos da [§5.7](#57-tempo-e-fuso-horário).
+   lint (regras de fronteira incluídas), tipos e Vitest, e o CI (GitHub Actions) rodando
+   `pnpm check` nos dois fusos da [§5.7](#57-tempo-e-fuso-horário).
 3. ~~**Implementar as portas, o adaptador `better-sqlite3` e o runner de migrations**~~ —
-   feito, com a suíte de contrato e os testes de migration. Pendentes no runner: o backup
-   com `VACUUM INTO` ([§4.6](#46-backup-antes-de-migrar)), o `checksums.lock`
-   ([§4.3](#43-migrations-são-somente-para-a-frente-e-imutáveis)) e o tratamento de
-   `foreign_keys` para reconstrução de tabelas ([§4.7](#47-mudanças-que-o-alter-table-não-faz)).
+   feito, com a suíte de contrato, os testes de migration, o backup com `VACUUM INTO`
+   ([§4.6](#46-backup-antes-de-migrar)) e o `checksums.lock`
+   ([§4.3](#43-migrations-são-somente-para-a-frente-e-imutáveis)). Pendente no runner: o
+   tratamento de `foreign_keys` para reconstrução de tabelas
+   ([§4.7](#47-mudanças-que-o-alter-table-não-faz)).
 4. ~~**Implementar `Money` e o domínio puro de datas**~~ — feito para a fatura de uma
    compra e o vencimento; falta a expansão de recorrências e a divisão de parcelas.
 5. ~~**Implementar a rotina de recálculo**~~ — feita (`BalanceRecalculationService`), com
-   testes de mesa e teste de propriedade contra um oráculo independente. Falta a
-   **verificação de integridade** (desvio de saldo, órfãs, anexos ausentes).
+   testes de mesa e teste de propriedade contra um oráculo independente. A
+   **verificação de integridade** cobre o desvio de saldo (rota `integrity.verifyBalances`,
+   que roda o recálculo numa transação desfeita e só relata); faltam órfãs e anexos ausentes.
 6. ~~Os Services de lançamento~~ — CRUD de transações (escopo "somente esta"), consolidação
    de extrato, pagamento e reabertura de fatura e saldo do perfil, expostos pelo mapa de
    rotas. Faltam o serviço de recorrências (escopos "esta e as futuras" e "todas"), os

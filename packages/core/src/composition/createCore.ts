@@ -1,3 +1,4 @@
+import { IntegrityController } from '../controllers/IntegrityController.ts';
 import { InvoiceController } from '../controllers/InvoiceController.ts';
 import type { CoreResult, UnexpectedErrorListener } from '../controllers/CoreResult.ts';
 import type { CoreApi, CoreRoute, RouteHandlers } from '../controllers/routes.ts';
@@ -6,6 +7,7 @@ import { TransactionController } from '../controllers/TransactionController.ts';
 import { embeddedMigrations } from '../infrastructure/migrations/embedded.generated.ts';
 import type { Migration } from '../infrastructure/migrations/Migration.ts';
 import { MigrationRunner, type MigrationReport } from '../infrastructure/migrations/MigrationRunner.ts';
+import { PreMigrationBackup } from '../infrastructure/migrations/PreMigrationBackup.ts';
 import { configureConnection } from '../infrastructure/sqlite/connection.ts';
 import { SqliteAccountRepository } from '../infrastructure/sqlite/SqliteAccountRepository.ts';
 import { SqliteBalanceLedgerRepository } from '../infrastructure/sqlite/SqliteBalanceLedgerRepository.ts';
@@ -15,12 +17,14 @@ import { SqliteInvoiceRepository } from '../infrastructure/sqlite/SqliteInvoiceR
 import { SqliteProfileRepository } from '../infrastructure/sqlite/SqliteProfileRepository.ts';
 import { SqliteReferenceRepository } from '../infrastructure/sqlite/SqliteReferenceRepository.ts';
 import { SqliteTransactionRepository } from '../infrastructure/sqlite/SqliteTransactionRepository.ts';
+import type { BackupDirectory } from '../ports/BackupDirectory.ts';
 import type { Clock } from '../ports/Clock.ts';
 import type { Database } from '../ports/Database.ts';
 import type { IdGenerator } from '../ports/IdGenerator.ts';
 import { AccountBalanceService } from '../services/balance/AccountBalanceService.ts';
 import { BalanceRecalculationService } from '../services/balance/BalanceRecalculationService.ts';
 import { ImpactCalculator } from '../services/balance/ImpactCalculator.ts';
+import { BalanceIntegrityService } from '../services/integrity/BalanceIntegrityService.ts';
 import { InvoiceService } from '../services/invoice/InvoiceService.ts';
 import { StatementConsolidationService } from '../services/statement/StatementConsolidationService.ts';
 import { TransactionService } from '../services/transaction/TransactionService.ts';
@@ -42,6 +46,7 @@ export interface CoreServices {
     readonly invoices: InvoiceService;
     readonly balances: AccountBalanceService;
     readonly recalculation: BalanceRecalculationService;
+    readonly integrity: BalanceIntegrityService;
 }
 
 /** O núcleo montado. */
@@ -49,20 +54,39 @@ export interface Core extends CoreApi {
     readonly services: CoreServices;
 }
 
+/** O que a abertura do banco precisa da plataforma além da conexão. */
+export interface OpenDatabaseOptions {
+    /**
+     * Pasta `backups/` ao lado do banco. Obrigatória, com `null` explícito para banco em
+     * memória: sendo opcional, um shell que esquecesse de passá-la migraria sem cópia — e o
+     * backup é o único `down` que existe (backend-design §4.6).
+     */
+    readonly backups: BackupDirectory | null;
+    /** Instante da cópia, que entra no nome do arquivo de backup. */
+    readonly clock: Clock;
+    /** Migrations embutidas; parametrizável só para testar o runner. */
+    readonly migrations?: readonly Migration[];
+}
+
 /**
- * Prepara o banco para uso: configuração obrigatória da conexão e migrations pendentes,
- * nessa ordem (backend-design §4.5, passos 1 a 4). Fica separado de `createCore` porque
- * pode falhar de formas que a plataforma trata antes de existir UI — banco mais novo que o
- * app, migration que falhou.
+ * Prepara o banco para uso: configuração obrigatória da conexão, backup e migrations
+ * pendentes, nessa ordem (backend-design §4.5, passos 1 a 4). Fica separado de `createCore`
+ * porque pode falhar de formas que a plataforma trata antes de existir UI — banco mais novo
+ * que o app, backup ou migration que falhou. O passo 5, a verificação de integridade, roda
+ * depois de montar o núcleo, pela rota `integrity.verifyBalances`, porque usa a rotina de
+ * recálculo dos Services.
  *
  * @param database Conexão recém-aberta pelo adaptador da plataforma.
- * @param migrations Migrations embutidas; parametrizável só para testar o runner.
- * @return O relatório das migrations aplicadas.
+ * @param options Pasta de backups, relógio e, nos testes, as migrations.
+ * @return O relatório das migrations aplicadas e do backup gravado.
  * @throws {SchemaNewerThanAppError} Quando o banco é mais novo que o app.
+ * @throws {MigrationBackupError} Quando a cópia de segurança falha; nada é migrado.
+ * @throws {MigrationIntegrityError} Quando uma migration deixa chave estrangeira quebrada.
  */
-export function openDatabase(database: Database, migrations: readonly Migration[] = embeddedMigrations): MigrationReport {
+export function openDatabase(database: Database, options: OpenDatabaseOptions): MigrationReport {
     configureConnection(database);
-    return new MigrationRunner(database, migrations).migrate();
+    const backup = options.backups === null ? null : new PreMigrationBackup(database, options.backups, options.clock);
+    return new MigrationRunner(database, options.migrations ?? embeddedMigrations, backup).migrate();
 }
 
 /**
@@ -96,10 +120,12 @@ export function createCore(ports: CorePorts): Core {
         unitOfWork, ids, profiles, accounts, creditCards, transactions, references, consolidation, invoiceService, impacts, recalculation,
     );
     const balances = new AccountBalanceService(unitOfWork, profiles, accounts, recalculation);
+    const integrity = new BalanceIntegrityService(unitOfWork, accounts, statements, invoices, recalculation, clock);
 
     const transactionController = new TransactionController(transactionService, onUnexpected);
     const statementController = new StatementController(consolidation, balances, onUnexpected);
     const invoiceController = new InvoiceController(invoiceService, onUnexpected);
+    const integrityController = new IntegrityController(integrity, onUnexpected);
 
     const handlers: RouteHandlers = {
         'transactions.create': (raw) => transactionController.create(raw),
@@ -114,10 +140,11 @@ export function createCore(ports: CorePorts): Core {
         'invoices.get': (raw) => invoiceController.get(raw),
         'invoices.pay': (raw) => invoiceController.pay(raw),
         'invoices.reopen': (raw) => invoiceController.reopen(raw),
+        'integrity.verifyBalances': (raw) => integrityController.verifyBalances(raw),
     };
 
     return {
-        services: { transactions: transactionService, consolidation, invoices: invoiceService, balances, recalculation },
+        services: { transactions: transactionService, consolidation, invoices: invoiceService, balances, recalculation, integrity },
         call: (route, input) => handlers[route](input),
         dispatch: (route, input): Promise<CoreResult<unknown>> => {
             if (!isRoute(route, handlers)) {

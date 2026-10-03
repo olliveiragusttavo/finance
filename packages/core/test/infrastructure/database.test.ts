@@ -1,11 +1,14 @@
+import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { BetterSqliteDatabase } from '@finance/sqlite-better';
 import { describe, expect, it } from 'vitest';
 import { openDatabase, SchemaNewerThanAppError, type Database } from '../../src/index.ts';
 import { embeddedMigrations } from '../../src/infrastructure/migrations/embedded.generated.ts';
+import { FixedClock } from '../support/adapters.ts';
 
 const MIGRATIONS_DIR = join(import.meta.dirname, '..', '..', '..', '..', 'db', 'migrations');
+const clock = new FixedClock('2026-01-01');
 
 /**
  * @return Um banco em memória novo, tipado pela porta: a atribuição é a verificação, em
@@ -42,7 +45,7 @@ describe('contrato da porta Database (backend-design §5.10)', () => {
 describe('abertura do banco (backend-design §4.5)', () => {
     it('liga foreign_keys: um hard delete de perfil cascateia de verdade (database-design §3.2)', () => {
         const database = freshDatabase();
-        openDatabase(database);
+        openDatabase(database, { backups: null, clock });
         expect(database.get('PRAGMA foreign_keys')).toEqual({ foreign_keys: 1 });
 
         const now = '2026-01-01 00:00:00';
@@ -60,18 +63,18 @@ describe('abertura do banco (backend-design §4.5)', () => {
 
     it('aplica as migrations uma vez e registra a versão em user_version', () => {
         const database = freshDatabase();
-        const first = openDatabase(database);
-        expect(first).toEqual({ fromVersion: 0, toVersion: embeddedMigrations.length, applied: embeddedMigrations.map((m) => m.version) });
+        const first = openDatabase(database, { backups: null, clock });
+        expect(first).toEqual({ fromVersion: 0, toVersion: embeddedMigrations.length, applied: embeddedMigrations.map((m) => m.version), backupFile: null });
 
-        const second = openDatabase(database);
+        const second = openDatabase(database, { backups: null, clock });
         expect(second.applied).toEqual([]);
     });
 
     it('recusa abrir um banco mais novo que o app (backend-design §4.8)', () => {
         const database = freshDatabase();
-        openDatabase(database);
+        openDatabase(database, { backups: null, clock });
         database.exec('PRAGMA user_version = 999');
-        expect(() => openDatabase(database)).toThrow(SchemaNewerThanAppError);
+        expect(() => openDatabase(database, { backups: null, clock })).toThrow(SchemaNewerThanAppError);
     });
 
     it('as migrations embutidas são idênticas aos arquivos de db/migrations', () => {
@@ -81,6 +84,33 @@ describe('abertura do banco (backend-design §4.5)', () => {
             expect(migration.sql, `${migration.name} desatualizada: rode pnpm embed:migrations`).toBe(
                 readFileSync(join(MIGRATIONS_DIR, `${migration.name}.sql`), 'utf8'),
             );
+        }
+    });
+});
+
+describe('imutabilidade das migrations (backend-design §4.3)', () => {
+    /**
+     * Lê o lock sem passar pelo script que o grava, para que um bug no script não aprove a
+     * si mesmo.
+     *
+     * @return O hash travado de cada arquivo, pelo nome.
+     */
+    function lockedHashes(): ReadonlyMap<string, string> {
+        const lines = readFileSync(join(MIGRATIONS_DIR, 'checksums.lock'), 'utf8').split('\n').filter((line) => line !== '');
+        return new Map(lines.map((line) => {
+            const [hash = '', file = ''] = line.split('  ');
+            return [file, hash];
+        }));
+    }
+
+    it('toda migration está travada e nenhuma travada foi editada ou removida', () => {
+        const files = readdirSync(MIGRATIONS_DIR).filter((file) => file.endsWith('.sql')).sort();
+        const locked = lockedHashes();
+
+        expect([...locked.keys()].sort(), 'checksums.lock desatualizado: rode pnpm embed:migrations').toEqual(files);
+        for (const file of files) {
+            const hash = createHash('sha256').update(readFileSync(join(MIGRATIONS_DIR, file))).digest('hex');
+            expect(hash, `${file} foi editada depois de publicada: corrija com uma migration nova`).toBe(locked.get(file));
         }
     });
 });

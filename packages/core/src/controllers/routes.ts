@@ -1,5 +1,6 @@
 import type { z } from 'zod';
 import type { AccountBalanceResponse } from '../dto/accounts/AccountBalanceResponse.ts';
+import type { IntegrityReportResponse } from '../dto/integrity/IntegrityReportResponse.ts';
 import type { InvoiceDetailResponse } from '../dto/invoices/InvoiceDetailResponse.ts';
 import type { InvoiceResponse } from '../dto/invoices/InvoiceResponse.ts';
 import type { InvoiceSuggestionResponse } from '../dto/invoices/InvoiceSuggestionResponse.ts';
@@ -7,6 +8,7 @@ import type { ProfileBalancesResponse } from '../dto/profiles/ProfileBalancesRes
 import type { StatementResponse } from '../dto/statements/StatementResponse.ts';
 import type { TransactionResponse } from '../dto/transactions/TransactionResponse.ts';
 import type { profileBalancesRequest, rebuildAccountRequest } from '../requests/balanceRequests.ts';
+import type { verifyBalancesRequest } from '../requests/integrityRequests.ts';
 import type { invoiceIdRequest, payInvoiceRequest, suggestInvoiceRequest } from '../requests/invoiceRequests.ts';
 import type { getStatementRequest } from '../requests/statementRequests.ts';
 import type {
@@ -36,6 +38,7 @@ export interface CoreRoutes {
     'invoices.get': { input: z.input<typeof invoiceIdRequest>; output: InvoiceDetailResponse };
     'invoices.pay': { input: z.input<typeof payInvoiceRequest>; output: InvoiceResponse };
     'invoices.reopen': { input: z.input<typeof invoiceIdRequest>; output: InvoiceResponse };
+    'integrity.verifyBalances': { input: z.input<typeof verifyBalancesRequest>; output: IntegrityReportResponse };
 }
 
 export type CoreRoute = keyof CoreRoutes;

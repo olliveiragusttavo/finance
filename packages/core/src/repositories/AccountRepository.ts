@@ -16,6 +16,14 @@ export interface AccountRepository {
     listByProfile(profileId: ProfileId): readonly Account[];
 
     /**
+     * Existe para a verificação de integridade na abertura, que confere o banco inteiro e
+     * não um perfil: um desvio no perfil que o usuário não abriu hoje é o mesmo bug.
+     *
+     * @return As contas vivas de todos os perfis vivos, em ordem estável de id.
+     */
+    listAll(): readonly Account[];
+
+    /**
      * Grava só o cache de saldo. Separado de uma gravação completa porque a rotina de
      * recálculo nunca pode tocar dados do usuário, como o `opening_balance`.
      *
