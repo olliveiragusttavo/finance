@@ -1,0 +1,115 @@
+/* Gerado a partir de packages/tokens/src/tokens.ts por `pnpm tokens:css` — não edite à mão. */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+    color-scheme: light;
+    --bg: #F4F5F2;
+    --surface: #FFFFFF;
+    --surface2: #FAFAF8;
+    --line: #DDE1DC;
+    --line2: #EEF0EC;
+    --ink: #1B1F1D;
+    --ink2: #3D4541;
+    --muted: #5A625E;
+    --accent: #1F5F8B;
+    --on-accent: #FFFFFF;
+    --soft: #E6EEF4;
+    --soft-ink: #163F5C;
+    --in: #1F5F8B;
+    --out: #A04A12;
+    --warn-bg: #FFF1D6;
+    --warn-ink: #5C3D00;
+    --ok-bg: #E2F1E8;
+    --ok-ink: #1E5A3F;
+    --track: #EEF0EC;
+    --danger: #9B2C1F;
+    --dot: #2E7D5B;
+    --scrim: #1B1F1D;
+}
+
+.dark {
+    color-scheme: dark;
+    --bg: #111413;
+    --surface: #1A1E1C;
+    --surface2: #151917;
+    --line: #2E3431;
+    --line2: #242926;
+    --ink: #E7EAE7;
+    --ink2: #C3C9C5;
+    --muted: #9AA29E;
+    --accent: #6AAAD8;
+    --on-accent: #0B1A24;
+    --soft: #1D3040;
+    --soft-ink: #B5D7F0;
+    --in: #7DB8E2;
+    --out: #E89A63;
+    --warn-bg: #3A2C10;
+    --warn-ink: #F2D38F;
+    --ok-bg: #16302A;
+    --ok-ink: #8FD9B4;
+    --track: #2A302D;
+    --danger: #F08A7A;
+    --dot: #5BC08F;
+    --scrim: #000000;
+}
+
+@theme inline {
+    --color-*: initial;
+    --color-bg: var(--bg);
+    --color-surface: var(--surface);
+    --color-surface2: var(--surface2);
+    --color-line: var(--line);
+    --color-line2: var(--line2);
+    --color-ink: var(--ink);
+    --color-ink2: var(--ink2);
+    --color-muted: var(--muted);
+    --color-accent: var(--accent);
+    --color-on-accent: var(--on-accent);
+    --color-soft: var(--soft);
+    --color-soft-ink: var(--soft-ink);
+    --color-in: var(--in);
+    --color-out: var(--out);
+    --color-warn-bg: var(--warn-bg);
+    --color-warn-ink: var(--warn-ink);
+    --color-ok-bg: var(--ok-bg);
+    --color-ok-ink: var(--ok-ink);
+    --color-track: var(--track);
+    --color-danger: var(--danger);
+    --color-dot: var(--dot);
+    --color-scrim: var(--scrim);
+
+    --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+
+    --text-*: initial;
+    --text-11: 0.6875rem;
+    --text-12: 0.75rem;
+    --text-13: 0.8125rem;
+    --text-14: 0.875rem;
+    --text-15: 0.9375rem;
+    --text-16: 1rem;
+    --text-17: 1.0625rem;
+    --text-18: 1.125rem;
+    --text-20: 1.25rem;
+    --text-22: 1.375rem;
+    --text-24: 1.5rem;
+    --text-28: 1.75rem;
+    --text-30: 1.875rem;
+
+    --radius-*: initial;
+    --radius-2: 2px;
+    --radius-3: 3px;
+    --radius-4: 4px;
+    --radius-6: 6px;
+    --radius-8: 8px;
+    --radius-10: 10px;
+    --radius-12: 12px;
+    --radius-14: 14px;
+    --radius-18: 18px;
+
+    --spacing: 0.25rem;
+}

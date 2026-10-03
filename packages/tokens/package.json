@@ -1,0 +1,20 @@
+{
+    "name": "@finance/tokens",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "exports": {
+        ".": "./src/index.ts",
+        "./theme.css": "./src/theme.generated.css"
+    },
+    "scripts": {
+        "typecheck": "tsc -p tsconfig.json",
+        "test": "vitest run",
+        "generate": "node scripts/writeThemeCss.ts"
+    },
+    "devDependencies": {
+        "@types/node": "24.19.0",
+        "typescript": "6.0.3",
+        "vitest": "5.0.3"
+    }
+}
