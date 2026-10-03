@@ -478,6 +478,9 @@ São referência de layout e conteúdo, não código para copiar.
 Os componentes são do mobile — `View` e `Text`, não os do shadcn/ui
 ([desktop-shell-design.md §4.2](desktop-shell-design.md#42-o-que-é-compartilhado-é-a-camada-headless)) —,
 mas as classes e os tokens são os mesmos, e o tema escuro troca pelas mesmas variáveis.
+O desktop usa o Tailwind v4, em que o preset é o CSS gerado por `packages/tokens`
+(`theme.generated.css`) — o formato que o NativeWind 5 lê. Se o mobile ficar no NativeWind
+4 (Tailwind v3), o gerador ganha uma saída em JS a partir dos mesmos dados.
 
 | Alternativa | Por que foi descartada |
 |---|---|

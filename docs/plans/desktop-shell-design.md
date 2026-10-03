@@ -1,6 +1,7 @@
 # Design do Shell Desktop e da UI
 
-**Status:** Design concluído — não implementado. Fecha as duas questões que o
+**Status:** Design concluído; esqueleto implementado em `apps/desktop`
+([desktop-mvp-plan.md, Fase 3](desktop-mvp-plan.md#fase-3--fundação-do-desktop)). Fecha as duas questões que o
 [backend-design.md](backend-design.md) deixou abertas sobre o desktop: confirmar o
 Electron frente às alternativas mais leves (Tauri em especial) e escolher o framework de
 UI das telas de relatório.
@@ -129,8 +130,23 @@ O renderer é tratado como entrada não confiável
 obrigatória da janela:
 
 - `contextIsolation: true`, `sandbox: true`, `nodeIntegration: false`.
-- O *preload* expõe **apenas** o `CoreClient` ([§5](#5-a-fronteira-ui--núcleo)) — nenhuma
-  função genérica de IPC, nenhum acesso a `fs` ou `shell`.
+- O *preload* expõe **apenas** o `CoreClient` ([§5](#5-a-fronteira-ui--núcleo)), as
+  preferências do aparelho, o estado da abertura do banco com a única ação que a tela de
+  bloqueio pede (restaurar o backup), o aviso de falha fatal e o relato de problema —
+  nenhuma função genérica de IPC, nenhum acesso a `fs` ou `shell`.
+- O relato de problema manda ao processo principal só texto (título, detalhes, descrição,
+  incluir o log ou não). O principal valida com zod, lê o fim dos logs, troca a pasta
+  pessoal por `~` e abre com `shell.openExternal` um endereço de destino fixo: a issue
+  pré-preenchida em `github.com/olliveiragusttavo/finance/issues/new` ou, para quem não tem
+  conta no GitHub, um `mailto:`. O renderer nunca escolhe o endereço. A issue não é criada
+  pela API porque isso exigiria um token com escrita no repositório dentro do app, e
+  qualquer um poderia extraí-lo; sem servidor intermediário, quem envia é o usuário, pela
+  própria conta, depois de revisar o texto. O log é cortado das linhas antigas para caber
+  no limite do endereço (~8 KB no GitHub, ~1,8 KB no `mailto:`).
+- No devcontainer e no CI o Chromium roda sem o sandbox de processo
+  (`FINANCE_ELECTRON_NO_SANDBOX=1`), porque o Docker e o runner bloqueiam os namespaces de
+  usuário de que ele precisa. O `sandbox: true` das janelas continua valendo; no desktop do
+  usuário o sandbox completo fica ligado.
 - CSP restrita (`default-src 'self'`), sem carregar conteúdo remoto; navegação para fora
   do app e abertura de novas janelas bloqueadas.
 
@@ -255,6 +271,12 @@ O que reabriria a decisão: o NativeWind deixar de acompanhar as versões do Exp
 tokens são dados em `packages/tokens`, a saída seria gerar `StyleSheet` a partir deles no
 mobile, sem tocar no desktop.
 
+Como ficou na implementação: o desktop usa o **Tailwind v4**, em que o "preset" é CSS — o
+`packages/tokens` gera `theme.generated.css` com as variáveis de cada tema e o bloco
+`@theme`, que zera as escalas padrão do Tailwind para que só existam as classes dos tokens.
+Os componentes do shadcn/ui foram copiados com as classes traduzidas para esse vocabulário
+(`bg-primary` → `bg-accent`, `text-muted-foreground` → `text-muted`).
+
 ---
 
 ## 5. A fronteira UI ↔ núcleo
@@ -295,6 +317,14 @@ conjunto fechado e tipado (`VALIDATION_FAILED`, `NOT_FOUND`, `SCHEMA_NEWER_THAN_
 A UI trata cada código de forma exaustiva, verificada pelo compilador. Exceções ficam
 para falhas inesperadas, que viram um erro genérico com log no `utilityProcess`.
 
+No desktop, o erro genérico (`INTERNAL`) é fatal: o `CoreClient` entregue às telas é
+decorado para registrá-lo, e a raiz troca o app inteiro por uma tela de erro com a opção
+de relatar o problema. O mesmo vale para exceção na renderização, promessa rejeitada sem
+tratamento, o `utilityProcess` que termina (ele sai de propósito numa exceção não tratada)
+e exceção não tratada no processo principal. Seguir usando depois de um erro desconhecido
+poderia mostrar número errado ou gravar dado pela metade; reabrir o app é o caminho de
+volta a um estado conhecido.
+
 ### 5.4 Validação na fronteira
 
 A camada **Request** valida toda entrada **no `utilityProcess`**, nunca só no renderer
@@ -317,6 +347,10 @@ conforto de UX, não como garantia.
 3. **Listar os relatórios do desktop** — as perguntas concretas que o README diz que os
    apps comerciais não respondem — e, a partir deles, escolher a biblioteca de gráficos
    ([§4.4](#44-bibliotecas-do-renderer)).
-4. **Medir o Electron** (memória e tempo de abertura) assim que houver um esqueleto
-   rodando, para que a [§3.7](#37-o-que-reabriria-a-decisão) se apoie em número e não
-   em impressão.
+4. ~~**Medir o Electron**~~ — medido no esqueleto (`pnpm --filter @finance/desktop measure`,
+   2026-10-03, devcontainer Linux com GPU, sem o sandbox de processo): **~1,0 s** da
+   chamada ao Electron até a primeira tela com dado do núcleo, e **~330 MB** de memória
+   (soma do PSS dos processos) com a janela aberta — principal 125 MB, renderer 62 MB, GPU
+   61 MB, núcleo (`utilityProcess`) 54 MB, rede 28 MB. Dentro do custo que a
+   [§3.5](#35-o-custo-do-electron-dito-com-clareza) aceitou; a medição se repete com as
+   telas de relatório prontas.

@@ -59,6 +59,11 @@ Fonte: IBM Plex Sans.
 | ok-bg / ok-ink | #E2F1E8 / #1E5A3F | #16302A / #8FD9B4 |
 | track (barras) | #EEF0EC | #2A302D |
 | danger | #9B2C1F | #F08A7A |
+| dot (indicador de sincronização) | #2E7D5B | #5BC08F |
+| scrim (véu de diálogos, com opacidade) | #1B1F1D | #000000 |
+
+`dot` já estava nas variáveis dos mockups; `scrim` não aparece neles — foi acrescentado no
+`packages/tokens` para o fundo atrás de diálogos e painéis laterais.
 
 ## Telas
 

@@ -346,6 +346,16 @@ Toda abertura do banco passa por um único caminho, nesta ordem:
    ([database-design.md §4.12](database-design.md#412-recurrences)), que não pode rodar
    antes de o banco estar pronto.
 
+No desktop, qualquer falha da sequência bloqueia a abertura — inclusive a falha ao montar
+o núcleo ou ao rodar a verificação de integridade (os desvios encontrados por ela só vão
+para o log). A restauração do backup copia a cópia para um arquivo provisório antes de
+tirar o banco do lugar, desfaz as etapas se uma falhar e grava uma marca
+(`restore-pending.json`) enquanto não termina: com a marca presente, a abertura bloqueia
+em vez de criar um banco vazio no lugar do que saiu. A primeira migration que falha também
+grava uma marca (`migration-failed.json`) com o backup daquela tentativa: as aberturas
+seguintes oferecem esse backup, e não o novo — gravado depois das migrations que passaram, que
+a versão anterior do app recusaria —, e a rotação não o apaga até a migration passar.
+
 Uma transação por migration, e não uma para todas: um aparelho que pula da versão 3
 para a 9 e falha na 7 fica na 6, utilizável pela versão anterior do app, em vez de
 voltar à 3.
