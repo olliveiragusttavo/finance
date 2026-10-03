@@ -1,6 +1,10 @@
+import { AccountController } from '../controllers/AccountController.ts';
+import { CategoryController } from '../controllers/CategoryController.ts';
+import { CreditCardController } from '../controllers/CreditCardController.ts';
 import { IntegrityController } from '../controllers/IntegrityController.ts';
 import { InvoiceController } from '../controllers/InvoiceController.ts';
 import type { CoreResult, UnexpectedErrorListener } from '../controllers/CoreResult.ts';
+import { ProfileController } from '../controllers/ProfileController.ts';
 import type { CoreApi, CoreRoute, RouteHandlers } from '../controllers/routes.ts';
 import { StatementController } from '../controllers/StatementController.ts';
 import { TransactionController } from '../controllers/TransactionController.ts';
@@ -12,7 +16,9 @@ import { configureConnection } from '../infrastructure/sqlite/connection.ts';
 import { SqliteAccountRepository } from '../infrastructure/sqlite/SqliteAccountRepository.ts';
 import { SqliteBalanceLedgerRepository } from '../infrastructure/sqlite/SqliteBalanceLedgerRepository.ts';
 import { SqliteBankStatementRepository } from '../infrastructure/sqlite/SqliteBankStatementRepository.ts';
+import { SqliteCategoryRepository } from '../infrastructure/sqlite/SqliteCategoryRepository.ts';
 import { SqliteCreditCardRepository } from '../infrastructure/sqlite/SqliteCreditCardRepository.ts';
+import { SqliteDeletionRepository } from '../infrastructure/sqlite/SqliteDeletionRepository.ts';
 import { SqliteInvoiceRepository } from '../infrastructure/sqlite/SqliteInvoiceRepository.ts';
 import { SqliteProfileRepository } from '../infrastructure/sqlite/SqliteProfileRepository.ts';
 import { SqliteReferenceRepository } from '../infrastructure/sqlite/SqliteReferenceRepository.ts';
@@ -21,11 +27,17 @@ import type { BackupDirectory } from '../ports/BackupDirectory.ts';
 import type { Clock } from '../ports/Clock.ts';
 import type { Database } from '../ports/Database.ts';
 import type { IdGenerator } from '../ports/IdGenerator.ts';
+import { AccountService } from '../services/account/AccountService.ts';
 import { AccountBalanceService } from '../services/balance/AccountBalanceService.ts';
 import { BalanceRecalculationService } from '../services/balance/BalanceRecalculationService.ts';
 import { ImpactCalculator } from '../services/balance/ImpactCalculator.ts';
+import { CategoryService } from '../services/category/CategoryService.ts';
+import { CreditCardService } from '../services/creditCard/CreditCardService.ts';
+import { CascadeDeletionService } from '../services/deletion/CascadeDeletionService.ts';
 import { BalanceIntegrityService } from '../services/integrity/BalanceIntegrityService.ts';
 import { InvoiceService } from '../services/invoice/InvoiceService.ts';
+import { OnboardingService } from '../services/onboarding/OnboardingService.ts';
+import { ProfileService } from '../services/profile/ProfileService.ts';
 import { StatementConsolidationService } from '../services/statement/StatementConsolidationService.ts';
 import { TransactionService } from '../services/transaction/TransactionService.ts';
 import { UnitOfWork } from '../services/UnitOfWork.ts';
@@ -41,6 +53,12 @@ export interface CorePorts {
 
 /** Os Services montados, para quem compõe casos de uso no próprio processo (testes, jobs). */
 export interface CoreServices {
+    readonly profiles: ProfileService;
+    readonly onboarding: OnboardingService;
+    readonly accounts: AccountService;
+    readonly creditCards: CreditCardService;
+    readonly categories: CategoryService;
+    readonly deletions: CascadeDeletionService;
     readonly transactions: TransactionService;
     readonly consolidation: StatementConsolidationService;
     readonly invoices: InvoiceService;
@@ -103,13 +121,15 @@ export function createCore(ports: CorePorts): Core {
     const onUnexpected = ports.onUnexpectedError ?? ((): void => undefined);
     const unitOfWork = new UnitOfWork(database);
 
-    const profiles = new SqliteProfileRepository(database);
+    const profiles = new SqliteProfileRepository(database, clock);
     const accounts = new SqliteAccountRepository(database, clock);
-    const creditCards = new SqliteCreditCardRepository(database);
+    const creditCards = new SqliteCreditCardRepository(database, clock);
     const statements = new SqliteBankStatementRepository(database, clock);
     const invoices = new SqliteInvoiceRepository(database, clock);
     const transactions = new SqliteTransactionRepository(database, clock);
     const references = new SqliteReferenceRepository(database);
+    const categories = new SqliteCategoryRepository(database, clock);
+    const deletions = new SqliteDeletionRepository(database, clock);
     const ledger = new SqliteBalanceLedgerRepository(database);
 
     const recalculation = new BalanceRecalculationService(unitOfWork, accounts, statements, invoices, ledger, clock);
@@ -117,8 +137,14 @@ export function createCore(ports: CorePorts): Core {
     const consolidation = new StatementConsolidationService(unitOfWork, accounts, statements, invoices, transactions);
     const invoiceService = new InvoiceService(unitOfWork, creditCards, accounts, invoices, transactions, consolidation, impacts, recalculation);
     const transactionService = new TransactionService(
-        unitOfWork, ids, profiles, accounts, creditCards, transactions, references, consolidation, invoiceService, impacts, recalculation,
+        unitOfWork, ids, profiles, accounts, creditCards, transactions, references, categories, consolidation, invoiceService, impacts, recalculation, clock,
     );
+    const profileService = new ProfileService(unitOfWork, ids, profiles);
+    const accountService = new AccountService(unitOfWork, ids, profileService, accounts, statements, recalculation);
+    const creditCardService = new CreditCardService(unitOfWork, ids, profileService, accountService, creditCards, invoices, recalculation);
+    const categoryService = new CategoryService(unitOfWork, ids, profileService, categories);
+    const onboardingService = new OnboardingService(unitOfWork, profileService, accountService, categoryService);
+    const cascadeDeletion = new CascadeDeletionService(unitOfWork, deletions, accounts, creditCards, invoices, transactions, recalculation);
     const balances = new AccountBalanceService(unitOfWork, profiles, accounts, recalculation);
     const integrity = new BalanceIntegrityService(unitOfWork, accounts, statements, invoices, recalculation, clock);
 
@@ -126,25 +152,69 @@ export function createCore(ports: CorePorts): Core {
     const statementController = new StatementController(consolidation, balances, onUnexpected);
     const invoiceController = new InvoiceController(invoiceService, onUnexpected);
     const integrityController = new IntegrityController(integrity, onUnexpected);
+    const profileController = new ProfileController(profileService, onboardingService, onUnexpected);
+    const accountController = new AccountController(accountService, cascadeDeletion, onUnexpected);
+    const creditCardController = new CreditCardController(creditCardService, cascadeDeletion, onUnexpected);
+    const categoryController = new CategoryController(categoryService, onUnexpected);
 
     const handlers: RouteHandlers = {
+        'profiles.list': (raw) => profileController.list(raw),
+        'profiles.create': (raw) => profileController.create(raw),
+        'profiles.update': (raw) => profileController.update(raw),
+        'onboarding.start': (raw) => profileController.startOnboarding(raw),
+        'accounts.list': (raw) => accountController.list(raw),
+        'accounts.create': (raw) => accountController.create(raw),
+        'accounts.update': (raw) => accountController.update(raw),
+        'accounts.disable': (raw) => accountController.disable(raw),
+        'accounts.enable': (raw) => accountController.enable(raw),
+        'accounts.deletionImpact': (raw) => accountController.deletionImpact(raw),
+        'accounts.delete': (raw) => accountController.delete(raw),
+        'creditCards.list': (raw) => creditCardController.list(raw),
+        'creditCards.create': (raw) => creditCardController.create(raw),
+        'creditCards.update': (raw) => creditCardController.update(raw),
+        'creditCards.disable': (raw) => creditCardController.disable(raw),
+        'creditCards.enable': (raw) => creditCardController.enable(raw),
+        'creditCards.deletionImpact': (raw) => creditCardController.deletionImpact(raw),
+        'creditCards.delete': (raw) => creditCardController.delete(raw),
+        'categories.tree': (raw) => categoryController.tree(raw),
+        'categories.create': (raw) => categoryController.createCategory(raw),
+        'categories.update': (raw) => categoryController.renameCategory(raw),
+        'categories.delete': (raw) => categoryController.deleteCategory(raw),
+        'subCategories.create': (raw) => categoryController.createSubCategory(raw),
+        'subCategories.update': (raw) => categoryController.renameSubCategory(raw),
+        'subCategories.delete': (raw) => categoryController.deleteSubCategory(raw),
         'transactions.create': (raw) => transactionController.create(raw),
         'transactions.update': (raw) => transactionController.update(raw),
         'transactions.delete': (raw) => transactionController.delete(raw),
         'transactions.get': (raw) => transactionController.get(raw),
         'transactions.listByPeriod': (raw) => transactionController.listByPeriod(raw),
+        'transactions.setPaid': (raw) => transactionController.setPaid(raw),
         'statements.get': (raw) => statementController.getStatement(raw),
         'balances.ofProfile': (raw) => statementController.profileBalances(raw),
         'balances.rebuildAccount': (raw) => statementController.rebuildAccount(raw),
         'invoices.suggest': (raw) => invoiceController.suggest(raw),
         'invoices.get': (raw) => invoiceController.get(raw),
+        'invoices.listByCard': (raw) => invoiceController.listByCard(raw),
         'invoices.pay': (raw) => invoiceController.pay(raw),
         'invoices.reopen': (raw) => invoiceController.reopen(raw),
         'integrity.verifyBalances': (raw) => integrityController.verifyBalances(raw),
     };
 
     return {
-        services: { transactions: transactionService, consolidation, invoices: invoiceService, balances, recalculation, integrity },
+        services: {
+            profiles: profileService,
+            onboarding: onboardingService,
+            accounts: accountService,
+            creditCards: creditCardService,
+            categories: categoryService,
+            deletions: cascadeDeletion,
+            transactions: transactionService,
+            consolidation,
+            invoices: invoiceService,
+            balances,
+            recalculation,
+            integrity,
+        },
         call: (route, input) => handlers[route](input),
         dispatch: (route, input): Promise<CoreResult<unknown>> => {
             if (!isRoute(route, handlers)) {

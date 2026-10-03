@@ -10,7 +10,9 @@ import { backupFileName, staleBackups } from '../../src/infrastructure/migration
 import { FixedClock } from '../support/adapters.ts';
 
 const clock = new FixedClock('2026-10-02');
-const EXPECTED_FILE = 'pre-v1-2026-10-02-120000.sqlite';
+// O backup leva a versão de **antes** da migração — a última publicada —, derivada das
+// migrations embutidas para que cada migration nova não quebre o teste.
+const EXPECTED_FILE = `pre-v${embeddedMigrations.length}-2026-10-02-120000.sqlite`;
 
 /**
  * Uma migration além das publicadas, para simular a atualização do app: sem ela o banco de

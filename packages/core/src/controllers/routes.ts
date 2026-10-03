@@ -1,19 +1,42 @@
 import type { z } from 'zod';
 import type { AccountBalanceResponse } from '../dto/accounts/AccountBalanceResponse.ts';
+import type { AccountListResponse } from '../dto/accounts/AccountListResponse.ts';
+import type { AccountResponse } from '../dto/accounts/AccountResponse.ts';
+import type { CategoryBranchResponse, CategoryResponse, SubCategoryResponse } from '../dto/categories/CategoryResponse.ts';
+import type { CreditCardListResponse } from '../dto/creditCards/CreditCardListResponse.ts';
+import type { CreditCardResponse } from '../dto/creditCards/CreditCardResponse.ts';
+import type { AccountDeletionImpactResponse, CreditCardDeletionImpactResponse } from '../dto/deletion/DeletionImpactResponse.ts';
 import type { IntegrityReportResponse } from '../dto/integrity/IntegrityReportResponse.ts';
+import type { InvoiceCycleResponse } from '../dto/invoices/InvoiceCycleResponse.ts';
 import type { InvoiceDetailResponse } from '../dto/invoices/InvoiceDetailResponse.ts';
 import type { InvoiceResponse } from '../dto/invoices/InvoiceResponse.ts';
 import type { InvoiceSuggestionResponse } from '../dto/invoices/InvoiceSuggestionResponse.ts';
+import type { OnboardingResponse } from '../dto/onboarding/OnboardingResponse.ts';
 import type { ProfileBalancesResponse } from '../dto/profiles/ProfileBalancesResponse.ts';
+import type { ProfileResponse } from '../dto/profiles/ProfileResponse.ts';
 import type { StatementResponse } from '../dto/statements/StatementResponse.ts';
 import type { TransactionResponse } from '../dto/transactions/TransactionResponse.ts';
+import type { accountIdRequest, createAccountRequest, listAccountsRequest, updateAccountRequest } from '../requests/accountRequests.ts';
 import type { profileBalancesRequest, rebuildAccountRequest } from '../requests/balanceRequests.ts';
+import type {
+    categoryTreeRequest,
+    createCategoryRequest,
+    createSubCategoryRequest,
+    deleteCategoryRequest,
+    deleteSubCategoryRequest,
+    renameCategoryRequest,
+    renameSubCategoryRequest,
+} from '../requests/categoryRequests.ts';
+import type { createCreditCardRequest, creditCardIdRequest, listCreditCardsRequest, updateCreditCardRequest } from '../requests/creditCardRequests.ts';
 import type { verifyBalancesRequest } from '../requests/integrityRequests.ts';
-import type { invoiceIdRequest, payInvoiceRequest, suggestInvoiceRequest } from '../requests/invoiceRequests.ts';
+import type { invoiceIdRequest, listInvoicesByCardRequest, payInvoiceRequest, suggestInvoiceRequest } from '../requests/invoiceRequests.ts';
+import type { startOnboardingRequest } from '../requests/onboardingRequests.ts';
+import type { createProfileRequest, listProfilesRequest, updateProfileRequest } from '../requests/profileRequests.ts';
 import type { getStatementRequest } from '../requests/statementRequests.ts';
 import type {
     createTransactionRequest,
     listTransactionsRequest,
+    setPaidRequest,
     transactionIdRequest,
     updateTransactionRequest,
 } from '../requests/transactionRequests.ts';
@@ -26,16 +49,43 @@ import type { CoreResult } from './CoreResult.ts';
  * não o app em produção.
  */
 export interface CoreRoutes {
+    'profiles.list': { input: z.input<typeof listProfilesRequest>; output: readonly ProfileResponse[] };
+    'profiles.create': { input: z.input<typeof createProfileRequest>; output: ProfileResponse };
+    'profiles.update': { input: z.input<typeof updateProfileRequest>; output: ProfileResponse };
+    'onboarding.start': { input: z.input<typeof startOnboardingRequest>; output: OnboardingResponse };
+    'accounts.list': { input: z.input<typeof listAccountsRequest>; output: AccountListResponse };
+    'accounts.create': { input: z.input<typeof createAccountRequest>; output: AccountResponse };
+    'accounts.update': { input: z.input<typeof updateAccountRequest>; output: AccountResponse };
+    'accounts.disable': { input: z.input<typeof accountIdRequest>; output: AccountResponse };
+    'accounts.enable': { input: z.input<typeof accountIdRequest>; output: AccountResponse };
+    'accounts.deletionImpact': { input: z.input<typeof accountIdRequest>; output: AccountDeletionImpactResponse };
+    'accounts.delete': { input: z.input<typeof accountIdRequest>; output: null };
+    'creditCards.list': { input: z.input<typeof listCreditCardsRequest>; output: CreditCardListResponse };
+    'creditCards.create': { input: z.input<typeof createCreditCardRequest>; output: CreditCardResponse };
+    'creditCards.update': { input: z.input<typeof updateCreditCardRequest>; output: CreditCardResponse };
+    'creditCards.disable': { input: z.input<typeof creditCardIdRequest>; output: CreditCardResponse };
+    'creditCards.enable': { input: z.input<typeof creditCardIdRequest>; output: CreditCardResponse };
+    'creditCards.deletionImpact': { input: z.input<typeof creditCardIdRequest>; output: CreditCardDeletionImpactResponse };
+    'creditCards.delete': { input: z.input<typeof creditCardIdRequest>; output: null };
+    'categories.tree': { input: z.input<typeof categoryTreeRequest>; output: readonly CategoryBranchResponse[] };
+    'categories.create': { input: z.input<typeof createCategoryRequest>; output: CategoryResponse };
+    'categories.update': { input: z.input<typeof renameCategoryRequest>; output: CategoryResponse };
+    'categories.delete': { input: z.input<typeof deleteCategoryRequest>; output: null };
+    'subCategories.create': { input: z.input<typeof createSubCategoryRequest>; output: SubCategoryResponse };
+    'subCategories.update': { input: z.input<typeof renameSubCategoryRequest>; output: SubCategoryResponse };
+    'subCategories.delete': { input: z.input<typeof deleteSubCategoryRequest>; output: null };
     'transactions.create': { input: z.input<typeof createTransactionRequest>; output: TransactionResponse };
     'transactions.update': { input: z.input<typeof updateTransactionRequest>; output: TransactionResponse };
     'transactions.delete': { input: z.input<typeof transactionIdRequest>; output: null };
     'transactions.get': { input: z.input<typeof transactionIdRequest>; output: TransactionResponse };
     'transactions.listByPeriod': { input: z.input<typeof listTransactionsRequest>; output: readonly TransactionResponse[] };
+    'transactions.setPaid': { input: z.input<typeof setPaidRequest>; output: TransactionResponse };
     'statements.get': { input: z.input<typeof getStatementRequest>; output: StatementResponse };
     'balances.ofProfile': { input: z.input<typeof profileBalancesRequest>; output: ProfileBalancesResponse };
     'balances.rebuildAccount': { input: z.input<typeof rebuildAccountRequest>; output: AccountBalanceResponse };
     'invoices.suggest': { input: z.input<typeof suggestInvoiceRequest>; output: InvoiceSuggestionResponse };
     'invoices.get': { input: z.input<typeof invoiceIdRequest>; output: InvoiceDetailResponse };
+    'invoices.listByCard': { input: z.input<typeof listInvoicesByCardRequest>; output: readonly InvoiceCycleResponse[] };
     'invoices.pay': { input: z.input<typeof payInvoiceRequest>; output: InvoiceResponse };
     'invoices.reopen': { input: z.input<typeof invoiceIdRequest>; output: InvoiceResponse };
     'integrity.verifyBalances': { input: z.input<typeof verifyBalancesRequest>; output: IntegrityReportResponse };

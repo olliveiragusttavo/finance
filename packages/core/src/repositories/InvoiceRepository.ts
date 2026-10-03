@@ -25,6 +25,13 @@ export interface InvoiceRepository {
     findByPeriod(creditCardId: CreditCardId, period: YearMonth): Invoice | null;
 
     /**
+     * @param creditCardId Cartão dono das faturas.
+     * @return Todas as faturas vivas do cartão, pagas ou não, em ordem cronológica — base
+     * da fatura do mês, das próximas faturas e do limite usado.
+     */
+    listByCard(creditCardId: CreditCardId): readonly Invoice[];
+
+    /**
      * Insere a fatura ou revive a linha com o mesmo id determinístico (sync-design §5.6).
      *
      * @param invoice Fatura a garantir.

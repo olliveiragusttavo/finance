@@ -13,7 +13,7 @@ import { RowReader } from './RowReader.ts';
 // (database-design §3.7) — por isso o join com `profiles` em toda leitura.
 const SELECT_ACCOUNT = `
     SELECT a.id, a.profile_id, a.name, a.type, a.currency, a.consider_balance,
-        a.opening_balance, a.balance, a.projected_balance, p.currency AS profile_currency
+        a.opening_balance, a.balance, a.projected_balance, a.disabled_at, p.currency AS profile_currency
     FROM accounts a
     JOIN profiles p ON p.id = a.profile_id
 `;
@@ -56,6 +56,42 @@ export class SqliteAccountRepository implements AccountRepository {
     }
 
     /**
+     * Na inserção grava o cache da conta nova (igual ao saldo inicial); na atualização, o
+     * `DO UPDATE` lista só colunas do usuário, para que o cache nunca seja sobrescrito por
+     * uma edição de cadastro. `disabled_at` guarda o instante da primeira desativação: uma
+     * conta já desativada que é regravada mantém a data original.
+     *
+     * @param account Conta a gravar.
+     * @return void
+     */
+    public save(account: Account): void {
+        this.database.run(
+            `INSERT INTO accounts (id, profile_id, name, balance, projected_balance, opening_balance, currency,
+                consider_balance, type, disabled_at, updated_at)
+            VALUES (:id, :profileId, :name, :balance, :projected, :opening, :currency,
+                :considerBalance, :type, CASE WHEN :disabled = 1 THEN :now END, :now)
+            ON CONFLICT (id) DO UPDATE SET name = excluded.name, opening_balance = excluded.opening_balance,
+                currency = excluded.currency, consider_balance = excluded.consider_balance, type = excluded.type,
+                disabled_at = CASE WHEN :disabled = 1 THEN COALESCE(accounts.disabled_at, excluded.disabled_at) END,
+                updated_at = excluded.updated_at
+            WHERE accounts.deleted_at IS NULL`,
+            {
+                id: account.id,
+                profileId: account.profileId,
+                name: account.name,
+                balance: account.balances.consolidated.rounded().amount,
+                projected: account.balances.projected.rounded().amount,
+                opening: account.openingBalance.rounded().amount,
+                currency: account.currencyLabel,
+                considerBalance: account.considerBalance ? 1 : 0,
+                type: ACCOUNT_TYPE_CODE[account.type],
+                disabled: account.disabled ? 1 : 0,
+                now: this.clock.now(),
+            },
+        );
+    }
+
+    /**
      * @param account Conta com o cache recalculado.
      * @return void
      */
@@ -86,6 +122,7 @@ export class SqliteAccountRepository implements AccountRepository {
             currencyLabel: reader.text('currency'),
             considerBalance: reader.boolean('consider_balance'),
             openingBalance: Money.of(reader.number('opening_balance'), currency),
+            disabled: reader.nullableText('disabled_at') !== null,
             balances: BalancePair.of(
                 Money.of(reader.number('balance'), currency),
                 Money.of(reader.number('projected_balance'), currency),

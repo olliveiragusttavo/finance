@@ -1,4 +1,4 @@
-import { ProfileId, type GoalId, type PartnerId, type SubCategoryId } from '../../domain/shared/ids.ts';
+import { ProfileId, type GoalId, type PartnerId } from '../../domain/shared/ids.ts';
 import type { Database } from '../../ports/Database.ts';
 import type { ReferenceRepository } from '../../repositories/ReferenceRepository.ts';
 import { RowReader } from './RowReader.ts';
@@ -9,23 +9,6 @@ export class SqliteReferenceRepository implements ReferenceRepository {
      * @param database Conexão compartilhada da unidade de trabalho.
      */
     public constructor(private readonly database: Database) {}
-
-    /**
-     * Exige a categoria viva também: uma subcategoria de categoria excluída não pode mais
-     * classificar lançamentos novos.
-     *
-     * @param id Subcategoria referenciada.
-     * @return O perfil dono, ou `null`.
-     */
-    public subCategoryOwner(id: SubCategoryId): ProfileId | null {
-        return this.owner(
-            'transaction_sub_categories',
-            `SELECT c.profile_id FROM transaction_sub_categories s
-            JOIN transaction_categories c ON c.id = s.category_id
-            WHERE s.id = :id AND s.deleted_at IS NULL AND c.deleted_at IS NULL`,
-            id,
-        );
-    }
 
     /**
      * @param id Sócio referenciado.
