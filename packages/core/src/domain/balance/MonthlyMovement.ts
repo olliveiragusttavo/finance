@@ -49,7 +49,7 @@ export interface MovementSources {
  * o que é consolidado e em que mês cai uma fatura em aberto é o domínio.
  *
  * Regra de negócio (Extrato): entram no movimento do mês as transações do extrato, as
- * transferências e investimentos que chegam à conta no mês do `due_date`, as faturas pagas
+ * transferências e investimentos que chegam à conta no mês da data de caixa, as faturas pagas
  * vinculadas ao extrato e — só no previsto — as faturas em aberto no mês do vencimento
  * (database-design §4.6).
  */

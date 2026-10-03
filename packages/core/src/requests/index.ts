@@ -16,3 +16,4 @@ export * from './invoiceRequests.ts';
 export * from './statementRequests.ts';
 export * from './balanceRequests.ts';
 export * from './integrityRequests.ts';
+export * from './reportRequests.ts';

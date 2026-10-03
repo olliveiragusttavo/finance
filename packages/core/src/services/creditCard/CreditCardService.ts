@@ -1,7 +1,7 @@
 import type { Account } from '../../domain/account/Account.ts';
 import { BillingCycle } from '../../domain/creditCard/BillingCycle.ts';
 import { CreditCard, type CreditCardContent } from '../../domain/creditCard/CreditCard.ts';
-import type { Invoice } from '../../domain/invoice/Invoice.ts';
+import { amountDue, type Invoice } from '../../domain/invoice/Invoice.ts';
 import type { Profile } from '../../domain/profile/Profile.ts';
 import type { Currency } from '../../domain/shared/Currency.ts';
 import { BusinessRuleViolation, NotFoundError } from '../../domain/shared/errors.ts';
@@ -65,7 +65,7 @@ export class CreditCardService {
                 return {
                     creditCard,
                     invoiceOfMonth: invoiceCycle(creditCard, period, invoices.find((invoice) => invoice.period.equals(period)) ?? null),
-                    limitUsed: amountDue(invoices.filter((invoice) => !invoice.isPaid()), profile.currency),
+                    limitUsed: totalDue(invoices.filter((invoice) => !invoice.isPaid()), profile.currency),
                 };
             });
             const monthInvoices = creditCards.flatMap(({ invoiceOfMonth }) => (invoiceOfMonth.invoice === null ? [] : [invoiceOfMonth.invoice]));
@@ -73,8 +73,8 @@ export class CreditCardService {
                 profile,
                 period,
                 creditCards,
-                openTotal: amountDue(monthInvoices.filter((invoice) => !invoice.isPaid()), profile.currency),
-                total: amountDue(monthInvoices, profile.currency),
+                openTotal: totalDue(monthInvoices.filter((invoice) => !invoice.isPaid()), profile.currency),
+                total: totalDue(monthInvoices, profile.currency),
             };
         });
     }
@@ -207,16 +207,13 @@ export class CreditCardService {
 }
 
 /**
- * Soma o valor a pagar das faturas, em módulo, como a tela mostra (database-design §4.7).
- * Fatura credora (estornos maiores que as compras) entra como zero: crédito não paga outra
- * fatura nem libera limite de outro mês.
+ * Soma o valor a pagar das faturas pela regra única do domínio (`amountDue`): fatura
+ * credora entra como zero.
  *
  * @param invoices Faturas a somar.
  * @param currency Moeda do perfil, para o zero da soma vazia.
  * @return O total a pagar.
  */
-function amountDue(invoices: readonly Invoice[], currency: Currency): Money {
-    return invoices
-        .filter((invoice) => invoice.balance.isNegative())
-        .reduce((sum, invoice) => sum.subtract(invoice.balance), Money.zero(currency));
+function totalDue(invoices: readonly Invoice[], currency: Currency): Money {
+    return invoices.reduce((sum, invoice) => sum.add(amountDue(invoice.balance)), Money.zero(currency));
 }

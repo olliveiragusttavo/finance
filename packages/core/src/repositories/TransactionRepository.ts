@@ -1,3 +1,4 @@
+import type { CategoryScope } from '../domain/report/CategoryScope.ts';
 import type { AccountId, BankStatementId, InvoiceId, ProfileId, RecurrenceId, TransactionId } from '../domain/shared/ids.ts';
 import type { LocalDate } from '../domain/shared/LocalDate.ts';
 import type { YearMonth } from '../domain/shared/YearMonth.ts';
@@ -55,7 +56,7 @@ export interface TransactionRepository {
 
     /**
      * @param accountId Conta de destino.
-     * @param period Mês do `due_date`.
+     * @param period Mês da data de caixa — pagamento, ou vencimento em aberto.
      * @return As transferências e investimentos vivos que chegam à conta naquele mês.
      */
     listIncoming(accountId: AccountId, period: YearMonth): readonly Transaction[];
@@ -67,4 +68,16 @@ export interface TransactionRepository {
      * @return As transações vivas do perfil com `due_date` no intervalo, por data.
      */
     listByProfileBetween(profileId: ProfileId, from: LocalDate, to: LocalDate): readonly Transaction[];
+
+    /**
+     * Lista do drill-down do relatório por categoria. Não reaproveita o
+     * `listByProfileBetween`, que filtra por `due_date`: a lista precisa somar exatamente o
+     * valor da linha do relatório, então usa o mesmo mês de pagamento (reports-design §2).
+     *
+     * @param profileId Perfil dono.
+     * @param period Mês de pagamento.
+     * @param scope Categoria inteira ou uma subcategoria.
+     * @return As despesas vivas do escopo que pesam no mês, por data.
+     */
+    listExpensesByPaymentPeriod(profileId: ProfileId, period: YearMonth, scope: CategoryScope): readonly Transaction[];
 }

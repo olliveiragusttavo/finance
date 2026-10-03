@@ -143,9 +143,11 @@ export class TransactionService {
      * Marca ou desmarca o pagamento — o atalho `P` da tela de Transações.
      * Regra de negócio (Transações): marcar como paga usa a data de **hoje** como data de
      * pagamento, porque pago e data de pagamento andam juntos (brief §3, Transação); desmarcar
-     * limpa a data. Recalcula o estado antigo e o novo, como qualquer edição: o consolidado
-     * do mês muda. Pedir o estado em que a transação já está não muda nada — nem a data de um
-     * pagamento já registrado.
+     * limpa a data. Regra de negócio (Extrato): numa transação de conta, a nova data decide o
+     * extrato (`Transaction.cashDate`), então pagar em outro mês move a transação para o
+     * extrato do pagamento, e desmarcar a devolve ao do vencimento. Recalcula o estado antigo
+     * e o novo, como qualquer edição. Pedir o estado em que a transação já está não muda
+     * nada — nem a data de um pagamento já registrado.
      *
      * @param id Transação a marcar.
      * @param paid `true` para paga, `false` para em aberto.
@@ -159,11 +161,33 @@ export class TransactionService {
                 return current;
             }
             const before = this.impacts.ofTransaction(current);
-            const revised = current.withPaymentDate(paid ? this.clock.today() : null);
+            const paymentDate = paid ? this.clock.today() : null;
+            const revised = current.withPaymentDate(paymentDate, this.containerOnPayment(current, paymentDate ?? current.dueDate));
             this.transactions.update(revised);
             this.recalculation.apply(before.merge(this.impacts.ofTransaction(revised)));
             return this.requireTransaction(id);
         });
+    }
+
+    /**
+     * Contêiner de uma transação existente depois de mudar a data de pagamento.
+     *
+     * @param current Transação marcada ou desmarcada.
+     * @param cashDate Nova data de caixa: a de pagamento, ou o vencimento ao desmarcar.
+     * @return O extrato do mês da data, garantido; numa transação de cartão, a fatura atual,
+     * porque a fatura escolhida é a verdade (database-design §4.7).
+     * @throws {NotFoundError} Quando a conta do extrato não existe mais.
+     */
+    private containerOnPayment(current: Transaction, cashDate: LocalDate): TransactionContainer {
+        if (current.container.kind === 'invoice') {
+            return current.container;
+        }
+        const account = this.accounts.findById(current.container.accountId);
+        if (account === null) {
+            throw new NotFoundError('Account', current.container.accountId);
+        }
+        const statement = this.consolidation.ensureStatement(account, cashDate.period);
+        return { kind: 'statement', statementId: statement.id, accountId: statement.accountId, period: statement.period };
     }
 
     /**
@@ -253,7 +277,8 @@ export class TransactionService {
 
     /**
      * Resolve o contêiner da transação.
-     * Regra de negócio (Extrato): transação de conta cai no extrato do mês do vencimento.
+     * Regra de negócio (Extrato): transação de conta cai no extrato do mês do pagamento, ou
+     * do vencimento enquanto está em aberto (`Transaction.cashDate`).
      * Regra de negócio (Cartão de crédito): transação de cartão cai na fatura escolhida; sem
      * escolha, a sugestão pela data da compra — mas numa edição no mesmo cartão a fatura
      * atual é mantida, porque a sugestão nunca é recalculada depois, nem quando a data da
@@ -273,7 +298,7 @@ export class TransactionService {
         if (input.source.kind === 'account') {
             const account = this.requireOwned(profile, 'accountId', input.source.accountId, this.accounts.findById(input.source.accountId));
             this.assertSelectable(account, 'accountId', current?.container.kind === 'statement' && current.container.accountId === account.id);
-            const statement = this.consolidation.ensureStatement(account, input.dueDate.period);
+            const statement = this.consolidation.ensureStatement(account, (input.paymentDate ?? input.dueDate).period);
             return {
                 container: { kind: 'statement', statementId: statement.id, accountId: statement.accountId, period: statement.period },
                 impact: BalanceImpact.none(),

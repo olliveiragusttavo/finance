@@ -1,6 +1,6 @@
 # Plano do MVP Desktop — CRUD e primeiros relatórios
 
-**Status:** Em andamento — Fases 0 e 1 concluídas. Primeira entrega com tela do projeto: o app desktop
+**Status:** Em andamento — Fases 0, 1 e 2 concluídas. Primeira entrega com tela do projeto: o app desktop
 (Electron) com os cadastros e lançamentos básicos e os dois primeiros relatórios
 personalizados, que são a motivação original do projeto ([README](../../README.md#motivação)).
 O mobile fica inteiro para depois.
@@ -8,7 +8,8 @@ O mobile fica inteiro para depois.
 fronteira IPC que este plano implementa; [backend-design.md](backend-design.md) — o núcleo
 que ganha os cadastros e os relatórios; [database-design.md](database-design.md) — as
 regras de negócio de contas, faturas e transações;
-[mockups](../design/mockups/README.md) — as telas aprovadas.
+[mockups](../design/mockups/README.md) — as telas aprovadas;
+[reports-design.md](reports-design.md) — as regras dos relatórios como implementadas.
 
 A [§2](#2-decisões-em-resumo) é o resumo; a [§6](#6-lista-de-tarefas) é a lista de
 tarefas, em ordem de execução.
@@ -71,7 +72,8 @@ categoria/subcategoria** e **quanto as faturas do cartão pesam no saldo do mês
 
 Os relatórios serão refinados depois do MVP; as regras abaixo valem para esta primeira
 versão e precisam estar nos testes de mesa antes do código
-([backend-design §5.5](backend-design.md#55-testes-de-mesa)).
+([backend-design §5.5](backend-design.md#55-testes-de-mesa)). Estão registradas, com as
+decisões tomadas na implementação, em [reports-design.md](reports-design.md).
 
 ### 3.1 Regra-mestra: o período é o do pagamento
 
@@ -85,8 +87,9 @@ sai (ou entra) na conta** — o regime de caixa —, não pela data da compra.
 | Transação de conta em aberto | Mês do `due_date` — a data prevista do pagamento |
 | Compra no cartão com fatura em aberto | Mês do **vencimento** da fatura |
 
-As duas últimas linhas são a projeção do pagamento: é a mesma regra que o saldo previsto
-já usa (fatura em aberto entra no previsto do mês do vencimento — database-design §4.7),
+O extrato segue a mesma regra: a transação de conta paga cai no extrato do mês do
+`payment_date` (database-design §4.13). As duas últimas linhas são a projeção do
+pagamento: é a mesma regra que o saldo previsto já usa (fatura em aberto entra no previsto do mês do vencimento — database-design §4.7),
 para que o relatório e o extrato da conta nunca discordem sobre em que mês um valor pesa.
 Pagar ou reabrir uma fatura move suas compras de mês no relatório, e isso é o esperado.
 
@@ -249,24 +252,24 @@ Ordem pensada para que cada fase entregue algo testável. As fases 1–2 (núcle
 ### Fase 2 — Núcleo: relatórios
 
 **2.1 Fundação**
-- [ ] Registrar as regras da [§3](#3-regras-de-negócio-dos-relatórios) num documento de design
-- [ ] Expressão SQL única do **mês de pagamento** ([§3.1](#31-regra-mestra-o-período-é-o-do-pagamento)) em `periodSql.ts`, usada por todos os relatórios — um só lugar para refinar depois
-- [ ] `ReportRepository` (SQL de agregação, só leitura) e `ReportService`, `ReportController`, DTOs em `dto/reports/`
-- [ ] Builders de cenário para relatórios no `TestWorld`
+- [x] Registrar as regras da [§3](#3-regras-de-negócio-dos-relatórios) num documento de design — [reports-design.md](reports-design.md)
+- [x] Expressão SQL única do **mês de pagamento** ([§3.1](#31-regra-mestra-o-período-é-o-do-pagamento)) em `periodSql.ts`, usada por todos os relatórios — um só lugar para refinar depois (`REPORT_SOURCES_CTE`, com teste de equivalência do vencimento contra o `BillingCycle`)
+- [x] `ReportRepository` (SQL de agregação, só leitura) e `ReportService`, `ReportController`, DTOs em `dto/reports/`
+- [x] Builders de cenário para relatórios no `TestWorld`
 
 **2.2 Visão geral**
-- [ ] Rota `reports.monthSummary`: receitas, despesas (pelo mês de pagamento), variação vs mês anterior, faturas em aberto
-- [ ] Rota `reports.balanceEvolution`: consolidado e previsto do perfil nos N meses até o de referência (lê os extratos já calculados, não recalcula)
+- [x] Rota `reports.monthSummary`: receitas, despesas (pelo mês de pagamento), variação vs mês anterior, faturas em aberto
+- [x] Rota `reports.balanceEvolution`: consolidado e previsto do perfil nos N meses até o de referência (lê os extratos já calculados, não recalcula)
 
 **2.3 Relatório por categoria**
-- [ ] Rota `reports.byCategory` (perfil, período, modo de comparação): árvore categoria → subcategoria com valor do período, valor de comparação, variação absoluta e %, e total
-- [ ] Rota `reports.categoryTransactions` (subcategoria ou categoria + período) para a lista do drill-down, com o critério da [§3.1](#31-regra-mestra-o-período-é-o-do-pagamento) — não o `due_date` do `listByPeriod`
-- [ ] Testes de mesa: compra de set em fatura paga em out conta em out; a mesma fatura reaberta passa para o mês do vencimento; transação de conta paga em mês diferente do vencimento; em aberto pelo `due_date`; estorno abatendo a subcategoria (R2); transferência fora; encargos (R3); virada de ano nas três comparações; mês sem lançamento na média (R5); base zero (R6); transação excluída e conta excluída fora; conta desativada dentro
-- [ ] Propriedade: soma das despesas da árvore no mês = efeito das despesas no saldo previsto das contas naquele mês
+- [x] Rota `reports.byCategory` (perfil, período, modo de comparação): árvore categoria → subcategoria com valor do período, valor de comparação, variação absoluta e %, e total
+- [x] Rota `reports.categoryTransactions` (subcategoria ou categoria + período) para a lista do drill-down, com o critério da [§3.1](#31-regra-mestra-o-período-é-o-do-pagamento) — não o `due_date` do `listByPeriod`
+- [x] Testes de mesa: compra de set em fatura paga em out conta em out; a mesma fatura reaberta passa para o mês do vencimento; transação de conta paga em mês diferente do vencimento; em aberto pelo `due_date`; estorno abatendo a subcategoria (R2); transferência fora; encargos (R3); virada de ano nas três comparações; mês sem lançamento na média (R5); base zero (R6); transação excluída e conta excluída fora; conta desativada dentro
+- [x] Propriedade: soma das despesas da árvore no mês = efeito das despesas no saldo previsto das contas naquele mês — vale para qualquer data de pagamento, porque o extrato também segue o `payment_date` (database-design §4.13)
 
 **2.4 Impacto do cartão**
-- [ ] Rota `reports.cardImpact` (perfil, período): linhas por mês (3 anteriores, referência, seguinte) × cartão, com total, situação, extrato de pagamento; total do mês; receitas; peso; KPIs (faturas do mês, peso, média dos 3 anteriores)
-- [ ] Testes de mesa: fatura de set paga em out conta em out (C1); fatura em aberto pelo vencimento; pagamento parcial (C2); reabertura muda o mês; cartão sem fatura no mês; cartão desativado continua; mês sem receita (peso indefinido, não 0% nem ∞)
+- [x] Rota `reports.cardImpact` (perfil, período): linhas por mês (3 anteriores, referência, seguinte) × cartão, com total, situação, extrato de pagamento; total do mês; receitas; peso; KPIs (faturas do mês, peso, média dos 3 anteriores)
+- [x] Testes de mesa: fatura de set paga em out conta em out (C1); fatura em aberto pelo vencimento; pagamento parcial (C2); reabertura muda o mês; cartão sem fatura no mês; cartão desativado continua; mês sem receita (peso indefinido, não 0% nem ∞)
 
 ### Fase 3 — Fundação do desktop
 

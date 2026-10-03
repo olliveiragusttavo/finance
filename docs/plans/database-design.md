@@ -724,7 +724,8 @@ mês sem movimento não tem linha.
 
 - As transações do extrato (`bank_statement_id`), com o efeito da [§4.13](#413-transactions).
 - As transferências e investimentos que **chegam** a esta conta
-  (`destination_account_id`), no mês do seu `due_date`.
+  (`destination_account_id`), no mês da sua data de caixa — a mesma regra do extrato da
+  origem ([§4.13](#413-transactions)).
 - As faturas pagas vinculadas a este extrato, pelo `balance` de cada uma.
 - No previsto, também as faturas em aberto dos cartões quitados por esta conta, no mês
   do vencimento ([§4.7](#47-invoices)).
@@ -1120,7 +1121,15 @@ investimento — é uma transação, e toda transação é classificada por uma 
 #### Uma transação pertence a exatamente um contêiner mensal
 
 Uma transação de conta cai em um extrato bancário; uma transação de cartão cai em uma
-fatura. `bank_statement_id` e `invoice_id` são alternativas, não pais simultâneos — um
+fatura.
+
+Regra de negócio (Extrato): a transação de conta cai no extrato do mês da sua **data de
+caixa** — o `payment_date` quando paga, o `due_date` enquanto em aberto. O extrato mostra
+quando o dinheiro de fato saiu ou entrou: o aluguel que vence em 28/09 e é pago em 02/10
+está no extrato de outubro. Pagar, desmarcar o pagamento ou editar a data de pagamento
+para outro mês **muda a transação de extrato**, e os dois meses são recalculados. Na
+transação de cartão a data de pagamento não decide nada: o contêiner é a fatura escolhida
+([§4.7](#47-invoices)). `bank_statement_id` e `invoice_id` são alternativas, não pais simultâneos — um
 arco exclusivo implementado como duas chaves estrangeiras anuláveis. "Exatamente uma está
 preenchida" é garantido na aplicação, não por um `CHECK`
 ([§3.10](#310-o-que-o-banco-garante-e-o-que-a-aplicação-garante)). A troca: uma
@@ -1182,8 +1191,10 @@ conta — o destino dos recursos — por meio de `destination_account_id`, nulo 
 os outros tipos.
 
 Regra de negócio (Transferência): **uma transferência é uma única linha**, no contêiner
-da origem, e não duas pernas. Ela sai da origem e entra no destino no mês do seu
-`due_date`, com o mesmo valor e o mesmo `paid` dos dois lados. Uma linha só não pode
+da origem, e não duas pernas. Ela sai da origem e entra no destino no mês da sua data de
+caixa (`payment_date` quando paga, `due_date` em aberto), com o mesmo valor e o mesmo
+`paid` dos dois lados — se o destino seguisse outra data, o dinheiro sumiria do perfil
+entre os dois meses. Uma linha só não pode
 ficar pela metade: editar ou excluir afeta as duas contas ao mesmo tempo, e duas edições
 concorrentes em dispositivos diferentes não conseguem deixar as pontas com valores
 diferentes ([sync-design.md §5.1](sync-design.md#51-a-unidade-de-merge-é-a-coluna-a-escrita-mais-recente-vence)).

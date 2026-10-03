@@ -133,6 +133,68 @@ export class TestWorld {
     }
 
     /**
+     * Subcategoria com nomes escolhidos, reaproveitando a categoria quando já existe uma com
+     * o mesmo nome no perfil. Existe para os testes de relatório, que conferem a árvore
+     * categoria → subcategoria pelos nomes que um humano leria na tela.
+     *
+     * @param profileId Perfil dono.
+     * @param categoryName Nome da categoria; criada na primeira vez.
+     * @param subCategoryName Nome da subcategoria nova.
+     * @return Os ids da categoria e da subcategoria.
+     */
+    public namedSubCategory(profileId: string, categoryName: string, subCategoryName: string): { readonly categoryId: string; readonly subCategoryId: string } {
+        const now = this.clock.now();
+        const existing = this.database.get(
+            'SELECT id FROM transaction_categories WHERE profile_id = :profileId AND name = :name AND deleted_at IS NULL',
+            { profileId, name: categoryName },
+        )?.['id'];
+        const categoryId = typeof existing === 'string' ? existing : this.ids.random();
+        if (typeof existing !== 'string') {
+            this.database.run(
+                'INSERT INTO transaction_categories (id, profile_id, name, updated_at) VALUES (:id, :profileId, :name, :now)',
+                { id: categoryId, profileId, name: categoryName, now },
+            );
+        }
+        const subCategoryId = this.ids.random();
+        this.database.run(
+            'INSERT INTO transaction_sub_categories (id, category_id, name, updated_at) VALUES (:id, :categoryId, :name, :now)',
+            { id: subCategoryId, categoryId, name: subCategoryName, now },
+        );
+        return { categoryId, subCategoryId };
+    }
+
+    /**
+     * @param creditCardId Cartão.
+     * @param period Competência `YYYY-MM`.
+     * @return O id da fatura viva do mês.
+     * @throws {Error} Quando o mês ainda não tem fatura — o teste montou o cenário errado.
+     */
+    public invoiceId(creditCardId: string, period: string): string {
+        const [year, month] = period.split('-').map(Number);
+        const id = this.database.get(
+            'SELECT id FROM invoices WHERE credit_card_id = :creditCardId AND year = :year AND month = :month AND deleted_at IS NULL',
+            { creditCardId, year: year ?? 0, month: month ?? 0 },
+        )?.['id'];
+        if (typeof id !== 'string') {
+            throw new Error(`o cartão ${creditCardId} não tem fatura em ${period}`);
+        }
+        return id;
+    }
+
+    /**
+     * Paga a fatura de um mês pela rota real, para que os relatórios leiam o vínculo com o
+     * extrato gravado pelo código de produção.
+     *
+     * @param creditCardId Cartão.
+     * @param period Competência da fatura, `YYYY-MM`.
+     * @param paymentDate Data do pagamento; decide o extrato (e o mês) em que a fatura pesa.
+     * @return A fatura paga.
+     */
+    public async payInvoice(creditCardId: string, period: string, paymentDate: string): Promise<CoreOutput<'invoices.pay'>> {
+        return this.ok('invoices.pay', { invoiceId: this.invoiceId(creditCardId, period), paymentDate });
+    }
+
+    /**
      * @param profileId Perfil empresarial dono.
      * @return O id do sócio semeado.
      */
