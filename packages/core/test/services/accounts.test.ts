@@ -166,6 +166,7 @@ describe('conta desativada nas escolhas de lançamentos (desktop-mvp-plan §5.1)
             conversionRate: 1,
             dueDate: '2026-03-10',
             paymentDate: null,
+            tagIds: [],
         });
         expect(moved.ok ? null : moved.error.details['rule']).toBe('account-disabled');
     });

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AccountId, CreditCardId, GoalId, PartnerId, ProfileId, SubCategoryId, TransactionId } from '../domain/shared/ids.ts';
+import { AccountId, CreditCardId, GoalId, PartnerId, ProfileId, SubCategoryId, TagId, TransactionId } from '../domain/shared/ids.ts';
 import type { CreateTransactionCommand, TransactionInput, UpdateTransactionCommand } from '../services/transaction/TransactionCommands.ts';
 import { currencyCodeField, localDateField, moneyField, parsedText, yearMonthField } from './fields.ts';
 
@@ -47,6 +47,8 @@ const contentShape = {
     // Pago e data de pagamento andam juntos (brief §3, Transação): a transação está paga
     // exatamente quando a data de pagamento vem preenchida.
     paymentDate: localDateField.nullable().default(null),
+    // Tags são opcionais no lançamento rápido (brief M2, "Mais detalhes").
+    tagIds: z.array(parsedText(TagId)).default([]),
 };
 
 /**
@@ -70,6 +72,7 @@ const explicitContentShape = {
     conversionRate: z.number().positive(),
     dueDate: localDateField,
     paymentDate: localDateField.nullable(),
+    tagIds: z.array(parsedText(TagId)),
 };
 
 /**
@@ -96,6 +99,7 @@ function toInput(data: z.output<z.ZodObject<typeof contentShape>>): TransactionI
         conversionRate: data.conversionRate,
         dueDate: data.dueDate,
         paymentDate: data.paymentDate,
+        tagIds: data.tagIds,
     };
 }
 

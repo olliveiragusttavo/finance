@@ -3,8 +3,12 @@ import { AccountId, CreditCardId, ProfileId } from '../domain/shared/ids.ts';
 import type { CreateCreditCardCommand, CreditCardInput, UpdateCreditCardCommand } from '../services/creditCard/CreditCardCommands.ts';
 import { dayOfMonthField, moneyField, parsedText, registryNameField, yearMonthField } from './fields.ts';
 
-/** Campos do cadastro do cartão; todos obrigatórios, no cadastro e na edição. */
-const creditCardContentShape = {
+/**
+ * Campos do cadastro do cartão; todos obrigatórios, no cadastro e na edição. Exportado, como
+ * o `accountContentShape`, para o formulário de Cadastros validar o conteúdo com o mesmo
+ * schema antes de saber se vai criar ou editar (desktop-shell-design §5.4).
+ */
+export const creditCardContentShape = {
     accountId: parsedText(AccountId),
     name: registryNameField,
     limit: moneyField.min(0),

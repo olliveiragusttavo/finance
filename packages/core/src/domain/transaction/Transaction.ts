@@ -1,6 +1,6 @@
 import type { Currency } from '../shared/Currency.ts';
 import { BusinessRuleViolation, InvalidValueError } from '../shared/errors.ts';
-import type { AccountId, GoalId, PartnerId, ProfileId, RecurrenceId, SubCategoryId, TransactionId } from '../shared/ids.ts';
+import type { AccountId, GoalId, PartnerId, ProfileId, RecurrenceId, SubCategoryId, TagId, TransactionId } from '../shared/ids.ts';
 import type { LocalDate } from '../shared/LocalDate.ts';
 import type { Money } from '../shared/Money.ts';
 import type { TransactionContainer } from './TransactionContainer.ts';
@@ -35,6 +35,8 @@ export interface TransactionContent {
     readonly dueDate: LocalDate;
     /** `null` enquanto a transação está em aberto; preenchida exatamente quando paga. */
     readonly paymentDate: LocalDate | null;
+    /** Tags do lançamento, sem repetição; vazio quando não tem nenhuma (database-design §4.14). */
+    readonly tagIds: readonly TagId[];
 }
 
 /** Dados completos de uma transação. */
@@ -69,6 +71,7 @@ export class Transaction implements TransactionProps {
     public readonly origin: OriginCurrency;
     public readonly dueDate: LocalDate;
     public readonly paymentDate: LocalDate | null;
+    public readonly tagIds: readonly TagId[];
 
     /**
      * @param props Dados da transação; privado e congelado para que toda criação e edição
@@ -91,6 +94,8 @@ export class Transaction implements TransactionProps {
         this.origin = props.origin;
         this.dueDate = props.dueDate;
         this.paymentDate = props.paymentDate;
+        // Cópia congelada: o array veio de fora e, compartilhado, poderia ser mutado depois.
+        this.tagIds = Object.freeze([...props.tagIds]);
         Object.freeze(this);
     }
 
@@ -163,6 +168,7 @@ export class Transaction implements TransactionProps {
             origin: this.origin,
             dueDate: this.dueDate,
             paymentDate,
+            tagIds: this.tagIds,
         });
     }
 
@@ -207,7 +213,7 @@ export class Transaction implements TransactionProps {
      * Ponto único dos invariantes da linha, usado por `create` e `revise`.
      *
      * @param props Dados a validar.
-     * @return Os mesmos dados, com o nome normalizado.
+     * @return Os mesmos dados, com o nome e a descrição normalizados e as tags sem repetição.
      * @throws {InvalidValueError} Quando um campo isolado é inválido.
      * @throws {BusinessRuleViolation} Quando campos se contradizem.
      */
@@ -236,6 +242,8 @@ export class Transaction implements TransactionProps {
             throw new BusinessRuleViolation('destination-equals-origin', 'a conta de destino precisa ser diferente da conta de origem');
         }
         const description = props.description?.trim() ?? null;
-        return { ...props, name, description: description === '' ? null : description };
+        // A mesma tag duas vezes seria o mesmo vínculo duas vezes, que o índice único do par
+        // recusaria com erro de SQL (database-design §4.14); a repetição é descartada.
+        return { ...props, name, description: description === '' ? null : description, tagIds: [...new Set(props.tagIds)] };
     }
 }

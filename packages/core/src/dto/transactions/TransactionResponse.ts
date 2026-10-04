@@ -33,6 +33,8 @@ export interface TransactionResponse {
     readonly paymentDate: string | null;
     /** Efeito no saldo da origem; a UI usa para mostrar entrada/saída sem reaplicar a regra. */
     readonly originEffect: MoneyResponse;
+    /** Tags do lançamento, por nome. */
+    readonly tagIds: readonly string[];
 }
 
 /**
@@ -66,5 +68,6 @@ export function toTransactionResponse(transaction: Transaction): TransactionResp
         paid: transaction.isPaid(),
         paymentDate: transaction.paymentDate?.toString() ?? null,
         originEffect: toMoneyResponse(transaction.originEffect()),
+        tagIds: transaction.tagIds,
     };
 }

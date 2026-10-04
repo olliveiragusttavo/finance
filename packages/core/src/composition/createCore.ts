@@ -3,11 +3,13 @@ import { CategoryController } from '../controllers/CategoryController.ts';
 import { CreditCardController } from '../controllers/CreditCardController.ts';
 import { IntegrityController } from '../controllers/IntegrityController.ts';
 import { InvoiceController } from '../controllers/InvoiceController.ts';
+import { NoteController } from '../controllers/NoteController.ts';
 import type { CoreResult, UnexpectedErrorListener } from '../controllers/CoreResult.ts';
 import { ProfileController } from '../controllers/ProfileController.ts';
 import { ReportController } from '../controllers/ReportController.ts';
 import type { CoreApi, CoreRoute, RouteHandlers } from '../controllers/routes.ts';
 import { StatementController } from '../controllers/StatementController.ts';
+import { TagController } from '../controllers/TagController.ts';
 import { TransactionController } from '../controllers/TransactionController.ts';
 import { embeddedMigrations } from '../infrastructure/migrations/embedded.generated.ts';
 import type { Migration } from '../infrastructure/migrations/Migration.ts';
@@ -21,9 +23,11 @@ import { SqliteCategoryRepository } from '../infrastructure/sqlite/SqliteCategor
 import { SqliteCreditCardRepository } from '../infrastructure/sqlite/SqliteCreditCardRepository.ts';
 import { SqliteDeletionRepository } from '../infrastructure/sqlite/SqliteDeletionRepository.ts';
 import { SqliteInvoiceRepository } from '../infrastructure/sqlite/SqliteInvoiceRepository.ts';
+import { SqliteNoteRepository } from '../infrastructure/sqlite/SqliteNoteRepository.ts';
 import { SqliteProfileRepository } from '../infrastructure/sqlite/SqliteProfileRepository.ts';
 import { SqliteReferenceRepository } from '../infrastructure/sqlite/SqliteReferenceRepository.ts';
 import { SqliteReportRepository } from '../infrastructure/sqlite/SqliteReportRepository.ts';
+import { SqliteTagRepository } from '../infrastructure/sqlite/SqliteTagRepository.ts';
 import { SqliteTransactionRepository } from '../infrastructure/sqlite/SqliteTransactionRepository.ts';
 import type { BackupDirectory } from '../ports/BackupDirectory.ts';
 import type { Clock } from '../ports/Clock.ts';
@@ -38,10 +42,12 @@ import { CreditCardService } from '../services/creditCard/CreditCardService.ts';
 import { CascadeDeletionService } from '../services/deletion/CascadeDeletionService.ts';
 import { BalanceIntegrityService } from '../services/integrity/BalanceIntegrityService.ts';
 import { InvoiceService } from '../services/invoice/InvoiceService.ts';
+import { NoteService } from '../services/note/NoteService.ts';
 import { OnboardingService } from '../services/onboarding/OnboardingService.ts';
 import { ProfileService } from '../services/profile/ProfileService.ts';
 import { ReportService } from '../services/report/ReportService.ts';
 import { StatementConsolidationService } from '../services/statement/StatementConsolidationService.ts';
+import { TagService } from '../services/tag/TagService.ts';
 import { TransactionService } from '../services/transaction/TransactionService.ts';
 import { UnitOfWork } from '../services/UnitOfWork.ts';
 
@@ -61,6 +67,8 @@ export interface CoreServices {
     readonly accounts: AccountService;
     readonly creditCards: CreditCardService;
     readonly categories: CategoryService;
+    readonly tags: TagService;
+    readonly notes: NoteService;
     readonly deletions: CascadeDeletionService;
     readonly transactions: TransactionService;
     readonly consolidation: StatementConsolidationService;
@@ -134,6 +142,8 @@ export function createCore(ports: CorePorts): Core {
     const transactions = new SqliteTransactionRepository(database, clock);
     const references = new SqliteReferenceRepository(database);
     const categories = new SqliteCategoryRepository(database, clock);
+    const tags = new SqliteTagRepository(database, clock);
+    const notes = new SqliteNoteRepository(database, clock);
     const deletions = new SqliteDeletionRepository(database, clock);
     const ledger = new SqliteBalanceLedgerRepository(database);
     const reportRepository = new SqliteReportRepository(database);
@@ -143,12 +153,14 @@ export function createCore(ports: CorePorts): Core {
     const consolidation = new StatementConsolidationService(unitOfWork, accounts, statements, invoices, transactions);
     const invoiceService = new InvoiceService(unitOfWork, creditCards, accounts, invoices, transactions, consolidation, impacts, recalculation);
     const transactionService = new TransactionService(
-        unitOfWork, ids, profiles, accounts, creditCards, transactions, references, categories, consolidation, invoiceService, impacts, recalculation, clock,
+        unitOfWork, ids, profiles, accounts, creditCards, transactions, references, categories, tags, consolidation, invoiceService, impacts, recalculation, clock,
     );
     const profileService = new ProfileService(unitOfWork, ids, profiles);
     const accountService = new AccountService(unitOfWork, ids, profileService, accounts, statements, recalculation);
     const creditCardService = new CreditCardService(unitOfWork, ids, profileService, accountService, creditCards, invoices, recalculation);
     const categoryService = new CategoryService(unitOfWork, ids, profileService, categories);
+    const tagService = new TagService(unitOfWork, ids, profileService, tags);
+    const noteService = new NoteService(unitOfWork, ids, profileService, notes);
     const onboardingService = new OnboardingService(unitOfWork, profileService, accountService, categoryService);
     const cascadeDeletion = new CascadeDeletionService(unitOfWork, deletions, accounts, creditCards, invoices, transactions, recalculation);
     const balances = new AccountBalanceService(unitOfWork, profiles, accounts, recalculation);
@@ -164,6 +176,8 @@ export function createCore(ports: CorePorts): Core {
     const creditCardController = new CreditCardController(creditCardService, cascadeDeletion, onUnexpected);
     const categoryController = new CategoryController(categoryService, onUnexpected);
     const reportController = new ReportController(reportService, onUnexpected);
+    const tagController = new TagController(tagService, onUnexpected);
+    const noteController = new NoteController(noteService, onUnexpected);
 
     const handlers: RouteHandlers = {
         'profiles.list': (raw) => profileController.list(raw),
@@ -191,6 +205,14 @@ export function createCore(ports: CorePorts): Core {
         'subCategories.create': (raw) => categoryController.createSubCategory(raw),
         'subCategories.update': (raw) => categoryController.renameSubCategory(raw),
         'subCategories.delete': (raw) => categoryController.deleteSubCategory(raw),
+        'tags.list': (raw) => tagController.list(raw),
+        'tags.create': (raw) => tagController.create(raw),
+        'tags.update': (raw) => tagController.rename(raw),
+        'tags.delete': (raw) => tagController.delete(raw),
+        'notes.list': (raw) => noteController.list(raw),
+        'notes.create': (raw) => noteController.create(raw),
+        'notes.update': (raw) => noteController.rewrite(raw),
+        'notes.delete': (raw) => noteController.delete(raw),
         'transactions.create': (raw) => transactionController.create(raw),
         'transactions.update': (raw) => transactionController.update(raw),
         'transactions.delete': (raw) => transactionController.delete(raw),
@@ -220,6 +242,8 @@ export function createCore(ports: CorePorts): Core {
             accounts: accountService,
             creditCards: creditCardService,
             categories: categoryService,
+            tags: tagService,
+            notes: noteService,
             deletions: cascadeDeletion,
             transactions: transactionService,
             consolidation,

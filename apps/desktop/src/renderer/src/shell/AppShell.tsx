@@ -53,7 +53,7 @@ function ShellLayout(): ReactNode {
             <Sidebar />
             <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
                 <TopBar showMonth={showMonth} />
-                <main className="flex flex-col gap-5 px-8 py-6">
+                <main className="flex flex-1 flex-col gap-5 px-8 py-6">
                     <Outlet />
                 </main>
             </div>

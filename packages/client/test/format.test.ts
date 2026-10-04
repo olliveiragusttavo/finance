@@ -10,6 +10,7 @@ import {
     formatMonthShort,
     formatPercent,
     formatProfileSummary,
+    summarizeNote,
     formatProfileType,
     formatVariation,
     parseMoneyInput,
@@ -169,5 +170,19 @@ describe('conta', () => {
     it('escreve o tipo como o primeiro uso e Cadastros do mockup', () => {
         expect(formatAccountType('checking')).toBe('Corrente');
         expect(formatAccountType('investment')).toBe('Investimentos');
+    });
+});
+
+describe('anotação na lista (mockups, decisão de interface 9)', () => {
+    it('a primeira linha é o título e o resto vira a prévia numa linha só', () => {
+        expect(summarizeNote('IPTU 2027\nCota única vence em fevereiro.\n\nValor: R$ 1.200,00')).toEqual({
+            title: 'IPTU 2027',
+            preview: 'Cota única vence em fevereiro. Valor: R$ 1.200,00',
+        });
+    });
+
+    it('anotação de uma linha não tem prévia, e linhas em branco no começo não viram título', () => {
+        expect(summarizeNote('Reembolsos pendentes')).toEqual({ title: 'Reembolsos pendentes', preview: '' });
+        expect(summarizeNote('\r\n  \r\nLembrete\r\n')).toEqual({ title: 'Lembrete', preview: '' });
     });
 });

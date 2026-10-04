@@ -25,6 +25,9 @@ export type SubCategoryId = Brand<Uuid, 'SubCategoryId'>;
 export type PartnerId = Brand<Uuid, 'PartnerId'>;
 export type GoalId = Brand<Uuid, 'GoalId'>;
 export type RecurrenceId = Brand<Uuid, 'RecurrenceId'>;
+export type TagId = Brand<Uuid, 'TagId'>;
+export type TransactionTagId = Brand<Uuid, 'TransactionTagId'>;
+export type NoteId = Brand<Uuid, 'NoteId'>;
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -70,3 +73,5 @@ export const SubCategoryId = idParser<SubCategoryId>('subCategoryId');
 export const PartnerId = idParser<PartnerId>('partnerId');
 export const GoalId = idParser<GoalId>('goalId');
 export const RecurrenceId = idParser<RecurrenceId>('recurrenceId');
+export const TagId = idParser<TagId>('tagId');
+export const NoteId = idParser<NoteId>('noteId');

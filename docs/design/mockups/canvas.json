@@ -21,6 +21,8 @@
     "DesktopDispositivos.dc.html": {"page": "desktop", "x": 1520, "y": 3200, "w": 1440, "h": 1080, "title": "D10 · Dispositivos e convite (escuro)", "expand": "fill", "is_interactive": true},
     "DesktopAjustes.dc.html": {"page": "desktop", "x": 3040, "y": 3200, "w": 1440, "h": 1080, "title": "Ajustes (claro)", "expand": "fill", "is_interactive": true},
     "DesktopPrimeiroUso.dc.html": {"page": "desktop", "x": 4560, "y": 3200, "w": 1440, "h": 1080, "title": "Primeiro uso (claro)", "expand": "fill", "is_interactive": true},
+    "DesktopTags.dc.html": {"page": "desktop", "x": 0, "y": 4800, "w": 1440, "h": 1080, "title": "Cadastros › Tags (claro)", "expand": "fill", "is_interactive": true},
+    "DesktopAnotacoes.dc.html": {"page": "desktop", "x": 1520, "y": 4800, "w": 1440, "h": 1080, "title": "Cadastros › Anotações (escuro)", "expand": "fill", "is_interactive": true},
     "MobileInicio.dc.html": {"page": "mobile", "x": 0, "y": 0, "w": 390, "h": 844, "title": "M1 · Início (claro)", "is_interactive": true},
     "MobileTransacoes.dc.html": {"page": "mobile", "x": 470, "y": 0, "w": 390, "h": 844, "title": "M5 · Transações do mês (claro)", "is_interactive": true},
     "MobileTransacaoDetalhe.dc.html": {"page": "mobile", "x": 940, "y": 0, "w": 390, "h": 844, "title": "M6 · Detalhe da transação (escuro)", "is_interactive": true},
@@ -39,15 +41,20 @@
     "MobileParear.dc.html": {"page": "mobile", "x": 1880, "y": 2528, "w": 390, "h": 844, "title": "Entrar num grupo (claro)", "is_interactive": true},
     "MobileRecebendo.dc.html": {"page": "mobile", "x": 2350, "y": 2528, "w": 390, "h": 844, "title": "Recebendo dados (escuro)", "is_interactive": true},
     "MobileAjustes.dc.html": {"page": "mobile", "x": 2820, "y": 2528, "w": 390, "h": 844, "title": "M13 · Ajustes", "is_interactive": true},
-    "MobilePrimeiroUso.dc.html": {"page": "mobile", "x": 3290, "y": 2528, "w": 390, "h": 844, "title": "Primeiro uso (claro)", "is_interactive": true}
+    "MobilePrimeiroUso.dc.html": {"page": "mobile", "x": 3290, "y": 2528, "w": 390, "h": 844, "title": "Primeiro uso (claro)", "is_interactive": true},
+    "MobileTags.dc.html": {"page": "mobile", "x": 0, "y": 3792, "w": 390, "h": 844, "title": "Tags + editar (escuro)", "is_interactive": true},
+    "MobileAnotacoes.dc.html": {"page": "mobile", "x": 470, "y": 3792, "w": 390, "h": 844, "title": "Anotações (claro)", "is_interactive": true},
+    "MobileAnotacaoEditar.dc.html": {"page": "mobile", "x": 940, "y": 3792, "w": 390, "h": 844, "title": "Editar anotação (escuro)", "is_interactive": true}
   },
-  "order": ["Main.dc.html", "DesktopTransacoes.dc.html", "DesktopContas.dc.html", "DesktopCartoes.dc.html", "DesktopMetas.dc.html", "DesktopRelCategoria.dc.html", "DesktopRelFluxo.dc.html", "DesktopRelCartao.dc.html", "DesktopRelSocio.dc.html", "DesktopRelTag.dc.html", "DesktopCadastros.dc.html", "DesktopDispositivos.dc.html", "DesktopAjustes.dc.html", "DesktopPrimeiroUso.dc.html", "MobileInicio.dc.html", "MobileTransacoes.dc.html", "MobileTransacaoDetalhe.dc.html", "MobileLancamento.dc.html", "MobileParcelar.dc.html", "MobileEscopo.dc.html", "MobileContas.dc.html", "MobileExtrato.dc.html", "MobileCartoes.dc.html", "MobileFatura.dc.html", "MobilePagarFatura.dc.html", "MobileMais.dc.html", "MobileMetas.dc.html", "MobileCadastros.dc.html", "MobileDispositivos.dc.html", "MobileParear.dc.html", "MobileRecebendo.dc.html", "MobileAjustes.dc.html", "MobilePrimeiroUso.dc.html"],
+  "order": ["Main.dc.html", "DesktopTransacoes.dc.html", "DesktopContas.dc.html", "DesktopCartoes.dc.html", "DesktopMetas.dc.html", "DesktopRelCategoria.dc.html", "DesktopRelFluxo.dc.html", "DesktopRelCartao.dc.html", "DesktopRelSocio.dc.html", "DesktopRelTag.dc.html", "DesktopCadastros.dc.html", "DesktopDispositivos.dc.html", "DesktopAjustes.dc.html", "DesktopPrimeiroUso.dc.html", "MobileInicio.dc.html", "MobileTransacoes.dc.html", "MobileTransacaoDetalhe.dc.html", "MobileLancamento.dc.html", "MobileParcelar.dc.html", "MobileEscopo.dc.html", "MobileContas.dc.html", "MobileExtrato.dc.html", "MobileCartoes.dc.html", "MobileFatura.dc.html", "MobilePagarFatura.dc.html", "MobileMais.dc.html", "MobileMetas.dc.html", "MobileCadastros.dc.html", "MobileDispositivos.dc.html", "MobileParear.dc.html", "MobileRecebendo.dc.html", "MobileAjustes.dc.html", "MobilePrimeiroUso.dc.html", "DesktopTags.dc.html", "DesktopAnotacoes.dc.html", "MobileTags.dc.html", "MobileAnotacoes.dc.html", "MobileAnotacaoEditar.dc.html"],
   "notes": {
     "titleDesktop": {"page": "desktop", "kind": "title1", "maxW": 7520, "text": "Navegação principal", "w": 240, "x": 0, "y": -300},
     "titleRel": {"page": "desktop", "kind": "title1", "maxW": 7520, "text": "Relatórios", "w": 240, "x": 0, "y": 1300},
     "titleConf": {"page": "desktop", "kind": "title1", "maxW": 5920, "text": "Configuração e primeiro uso", "w": 240, "x": 0, "y": 2900},
     "titleMobile": {"page": "mobile", "kind": "title1", "maxW": 2740, "text": "Uso diário", "w": 240, "x": 0, "y": -300},
     "titleMobContas": {"page": "mobile", "kind": "title1", "maxW": 2270, "text": "Contas e cartões", "w": 240, "x": 0, "y": 964},
-    "titleMobMais": {"page": "mobile", "kind": "title1", "maxW": 3680, "text": "Mais, sincronização e primeiro uso", "w": 240, "x": 0, "y": 2228}
+    "titleMobMais": {"page": "mobile", "kind": "title1", "maxW": 3680, "text": "Mais, sincronização e primeiro uso", "w": 240, "x": 0, "y": 2228},
+    "titleCadTags": {"page": "desktop", "kind": "title1", "maxW": 2960, "text": "Cadastros: tags e anotações", "w": 240, "x": 0, "y": 4500},
+    "titleMobTags": {"page": "mobile", "kind": "title1", "maxW": 1330, "text": "Tags e anotações", "w": 240, "x": 0, "y": 3492}
   }
 }

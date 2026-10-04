@@ -1,6 +1,6 @@
 # Plano do MVP Desktop — CRUD e primeiros relatórios
 
-**Status:** Em andamento — Fases 0 a 5 concluídas (só o `Ctrl K` da Fase 4 ficou pendente). Primeira entrega com tela do projeto: o app desktop
+**Status:** Em andamento — Fases 0 a 6 concluídas (só o `Ctrl K` da Fase 4 ficou pendente). Primeira entrega com tela do projeto: o app desktop
 (Electron) com os cadastros e lançamentos básicos e os dois primeiros relatórios
 personalizados, que são a motivação original do projeto ([README](../../README.md#motivação)).
 O mobile fica inteiro para depois.
@@ -28,7 +28,7 @@ categoria/subcategoria** e **quanto as faturas do cartão pesam no saldo do mês
 |---|---|---|
 | Primeiro uso | `DesktopPrimeiroUso` | Criar perfil e primeira conta. "Entrar num grupo" aparece desabilitado |
 | Shell | todas (barra lateral e superior) | Navegação, mês de referência fixo, seletor de perfil, tema claro/escuro, "+ Lançamento" |
-| Cadastros | `DesktopCadastros` | Perfis, contas, cartões, categorias e subcategorias |
+| Cadastros | `DesktopCadastros`, `DesktopTags`, `DesktopAnotacoes` | Perfis, contas, cartões, categorias e subcategorias, tags e anotações |
 | Contas | `DesktopContas` | Lista com consolidado e previsto → extrato do mês |
 | Cartões | `DesktopCartoes` | Lista com fatura do mês → detalhe da fatura, pagar, pagamento parcial, reabrir, próximas faturas |
 | Transações | `DesktopTransacoes` | Tabela do mês, filtros, painel de criação/edição, marcar pago, excluir, atalhos |
@@ -45,8 +45,8 @@ categoria/subcategoria** e **quanto as faturas do cartão pesam no saldo do mês
 - **Recorrências e parcelamento** (escopos "esta e as futuras"/"todas"): o formulário não
   tem "Repetir"; transações de recorrência só existem quando o serviço de recorrências
   existir.
-- Tags, metas, sócios, anotações, anexos e os relatórios D5 (fluxo por conta), D7 (sócio)
-  e D8 (tag).
+- Metas, sócios, anexos e os relatórios D5 (fluxo por conta), D7 (sócio) e D8 (tag). Tags e
+  anotações entraram em Cadastros (Fase 6); o relatório por tag continua fora.
 - Importação do histórico do app atual.
 - Instaladores de Windows e macOS (o MVP empacota para Linux).
 
@@ -327,14 +327,17 @@ Ordem pensada para que cada fase entregue algo testável. As fases 1–2 (núcle
 
 ### Fase 6 — Cadastros
 
-- [ ] Página `DesktopCadastros` com lista lateral de tipos e contadores (Contas, Cartões, Categorias, Perfis)
-- [ ] Contas: lista (desativadas marcadas), criar/editar em diálogo (nome, tipo, saldo inicial, moeda, considerar no total), desativar/reativar
-- [ ] Excluir conta: alerta com o resultado de `accounts.deletionImpact` (o que será apagado e quais outras contas mudam de saldo) e confirmação forte antes de excluir
-- [ ] Cartões: lista, criar/editar (nome, conta pagadora só entre as ativas, limite, fechamento, vencimento; aviso de fechamento em dia 29–31), desativar/reativar
-- [ ] Excluir cartão: mesmo alerta, com `creditCards.deletionImpact`
-- [ ] Categorias: árvore com subcategorias e contagem de lançamentos, criar/renomear/excluir, "+ Subcategoria"; excluir subcategoria em uso abre o diálogo de mover
-- [ ] Perfis: lista, criar, renomear; tipo empresarial sem sócios no MVP (aviso)
-- [ ] Mensagens de validação vindas do schema compartilhado e do `CoreError`
+- [x] Página `DesktopCadastros` com lista lateral de tipos e contadores (Contas, Cartões, Categorias, Tags, Perfis, Anotações) — o tipo aberto é o *search param* `kind` de `/registry` (`registry/registryKinds.ts`), e o mês de referência, escondido na tela, continua na URL. **Decisões:** Contas e Cartões são geridos aqui, e não levam às telas Contas/Cartões como no mockup; o "Reordenar" das categorias ficou fora do MVP, porque o núcleo não guarda ordem de categorias
+- [x] Contas: lista (desativadas e fora do total marcadas), criar/editar em diálogo (nome, tipo, saldo inicial, moeda, considerar no total), desativar/reativar — sem confirmação, porque se desfazem e não mudam saldo; o saldo inicial é lido na moeda do perfil, e a moeda da conta é só rótulo
+- [x] Excluir conta: alerta com o resultado de `accounts.deletionImpact` (o que será apagado e quais outras contas mudam de saldo) e confirmação forte antes de excluir — digitar o nome; o alerta também oferece "Desativar em vez disso". As frases do alerta são o view-model `describeAccountDeletion` do `client`
+- [x] Cartões: lista, criar/editar (nome, conta pagadora só entre as ativas — na edição, a atual continua mesmo desativada —, limite, fechamento, vencimento; aviso de fechamento em dia 29–31), desativar/reativar
+- [x] Excluir cartão: mesmo alerta, com `creditCards.deletionImpact` (`describeCreditCardDeletion`, que cita os pagamentos parciais)
+- [x] Categorias: árvore com subcategorias e contagem de lançamentos, criar/renomear/excluir, "+ Subcategoria"; excluir subcategoria em uso abre o diálogo de mover — a exclusão da categoria fica no diálogo de "Editar", e o destino já exclui as subcategorias que somem junto
+- [x] Perfis: lista, criar, renomear (e trocar a moeda, que o núcleo recusa com lançamentos); tipo empresarial sem sócios no MVP (aviso) — o tipo não muda depois de criado, e o perfil criado pode ser aberto pelo aviso de sucesso
+- [x] Mensagens de validação vindas do schema compartilhado e do `CoreError` — os formulários validam com os schemas da camada Request (`creditCardContentShape` passou a ser exportado, como o `accountContentShape`), as frases saem de `lib/formIssues.ts` (compartilhado com o primeiro uso), e a recusa do núcleo que aponta um campo (nome repetido, moeda travada, conta pagadora desativada) aparece abaixo dele (`registry/coreErrorField.ts`)
+- [x] Tags (mockup `DesktopTags`): lista com lançamentos, total e último uso de todo o período; criar no cabeçalho; painel para renomear e excluir, com o aviso de quantos lançamentos perdem a tag e os atalhos para Transações e para o relatório por tag (hoje as telas em branco). No núcleo: domínio `Tag`, `TagService` (nome único sem diferenciar maiúsculas; excluir tira a tag dos lançamentos, que continuam), rotas `tags.list/create/update/delete`, e `tagIds` em `transactions.create/update/get` — opcional ao criar, obrigatório na edição completa —, com o vínculo `transactions_tags` de id derivado do par (sync-design §5.6). **Decisões:** o total é a soma dos valores **em módulo** de qualquer tipo, sem encargos; o último uso é o maior vencimento
+- [x] Anotações (mockup `DesktopAnotacoes`): lista da editada mais recentemente para a mais antiga, com busca no texto inteiro (sem diferenciar maiúsculas nem acentos), título pela primeira linha (`summarizeNote` no `client`, decisão de interface 9) e editor com salvar, descartar e excluir com confirmação; sair da anotação com alteração não salva (outra anotação, outro cadastro ou tela, troca de perfil) abre um diálogo que pede salvar ou descartar antes de sair; depois de salvar, o editor mostra o texto como o núcleo o gravou (aparado). No núcleo: domínio `Note`, `NoteService` e rotas `notes.list/create/update/delete`
+- [x] Testes: unitários dos formulários e das regras da tela (`test/registry.test.ts`), do alerta de exclusão e do título da anotação no `client`, de tags e anotações no núcleo (`test/services/tags.test.ts`, `notes.test.ts`) e ponta a ponta (`e2e/registry.spec.ts`: contas e cartões, exclusão em cadeia, categorias com mover, perfis, tags e anotações)
 
 ### Fase 7 — Contas (extrato)
 
@@ -358,7 +361,7 @@ Ordem pensada para que cada fase entregue algo testável. As fases 1–2 (núcle
 - [ ] Tabela densa (TanStack Table + Table do shadcn): data, nome, categoria › sub, conta/fatura, valor, situação; números tabulares à direita
 - [ ] Entrada/saída sem depender de cor: sinal, `⇄` em transferência, rótulo de estorno
 - [ ] Ordenação por coluna; filtros conta/cartão, categoria, situação e busca; linha-resumo "N lançamentos · resultado"
-- [ ] Painel lateral de criação/edição: tipo, valor (com inversão de sinal), nome, descrição, data, pago + data de pagamento, encargos, conta **ou** cartão (só ativos em lançamento novo), conta de destino (transferência/investimento), subcategoria com busca
+- [ ] Painel lateral de criação/edição: tipo, valor (com inversão de sinal), nome, descrição, data, pago + data de pagamento, encargos, conta **ou** cartão (só ativos em lançamento novo), conta de destino (transferência/investimento), subcategoria com busca, tags (o núcleo já aceita `tagIds` desde a Fase 6)
 - [ ] Despesa no cartão: fatura sugerida (`invoices.suggest`) com troca para outra fatura do cartão; aviso quando a escolhida está paga (será reaberta)
 - [ ] Excluir com confirmação; editar mês passado avisa que os meses seguintes serão recalculados
 - [ ] Teclado: `↑↓` navegar, `Enter` editar, `P` marcar pago, `Del` excluir; menu de contexto com as mesmas ações
@@ -423,4 +426,4 @@ Ordem pensada para que cada fase entregue algo testável. As fases 1–2 (núcle
 | Regra de período mudar no refinamento dos relatórios | O mês de pagamento é uma expressão SQL única (Fase 2.1); os testes de mesa documentam a regra atual |
 | Exclusão em cadeia apagar mais (ou menos) do que o alerta mostrou | `deletionImpact` e a exclusão usam as mesmas consultas; teste confere que o que foi apagado é exatamente o que foi contado |
 | Invalidação incompleta deixar saldo velho na tela | Mapa de invalidação centralizado e testado (Fase 3.2), não `invalidateQueries` espalhado |
-| Escopo crescer com recorrências e tags | Ficam explicitamente fora ([§1](#1-objetivo-e-escopo)); o formulário não mostra "Repetir" |
+| Escopo crescer com recorrências e tags | Recorrências ficam explicitamente fora ([§1](#1-objetivo-e-escopo)); o formulário não mostra "Repetir". Tags entraram só como cadastro e marcação; o relatório por tag continua fora |

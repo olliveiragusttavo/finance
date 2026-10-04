@@ -107,6 +107,7 @@ describe('ponto de controle das regras de negócio (database-design §3.10)', ()
             conversionRate: 1,
             dueDate: '2026-03-05',
             paymentDate: null,
+            tagIds: [],
         });
         expect(result.ok ? null : result.error.details['rule']).toBe('recurrence-occurrence-date-taken');
         // A mesma edição numa data livre continua permitida.

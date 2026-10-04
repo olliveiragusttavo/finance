@@ -1,10 +1,19 @@
 import { invalidateAllCoreQueries, useProfiles } from '@finance/client';
 import type { ProfileResponse } from '@finance/core';
 import { useQueryClient } from '@tanstack/react-query';
-import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { ErrorState, LoadingState } from '@/components/states';
 import { useDevicePreferences } from '@/lib/devicePreferences';
 import { pickActiveProfile } from './pickActiveProfile.ts';
+
+/**
+ * Pergunta à tela aberta, antes de trocar o perfil, se ela pode ser deixada. A troca de perfil
+ * não é navegação — o roteador não a vê —, mas tira da tela tudo o que é do perfil anterior,
+ * inclusive o que o usuário editava sem salvar.
+ *
+ * @return Promessa resolvida com `true` para seguir com a troca, ou `false` para ficar.
+ */
+export type ProfileSwitchGuard = () => Promise<boolean>;
 
 /** O perfil em uso e os demais, para o seletor. */
 interface ActiveProfileValue {
@@ -14,6 +23,10 @@ interface ActiveProfileValue {
      * @param profileId Perfil a abrir; precisa estar em `profiles`.
      */
     readonly switchTo: (profileId: string) => void;
+    /**
+     * @param guard Pergunta feita antes de cada troca de perfil, ou `null` para trocar direto.
+     */
+    readonly guardSwitch: (guard: ProfileSwitchGuard | null) => void;
 }
 
 const ActiveProfileContext = createContext<ActiveProfileValue | null>(null);
@@ -36,18 +49,38 @@ export function ActiveProfileProvider({ whenEmpty, children }: { readonly whenEm
     const queryClient = useQueryClient();
     const profiles = query.data;
     const profile = profiles === undefined ? null : pickActiveProfile(profiles, preferences.lastProfileId);
+    // Em ref, e não em estado: registrar a guarda não muda nada na tela, e um estado faria todo
+    // consumidor do perfil renderizar de novo a cada alteração não salva.
+    const guardRef = useRef<ProfileSwitchGuard | null>(null);
 
     // Regra de interface (Fase 4): trocar o perfil invalida todo o cache. As consultas já são
     // chaveadas pelo perfil, mas as de perfis e saldos globais não; recarregar tudo garante
-    // que nada do perfil anterior fique na tela.
+    // que nada do perfil anterior fique na tela. Antes, a tela aberta pode recusar a troca.
     const switchTo = useCallback((profileId: string): void => {
-        update({ lastProfileId: profileId });
-        void invalidateAllCoreQueries(queryClient);
+        const guard = guardRef.current;
+        /**
+         * Troca só depois da resposta da guarda, para que a tela aberta salve ou descarte o que
+         * está editando enquanto o perfil dela ainda é o ativo.
+         *
+         * @return Promessa resolvida quando o perfil foi trocado ou a troca, recusada.
+         */
+        const run = async (): Promise<void> => {
+            if (guard !== null && !(await guard())) {
+                return;
+            }
+            update({ lastProfileId: profileId });
+            await invalidateAllCoreQueries(queryClient);
+        };
+        void run();
     }, [update, queryClient]);
 
+    const guardSwitch = useCallback((guard: ProfileSwitchGuard | null): void => {
+        guardRef.current = guard;
+    }, []);
+
     const value = useMemo(
-        () => (profile === null || profiles === undefined ? null : { profile, profiles, switchTo }),
-        [profile, profiles, switchTo],
+        () => (profile === null || profiles === undefined ? null : { profile, profiles, switchTo, guardSwitch }),
+        [profile, profiles, switchTo, guardSwitch],
     );
 
     if (query.isPending) {
@@ -88,4 +121,21 @@ export function useActiveProfile(): ActiveProfileValue {
         throw new Error('useActiveProfile precisa de um ActiveProfileProvider acima na árvore');
     }
     return value;
+}
+
+/**
+ * Faz a troca de perfil passar pela tela enquanto ela estiver montada, para que a tela possa
+ * perguntar o que fazer com uma alteração não salva antes de o perfil mudar.
+ *
+ * @param guard Pergunta feita antes da troca, ou `null` quando a tela pode ser deixada sem
+ * perguntar; ao desmontar, a guarda é retirada.
+ */
+export function useProfileSwitchGuard(guard: ProfileSwitchGuard | null): void {
+    const { guardSwitch } = useActiveProfile();
+    useEffect(() => {
+        guardSwitch(guard);
+        return () => {
+            guardSwitch(null);
+        };
+    }, [guardSwitch, guard]);
 }

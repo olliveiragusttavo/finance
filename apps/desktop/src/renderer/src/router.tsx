@@ -2,6 +2,8 @@ import { createHashHistory, createRootRoute, createRoute, createRouter, Outlet, 
 import type { ReactNode } from 'react';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { RegistryScreen } from './registry/RegistryScreen.tsx';
+import { parseRegistrySearch, type RegistrySearch } from './registry/registryKinds.ts';
 import { blankScreen, PartnerReportScreen } from './screens/BlankScreen.tsx';
 import { AppShell } from './shell/AppShell.tsx';
 import type { AppPath } from './shell/navigation.ts';
@@ -51,7 +53,12 @@ const routeTree = rootRoute.addChildren([
         createRoute({ getParentRoute: () => shellRoute, path: '/cards' satisfies AppPath, component: blankScreen('Cartões', false) }),
         createRoute({ getParentRoute: () => shellRoute, path: '/reports/category' satisfies AppPath, component: blankScreen('Relatório por categoria', false) }),
         createRoute({ getParentRoute: () => shellRoute, path: '/reports/card-impact' satisfies AppPath, component: blankScreen('Impacto do cartão', false) }),
-        createRoute({ getParentRoute: () => shellRoute, path: '/registry' satisfies AppPath, component: blankScreen('Cadastros', false) }),
+        createRoute({
+            getParentRoute: () => shellRoute,
+            path: '/registry' satisfies AppPath,
+            component: RegistryScreen,
+            validateSearch: (search: Record<string, unknown>): RegistrySearch => parseRegistrySearch(search),
+        }),
         createRoute({ getParentRoute: () => shellRoute, path: '/settings' satisfies AppPath, component: blankScreen('Ajustes', false) }),
         // Fora do MVP: tela em branco, com a rota e o mês já prontos (desktop-mvp-plan §5).
         createRoute({ getParentRoute: () => shellRoute, path: '/reports/account-flow' satisfies AppPath, component: blankScreen('Fluxo mensal por conta', true) }),

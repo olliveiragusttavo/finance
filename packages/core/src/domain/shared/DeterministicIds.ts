@@ -1,6 +1,6 @@
 import { sha1 } from '@noble/hashes/legacy.js';
 import { utf8ToBytes } from '@noble/hashes/utils.js';
-import type { AccountId, BankStatementId, CreditCardId, InvoiceId, Uuid } from './ids.ts';
+import type { AccountId, BankStatementId, CreditCardId, InvoiceId, TagId, TransactionId, TransactionTagId, Uuid } from './ids.ts';
 import type { YearMonth } from './YearMonth.ts';
 
 /**
@@ -69,6 +69,21 @@ export function bankStatementIdFor(accountId: AccountId, period: YearMonth): Ban
  */
 export function invoiceIdFor(creditCardId: CreditCardId, period: YearMonth): InvoiceId {
     return deriveUuid(`invoices:${creditCardId}:${period.toString()}`) as InvoiceId;
+}
+
+/**
+ * Id do vínculo entre uma transação e uma tag (database-design §4.14). Derivado do par, e
+ * não aleatório, pelo mesmo motivo dos extratos: dois aparelhos que marcam a mesma tag no
+ * mesmo lançamento derivam a mesma linha, e reaplicar uma tag removida revive a linha
+ * excluída em vez de esbarrar no índice único do par. O formato da chave é contrato
+ * permanente, como o namespace.
+ *
+ * @param transactionId Transação marcada.
+ * @param tagId Tag aplicada.
+ * @return O id determinístico do vínculo.
+ */
+export function transactionTagIdFor(transactionId: TransactionId, tagId: TagId): TransactionTagId {
+    return deriveUuid(`transactions_tags:${transactionId}:${tagId}`) as TransactionTagId;
 }
 
 /**

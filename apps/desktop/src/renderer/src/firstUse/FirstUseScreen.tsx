@@ -2,19 +2,18 @@ import { callOrThrow, describeError, formatAccountType, formatMoney, formatProfi
 import type { OnboardingResponse } from '@finance/core';
 import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
-import { Controller, useForm, type FieldError, type FieldErrors, type Resolver } from 'react-hook-form';
+import { Controller, useForm, type Resolver } from 'react-hook-form';
+import { Field, fieldAria, SectionTitle, toFieldErrors } from '@/components/form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { cn } from '@/lib/cn';
+import { CURRENCY_OPTIONS } from '@/lib/currencies';
 import { useDevicePreferences } from '@/lib/devicePreferences';
 import { ThemeMenu } from '@/shell/ThemeMenu';
 import {
-    CURRENCY_OPTIONS,
     EMPTY_ONBOARDING_FORM,
     ONBOARDING_FIELDS,
     readOnboardingForm,
-    type OnboardingErrors,
     type OnboardingFormValues,
     type OnboardingInput,
 } from './onboardingForm.ts';
@@ -64,19 +63,8 @@ export function FirstUseScreen(): ReactNode {
  */
 const onboardingResolver: Resolver<OnboardingFormValues, unknown, OnboardingInput> = (values) => {
     const result = readOnboardingForm(values);
-    return result.ok ? { values: result.input, errors: {} } : { values: {}, errors: toFieldErrors(result.errors) };
+    return result.ok ? { values: result.input, errors: {} } : { values: {}, errors: toFieldErrors<OnboardingFormValues>(ONBOARDING_FIELDS, result.errors) };
 };
-
-/**
- * @param errors Mensagem por campo, como o formulário as leu.
- * @return Os mesmos erros no formato do react-hook-form, que os associa aos campos.
- */
-function toFieldErrors(errors: OnboardingErrors): FieldErrors<OnboardingFormValues> {
-    return ONBOARDING_FIELDS.reduce<FieldErrors<OnboardingFormValues>>((fieldErrors, field) => {
-        const message = errors[field];
-        return message === undefined ? fieldErrors : { ...fieldErrors, [field]: { type: 'validate', message } };
-    }, {});
-}
 
 /**
  * Chama o `onboarding.start` e prepara a entrada no app. O perfil criado vira o aberto no
@@ -253,63 +241,4 @@ function JoinGroup(): ReactNode {
             <p className="text-13 text-muted">Você vai precisar do QR code ou do código de 8 caracteres mostrado no outro aparelho.</p>
         </section>
     );
-}
-
-/**
- * Título de grupo de campos ("Perfil", "Primeira conta"), em caixa alta e discreto como no
- * mockup, para separar os dois cadastros sem dividir o cartão.
- *
- * @param props.children Texto do título.
- * @return O título.
- */
-function SectionTitle({ children }: { readonly children: string }): ReactNode {
-    return <h3 className="text-13 font-semibold tracking-wide text-muted uppercase">{children}</h3>;
-}
-
-/**
- * Rótulo, campo e mensagem de erro. O erro fica no texto abaixo do campo, ligado a ele por
- * `aria-describedby`, além da borda: a cor nunca é o único sinal (decisão de interface 7).
- *
- * @param props.id Id do campo, que liga o rótulo e a mensagem a ele.
- * @param props.label Rótulo acima do campo.
- * @param props.error Erro do campo, quando houver.
- * @param props.className Posição do campo na grade do cartão.
- * @param props.children O campo.
- * @return O campo com rótulo e mensagem.
- */
-function Field({
-    id,
-    label,
-    error,
-    className,
-    children,
-}: {
-    readonly id: string;
-    readonly label: string;
-    readonly error: FieldError | undefined;
-    readonly className?: string;
-    readonly children: ReactNode;
-}): ReactNode {
-    return (
-        <div className={cn('flex flex-col gap-1 text-13', className)}>
-            <label htmlFor={id} className="text-muted">
-                {label}
-            </label>
-            {children}
-            {error?.message !== undefined && (
-                <p id={`${id}-error`} className="text-12 text-danger">
-                    {error.message}
-                </p>
-            )}
-        </div>
-    );
-}
-
-/**
- * @param id Id do campo.
- * @param error Erro do campo, quando houver.
- * @return Os atributos que marcam o campo inválido e o ligam à mensagem.
- */
-function fieldAria(id: string, error: FieldError | undefined): { readonly 'aria-invalid': boolean; readonly 'aria-describedby': string | undefined } {
-    return { 'aria-invalid': error !== undefined, 'aria-describedby': error === undefined ? undefined : `${id}-error` };
 }

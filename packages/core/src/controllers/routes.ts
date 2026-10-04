@@ -19,7 +19,9 @@ import type { CardImpactResponse } from '../dto/reports/CardImpactResponse.ts';
 import type { CategoryReportResponse } from '../dto/reports/CategoryReportResponse.ts';
 import type { CategoryTransactionsResponse } from '../dto/reports/CategoryTransactionsResponse.ts';
 import type { MonthSummaryResponse } from '../dto/reports/MonthSummaryResponse.ts';
+import type { NoteResponse } from '../dto/notes/NoteResponse.ts';
 import type { StatementResponse } from '../dto/statements/StatementResponse.ts';
+import type { TagResponse, TagUsageResponse } from '../dto/tags/TagResponse.ts';
 import type { TransactionResponse } from '../dto/transactions/TransactionResponse.ts';
 import type { accountIdRequest, createAccountRequest, listAccountsRequest, updateAccountRequest } from '../requests/accountRequests.ts';
 import type { profileBalancesRequest, rebuildAccountRequest } from '../requests/balanceRequests.ts';
@@ -44,7 +46,9 @@ import type {
     categoryTransactionsRequest,
     monthSummaryRequest,
 } from '../requests/reportRequests.ts';
+import type { createNoteRequest, listNotesRequest, noteIdRequest, rewriteNoteRequest } from '../requests/noteRequests.ts';
 import type { getStatementRequest } from '../requests/statementRequests.ts';
+import type { createTagRequest, listTagsRequest, renameTagRequest, tagIdRequest } from '../requests/tagRequests.ts';
 import type {
     createTransactionRequest,
     listTransactionsRequest,
@@ -86,6 +90,14 @@ export interface CoreRoutes {
     'subCategories.create': { input: z.input<typeof createSubCategoryRequest>; output: SubCategoryResponse };
     'subCategories.update': { input: z.input<typeof renameSubCategoryRequest>; output: SubCategoryResponse };
     'subCategories.delete': { input: z.input<typeof deleteSubCategoryRequest>; output: null };
+    'tags.list': { input: z.input<typeof listTagsRequest>; output: readonly TagUsageResponse[] };
+    'tags.create': { input: z.input<typeof createTagRequest>; output: TagResponse };
+    'tags.update': { input: z.input<typeof renameTagRequest>; output: TagResponse };
+    'tags.delete': { input: z.input<typeof tagIdRequest>; output: null };
+    'notes.list': { input: z.input<typeof listNotesRequest>; output: readonly NoteResponse[] };
+    'notes.create': { input: z.input<typeof createNoteRequest>; output: NoteResponse };
+    'notes.update': { input: z.input<typeof rewriteNoteRequest>; output: NoteResponse };
+    'notes.delete': { input: z.input<typeof noteIdRequest>; output: null };
     'transactions.create': { input: z.input<typeof createTransactionRequest>; output: TransactionResponse };
     'transactions.update': { input: z.input<typeof updateTransactionRequest>; output: TransactionResponse };
     'transactions.delete': { input: z.input<typeof transactionIdRequest>; output: null };

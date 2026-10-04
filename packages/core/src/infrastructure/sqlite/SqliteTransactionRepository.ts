@@ -1,5 +1,6 @@
 import type { CategoryScope } from '../../domain/report/CategoryScope.ts';
 import { Currency } from '../../domain/shared/Currency.ts';
+import { transactionTagIdFor } from '../../domain/shared/DeterministicIds.ts';
 import { CorruptRowError } from '../../domain/shared/errors.ts';
 import {
     AccountId,
@@ -11,6 +12,7 @@ import {
     ProfileId,
     RecurrenceId,
     SubCategoryId,
+    TagId,
     TransactionId,
 } from '../../domain/shared/ids.ts';
 import { LocalDate } from '../../domain/shared/LocalDate.ts';
@@ -25,6 +27,8 @@ import { decodeEnum, TRANSACTION_TYPE_CODE } from './enumCodes.ts';
 import { cashDateSql, monthBounds, periodKey, REPORT_SOURCES_CTE } from './periodSql.ts';
 import { RowReader } from './RowReader.ts';
 
+// As tags vêm numa coluna só, por nome, para que toda leitura de transação já traga o
+// conjunto sem uma segunda consulta por linha; vínculo ou tag excluídos ficam de fora.
 // O perfil e a moeda vêm do contêiner (extrato → conta, fatura → cartão), porque a
 // transação não tem `profile_id` próprio. Contêineres excluídos ficam de fora: uma
 // transação num extrato excluído não existe mais para o usuário.
@@ -34,7 +38,13 @@ const SELECT_TRANSACTION = `
         t.conversion_rate, t.due_date, t.paid, t.payment_date, t.charges, t.type,
         bs.account_id AS statement_account_id, bs.year AS statement_year, bs.month AS statement_month,
         i.credit_card_id AS invoice_card_id, i.year AS invoice_year, i.month AS invoice_month,
-        p.id AS profile_id, p.currency AS profile_currency
+        p.id AS profile_id, p.currency AS profile_currency,
+        (SELECT group_concat(linked.tag_id, ',') FROM (
+            SELECT tt.tag_id FROM transactions_tags tt
+            JOIN tags tg ON tg.id = tt.tag_id AND tg.deleted_at IS NULL
+            WHERE tt.transaction_id = t.id AND tt.deleted_at IS NULL
+            ORDER BY tg.name COLLATE NOCASE, tg.id
+        ) linked) AS tag_ids
     FROM transactions t
     LEFT JOIN bank_statements bs ON bs.id = t.bank_statement_id AND bs.deleted_at IS NULL
     LEFT JOIN accounts a ON a.id = bs.account_id
@@ -76,6 +86,7 @@ export class SqliteTransactionRepository implements TransactionRepository {
                 :dueDate, :paid, :paymentDate, :charges, :type, :now)`,
             { ...this.contentParams(transaction), recurrenceId: transaction.recurrenceId },
         );
+        this.syncTags(transaction);
     }
 
     /**
@@ -95,6 +106,45 @@ export class SqliteTransactionRepository implements TransactionRepository {
             WHERE id = :id AND deleted_at IS NULL`,
             this.contentParams(transaction),
         );
+        this.syncTags(transaction);
+    }
+
+    /**
+     * Deixa vivos exatamente os vínculos das tags da transação. Só toca nos vínculos que
+     * mudaram — tirar a tag que saiu e pôr a que entrou —, para que uma edição que não mexe
+     * nas tags não carimbe `updated_at` em vínculos intactos e a sincronização não os trate
+     * como alterados. A tag que volta reaproveita a linha excluída do mesmo par, cujo id é
+     * derivado dele (`transactionTagIdFor`).
+     *
+     * @param transaction Transação gravada, com o conjunto de tags desejado.
+     * @return void
+     */
+    private syncTags(transaction: Transaction): void {
+        const now = this.clock.now();
+        const linked = new Set(
+            this.database
+                .all('SELECT tag_id FROM transactions_tags WHERE transaction_id = :id AND deleted_at IS NULL', { id: transaction.id })
+                .map((row) => TagId(new RowReader('transactions_tags', row).text('tag_id'))),
+        );
+        const wanted = new Set(transaction.tagIds);
+        for (const tagId of linked) {
+            if (!wanted.has(tagId)) {
+                this.database.run(
+                    'UPDATE transactions_tags SET deleted_at = :now, updated_at = :now WHERE transaction_id = :id AND tag_id = :tagId AND deleted_at IS NULL',
+                    { id: transaction.id, tagId, now },
+                );
+            }
+        }
+        for (const tagId of wanted) {
+            if (!linked.has(tagId)) {
+                this.database.run(
+                    `INSERT INTO transactions_tags (id, transaction_id, tag_id, updated_at)
+                    VALUES (:linkId, :id, :tagId, :now)
+                    ON CONFLICT (id) DO UPDATE SET deleted_at = NULL, updated_at = excluded.updated_at`,
+                    { linkId: transactionTagIdFor(transaction.id, tagId), id: transaction.id, tagId, now },
+                );
+            }
+        }
     }
 
     /**
@@ -276,6 +326,7 @@ export class SqliteTransactionRepository implements TransactionRepository {
             origin: { currency: Currency.of(reader.text('currency')), conversionRate: reader.number('conversion_rate') },
             dueDate: LocalDate.parse(reader.text('due_date')),
             paymentDate: paymentDate === null ? null : LocalDate.parse(paymentDate),
+            tagIds: (reader.nullableText('tag_ids') ?? '').split(',').filter((id) => id !== '').map((id) => TagId(id)),
         });
     }
 

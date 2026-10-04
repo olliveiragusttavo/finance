@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Tags — celular</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+.light{--bg:#F4F5F2;--surface:#FFFFFF;--line:#DDE1DC;--line2:#EEF0EC;--ink:#1B1F1D;--ink2:#3D4541;--muted:#5A625E;--accent:#1F5F8B;--on-accent:#FFFFFF;--soft:#E6EEF4;--soft-ink:#163F5C;--warn-bg:#FFF1D6;--warn-ink:#5C3D00;--track:#EEF0EC;--danger:#9B2C1F}
+.dark{--bg:#111413;--surface:#1A1E1C;--line:#2E3431;--line2:#242926;--ink:#E7EAE7;--ink2:#C3C9C5;--muted:#9AA29E;--accent:#6AAAD8;--on-accent:#0B1A24;--soft:#1D3040;--soft-ink:#B5D7F0;--warn-bg:#3A2C10;--warn-ink:#F2D38F;--track:#2A302D;--danger:#F08A7A}
+a{color:var(--accent);text-decoration:none}
+.n{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+button,input{font:inherit;color:inherit}button{cursor:pointer}
+.ph{width:390px;height:844px;box-sizing:border-box;overflow:hidden;position:relative;background:var(--bg);font-family:'IBM Plex Sans',system-ui,sans-serif;color:var(--ink);display:flex;flex-direction:column}
+.hdr{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px 8px 4px;background:var(--surface);min-height:66px;box-sizing:border-box;border-bottom:1px solid var(--line)}
+.hl{display:flex;align-items:center;gap:2px}
+.ttl{margin:0;font-size:20px;font-weight:600}
+.ib{width:44px;height:44px;border:1px solid var(--line);background:var(--bg);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.back{width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:24px}
+.bd{flex-grow:1;overflow:hidden;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.add{display:flex;gap:8px}
+.add input{flex-grow:1;border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:0 12px;height:46px}
+.add button{border:0;border-radius:10px;background:var(--accent);color:var(--on-accent);padding:0 16px;height:46px;font-weight:600}
+.list{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.it{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;border:0;border-bottom:1px solid var(--line2);color:var(--ink);min-height:54px;box-sizing:border-box;font-size:15px;background:none;width:100%;text-align:left}
+.it:last-child{border-bottom:0}
+.chip{display:inline-flex;font-size:14px;border-radius:999px;padding:3px 10px;background:var(--track)}
+.sm{font-size:12px;color:var(--muted)}
+.chev{color:var(--muted)}
+.tab{height:72px;flex-shrink:0;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,minmax(0,1fr));font-size:11px}
+.tab a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--muted)}
+.tab a.on{color:var(--accent);font-weight:600}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.5)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--surface);border-radius:18px 18px 0 0;padding:10px 16px 24px;display:flex;flex-direction:column;gap:12px;box-shadow:0 -6px 24px rgba(0,0,0,.25)}
+.grab{width:40px;height:4px;border-radius:2px;background:var(--line);align-self:center}
+.fld{display:flex;flex-direction:column;gap:6px}
+.fld input{border:1px solid var(--line);border-radius:10px;background:var(--bg);padding:0 12px;height:46px}
+.wbox{background:var(--warn-bg);color:var(--warn-ink);border-radius:10px;padding:12px;font-size:13px}
+.bp{display:flex;align-items:center;justify-content:center;height:50px;border:0;border-radius:12px;background:var(--accent);color:var(--on-accent);font-size:16px;font-weight:600}
+.bs{display:flex;align-items:center;justify-content:center;height:50px;border:1px solid var(--line);border-radius:12px;background:var(--surface);font-size:15px}
+</style>
+</helmet>
+<div class="ph {{themeClass}}">
+<header class="hdr"><div class="hl"><a href="MobileCadastros.dc.html" class="back" aria-label="Voltar para Cadastros">‹</a><h1 class="ttl">Tags</h1></div><button type="button" class="ib" onClick="{{toggleTheme}}" aria-label="{{themeLabel}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/></svg></button></header>
+<div class="bd">
+<form class="add" onsubmit="return false"><label style="display: contents"><span style="position: absolute; left: -9999px">Nova tag</span><input type="text" placeholder="Nova tag" maxlength="45"></label><button type="submit">Adicionar</button></form>
+<div class="list">
+<button type="button" class="it"><span class="chip">viagem-floripa</span><span class="sm n">8 lançamentos <span class="chev">›</span></span></button>
+<button type="button" class="it"><span class="chip" style="font-weight: 600">reembolsável</span><span class="sm n">3 lançamentos <span class="chev">›</span></span></button>
+<button type="button" class="it"><span class="chip">presente</span><span class="sm n">1 lançamento <span class="chev">›</span></span></button>
+</div>
+<span class="sm" style="padding: 0 4px">Tags são aplicadas no lançamento, em “Mais detalhes”.</span>
+</div>
+<nav aria-label="Navegação" class="tab">
+<a href="MobileInicio.dc.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Início</a>
+<a href="MobileTransacoes.dc.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Transações</a>
+<a href="MobileContas.dc.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 10l9-6 9 6M5 10v8M10 10v8M14 10v8M19 10v8M3 20h18"/></svg>Contas</a>
+<a href="MobileCartoes.dc.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>Cartões</a>
+<a href="MobileMais.dc.html" class="on" aria-current="page"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>Mais</a>
+</nav>
+<div class="scrim" aria-hidden="true"></div>
+<section class="sheet" role="dialog" aria-label="Editar tag reembolsável">
+<div class="grab" aria-hidden="true"></div>
+<h2 style="margin: 0; font-size: 18px; font-weight: 600">Editar tag</h2>
+<label class="fld"><span class="sm">Nome</span><input type="text" value="reembolsável" maxlength="45"></label>
+<span class="sm">Até 45 caracteres, sem repetir outra tag do perfil.</span>
+<a href="MobileTransacoes.dc.html" style="font-size: 15px; padding: 6px 0">Ver os 3 lançamentos ›</a>
+<a href="#" class="bp">Salvar</a>
+<button type="button" class="bs" style="color: var(--danger)">Excluir tag</button>
+<div class="wbox">Excluir remove a tag dos 3 lançamentos. Os lançamentos continuam existindo.</div>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":true},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+const s = this.state || {};
+const dark = s.dark ?? (this.props.dark ?? true);
+return {
+themeClass: dark ? 'dark' : 'light',
+themeLabel: dark ? 'Usar tema claro' : 'Usar tema escuro',
+toggleTheme: () => this.setState({ dark: !dark })
+};
+}
+}
+</script>
+</body>
+</html>
