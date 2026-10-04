@@ -9,7 +9,8 @@ import { parseShellSearch, type ShellSearch } from './shell/referenceMonth.ts';
 
 /**
  * Raiz das rotas: o que vale para toda tela (avisos e dicas). O shell fica numa rota de
- * layout abaixo dela, para que o primeiro uso (Fase 5) possa ser uma rota fora do shell.
+ * layout abaixo dela, para que uma tela fora do shell possa ser uma rota irmã. O primeiro uso
+ * não é rota: abre antes do roteador, porque o roteador só monta com um perfil (`App.tsx`).
  *
  * @return O conteúdo da rota atual com os provedores de interface.
  */

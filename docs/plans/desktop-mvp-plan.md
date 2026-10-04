@@ -1,6 +1,6 @@
 # Plano do MVP Desktop — CRUD e primeiros relatórios
 
-**Status:** Em andamento — Fases 0, 1, 2, 3 e 4 concluídas (só o `Ctrl K` da Fase 4 ficou pendente). Primeira entrega com tela do projeto: o app desktop
+**Status:** Em andamento — Fases 0 a 5 concluídas (só o `Ctrl K` da Fase 4 ficou pendente). Primeira entrega com tela do projeto: o app desktop
 (Electron) com os cadastros e lançamentos básicos e os dois primeiros relatórios
 personalizados, que são a motivação original do projeto ([README](../../README.md#motivação)).
 O mobile fica inteiro para depois.
@@ -299,7 +299,7 @@ Ordem pensada para que cada fase entregue algo testável. As fases 1–2 (núcle
 - [x] ~~Recompilação do `better-sqlite3` para o Electron em `postinstall`~~ — desnecessária: o `better-sqlite3` 13 é N-API 10 e traz os binários no pacote; o teste de fumaça prova que o mesmo `.node` abre o banco no `utilityProcess`. Recompilar no lugar ainda quebraria os testes do núcleo, que usam a mesma cópia no Node
 - [x] Renderer: React 19, TanStack Router (hash), TanStack Query, Tailwind com o preset de `tokens`, shadcn/ui inicializado (Button, Input, Select, Dialog, Sheet, Popover, DropdownMenu, ContextMenu, Table, Tabs, Tooltip, Sonner, Chart) — classes traduzidas para os tokens, `Chart` reescrito com cor de série restrita a token e sem `Intl`
 - [x] Scripts `pnpm dev:desktop`, `pnpm build:desktop`; `pnpm check` cobrindo lint e tipos do app
-- [x] Teste de fumaça com Playwright (`_electron`): abre, cria perfil, lança uma despesa, vê no extrato — enquanto as telas das Fases 5, 7 e 9 não existem, pela mesma ponte que elas vão usar; também confere o isolamento do renderer, a CSP e a tela de bloqueio. No devcontainer e no CI roda com `FINANCE_ELECTRON_NO_SANDBOX=1`, porque o container bloqueia os namespaces de usuário do sandbox de processo do Chromium
+- [x] Teste de fumaça com Playwright (`_electron`): abre, cria perfil, lança uma despesa, vê no extrato — enquanto as telas das Fases 7 e 9 não existem, pela mesma ponte que elas vão usar (o perfil, desde a Fase 5, pela tela de primeiro uso); também confere o isolamento do renderer, a CSP e a tela de bloqueio. No devcontainer e no CI roda com `FINANCE_ELECTRON_NO_SANDBOX=1`, porque o container bloqueia os namespaces de usuário do sandbox de processo do Chromium
 - [x] Medir memória e tempo de abertura ([desktop-shell §6.4](desktop-shell-design.md#6-próximos-passos)) e registrar o número — `pnpm --filter @finance/desktop measure`; resultado em [desktop-shell §6](desktop-shell-design.md#6-próximos-passos)
 
 ### Fase 4 — Shell e navegação
@@ -319,10 +319,11 @@ Ordem pensada para que cada fase entregue algo testável. As fases 1–2 (núcle
 
 ### Fase 5 — Primeiro uso
 
-- [ ] Detecta banco sem perfil e abre `DesktopPrimeiroUso` fora do shell
-- [ ] Formulário perfil (nome, tipo, moeda) + primeira conta (nome, tipo, saldo inicial) → `onboarding.start`
-- [ ] "Entrar num grupo existente" visível e desabilitado, com a explicação
-- [ ] Ao concluir, entra na Visão geral do mês atual
+- [x] Detecta banco sem perfil e abre `DesktopPrimeiroUso` fora do shell — é o `whenEmpty` do `ActiveProfileProvider`, e não uma rota: o roteador só é criado com um perfil ativo, e a tela provisória da Fase 4 saiu
+- [x] Formulário perfil (nome, tipo, moeda) + primeira conta (nome, tipo, saldo inicial) → `onboarding.start` — react-hook-form com um *resolver* que valida pelo `startOnboardingRequest` do núcleo (`firstUse/onboardingForm.ts`) e traduz os problemas do Zod para pt-BR por campo; saldo em branco é zero; a conta nasce na moeda do perfil (a moeda própria fica para Cadastros). Moedas oferecidas: as do mockup, BRL e USD. `formatAccountType` entrou no `client`
+- [x] "Entrar num grupo existente" visível e desabilitado, com a explicação ligada ao botão por `aria-describedby`; o resto do cartão segue o mockup
+- [x] Ao concluir, entra na Visão geral do mês atual — antes de invalidar os perfis (é a invalidação que monta o shell), grava o perfil criado como o aberto, zera o último mês do aparelho e leva a URL a `#/`, para que rota e mês guardados de um banco anterior não valham. O menu de tema saiu da barra superior para `ThemeMenu.tsx`, porque a tela tem o mesmo botão no topo
+- [x] Testes: unitários do formulário (`test/firstUse.test.ts`) e ponta a ponta (`e2e/firstUse.spec.ts`: tela fora do shell, erros por campo sem chamar o núcleo, conclusão com rota e mês antigos no aparelho, reabertura); o teste de fumaça passou a criar o perfil pela tela
 
 ### Fase 6 — Cadastros
 

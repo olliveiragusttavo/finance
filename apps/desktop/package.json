@@ -9,7 +9,7 @@
         "build": "electron-vite build",
         "preview": "node scripts/electron-vite.mjs preview",
         "typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.web.json && tsc -p tsconfig.json",
-        "test": "vitest run && electron-vite build && playwright test e2e/smoke.spec.ts e2e/shell.spec.ts",
+        "test": "vitest run && electron-vite build && playwright test e2e/smoke.spec.ts e2e/shell.spec.ts e2e/firstUse.spec.ts",
         "measure": "electron-vite build && playwright test e2e/measure.spec.ts"
     },
     "dependencies": {
@@ -27,6 +27,7 @@
         "radix-ui": "1.6.7",
         "react": "19.3.0",
         "react-dom": "19.3.0",
+        "react-hook-form": "7.89.0",
         "recharts": "3.10.1",
         "sonner": "2.0.8",
         "tailwind-merge": "3.7.0",

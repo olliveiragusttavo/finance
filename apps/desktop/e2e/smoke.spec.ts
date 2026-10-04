@@ -2,41 +2,42 @@ import { BetterSqliteDatabase } from '@finance/sqlite-better';
 import { expect, test } from '@playwright/test';
 import { existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { completeFirstUse } from './firstUse.ts';
 import { freshUserData, launchApp, removeUserData } from './launchApp.ts';
 
 /*
  * Teste de fumaça do esqueleto (desktop-mvp-plan Fase 3.3): o caminho inteiro — janela,
  * preload, `MessagePort`, `utilityProcess`, `better-sqlite3` no ABI do Electron e o arquivo
- * em disco — funcionando no binário real. As telas de perfil, lançamento e extrato ainda não
- * existem (Fases 5, 7 e 9); até lá, o teste lança pela mesma ponte que elas vão usar, e o
- * seletor de perfil do shell mostra o resultado.
+ * em disco — funcionando no binário real. O perfil nasce pela tela de primeiro uso (Fase 5);
+ * as telas de lançamento e extrato ainda não existem (Fases 7 e 9), e até lá o teste lança
+ * pela mesma ponte que elas vão usar.
  */
 
 test('abre, cria perfil, lança uma despesa e vê no extrato; os dados sobrevivem a reabrir o app', async () => {
     const userData = freshUserData();
     try {
         const first = await launchApp(userData);
-        await expect(first.window.getByTestId('no-profile')).toHaveText('Nenhum perfil cadastrado.');
+        await completeFirstUse(first.window, { profileName: 'Pessoal', accountName: 'Nubank', openingBalance: '1.000,00' });
 
         const statement = await first.window.evaluate(async () => {
             const { core } = window.finance;
-            const started = await core.call('onboarding.start', {
-                profile: { name: 'Pessoal', type: 'personal', currency: 'BRL' },
-                account: { name: 'Nubank', type: 'checking', openingBalance: 1000 },
-            });
-            if (!started.ok) {
-                throw new Error(JSON.stringify(started.error));
+            const profiles = await core.call('profiles.list', {});
+            const profileId = profiles.ok ? profiles.data[0]?.id : undefined;
+            if (profileId === undefined) {
+                throw new Error('o primeiro uso não criou o perfil');
             }
-            const tree = await core.call('categories.tree', { profileId: started.data.profile.id });
+            const accounts = await core.call('accounts.list', { profileId, period: '2026-10' });
+            const accountId = accounts.ok ? accounts.data.accounts[0]?.id : undefined;
+            const tree = await core.call('categories.tree', { profileId });
             const subCategoryId = tree.ok ? tree.data[0]?.subCategories[0]?.id : undefined;
-            if (subCategoryId === undefined) {
-                throw new Error('o primeiro uso não criou as categorias sugeridas');
+            if (accountId === undefined || subCategoryId === undefined) {
+                throw new Error('o primeiro uso não criou a conta e as categorias sugeridas');
             }
             const expense = await core.call('transactions.create', {
-                profileId: started.data.profile.id,
+                profileId,
                 subCategoryId,
                 type: 'expense',
-                source: { kind: 'account', accountId: started.data.account.id },
+                source: { kind: 'account', accountId },
                 name: 'Mercado',
                 value: 123.45,
                 dueDate: '2026-10-05',
@@ -45,7 +46,7 @@ test('abre, cria perfil, lança uma despesa e vê no extrato; os dados sobrevive
             if (!expense.ok) {
                 throw new Error(JSON.stringify(expense.error));
             }
-            return core.call('statements.get', { accountId: started.data.account.id, period: '2026-10' });
+            return core.call('statements.get', { accountId, period: '2026-10' });
         });
 
         expect(statement.ok).toBe(true);
@@ -68,7 +69,7 @@ test('abre, cria perfil, lança uma despesa e vê no extrato; os dados sobrevive
 test('o renderer não tem Node e enxerga só a ponte, sob CSP restrita (desktop-shell-design §3.6)', async () => {
     const { app, window: page, userData } = await launchApp();
     try {
-        await expect(page.getByTestId('no-profile')).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Vamos começar' })).toBeVisible();
         const surface = await page.evaluate(() => ({
             require: 'require' in window,
             process: 'process' in globalThis,
@@ -130,7 +131,7 @@ test('restauração interrompida bloqueia sem criar banco vazio, e o bloqueio po
 test('núcleo que cai com o app aberto troca o app pela tela de erro', async () => {
     const { app, window: page, userData } = await launchApp();
     try {
-        await expect(page.getByTestId('no-profile')).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Vamos começar' })).toBeVisible();
         const killed = await app.evaluate(({ app: electronApp }) => {
             const core = electronApp.getAppMetrics().find((metric) => metric.type === 'Utility' && metric.name === 'Finanças — núcleo');
             if (core === undefined) {

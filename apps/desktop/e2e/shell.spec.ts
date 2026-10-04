@@ -11,13 +11,14 @@ import { launchApp, removeUserData } from './launchApp.ts';
  */
 
 /**
- * Cria um perfil pessoal e um empresarial pela ponte, como o primeiro uso e Cadastros vão
- * fazer, deixa o pessoal como o aberto e recarrega para o shell abrir com eles.
+ * Cria um perfil pessoal e um empresarial pela ponte, como o primeiro uso e Cadastros fazem —
+ * o primeiro uso pela tela tem o próprio teste —, deixa o pessoal como o aberto e recarrega
+ * para o shell abrir com eles.
  *
  * @param page Janela do app, ainda sem perfil.
  */
 async function seedProfiles(page: Page): Promise<void> {
-    await expect(page.getByTestId('no-profile')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Vamos começar' })).toBeVisible();
     await page.evaluate(async () => {
         const { core } = window.finance;
         const personal = await core.call('onboarding.start', {

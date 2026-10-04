@@ -7,9 +7,9 @@ import { bridge } from './lib/bridge.ts';
 import { DevicePreferencesProvider, useDevicePreferences } from './lib/devicePreferences.tsx';
 import { FailFastCoreClient, failures } from './lib/failures.ts';
 import { useTheme } from './lib/theme.ts';
+import { FirstUseScreen } from './firstUse/FirstUseScreen.tsx';
 import { createAppRouter } from './router.tsx';
 import { BlockingScreen } from './screens/BlockingScreen.tsx';
-import { NoProfileScreen } from './screens/NoProfileScreen.tsx';
 import { ActiveProfileProvider } from './shell/activeProfile.tsx';
 
 /** O que o app precisa saber antes do primeiro quadro. */
@@ -52,21 +52,32 @@ function ThemedRoot({ children }: { readonly children: ReactNode }): ReactNode {
  * O app com o banco aberto. O `CoreClient` injetado é o do preload, decorado para que um erro
  * `INTERNAL` do núcleo leve à tela de erro: daqui para baixo nenhum componente sabe que existe
  * IPC (desktop-shell-design §5.1). O roteador só monta com um perfil ativo, porque toda tela
- * do shell lê dados de um perfil.
+ * do shell lê dados de um perfil; sem perfil, o primeiro uso ocupa a janela.
  *
  * @return Os provedores de dados, o perfil ativo e o roteador.
  */
 function ReadyApp(): ReactNode {
     const [queryClient] = useState(createQueryClient);
-    const [router] = useState(createAppRouter);
     const [client] = useState(() => new FailFastCoreClient(bridge.core, failures));
     return (
         <QueryClientProvider client={queryClient}>
             <CoreClientProvider client={client}>
-                <ActiveProfileProvider whenEmpty={<NoProfileScreen />}>
-                    <RouterProvider router={router} />
+                <ActiveProfileProvider whenEmpty={<FirstUseScreen />}>
+                    <AppRouter />
                 </ActiveProfileProvider>
             </CoreClientProvider>
         </QueryClientProvider>
     );
+}
+
+/**
+ * Cria o roteador ao montar, e não junto com o `ReadyApp`: o histórico em hash lê a URL quando
+ * o roteador nasce, e o primeiro uso acerta a URL para a Visão geral pouco antes de o shell
+ * montar. Criado antes, o roteador abriria na rota que estava na URL.
+ *
+ * @return O roteador do shell.
+ */
+function AppRouter(): ReactNode {
+    const [router] = useState(createAppRouter);
+    return <RouterProvider router={router} />;
 }
