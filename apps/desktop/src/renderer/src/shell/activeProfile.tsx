@@ -21,11 +21,12 @@ const ActiveProfileContext = createContext<ActiveProfileValue | null>(null);
 /**
  * Carrega os perfis e decide o perfil ativo para tudo o que está abaixo. Sem perfil, o shell
  * não tem o que mostrar — toda rota do núcleo pede um `profileId` —, então a árvore só é
- * montada quando há um; até lá, `whenEmpty` ocupa a janela (o primeiro uso, na Fase 5).
+ * montada quando há um; até lá, `whenEmpty` ocupa a janela (o primeiro uso).
  * A tela de erro só substitui a árvore quando ainda não há perfis carregados: uma falha ao
  * recarregar mantém o shell montado com os perfis em cache.
  *
- * @param props.whenEmpty Tela do banco sem perfil.
+ * @param props.whenEmpty Tela do banco sem perfil; o primeiro uso, que sai daqui sozinho ao
+ * criar o perfil, porque a criação invalida a lista de perfis.
  * @param props.children O app, que só é montado com um perfil ativo.
  * @return O provedor do perfil ativo, ou o estado de carregamento, de erro ou de banco vazio.
  */

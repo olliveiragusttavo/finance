@@ -16,4 +16,4 @@ export { parseUuid, type Uuid } from './domain/shared/ids.ts';
 export { LocalDate } from './domain/shared/LocalDate.ts';
 export { YearMonth } from './domain/shared/YearMonth.ts';
 export { Currency } from './domain/shared/Currency.ts';
-export { Money, roundHalfAwayFromZero } from './domain/shared/Money.ts';
+export { MONEY_MAX_AMOUNT, Money, roundHalfAwayFromZero } from './domain/shared/Money.ts';

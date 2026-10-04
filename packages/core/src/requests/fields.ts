@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { DomainError } from '../domain/shared/errors.ts';
 import { LocalDate } from '../domain/shared/LocalDate.ts';
+import { MONEY_MAX_AMOUNT } from '../domain/shared/Money.ts';
 import { REGISTRY_NAME_MAX_LENGTH } from '../domain/shared/names.ts';
 import { YearMonth } from '../domain/shared/YearMonth.ts';
 
@@ -33,11 +34,13 @@ export const localDateField = parsedText((raw) => LocalDate.parse(raw));
 export const yearMonthField = parsedText((raw) => YearMonth.parse(raw));
 
 /**
- * Valor monetário digitado. Só exige número finito: o sinal é livre porque o negativo é
- * estorno ou devolução (database-design §4.13), e o arredondamento acontece na
- * persistência, na precisão da moeda do perfil, que a Request não conhece.
+ * Valor monetário digitado. Exige número finito dentro do teto do `MONEY_MAX_AMOUNT`, nos dois
+ * sentidos: o sinal é livre porque o negativo é estorno ou devolução (database-design §4.13),
+ * e o arredondamento acontece na persistência, na precisão da moeda do perfil, que a Request
+ * não conhece.
+ * Regra de negócio (Dinheiro): todo valor informado fica entre −1 trilhão e 1 trilhão.
  */
-export const moneyField = z.number();
+export const moneyField = z.number().min(-MONEY_MAX_AMOUNT).max(MONEY_MAX_AMOUNT);
 
 /** Código ISO 4217 de três letras; a caixa é normalizada pelo `Currency`. */
 export const currencyCodeField = z.string().regex(/^[A-Za-z]{3}$/, 'código ISO 4217 de três letras');

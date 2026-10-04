@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+    formatAccountType,
     formatDate,
     formatDayMonth,
     formatMoney,
@@ -140,6 +141,15 @@ describe('parseMoneyInput', () => {
         expect(parseMoneyInput('1.234,5', 'JPY')).toEqual({ ok: true, amount: 1235 });
     });
 
+    it('aceita até 1 trilhão, nos dois sentidos (Regra de negócio: Dinheiro)', () => {
+        expect(parseMoneyInput('1.000.000.000.000,00', 'BRL')).toEqual({ ok: true, amount: 1_000_000_000_000 });
+        expect(parseMoneyInput('-1000000000000', 'BRL')).toEqual({ ok: true, amount: -1_000_000_000_000 });
+    });
+
+    it.each(['1.000.000.000.000,01', '-1000000000000,01', '9'.repeat(400)])('recusa "%s" por passar do teto, sem lançar erro', (text) => {
+        expect(parseMoneyInput(text, 'BRL')).toEqual({ ok: false, reason: 'tooLarge' });
+    });
+
     it('lê de volta o que formatMoneyForInput escreveu', () => {
         for (const amount of [0, 0.01, -23.9, 1234.56, 1000000]) {
             expect(parseMoneyInput(formatMoneyForInput(brl(amount)), 'BRL')).toEqual({ ok: true, amount });
@@ -152,5 +162,12 @@ describe('perfil', () => {
         expect(formatProfileType('personal')).toBe('Pessoal');
         expect(formatProfileType('business')).toBe('Empresarial');
         expect(formatProfileSummary({ type: 'business', currency: 'BRL' })).toBe('Empresarial · BRL');
+    });
+});
+
+describe('conta', () => {
+    it('escreve o tipo como o primeiro uso e Cadastros do mockup', () => {
+        expect(formatAccountType('checking')).toBe('Corrente');
+        expect(formatAccountType('investment')).toBe('Investimentos');
     });
 });

@@ -2,6 +2,21 @@ import type { Currency } from './Currency.ts';
 import { InvalidValueError } from './errors.ts';
 
 /**
+ * Maior valor absoluto que um valor monetário digitado pode ter: 1 trilhão
+ * (`1.000.000.000.000,00`). Nenhuma finança pessoal chega perto disso, e o teto protege a
+ * precisão: com os centavos são 15 dígitos significativos, exatamente o que o
+ * `roundHalfAwayFromZero` lê com `toPrecision(15)`; acima disso o arredondamento passaria a
+ * perder centavos. Também barra o texto com centenas de dígitos que o `Number` vira
+ * `Infinity`.
+ * Regra de negócio (Dinheiro): todo valor informado pelo usuário fica entre −1 trilhão e
+ * 1 trilhão, inclusive.
+ *
+ * Vale nas fronteiras de entrada (`moneyField` e `parseMoneyInput`), não no `Money.of`:
+ * somas e saldos acumulados são derivados e não podem lançar erro por passar do teto.
+ */
+export const MONEY_MAX_AMOUNT = 1_000_000_000_000;
+
+/**
  * Valor monetário imutável na moeda do perfil. Nenhum `number` solto representa dinheiro
  * fora do Repository (backend-design §3.3): é aqui que vivem o arredondamento, a
  * comparação com epsilon e a proibição de somar moedas diferentes, num único lugar.
