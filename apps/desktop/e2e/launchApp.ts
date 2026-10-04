@@ -26,7 +26,7 @@ export function freshUserData(): string {
  * bloqueia. O `sandbox: true` da janela continua valendo.
  *
  * @param userData Pasta de dados; reaproveitada para testar a reabertura.
- * @return O app e a primeira janela.
+ * @return O app e a primeira janela, já com movimento reduzido.
  */
 export async function launchApp(userData: string = freshUserData()): Promise<LaunchedApp> {
     const env: Record<string, string> = {};
@@ -46,7 +46,12 @@ export async function launchApp(userData: string = freshUserData()): Promise<Lau
         }
         throw error;
     }
-    return { app, window: await app.firstWindow(), userData };
+    const window = await app.firstWindow();
+    // Sem quadros desenhados (janela fora da tela no container), uma animação de saída nunca
+    // termina e o menu ou painel do Radix continua montado depois de fechar; com movimento
+    // reduzido o app não anima (styles.css), e eles fecham na hora.
+    await window.emulateMedia({ reducedMotion: 'reduce' });
+    return { app, window, userData };
 }
 
 /**

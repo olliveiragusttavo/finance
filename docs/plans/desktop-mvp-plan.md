@@ -1,6 +1,6 @@
 # Plano do MVP Desktop — CRUD e primeiros relatórios
 
-**Status:** Em andamento — Fases 0, 1, 2 e 3 concluídas. Primeira entrega com tela do projeto: o app desktop
+**Status:** Em andamento — Fases 0, 1, 2, 3 e 4 concluídas (só o `Ctrl K` da Fase 4 ficou pendente). Primeira entrega com tela do projeto: o app desktop
 (Electron) com os cadastros e lançamentos básicos e os dois primeiros relatórios
 personalizados, que são a motivação original do projeto ([README](../../README.md#motivação)).
 O mobile fica inteiro para depois.
@@ -304,15 +304,18 @@ Ordem pensada para que cada fase entregue algo testável. As fases 1–2 (núcle
 
 ### Fase 4 — Shell e navegação
 
-- [ ] Layout: barra lateral (marca, seletor de perfil, menu, rodapé "Dados só neste aparelho"), barra superior fixa
-- [ ] Menu completo do mockup, com subitens de Relatórios (Por categoria, Fluxo por conta, Impacto do cartão, Por sócio só no perfil empresarial, Por tag)
-- [ ] Rotas de Metas, Dispositivos, Fluxo por conta, Por sócio e Por tag levando a uma **tela em branco** dentro do shell ([§5](#5-decisões-de-produto)), para que a navegação já esteja pronta quando as telas chegarem
-- [ ] Mês de referência global (‹ mês ›, "Voltar ao mês atual") como *search param* tipado, preservado ao navegar; escondido nos fluxos de configuração
-- [ ] Tema claro/escuro/seguir o sistema, persistido nas preferências do aparelho
-- [ ] Seletor de perfil (troca o perfil ativo, invalida todas as queries)
-- [ ] "+ Lançamento" global (atalho `N`) abrindo o painel de transação
-- [ ] Atalhos globais: `[` `]` mês anterior/seguinte, `Ctrl K` busca
-- [ ] Estados genéricos: carregando (esqueleto), erro com código, vazio
+- [x] Layout: barra lateral (marca, seletor de perfil, menu, rodapé "Dados só neste aparelho"), barra superior fixa — só a área de conteúdo rola
+- [x] Menu completo do mockup, com subitens de Relatórios (Por categoria, Fluxo por conta, Impacto do cartão, Por sócio só no perfil empresarial, Por tag) — os subitens se abrem com a seção ativa, como nos mockups; o mapa do menu (`shell/navigation.ts`) é o mesmo tipo (`AppPath`) dos caminhos do roteador
+- [x] Rotas de Metas, Dispositivos, Fluxo por conta, Por sócio e Por tag levando a uma **tela em branco** dentro do shell ([§5](#5-decisões-de-produto)), para que a navegação já esteja pronta quando as telas chegarem — as telas do MVP ainda não feitas também têm rota com tela em branco, substituída na fase de cada uma; "Por sócio" aberto num perfil pessoal explica que só existe no empresarial
+- [x] Mês de referência global (‹ mês ›, "Voltar ao mês atual") como *search param* tipado (`period`), preservado ao navegar (`retainSearchParams`); sem ele na URL, abre o último mês do aparelho (`lastPeriod`) ou o corrente. **Decisão:** escondido em Cadastros, Dispositivos e Ajustes — os mockups dessas telas desenham a barra, mas a regra do README dos mockups ("não aparece em fluxos de configuração") prevaleceu; Metas mantém a barra
+- [x] Tema claro/escuro/seguir o sistema, persistido nas preferências do aparelho. **Decisão:** o botão do mockup (que só alterna claro/escuro) virou um menu com as três opções, com o tema escolhido no rótulo
+- [x] Seletor de perfil (troca o perfil ativo, grava `lastProfileId`, invalida todas as queries); sem perfil no banco, o shell não abre e uma tela provisória ocupa a janela até o primeiro uso (Fase 5)
+- [x] "+ Lançamento" global (atalho `N`) abrindo o painel de transação — o painel (`Sheet`) já é do shell; o formulário entra na Fase 9
+- [x] Atalhos globais: `[` `]` mês anterior/seguinte, `N` novo lançamento — não disparam em campo de texto, com modificador, com tecla segurada nem dentro de menu ou diálogo; `[` `]` não valem nas telas sem mês
+- [ ] `Ctrl K` busca — **pendente:** não há mockup do que a busca abre (paleta de navegação, busca de lançamentos ou foco no filtro de Transações); decidir antes de implementar
+- [x] Estados genéricos: carregando (esqueleto), erro com código (mensagem do `describeError` e "Tentar de novo"), vazio — e `QueryState`, que escolhe entre eles para uma consulta
+- [x] O app respeita `prefers-reduced-motion` (sem animações); os testes de ponta a ponta emulam movimento reduzido porque, na janela fora da tela do container, a animação de saída de menus e painéis nunca termina
+- [x] Testes: unitários do menu, do mês de referência, dos atalhos e da escolha do perfil ativo; ponta a ponta (`e2e/shell.spec.ts`) da navegação com o mês preservado, dos atalhos, da troca de perfil, do tema e da reabertura
 
 ### Fase 5 — Primeiro uso
 

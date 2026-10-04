@@ -12,6 +12,7 @@ export * from './hooks/routeHooks.ts';
 export { formatMoney, formatMoneyForInput, MINUS, type MoneySign } from './format/money.ts';
 export { formatDate, formatDayMonth, formatMonthAbbreviation, formatMonthLong, formatMonthShort } from './format/dates.ts';
 export { formatPercent } from './format/percent.ts';
+export { formatProfileSummary, formatProfileType } from './format/profile.ts';
 export { formatVariation, type VariationDirection, type VariationView } from './format/variation.ts';
 export { parseMoneyInput, type MoneyInputResult } from './format/parseMoneyInput.ts';
 export * from './viewModels/transactionTable.ts';

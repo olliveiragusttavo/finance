@@ -25,3 +25,18 @@
         @apply text-accent;
     }
 }
+
+/*
+ * Quem pede menos movimento no sistema não vê animações nem transições. Com `animation: none`,
+ * os menus e painéis do Radix também fecham na hora, sem esperar o fim da animação de saída —
+ * que é o que os testes de ponta a ponta usam, porque a janela fora da tela não desenha
+ * quadros e uma animação ali nunca termina.
+ */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation: none !important;
+        transition: none !important;
+    }
+}
