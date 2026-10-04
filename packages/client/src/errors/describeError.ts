@@ -40,11 +40,15 @@ const ENTITY_NAMES: Readonly<Record<string, string>> = {
     Category: 'A categoria',
     CreditCard: 'O cartão',
     Invoice: 'A fatura',
+    Note: 'A anotação',
     Profile: 'O perfil',
     SubCategory: 'A subcategoria',
+    Tag: 'A tag',
     Transaction: 'O lançamento',
     category: 'uma categoria',
     subCategory: 'uma subcategoria nesta categoria',
+    tag: 'uma tag',
+    tagIds: 'A tag',
 };
 
 /**

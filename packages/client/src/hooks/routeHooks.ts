@@ -64,6 +64,22 @@ export function useCategoryTree(input: CoreInput<'categories.tree'> | null): Que
 }
 
 /**
+ * @param input Perfil; `null` deixa a consulta parada.
+ * @return As tags do perfil, com o uso de cada uma em todo o período.
+ */
+export function useTags(input: CoreInput<'tags.list'> | null): Query<'tags.list'> {
+    return useCoreQuery('tags.list', input);
+}
+
+/**
+ * @param input Perfil; `null` deixa a consulta parada.
+ * @return As anotações do perfil, da editada mais recentemente para a mais antiga.
+ */
+export function useNotes(input: CoreInput<'notes.list'> | null): Query<'notes.list'> {
+    return useCoreQuery('notes.list', input);
+}
+
+/**
  * @param input Transação; `null` enquanto o painel de edição está fechado.
  * @return A transação para o formulário de edição.
  */

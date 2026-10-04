@@ -290,6 +290,7 @@ export class TestWorld {
             conversionRate: 1,
             dueDate: '2026-03-10',
             paymentDate: null,
+            tagIds: [],
             ...overrides,
         });
     }

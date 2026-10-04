@@ -1,4 +1,4 @@
-import type { AccountId, CreditCardId, GoalId, PartnerId, ProfileId, SubCategoryId, TransactionId } from '../../domain/shared/ids.ts';
+import type { AccountId, CreditCardId, GoalId, PartnerId, ProfileId, SubCategoryId, TagId, TransactionId } from '../../domain/shared/ids.ts';
 import type { LocalDate } from '../../domain/shared/LocalDate.ts';
 import type { YearMonth } from '../../domain/shared/YearMonth.ts';
 import type { TransactionType } from '../../domain/transaction/TransactionType.ts';
@@ -33,6 +33,8 @@ export interface TransactionInput {
     readonly conversionRate: number;
     readonly dueDate: LocalDate;
     readonly paymentDate: LocalDate | null;
+    /** Tags do lançamento; a edição substitui o conjunto inteiro. */
+    readonly tagIds: readonly TagId[];
 }
 
 /** Lançamento novo num perfil. */

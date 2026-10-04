@@ -5,8 +5,7 @@ não como código para copiar. O design final será implementado com:
 
 - **Desktop** (Electron + React): Tailwind CSS + shadcn/ui (+ TanStack Table nas tabelas)
 - **Celular** (React Native + Expo): NativeWind
-- Um pacote de **tokens** compartilhado alimenta o `tailwind.config` dos dois apps
-  (raciocínio em [desktop-shell-design.md §4.5](../../plans/desktop-shell-design.md#45-estilo-e-tokens-de-design)).
+- Um pacote de **tokens** compartilhado alimenta o `tailwind.config` dos dois apps.
 
 ## Como ler os arquivos
 
@@ -33,7 +32,8 @@ Cada tela é um arquivo `screens/*.dc.html` (HTML de um editor de design):
 6. **Consolidado e previsto** sempre juntos; previsto com peso menor.
 7. Entrada/saída distinguíveis **sem depender só da cor**: sinal (+/−), ⇄ para transferência, rótulos.
 8. Números com algarismos tabulares e alinhados à direita nas tabelas.
-9. Celular: barra inferior com Início · Transações · Contas · Cartões · Mais; alvos de toque ≥ 44px; escolhas em folhas inferiores.
+9. Anotação é texto livre; a primeira linha é usada como título na lista.
+10. Celular: barra inferior com Início · Transações · Contas · Cartões · Mais; alvos de toque ≥ 44px; escolhas em folhas inferiores.
 
 ## Tokens de cor
 
@@ -59,11 +59,6 @@ Fonte: IBM Plex Sans.
 | ok-bg / ok-ink | #E2F1E8 / #1E5A3F | #16302A / #8FD9B4 |
 | track (barras) | #EEF0EC | #2A302D |
 | danger | #9B2C1F | #F08A7A |
-| dot (indicador de sincronização) | #2E7D5B | #5BC08F |
-| scrim (véu de diálogos, com opacidade) | #1B1F1D | #000000 |
-
-`dot` já estava nas variáveis dos mockups; `scrim` não aparece neles — foi acrescentado no
-`packages/tokens` para o fundo atrás de diálogos e painéis laterais.
 
 ## Telas
 
@@ -85,6 +80,8 @@ Fonte: IBM Plex Sans.
 | DesktopDispositivos | D10 Dispositivos e convite (QR + código) |
 | DesktopAjustes | Ajustes |
 | DesktopPrimeiroUso | Primeiro uso |
+| DesktopTags | Cadastros › Tags (lista + painel de edição) |
+| DesktopAnotacoes | Cadastros › Anotações (lista + editor) |
 
 **Celular** (`page: mobile`, 390×844)
 
@@ -109,5 +106,8 @@ Fonte: IBM Plex Sans.
 | MobileRecebendo | Recebendo dados (pareamento) |
 | MobileAjustes | M13 Ajustes |
 | MobilePrimeiroUso | Primeiro uso |
+| MobileTags | Tags (lista + folha de edição) |
+| MobileAnotacoes | Anotações (lista) |
+| MobileAnotacaoEditar | Editar anotação |
 
-As regras de negócio completas estão no brief do projeto ([claude-design-brief.md](../claude-design-brief.md)).
+As regras de negócio completas estão no brief do projeto (`claude-design-brief.md`).

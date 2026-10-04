@@ -9,7 +9,7 @@
         "build": "electron-vite build",
         "preview": "node scripts/electron-vite.mjs preview",
         "typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.web.json && tsc -p tsconfig.json",
-        "test": "vitest run && electron-vite build && playwright test e2e/smoke.spec.ts e2e/shell.spec.ts e2e/firstUse.spec.ts",
+        "test": "vitest run && electron-vite build && playwright test e2e/smoke.spec.ts e2e/shell.spec.ts e2e/firstUse.spec.ts e2e/registry.spec.ts",
         "measure": "electron-vite build && playwright test e2e/measure.spec.ts"
     },
     "dependencies": {

@@ -14,6 +14,7 @@ import type { CategoryRepository } from '../../repositories/CategoryRepository.t
 import type { CreditCardRepository } from '../../repositories/CreditCardRepository.ts';
 import type { ProfileRepository } from '../../repositories/ProfileRepository.ts';
 import type { ReferenceRepository } from '../../repositories/ReferenceRepository.ts';
+import type { TagRepository } from '../../repositories/TagRepository.ts';
 import type { TransactionRepository } from '../../repositories/TransactionRepository.ts';
 import { BalanceImpact } from '../balance/BalanceImpact.ts';
 import type { BalanceRecalculationService } from '../balance/BalanceRecalculationService.ts';
@@ -49,6 +50,7 @@ export class TransactionService {
      * @param transactions Transações.
      * @param references Posse de sócio e meta.
      * @param categories Posse da subcategoria.
+     * @param tags Posse das tags.
      * @param consolidation Garante extrato e fatura em que a transação cai.
      * @param invoiceService Reabre a fatura paga escolhida para um lançamento.
      * @param impacts Traduz o estado da transação nos saldos afetados.
@@ -64,6 +66,7 @@ export class TransactionService {
         private readonly transactions: TransactionRepository,
         private readonly references: ReferenceRepository,
         private readonly categories: CategoryRepository,
+        private readonly tags: TagRepository,
         private readonly consolidation: StatementConsolidationService,
         private readonly invoiceService: InvoiceService,
         private readonly impacts: ImpactCalculator,
@@ -244,6 +247,9 @@ export class TransactionService {
         if (input.goalId !== null) {
             this.assertOwnedBy(profile, 'goalId', input.goalId, this.references.goalOwner(input.goalId));
         }
+        for (const tagId of input.tagIds) {
+            this.assertOwnedBy(profile, 'tagIds', tagId, this.tags.findById(tagId)?.profileId ?? null);
+        }
         if (input.destinationAccountId !== null) {
             const destination = this.requireOwned(profile, 'destinationAccountId', input.destinationAccountId, this.accounts.findById(input.destinationAccountId));
             this.assertSelectable(destination, 'destinationAccountId', current?.destinationAccountId === destination.id);
@@ -345,6 +351,7 @@ export class TransactionService {
             },
             dueDate: input.dueDate,
             paymentDate: input.paymentDate,
+            tagIds: input.tagIds,
         };
     }
 

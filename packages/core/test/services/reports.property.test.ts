@@ -129,6 +129,7 @@ async function apply(s: Scenario, operation: Operation): Promise<void> {
                 charges: t.charges.amount,
                 dueDate: operation.date,
                 paymentDate: operation.paidOn,
+                tagIds: [...t.tagIds],
             });
             return;
         }

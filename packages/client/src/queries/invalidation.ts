@@ -6,8 +6,9 @@ import type { ReadRoute, WriteRoute } from './routes.ts';
 const CATEGORY_NAMES: readonly ReadRoute[] = ['categories.tree', 'reports.byCategory', 'reports.categoryTransactions'];
 
 /**
- * Leituras que carregam transações inteiras (com a subcategoria de cada uma); mudam quando
- * a exclusão de uma subcategoria move os lançamentos para outra.
+ * Leituras que carregam transações inteiras (com a subcategoria e as tags de cada uma);
+ * mudam quando a exclusão de uma subcategoria move os lançamentos para outra ou quando a
+ * exclusão de uma tag a tira dos lançamentos.
  */
 const TRANSACTION_CONTENT: readonly ReadRoute[] = [
     'transactions.get',
@@ -47,10 +48,12 @@ const MONEY: readonly ReadRoute[] = [
     'reports.byCategory',
     'reports.categoryTransactions',
     'reports.cardImpact',
+    // O uso de cada tag (contagem, total, último uso) sai dos lançamentos.
+    'tags.list',
 ];
 
 /** Toda leitura do núcleo; para escritas que mudam o perfil (moeda) ou criam um perfil novo. */
-const EVERYTHING: readonly ReadRoute[] = ['profiles.list', ...MONEY];
+const EVERYTHING: readonly ReadRoute[] = ['profiles.list', 'notes.list', ...MONEY];
 
 /**
  * Mapa de invalidação: para cada escrita, as leituras que ela pode tornar velhas
@@ -81,6 +84,14 @@ const INVALIDATIONS: Readonly<Record<WriteRoute, readonly ReadRoute[]>> = {
     'subCategories.create': CATEGORY_NAMES,
     'subCategories.update': CATEGORY_NAMES,
     'subCategories.delete': [...CATEGORY_NAMES, ...TRANSACTION_CONTENT],
+    'tags.create': ['tags.list'],
+    'tags.update': ['tags.list'],
+    // Excluir a tag a tira dos lançamentos, que continuam existindo.
+    'tags.delete': ['tags.list', ...TRANSACTION_CONTENT],
+    // Anotação é uma lista à parte: não toca em dinheiro nem em cadastro.
+    'notes.create': ['notes.list'],
+    'notes.update': ['notes.list'],
+    'notes.delete': ['notes.list'],
     'transactions.create': MONEY,
     'transactions.update': MONEY,
     'transactions.delete': MONEY,
