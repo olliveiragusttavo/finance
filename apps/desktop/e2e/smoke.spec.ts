@@ -8,15 +8,15 @@ import { freshUserData, launchApp, removeUserData } from './launchApp.ts';
  * Teste de fumaça do esqueleto (desktop-mvp-plan Fase 3.3): o caminho inteiro — janela,
  * preload, `MessagePort`, `utilityProcess`, `better-sqlite3` no ABI do Electron e o arquivo
  * em disco — funcionando no binário real. As telas de perfil, lançamento e extrato ainda não
- * existem (Fases 5, 7 e 9); até lá, o teste lança pela mesma ponte que elas vão usar, e a
- * tela inicial provisória mostra o resultado.
+ * existem (Fases 5, 7 e 9); até lá, o teste lança pela mesma ponte que elas vão usar, e o
+ * seletor de perfil do shell mostra o resultado.
  */
 
 test('abre, cria perfil, lança uma despesa e vê no extrato; os dados sobrevivem a reabrir o app', async () => {
     const userData = freshUserData();
     try {
         const first = await launchApp(userData);
-        await expect(first.window.getByTestId('profiles')).toHaveText('Nenhum perfil cadastrado.');
+        await expect(first.window.getByTestId('no-profile')).toHaveText('Nenhum perfil cadastrado.');
 
         const statement = await first.window.evaluate(async () => {
             const { core } = window.finance;
@@ -54,11 +54,11 @@ test('abre, cria perfil, lança uma despesa e vê no extrato; os dados sobrevive
             expect(statement.data.closing.consolidated.amount).toBeCloseTo(1000 - 123.45);
         }
         await first.window.reload();
-        await expect(first.window.getByTestId('profiles')).toHaveText('Pessoal · BRL');
+        await expect(first.window.getByTestId('profile-switcher')).toContainText('Pessoal · BRL');
         await first.app.close();
 
         const second = await launchApp(userData);
-        await expect(second.window.getByTestId('profiles')).toHaveText('Pessoal · BRL');
+        await expect(second.window.getByTestId('profile-switcher')).toContainText('Pessoal · BRL');
         await second.app.close();
     } finally {
         removeUserData(userData);
@@ -68,7 +68,7 @@ test('abre, cria perfil, lança uma despesa e vê no extrato; os dados sobrevive
 test('o renderer não tem Node e enxerga só a ponte, sob CSP restrita (desktop-shell-design §3.6)', async () => {
     const { app, window: page, userData } = await launchApp();
     try {
-        await expect(page.getByTestId('profiles')).toBeVisible();
+        await expect(page.getByTestId('no-profile')).toBeVisible();
         const surface = await page.evaluate(() => ({
             require: 'require' in window,
             process: 'process' in globalThis,
@@ -130,7 +130,7 @@ test('restauração interrompida bloqueia sem criar banco vazio, e o bloqueio po
 test('núcleo que cai com o app aberto troca o app pela tela de erro', async () => {
     const { app, window: page, userData } = await launchApp();
     try {
-        await expect(page.getByTestId('profiles')).toBeVisible();
+        await expect(page.getByTestId('no-profile')).toBeVisible();
         const killed = await app.evaluate(({ app: electronApp }) => {
             const core = electronApp.getAppMetrics().find((metric) => metric.type === 'Utility' && metric.name === 'Finanças — núcleo');
             if (core === undefined) {

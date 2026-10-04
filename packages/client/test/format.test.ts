@@ -8,6 +8,8 @@ import {
     formatMonthLong,
     formatMonthShort,
     formatPercent,
+    formatProfileSummary,
+    formatProfileType,
     formatVariation,
     parseMoneyInput,
 } from '../src/index.ts';
@@ -142,5 +144,13 @@ describe('parseMoneyInput', () => {
         for (const amount of [0, 0.01, -23.9, 1234.56, 1000000]) {
             expect(parseMoneyInput(formatMoneyForInput(brl(amount)), 'BRL')).toEqual({ ok: true, amount });
         }
+    });
+});
+
+describe('perfil', () => {
+    it('escreve o tipo como o seletor de perfil do mockup', () => {
+        expect(formatProfileType('personal')).toBe('Pessoal');
+        expect(formatProfileType('business')).toBe('Empresarial');
+        expect(formatProfileSummary({ type: 'business', currency: 'BRL' })).toBe('Empresarial · BRL');
     });
 });
