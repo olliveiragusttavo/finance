@@ -6,11 +6,11 @@
  * duplicaria o mapa. `integrity.verifyBalances` também não tem: quem a chama é o shell na
  * abertura, não uma tela.
  */
-import type { CoreInput, CoreOutput } from '@finance/core';
+import type { CoreInput, CoreOutput, InvoiceResponse } from '@finance/core';
 import type { UseQueryResult } from '@tanstack/react-query';
 import type { CoreCallError } from '../errors/CoreCallError.ts';
 import type { ReadRoute } from '../queries/routes.ts';
-import { useCoreQuery } from './coreHooks.ts';
+import { useCoreQueries, useCoreQuery } from './coreHooks.ts';
 
 /** Estado de uma consulta de rota, com o erro tipado. */
 type Query<R extends ReadRoute> = UseQueryResult<CoreOutput<R>, CoreCallError>;
@@ -133,6 +133,35 @@ export function useInvoice(input: CoreInput<'invoices.get'> | null): Query<'invo
  */
 export function useInvoicesByCard(input: CoreInput<'invoices.listByCard'> | null): Query<'invoices.listByCard'> {
     return useCoreQuery('invoices.listByCard', input);
+}
+
+/** Faturas de vários cartões juntas, e se alguma consulta ainda carrega. */
+export interface CardsInvoices {
+    readonly invoices: readonly InvoiceResponse[];
+    readonly pending: boolean;
+}
+
+/**
+ * Junta as competências de cada cartão nas faturas que existem. Fica fora do hook para ser
+ * estável, o que mantém a identidade do resultado entre renders (`useCoreQueries`).
+ *
+ * @param results Uma consulta de `invoices.listByCard` por cartão.
+ * @return As faturas existentes de todos os cartões e se alguma consulta ainda carrega.
+ */
+function joinInvoices(results: readonly Query<'invoices.listByCard'>[]): CardsInvoices {
+    return {
+        invoices: results.flatMap((result) => (result.data ?? []).flatMap((cycle) => (cycle.invoice === null ? [] : [cycle.invoice]))),
+        pending: results.some((result) => result.isPending),
+    };
+}
+
+/**
+ * @param inputs Um cartão e a competência inicial por consulta.
+ * @return As faturas de todos os cartões a partir da competência pedida de cada um — a tela de
+ * Transações lê a situação das faturas em que caíram as compras do mês.
+ */
+export function useInvoicesByCards(inputs: readonly CoreInput<'invoices.listByCard'>[]): CardsInvoices {
+    return useCoreQueries('invoices.listByCard', inputs, joinInvoices);
 }
 
 /**

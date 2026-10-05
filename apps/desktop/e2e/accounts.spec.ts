@@ -18,8 +18,8 @@ interface Seeded {
 /**
  * Semeia pela ponte o mês de referência da Nubank: salário pago, aluguel pendente, aporte
  * pago para o Tesouro (fora do total), a fatura do mês anterior paga no dia 2 e a do mês em
- * aberto, vencendo no dia 10. Pela ponte, e não pela tela, porque o formulário de lançamento
- * é da Fase 9.
+ * aberto, vencendo no dia 10. Pela ponte, e não pela tela: o teste é do extrato, e lançar pela
+ * tela é coberto em `transactions.spec.ts`.
  *
  * @param page Janela do app, com o shell aberto.
  * @param period Mês de referência `YYYY-MM`.

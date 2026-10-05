@@ -9,9 +9,9 @@ import { freshUserData, launchApp, removeUserData } from './launchApp.ts';
 /*
  * Teste de fumaça do esqueleto (desktop-mvp-plan Fase 3.3): o caminho inteiro — janela,
  * preload, `MessagePort`, `utilityProcess`, `better-sqlite3` no ABI do Electron e o arquivo
- * em disco — funcionando no binário real. O perfil nasce pela tela de primeiro uso (Fase 5) e
- * o extrato é conferido na tela de Contas (Fase 7); a tela de lançamento ainda não existe
- * (Fase 9), e até lá o teste lança pela mesma ponte que ela vai usar.
+ * em disco — funcionando no binário real. Tudo pela tela, como o usuário: o perfil nasce no
+ * primeiro uso (Fase 5), a despesa é lançada em Transações (Fase 9) e o extrato é conferido em
+ * Contas (Fase 7).
  */
 
 test('abre, cria perfil, lança uma despesa e vê no extrato; os dados sobrevivem a reabrir o app', async () => {
@@ -21,34 +21,22 @@ test('abre, cria perfil, lança uma despesa e vê no extrato; os dados sobrevive
         await completeFirstUse(first.window, { profileName: 'Pessoal', accountName: 'Nubank', openingBalance: '1.000,00' });
 
         const period = currentPeriod(new Date());
-        await first.window.evaluate(async (period) => {
-            const { core } = window.finance;
-            const profiles = await core.call('profiles.list', {});
-            const profileId = profiles.ok ? profiles.data[0]?.id : undefined;
-            if (profileId === undefined) {
-                throw new Error('o primeiro uso não criou o perfil');
-            }
-            const accounts = await core.call('accounts.list', { profileId, period });
-            const accountId = accounts.ok ? accounts.data.accounts[0]?.id : undefined;
-            const tree = await core.call('categories.tree', { profileId });
-            const subCategoryId = tree.ok ? tree.data[0]?.subCategories[0]?.id : undefined;
-            if (accountId === undefined || subCategoryId === undefined) {
-                throw new Error('o primeiro uso não criou a conta e as categorias sugeridas');
-            }
-            const expense = await core.call('transactions.create', {
-                profileId,
-                subCategoryId,
-                type: 'expense',
-                source: { kind: 'account', accountId },
-                name: 'Mercado',
-                value: 123.45,
-                dueDate: `${period}-05`,
-                paymentDate: `${period}-05`,
-            });
-            if (!expense.ok) {
-                throw new Error(JSON.stringify(expense.error));
-            }
-        }, period);
+        const page = first.window;
+        await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('link', { name: 'Transações', exact: true }).dispatchEvent('click');
+        await page.getByRole('button', { name: '+ Lançamento' }).dispatchEvent('click');
+        const column = page.getByRole('complementary', { name: 'Novo lançamento' });
+        await column.getByLabel('Valor (BRL)').fill('123,45');
+        await column.getByLabel('Nome').fill('Mercado');
+        await column.getByLabel('Categoria', { exact: true }).dispatchEvent('click');
+        await page.getByRole('combobox', { name: 'Buscar categoria' }).fill('mercado');
+        await page.getByRole('combobox', { name: 'Buscar categoria' }).press('Enter');
+        await column.getByLabel('Conta ou cartão').press('Enter');
+        await page.getByRole('option', { name: 'Nubank', exact: true }).press('Enter');
+        await column.getByLabel('Data', { exact: true }).fill(`${period}-05`);
+        await column.getByLabel('Pago').dispatchEvent('click');
+        await column.getByLabel('Data do pagamento').fill(`${period}-05`);
+        await column.getByRole('button', { name: 'Salvar' }).dispatchEvent('click');
+        await expect(page.getByRole('region', { name: 'Lançamentos do mês' })).toContainText('Mercado');
 
         await first.window.getByRole('navigation', { name: 'Navegação principal' }).getByRole('link', { name: 'Contas', exact: true }).dispatchEvent('click');
         await expect(first.window.getByRole('region', { name: 'Movimentos' }).getByRole('row').nth(1)).toContainText('Mercado');

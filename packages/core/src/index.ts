@@ -17,3 +17,6 @@ export { LocalDate } from './domain/shared/LocalDate.ts';
 export { YearMonth } from './domain/shared/YearMonth.ts';
 export { Currency } from './domain/shared/Currency.ts';
 export { MONEY_MAX_AMOUNT, Money, roundHalfAwayFromZero } from './domain/shared/Money.ts';
+// Regras puras do tipo da transação: o formulário de lançamento mostra o sinal do efeito e pede
+// a conta de destino pela mesma regra que o núcleo aplica, sem reimplementá-la na UI.
+export { movesToDestination, originEffect, TRANSACTION_TYPES, type TransactionType } from './domain/transaction/TransactionType.ts';

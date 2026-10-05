@@ -275,7 +275,8 @@ test('tags: criar com nome repetido apontado no campo, uso do lançamento na lis
         await page.getByRole('button', { name: 'Adicionar' }).dispatchEvent('click');
         await expect(page.getByLabel('Nova tag')).toHaveAccessibleDescription('Já existe uma tag com o nome "VIAGEM". Escolha outro nome.');
 
-        // O formulário de lançamento é da Fase 9; a tag entra pela ponte, como ele vai fazer.
+        // A tag entra no lançamento pela ponte: o teste é do cadastro de tags, e marcar pela
+        // tela é coberto em `transactions.spec.ts`.
         const transactionId = await page.evaluate(
             async ({ profileId, period }) => {
                 const { core } = window.finance;

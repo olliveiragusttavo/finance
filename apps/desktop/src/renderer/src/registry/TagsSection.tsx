@@ -276,7 +276,7 @@ function TagPanel({ tag, onClose }: { readonly tag: TagUsageResponse; readonly o
                     <Kpi label="Total" value={formatMoney(tag.total)} />
                 </div>
                 <div className="flex flex-col gap-1.5 text-13">
-                    <Link to="/transactions" className="text-accent hover:text-soft-ink">
+                    <Link to="/transactions" search={{ tag: tag.id }} className="text-accent hover:text-soft-ink">
                         Ver lançamentos em Transações →
                     </Link>
                     <Link to="/reports/tag" className="text-accent hover:text-soft-ink">

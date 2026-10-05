@@ -55,6 +55,19 @@ describe('cadastro de cartões (desktop-mvp-plan Fase 1.3)', () => {
         expect((await world.ok('invoices.suggest', { creditCardId, purchaseDate: '2026-03-05' })).period).toBe('2026-04');
     });
 
+    it('a sugestão traz o fechamento e o vencimento da fatura, mesmo antes de ela existir', async () => {
+        const { world, profileId, accountId } = setup();
+        const creditCardId = world.creditCard(profileId, accountId, 3, 10);
+        // Compra no dia do fechamento cai na fatura seguinte (database-design §4.5).
+        expect(await world.ok('invoices.suggest', { creditCardId, purchaseDate: '2026-10-03' })).toEqual({
+            creditCardId,
+            period: '2026-11',
+            closingDate: '2026-11-03',
+            dueDate: '2026-11-10',
+            invoice: null,
+        });
+    });
+
     it('mudar o vencimento move a fatura em aberto para o previsto do novo mês', async () => {
         const { world, profileId, accountId, base } = setup();
         const creditCardId = world.creditCard(profileId, accountId, 10, 17);
