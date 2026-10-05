@@ -2,15 +2,16 @@ import { BetterSqliteDatabase } from '@finance/sqlite-better';
 import { expect, test } from '@playwright/test';
 import { existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { currentPeriod } from '../src/renderer/src/shell/referenceMonth.ts';
 import { completeFirstUse } from './firstUse.ts';
 import { freshUserData, launchApp, removeUserData } from './launchApp.ts';
 
 /*
  * Teste de fumaça do esqueleto (desktop-mvp-plan Fase 3.3): o caminho inteiro — janela,
  * preload, `MessagePort`, `utilityProcess`, `better-sqlite3` no ABI do Electron e o arquivo
- * em disco — funcionando no binário real. O perfil nasce pela tela de primeiro uso (Fase 5);
- * as telas de lançamento e extrato ainda não existem (Fases 7 e 9), e até lá o teste lança
- * pela mesma ponte que elas vão usar.
+ * em disco — funcionando no binário real. O perfil nasce pela tela de primeiro uso (Fase 5) e
+ * o extrato é conferido na tela de Contas (Fase 7); a tela de lançamento ainda não existe
+ * (Fase 9), e até lá o teste lança pela mesma ponte que ela vai usar.
  */
 
 test('abre, cria perfil, lança uma despesa e vê no extrato; os dados sobrevivem a reabrir o app', async () => {
@@ -19,14 +20,15 @@ test('abre, cria perfil, lança uma despesa e vê no extrato; os dados sobrevive
         const first = await launchApp(userData);
         await completeFirstUse(first.window, { profileName: 'Pessoal', accountName: 'Nubank', openingBalance: '1.000,00' });
 
-        const statement = await first.window.evaluate(async () => {
+        const period = currentPeriod(new Date());
+        await first.window.evaluate(async (period) => {
             const { core } = window.finance;
             const profiles = await core.call('profiles.list', {});
             const profileId = profiles.ok ? profiles.data[0]?.id : undefined;
             if (profileId === undefined) {
                 throw new Error('o primeiro uso não criou o perfil');
             }
-            const accounts = await core.call('accounts.list', { profileId, period: '2026-10' });
+            const accounts = await core.call('accounts.list', { profileId, period });
             const accountId = accounts.ok ? accounts.data.accounts[0]?.id : undefined;
             const tree = await core.call('categories.tree', { profileId });
             const subCategoryId = tree.ok ? tree.data[0]?.subCategories[0]?.id : undefined;
@@ -40,20 +42,17 @@ test('abre, cria perfil, lança uma despesa e vê no extrato; os dados sobrevive
                 source: { kind: 'account', accountId },
                 name: 'Mercado',
                 value: 123.45,
-                dueDate: '2026-10-05',
-                paymentDate: '2026-10-05',
+                dueDate: `${period}-05`,
+                paymentDate: `${period}-05`,
             });
             if (!expense.ok) {
                 throw new Error(JSON.stringify(expense.error));
             }
-            return core.call('statements.get', { accountId, period: '2026-10' });
-        });
+        }, period);
 
-        expect(statement.ok).toBe(true);
-        if (statement.ok) {
-            expect(statement.data.transactions.map((transaction) => transaction.name)).toEqual(['Mercado']);
-            expect(statement.data.closing.consolidated.amount).toBeCloseTo(1000 - 123.45);
-        }
+        await first.window.getByRole('navigation', { name: 'Navegação principal' }).getByRole('link', { name: 'Contas', exact: true }).dispatchEvent('click');
+        await expect(first.window.getByRole('region', { name: 'Movimentos' }).getByRole('row').nth(1)).toContainText('Mercado');
+        await expect(first.window.getByRole('region', { name: 'Resumo do extrato' })).toContainText('Saldo finalR$ 876,55');
         await first.window.reload();
         await expect(first.window.getByTestId('profile-switcher')).toContainText('Pessoal · BRL');
         await first.app.close();

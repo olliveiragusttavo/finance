@@ -13,7 +13,7 @@ export { formatMoney, formatMoneyForInput, MINUS, type MoneySign } from './forma
 export { formatDate, formatDayMonth, formatMonthAbbreviation, formatMonthLong, formatMonthShort } from './format/dates.ts';
 export { formatPercent } from './format/percent.ts';
 export { formatProfileSummary, formatProfileType } from './format/profile.ts';
-export { formatAccountType } from './format/account.ts';
+export { formatAccountHeading, formatAccountType } from './format/account.ts';
 export { summarizeNote, type NoteSummary } from './format/note.ts';
 export { formatVariation, type VariationDirection, type VariationView } from './format/variation.ts';
 export { parseMoneyInput, type MoneyInputRejection, type MoneyInputResult } from './format/parseMoneyInput.ts';
@@ -21,3 +21,4 @@ export * from './viewModels/transactionTable.ts';
 export * from './viewModels/categoryReport.ts';
 export * from './viewModels/cardImpactGrid.ts';
 export * from './viewModels/deletionImpact.ts';
+export * from './viewModels/statementTable.ts';

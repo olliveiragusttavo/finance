@@ -2,6 +2,9 @@ import { createHashHistory, createRootRoute, createRoute, createRouter, Outlet, 
 import type { ReactNode } from 'react';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { AccountsScreen } from './accounts/AccountsScreen.tsx';
+import { parseAccountsSearch, type AccountsSearch } from './accounts/accountsSearch.ts';
+import { parseCardsSearch, type CardsSearch } from './cards/cardsSearch.ts';
 import { RegistryScreen } from './registry/RegistryScreen.tsx';
 import { parseRegistrySearch, type RegistrySearch } from './registry/registryKinds.ts';
 import { blankScreen, PartnerReportScreen } from './screens/BlankScreen.tsx';
@@ -49,8 +52,19 @@ const routeTree = rootRoute.addChildren([
         // Telas do MVP, cada uma substituída na sua fase (desktop-mvp-plan §6).
         createRoute({ getParentRoute: () => shellRoute, path: '/' satisfies AppPath, component: blankScreen('Visão geral', false) }),
         createRoute({ getParentRoute: () => shellRoute, path: '/transactions' satisfies AppPath, component: blankScreen('Transações', false) }),
-        createRoute({ getParentRoute: () => shellRoute, path: '/accounts' satisfies AppPath, component: blankScreen('Contas', false) }),
-        createRoute({ getParentRoute: () => shellRoute, path: '/cards' satisfies AppPath, component: blankScreen('Cartões', false) }),
+        createRoute({
+            getParentRoute: () => shellRoute,
+            path: '/accounts' satisfies AppPath,
+            component: AccountsScreen,
+            validateSearch: (search: Record<string, unknown>): AccountsSearch => parseAccountsSearch(search),
+        }),
+        // A busca já existe porque o extrato leva à fatura ("ver fatura"); a tela chega na Fase 8.
+        createRoute({
+            getParentRoute: () => shellRoute,
+            path: '/cards' satisfies AppPath,
+            component: blankScreen('Cartões', false),
+            validateSearch: (search: Record<string, unknown>): CardsSearch => parseCardsSearch(search),
+        }),
         createRoute({ getParentRoute: () => shellRoute, path: '/reports/category' satisfies AppPath, component: blankScreen('Relatório por categoria', false) }),
         createRoute({ getParentRoute: () => shellRoute, path: '/reports/card-impact' satisfies AppPath, component: blankScreen('Impacto do cartão', false) }),
         createRoute({

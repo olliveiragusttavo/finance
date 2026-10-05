@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+    formatAccountHeading,
     formatAccountType,
     formatDate,
     formatDayMonth,
@@ -170,6 +171,11 @@ describe('conta', () => {
     it('escreve o tipo como o primeiro uso e Cadastros do mockup', () => {
         expect(formatAccountType('checking')).toBe('Corrente');
         expect(formatAccountType('investment')).toBe('Investimentos');
+    });
+
+    it('cabeçalho do extrato diz se a conta entra no total e se está desativada', () => {
+        expect(formatAccountHeading({ type: 'checking', considerBalance: true, disabled: false })).toBe('Conta corrente · entra no saldo total');
+        expect(formatAccountHeading({ type: 'investment', considerBalance: false, disabled: true })).toBe('Conta de investimentos · fora do saldo total · desativada');
     });
 });
 

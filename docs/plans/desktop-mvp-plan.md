@@ -1,6 +1,6 @@
 # Plano do MVP Desktop — CRUD e primeiros relatórios
 
-**Status:** Em andamento — Fases 0 a 6 concluídas (só o `Ctrl K` da Fase 4 ficou pendente). Primeira entrega com tela do projeto: o app desktop
+**Status:** Em andamento — Fases 0 a 7 concluídas (só o `Ctrl K` da Fase 4 ficou pendente). Primeira entrega com tela do projeto: o app desktop
 (Electron) com os cadastros e lançamentos básicos e os dois primeiros relatórios
 personalizados, que são a motivação original do projeto ([README](../../README.md#motivação)).
 O mobile fica inteiro para depois.
@@ -299,7 +299,7 @@ Ordem pensada para que cada fase entregue algo testável. As fases 1–2 (núcle
 - [x] ~~Recompilação do `better-sqlite3` para o Electron em `postinstall`~~ — desnecessária: o `better-sqlite3` 13 é N-API 10 e traz os binários no pacote; o teste de fumaça prova que o mesmo `.node` abre o banco no `utilityProcess`. Recompilar no lugar ainda quebraria os testes do núcleo, que usam a mesma cópia no Node
 - [x] Renderer: React 19, TanStack Router (hash), TanStack Query, Tailwind com o preset de `tokens`, shadcn/ui inicializado (Button, Input, Select, Dialog, Sheet, Popover, DropdownMenu, ContextMenu, Table, Tabs, Tooltip, Sonner, Chart) — classes traduzidas para os tokens, `Chart` reescrito com cor de série restrita a token e sem `Intl`
 - [x] Scripts `pnpm dev:desktop`, `pnpm build:desktop`; `pnpm check` cobrindo lint e tipos do app
-- [x] Teste de fumaça com Playwright (`_electron`): abre, cria perfil, lança uma despesa, vê no extrato — enquanto as telas das Fases 7 e 9 não existem, pela mesma ponte que elas vão usar (o perfil, desde a Fase 5, pela tela de primeiro uso); também confere o isolamento do renderer, a CSP e a tela de bloqueio. No devcontainer e no CI roda com `FINANCE_ELECTRON_NO_SANDBOX=1`, porque o container bloqueia os namespaces de usuário do sandbox de processo do Chromium
+- [x] Teste de fumaça com Playwright (`_electron`): abre, cria perfil, lança uma despesa, vê no extrato — enquanto a tela da Fase 9 não existe, lança pela mesma ponte que ela vai usar (o perfil, desde a Fase 5, pela tela de primeiro uso; o extrato, desde a Fase 7, pela tela de Contas); também confere o isolamento do renderer, a CSP e a tela de bloqueio. No devcontainer e no CI roda com `FINANCE_ELECTRON_NO_SANDBOX=1`, porque o container bloqueia os namespaces de usuário do sandbox de processo do Chromium
 - [x] Medir memória e tempo de abertura ([desktop-shell §6.4](desktop-shell-design.md#6-próximos-passos)) e registrar o número — `pnpm --filter @finance/desktop measure`; resultado em [desktop-shell §6](desktop-shell-design.md#6-próximos-passos)
 
 ### Fase 4 — Shell e navegação
@@ -341,17 +341,19 @@ Ordem pensada para que cada fase entregue algo testável. As fases 1–2 (núcle
 
 ### Fase 7 — Contas (extrato)
 
-- [ ] Lista de contas com consolidado e previsto do mês; conta fora do total marcada e fora da soma; conta desativada marcada; totais consolidado e previsto
-- [ ] Detalhe: cabeçalho (tipo, se entra no total), "Editar conta"
-- [ ] Quatro números do extrato: saldo inicial e final, consolidado e previsto; entradas e saídas
-- [ ] Tabela de movimentos: transações, transferências recebidas, faturas pagas/em aberto ("ver fatura" navega para o cartão)
-- [ ] Nota da fatura em aberto no previsto; mês sem movimento (inicial = final)
+- [x] Lista de contas com consolidado e previsto do mês; conta fora do total marcada e fora da soma; conta desativada marcada; totais consolidado e previsto — como no mockup, a conta fora do total aparece apagada e só com o consolidado. A conta aberta é o *search param* `account` de `/accounts` (`accounts/accountsSearch.ts`); sem ele, ou com uma conta que não existe mais, abre a primeira da lista. "+ Nova conta" usa o diálogo de Cadastros e abre o extrato da conta criada
+- [x] Detalhe: cabeçalho (tipo, se entra no total), "Editar conta" — o diálogo de Cadastros; o "⋯" do mockup leva desativar/reativar e excluir (com o mesmo alerta da exclusão em cadeia). O cabeçalho é o `formatAccountHeading` do `client`
+- [x] Quatro números do extrato: saldo inicial e final, consolidado e previsto; entradas e saídas. **Decisão:** entradas e saídas também mostram consolidado e previsto (decisão de interface 6), e cada movimento conta pelo **sinal do efeito** na conta, não pelo tipo — estorno é entrada, pagamento parcial de fatura é saída. Elas vêm do núcleo (`inflows`/`outflows` no `statements.get`, regra `statementFlows`), somadas sem arredondar, com a propriedade inicial + entradas + saídas = final testada nos dois saldos
+- [x] Tabela de movimentos: transações, transferências recebidas, faturas pagas/em aberto ("ver fatura" navega para o cartão) — view-model `buildStatementTable` do `client`, por data de caixa; o valor é o efeito nesta conta (o `TransactionResponse` passou a trazer o `destinationEffect`). "ver fatura" leva a `/cards` com `card` e `invoice` (`cards/cardsSearch.ts`), que a Fase 8 lê. **Decisão:** a fatura paga mostra o dia do pagamento, que passou a ser gravado — migration `0003` (`invoices.payment_date`, database-design §4.7), exposto como `paymentDate` no `InvoiceResponse`; nas faturas pagas antes dela o dia é `—` e a linha vai para o fim do mês
+- [x] Nota da fatura em aberto no previsto; mês sem movimento (inicial = final)
+- [x] Testes: núcleo (`balances.table.test.ts`: entradas e saídas, pagamento parcial, dia do pagamento gravado e apagado ao reabrir, fatura sem dia; `balances.property.test.ts`: dia coerente com o vínculo e inicial + entradas + saídas = final), `client` (tabela do extrato e cabeçalho) e ponta a ponta (`e2e/accounts.spec.ts`); o teste de fumaça passou a conferir o extrato na tela
 
 ### Fase 8 — Cartões (fatura)
 
 - [ ] Lista de cartões com fatura do mês, situação e totais
 - [ ] Detalhe da fatura: total a pagar (em módulo), situação, fechamento, vencimento, limite usado, lançamentos
-- [ ] Pagar fatura (conta pagadora sugerida, data) → fatura "Paga em dd/mm", extrato do mês do pagamento atualizado
+- [ ] Pagar fatura (conta pagadora sugerida, data) → fatura "Paga em dd/mm", extrato do mês do pagamento atualizado — o dia já é gravado desde a Fase 7 (`paymentDate` no `InvoiceResponse`)
+- [ ] Ler os *search params* `card` e `invoice` de `/cards` (`cards/cardsSearch.ts`), que o "ver fatura" do extrato já envia
 - [ ] Pagamento parcial (diálogo de valor → transferência negativa na fatura)
 - [ ] Reabrir fatura com confirmação explicando que o saldo da conta volta
 - [ ] Próximas faturas do cartão
@@ -387,7 +389,7 @@ Ordem pensada para que cada fase entregue algo testável. As fases 1–2 (núcle
 
 - [ ] KPIs: faturas do mês (cartões, quantas em aberto), peso nas entradas, média dos 3 meses anteriores
 - [ ] Grade mês × cartão com valor, situação ("paga no extrato de jul", "Em aberto · vence 10/10", "Futura"), total e peso
-- [ ] Decidir com o mockup duas diferenças achadas no view-model da Fase 3.2: o mockup mostra "Paga em 07/10" (data) no mês de referência, e o `reports.cardImpact` só traz o mês do extrato; e distingue "Aberta" (ciclo recebendo compras) de "Futura", que o núcleo junta em `future` (reports-design §4)
+- [ ] Decidir com o mockup duas diferenças achadas no view-model da Fase 3.2: o mockup mostra "Paga em 07/10" (data) no mês de referência, e o `reports.cardImpact` só traz o mês do extrato — o dia existe desde a Fase 7 (`invoices.payment_date`), falta levá-lo ao relatório; e distingue "Aberta" (ciclo recebendo compras) de "Futura", que o núcleo junta em `future` (reports-design §4)
 - [ ] Linha do mês de referência destacada; links de cada célula para a fatura
 - [ ] Nota explicando que a fatura em aberto pesa no previsto no vencimento e, paga, no extrato do pagamento
 - [ ] Estados: perfil sem cartão; mês sem receitas (peso "—")

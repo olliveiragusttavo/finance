@@ -55,9 +55,10 @@ export interface InvoiceRepository {
 
     /**
      * @param statementId Extrato do mês do pagamento.
-     * @return As faturas vivas pagas naquele extrato.
+     * @return As faturas vivas pagas naquele extrato, com o cartão — o extrato mostra o nome
+     * dele em cada fatura.
      */
-    listPaidInStatement(statementId: BankStatementId): readonly Invoice[];
+    listPaidInStatement(statementId: BankStatementId): readonly InvoiceWithCard[];
 
     /**
      * @param accountId Conta que quita os cartões.

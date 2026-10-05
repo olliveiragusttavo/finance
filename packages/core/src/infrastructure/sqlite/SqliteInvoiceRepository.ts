@@ -1,6 +1,7 @@
 import { Invoice } from '../../domain/invoice/Invoice.ts';
 import { Currency } from '../../domain/shared/Currency.ts';
 import { BankStatementId, CreditCardId, InvoiceId, type AccountId } from '../../domain/shared/ids.ts';
+import { LocalDate } from '../../domain/shared/LocalDate.ts';
 import { Money } from '../../domain/shared/Money.ts';
 import { YearMonth } from '../../domain/shared/YearMonth.ts';
 import type { Clock } from '../../ports/Clock.ts';
@@ -12,9 +13,9 @@ import { RowReader } from './RowReader.ts';
 
 // O extrato do pagamento entra por LEFT JOIN só se estiver vivo: uma fatura vinculada a um
 // extrato excluído é tratada como em aberto em toda leitura, em vez de sumir das duas
-// listas (nem paga, nem em aberto).
+// listas (nem paga, nem em aberto). O `payment_date` só vale junto desse vínculo.
 const SELECT_INVOICE = `
-    SELECT i.id, i.credit_card_id, i.year, i.month, i.balance,
+    SELECT i.id, i.credit_card_id, i.year, i.month, i.balance, i.payment_date,
         ps.id AS paid_statement_id, ps.year AS paid_year, ps.month AS paid_month,
         ${SELECT_CREDIT_CARD_COLUMNS}, p.currency AS profile_currency
     FROM invoices i
@@ -69,14 +70,15 @@ export class SqliteInvoiceRepository implements InvoiceRepository {
      */
     public insertOrRevive(invoice: Invoice): void {
         this.database.run(
-            `INSERT INTO invoices (id, credit_card_id, bank_statement_id, month, year, balance, updated_at)
-            VALUES (:id, :creditCardId, :statementId, :month, :year, :balance, :now)
+            `INSERT INTO invoices (id, credit_card_id, bank_statement_id, payment_date, month, year, balance, updated_at)
+            VALUES (:id, :creditCardId, :statementId, :paymentDate, :month, :year, :balance, :now)
             ON CONFLICT (id) DO UPDATE SET deleted_at = NULL, updated_at = excluded.updated_at
             WHERE invoices.deleted_at IS NOT NULL`,
             {
                 id: invoice.id,
                 creditCardId: invoice.creditCardId,
                 statementId: invoice.payment?.statementId ?? null,
+                paymentDate: invoice.payment?.date?.toString() ?? null,
                 month: invoice.period.month,
                 year: invoice.period.year,
                 balance: invoice.balance.rounded().amount,
@@ -97,24 +99,32 @@ export class SqliteInvoiceRepository implements InvoiceRepository {
     }
 
     /**
+     * Grava o vínculo e o dia juntos, na mesma escrita, para que reabrir apague os dois — um dia
+     * de pagamento sobrando numa fatura em aberto voltaria a valer no próximo pagamento.
+     *
      * @param invoice Fatura paga ou reaberta.
      * @return void
      */
     public savePayment(invoice: Invoice): void {
         this.database.run(
-            'UPDATE invoices SET bank_statement_id = :statementId, updated_at = :now WHERE id = :id',
-            { id: invoice.id, statementId: invoice.payment?.statementId ?? null, now: this.clock.now() },
+            'UPDATE invoices SET bank_statement_id = :statementId, payment_date = :paymentDate, updated_at = :now WHERE id = :id',
+            {
+                id: invoice.id,
+                statementId: invoice.payment?.statementId ?? null,
+                paymentDate: invoice.payment?.date?.toString() ?? null,
+                now: this.clock.now(),
+            },
         );
     }
 
     /**
      * @param statementId Extrato do mês do pagamento.
-     * @return As faturas vivas pagas naquele extrato.
+     * @return As faturas vivas pagas naquele extrato, com o cartão.
      */
-    public listPaidInStatement(statementId: BankStatementId): readonly Invoice[] {
+    public listPaidInStatement(statementId: BankStatementId): readonly InvoiceWithCard[] {
         return this.database
             .all(`${SELECT_INVOICE} WHERE ps.id = :statementId AND i.deleted_at IS NULL ORDER BY c.name COLLATE NOCASE, i.year, i.month`, { statementId })
-            .map((row) => this.toInvoice(row));
+            .map((row) => this.toInvoiceWithCard(row));
     }
 
     /**
@@ -131,10 +141,7 @@ export class SqliteInvoiceRepository implements InvoiceRepository {
                 ORDER BY i.year, i.month, c.name COLLATE NOCASE`,
                 { accountId, from: periodKey(fromInvoicePeriod) },
             )
-            .map((row) => ({
-                invoice: this.toInvoice(row),
-                creditCard: toCreditCard(row, Currency.of(new RowReader('invoices', row).text('profile_currency'))),
-            }));
+            .map((row) => this.toInvoiceWithCard(row));
     }
 
     /**
@@ -154,19 +161,36 @@ export class SqliteInvoiceRepository implements InvoiceRepository {
     }
 
     /**
+     * @param row Linha do `SELECT_INVOICE`, que já traz as colunas do cartão.
+     * @return A fatura e o cartão dono; um só ponto de leitura para as listas que mostram o
+     * cartão ou precisam do ciclo dele.
+     */
+    private toInvoiceWithCard(row: SqlRow): InvoiceWithCard {
+        return {
+            invoice: this.toInvoice(row),
+            creditCard: toCreditCard(row, Currency.of(new RowReader('invoices', row).text('profile_currency'))),
+        };
+    }
+
+    /**
      * @param row Linha do `SELECT_INVOICE`.
      * @return A fatura de domínio.
      */
     private toInvoice(row: SqlRow): Invoice {
         const reader = new RowReader('invoices', row);
         const paidStatementId = reader.nullableText('paid_statement_id');
+        const paymentDate = reader.nullableText('payment_date');
         return Invoice.restore({
             id: InvoiceId(reader.text('id')),
             creditCardId: CreditCardId(reader.text('credit_card_id')),
             period: YearMonth.of(reader.number('year'), reader.number('month')),
             payment: paidStatementId === null
                 ? null
-                : { statementId: BankStatementId(paidStatementId), period: YearMonth.of(reader.number('paid_year'), reader.number('paid_month')) },
+                : {
+                    statementId: BankStatementId(paidStatementId),
+                    period: YearMonth.of(reader.number('paid_year'), reader.number('paid_month')),
+                    date: paymentDate === null ? null : LocalDate.parse(paymentDate),
+                },
             balance: Money.of(reader.number('balance'), Currency.of(reader.text('profile_currency'))),
         });
     }
