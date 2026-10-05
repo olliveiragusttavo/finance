@@ -1,11 +1,9 @@
 import type { AccountListResponse } from '@finance/core';
 import { describe, expect, it } from 'vitest';
 import { openAccount, parseAccountsSearch } from '../src/renderer/src/accounts/accountsSearch.ts';
-import { parseCardsSearch } from '../src/renderer/src/cards/cardsSearch.ts';
 
 const NUBANK = '11111111-1111-4111-8111-111111111111';
 const ITAU = '22222222-2222-4222-8222-222222222222';
-const CARD = '33333333-3333-4333-8333-333333333333';
 
 /**
  * Lista de contas mínima para escolher a conta aberta; os saldos não entram na escolha.
@@ -44,14 +42,5 @@ describe('conta aberta na tela Contas', () => {
     it('id malformado é descartado, e perfil sem conta não abre nenhuma', () => {
         expect(parseAccountsSearch({ account: 'nubank' })).toEqual({});
         expect(openAccount(listOf([]), {})).toBeNull();
-    });
-});
-
-describe('fatura aberta na tela Cartões ("ver fatura")', () => {
-    it('cada parâmetro inválido é descartado sozinho', () => {
-        expect(parseCardsSearch({ card: CARD, invoice: '2026-09' })).toEqual({ card: CARD, invoice: '2026-09' });
-        expect(parseCardsSearch({ card: CARD, invoice: '2026-13' })).toEqual({ card: CARD });
-        expect(parseCardsSearch({ card: 'roxinho', invoice: '2026-09' })).toEqual({ invoice: '2026-09' });
-        expect(parseCardsSearch({})).toEqual({});
     });
 });

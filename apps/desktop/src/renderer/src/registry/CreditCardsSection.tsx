@@ -156,10 +156,11 @@ function accountName(accounts: readonly AccountResponse[], accountId: string): s
 /**
  * Desativa ou reativa um cartão, sem confirmação, pelo mesmo motivo das contas: as duas
  * ações se desfazem uma com a outra e não mudam faturas nem saldos (desktop-mvp-plan §5.1).
+ * Exportada para o "⋯" da tela Cartões, que faz o mesmo.
  *
  * @return A ação de alternar o cartão.
  */
-function useToggleCreditCard(): (creditCard: CreditCardResponse) => void {
+export function useToggleCreditCard(): (creditCard: CreditCardResponse) => void {
     const disable = useCoreMutation('creditCards.disable');
     const enable = useCoreMutation('creditCards.enable');
     return (creditCard) => {
@@ -188,21 +189,26 @@ const CREDIT_CARD_FIELD_BY_CORE_FIELD: Readonly<Partial<Record<string, keyof Cre
 };
 
 /**
- * Criar ou editar cartão: nome, conta pagadora, limite, fechamento e vencimento.
+ * Criar ou editar cartão: nome, conta pagadora, limite, fechamento e vencimento. Exportado
+ * para a tela Cartões ("+ Novo cartão" e "Editar cartão"), para que o cadastro tenha um só
+ * formulário.
  *
  * @param props.creditCard Cartão a editar, ou `null` para criar um.
  * @param props.accounts Contas do perfil, das quais saem as opções de conta pagadora.
  * @param props.onClose Fecha o diálogo.
+ * @param props.onCreated Recebe o cartão criado, para a tela Cartões abrir a fatura dele.
  * @return O diálogo com o formulário.
  */
-function CreditCardDialog({
+export function CreditCardDialog({
     creditCard,
     accounts,
     onClose,
+    onCreated,
 }: {
     readonly creditCard: CreditCardResponse | null;
     readonly accounts: readonly AccountResponse[];
     readonly onClose: () => void;
+    readonly onCreated?: (creditCard: CreditCardResponse) => void;
 }): ReactNode {
     const { profile } = useActiveProfile();
     const options = payingAccountOptions(accounts, creditCard?.accountId ?? null);
@@ -231,7 +237,10 @@ function CreditCardDialog({
         setGeneralError(null);
         try {
             if (creditCard === null) {
-                await create.mutateAsync({ ...content, profileId: profile.id });
+                // Criar antes e avisar depois, como no `AccountDialog`: a chamada opcional não
+                // avaliaria o argumento sem quem avisar.
+                const created = await create.mutateAsync({ ...content, profileId: profile.id });
+                onCreated?.(created);
             } else {
                 await update.mutateAsync({ ...content, id: creditCard.id });
             }
