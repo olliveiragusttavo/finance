@@ -7,6 +7,8 @@ import type { AccountId } from '../../domain/shared/ids.ts';
 import { Money } from '../../domain/shared/Money.ts';
 import type { YearMonth } from '../../domain/shared/YearMonth.ts';
 import { BankStatement } from '../../domain/statement/BankStatement.ts';
+import { statementFlows } from '../../domain/statement/StatementFlows.ts';
+import { destinationEffect } from '../../domain/transaction/TransactionType.ts';
 import type { AccountRepository } from '../../repositories/AccountRepository.ts';
 import type { BankStatementRepository } from '../../repositories/BankStatementRepository.ts';
 import type { InvoiceRepository } from '../../repositories/InvoiceRepository.ts';
@@ -79,6 +81,9 @@ export class StatementConsolidationService {
     /**
      * Monta o extrato consolidado de um mês. Um mês sem linha não é erro — é um mês sem
      * movimento, cujo inicial e final são o fechamento anterior (database-design §4.6).
+     * Entradas e saídas saem dos mesmos movimentos listados, com a regra de efeito e de
+     * consolidado × previsto do recálculo, para que a tela nunca mostre um total que a tabela
+     * não explica.
      *
      * @param accountId Conta consultada.
      * @param period Competência consultada.
@@ -92,18 +97,31 @@ export class StatementConsolidationService {
             const opening = statement?.opening
                 ?? this.statements.findLatestBefore(accountId, period)?.closing
                 ?? BalancePair.same(account.openingBalance.rounded());
+            const transactions = statement === null ? [] : this.transactions.listByStatement(statement.id);
+            const incomingTransfers = this.transactions.listIncoming(accountId, period);
+            const paidInvoices = statement === null ? [] : this.invoices.listPaidInStatement(statement.id);
+            const openInvoicesDue = this.invoices
+                .listOpenByPayingAccount(accountId, period.year === 1900 && period.month === 1 ? period : period.previous())
+                .map((entry) => ({ ...entry, dueDate: entry.creditCard.billingCycle.dueDateOf(entry.invoice.period) }))
+                .filter(({ dueDate }) => dueDate.period.equals(period));
+            const flows = statementFlows(opening.consolidated.currency, [
+                ...transactions.map((transaction) => ({ effect: transaction.originEffect(), settled: transaction.isPaid() })),
+                ...incomingTransfers.map((transaction) => ({ effect: destinationEffect(transaction.value), settled: transaction.isPaid() })),
+                ...paidInvoices.map(({ invoice }) => ({ effect: invoice.balance, settled: true })),
+                ...openInvoicesDue.map(({ invoice }) => ({ effect: invoice.balance, settled: false })),
+            ]);
             return {
                 account,
                 period,
                 exists: statement !== null,
                 opening,
                 closing: statement?.closing ?? opening,
-                transactions: statement === null ? [] : this.transactions.listByStatement(statement.id),
-                incomingTransfers: this.transactions.listIncoming(accountId, period),
-                paidInvoices: statement === null ? [] : this.invoices.listPaidInStatement(statement.id),
-                openInvoicesDue: this.invoices
-                    .listOpenByPayingAccount(accountId, period.year === 1900 && period.month === 1 ? period : period.previous())
-                    .filter(({ invoice, creditCard }) => creditCard.billingCycle.dueDateOf(invoice.period).period.equals(period)),
+                inflows: flows.inflows,
+                outflows: flows.outflows,
+                transactions,
+                incomingTransfers,
+                paidInvoices,
+                openInvoicesDue,
             };
         });
     }

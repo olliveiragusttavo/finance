@@ -3,11 +3,13 @@ import { describe, expect, it } from 'vitest';
 import {
     buildCardImpactGrid,
     buildCategoryReport,
+    buildStatementTable,
     buildTransactionTable,
     categoryBreadcrumb,
     categoryChartBars,
     comparisonOptions,
     NO_TRANSACTION_FILTERS,
+    type StatementTableSource,
     type TransactionTableSource,
 } from '../src/index.ts';
 import { ClientWorld, type Scenario } from './support/ClientWorld.ts';
@@ -120,6 +122,88 @@ const CATEGORY_REPORT: CategoryReportResponse = {
     ],
     total: line(3442.5, 3280.1, 0.0495),
 };
+
+/**
+ * Lê do núcleo de verdade o extrato de outubro e os cadastros que dão nome às linhas.
+ *
+ * @param world Núcleo do teste.
+ * @param s Ids do cenário.
+ * @param accountId Conta do extrato.
+ * @return A fonte da tabela de movimentos.
+ */
+async function statementSource(world: ClientWorld, s: Scenario, accountId: string): Promise<StatementTableSource> {
+    const [statement, accounts, creditCards, categories] = await Promise.all([
+        world.ok('statements.get', { accountId, period: '2026-10' }),
+        world.ok('accounts.list', { profileId: s.profileId, period: '2026-10' }),
+        world.ok('creditCards.list', { profileId: s.profileId, period: '2026-10' }),
+        world.ok('categories.tree', { profileId: s.profileId }),
+    ]);
+    return { statement, accounts: accounts.accounts, creditCards: creditCards.creditCards, categories };
+}
+
+describe('extrato da conta', () => {
+    /**
+     * Acrescenta ao cenário a fatura de outubro do Roxinho (vence 10/10, em aberto) com um
+     * pagamento parcial que sai da Nubank em 08/10.
+     *
+     * @param world Núcleo do teste.
+     * @param s Ids do cenário.
+     * @return void
+     */
+    async function withOctoberInvoice(world: ClientWorld, s: Scenario): Promise<void> {
+        const base = { profileId: s.profileId, subCategoryId: s.subCategoryId } as const;
+        await world.ok('transactions.create', { ...base, type: 'expense', source: { kind: 'creditCard', creditCardId: s.creditCardId }, name: 'Farmácia', value: 200, dueDate: '2026-09-10' });
+        await world.ok('transactions.create', {
+            ...base,
+            type: 'transference',
+            source: { kind: 'creditCard', creditCardId: s.creditCardId, invoicePeriod: '2026-10' },
+            destinationAccountId: s.checkingId,
+            name: 'Pagamento parcial',
+            value: -50,
+            dueDate: '2026-10-08',
+            paymentDate: '2026-10-08',
+        });
+    }
+
+    it('junta as quatro fontes por data de caixa, com o efeito nesta conta', async () => {
+        const world = new ClientWorld();
+        const s = await world.seed();
+        await withOctoberInvoice(world, s);
+        const table = buildStatementTable(await statementSource(world, s, s.checkingId));
+
+        expect(table.rows.map((row) => [row.date, row.name, row.detail, row.category, row.situationText, row.amountText])).toEqual([
+            ['01/10', 'Salário', null, 'Alimentação › Mercado', 'Pago', '+R$ 9.500,00'],
+            ['02/10', 'Fatura Roxinho · set', null, 'Fatura do cartão', 'Paga', '−R$ 120,00'],
+            ['05/10', 'Aluguel', null, 'Alimentação › Mercado', 'Pendente', '−R$ 2.300,00'],
+            // Pagamento parcial: transferência negativa que chega — sai desta conta.
+            ['08/10', 'Pagamento parcial', 'fatura Roxinho · out', 'Alimentação › Mercado', 'Pago', '⇄ −R$ 50,00'],
+            ['10/10', 'Aporte', '→ Tesouro', 'Alimentação › Mercado', 'Pendente', '⇄ −R$ 500,00'],
+            ['10/10', 'Fatura Roxinho · out', null, 'Fatura do cartão', 'Em aberto', '−R$ 150,00'],
+        ]);
+        expect(table.rows.find((row) => row.name === 'Fatura Roxinho · set')?.invoice).toEqual({ creditCardId: s.creditCardId, period: '2026-09' });
+        expect(table.rows.find((row) => row.name === 'Pagamento parcial')?.invoice).toEqual({ creditCardId: s.creditCardId, period: '2026-10' });
+        expect(table.hasOpenInvoices).toBe(true);
+    });
+
+    it('a transferência aparece como entrada no extrato do destino', async () => {
+        const world = new ClientWorld();
+        const s = await world.seed();
+        const table = buildStatementTable(await statementSource(world, s, s.savingsId));
+        expect(table.rows.map((row) => [row.date, row.name, row.detail, row.amountText, row.direction])).toEqual([
+            ['10/10', 'Aporte', 'de Nubank', '⇄ +R$ 500,00', 'transfer'],
+        ]);
+        expect(table.hasOpenInvoices).toBe(false);
+    });
+
+    it('fatura paga sem o dia gravado mostra "—" e vai para o fim do mês', async () => {
+        const world = new ClientWorld();
+        const s = await world.seed();
+        const source = await statementSource(world, s, s.checkingId);
+        const statement = { ...source.statement, paidInvoices: source.statement.paidInvoices.map((invoice) => ({ ...invoice, paymentDate: null })) };
+        const rows = buildStatementTable({ ...source, statement }).rows;
+        expect(rows.at(-1)).toEqual(expect.objectContaining({ date: '—', name: 'Fatura Roxinho · set' }));
+    });
+});
 
 describe('relatório por categoria', () => {
     it('achata a árvore mostrando só as subcategorias das categorias abertas', () => {

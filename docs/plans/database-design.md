@@ -796,6 +796,20 @@ nasce paga, porque registra um pagamento já feito. Excluí-la devolve o valor �
 fatura. Quando a fatura for paga por inteiro, o `balance` vinculado ao extrato já está
 líquido dos pagamentos parciais, sem contar nada duas vezes.
 
+#### O dia do pagamento é registro, não regra
+
+`bank_statement_id` guarda o **mês** do pagamento, que é o que decide a situação da fatura e
+o extrato em que ela pesa. O **dia** fica em `payment_date` (migration `0003`), gravado na
+mesma escrita do vínculo e apagado junto dele ao reabrir: o extrato da conta precisa dele
+para mostrar a fatura paga na data em que o dinheiro saiu, entre os outros movimentos do mês.
+Ele não decide nada — uma fatura sem vínculo vivo está em aberto mesmo com um dia sobrando,
+que o `ON DELETE SET NULL` do extrato pode deixar — e é nulo nas faturas pagas antes da
+migration, porque o dia nunca foi gravado e inventá-lo mostraria uma data que não aconteceu.
+Na sincronização é uma célula comum
+([sync-design.md §5.1](sync-design.md#51-a-unidade-de-merge-é-a-coluna-a-escrita-mais-recente-vence)):
+como pagar e reabrir escrevem as duas colunas na mesma transação, com o mesmo relógio, dois
+pagamentos concorrentes nunca deixam o vínculo de um com o dia do outro.
+
 #### `balance` tem o sinal do efeito na conta, e o vencimento decide o mês no previsto
 
 `balance` é a soma dos efeitos das transações da fatura e tem o **sinal do efeito na
@@ -815,6 +829,7 @@ mês em que o pagamento de fato aconteceu.
 |---|---|---|---|
 | `credit_card_id` | TEXT | NN, FK | |
 | `bank_statement_id` | TEXT | null, FK | O extrato do mês em que a fatura é paga |
+| `payment_date` | TEXT | null, date | Dia do pagamento; só vale junto do `bank_statement_id`. Migration `0003` — veja acima |
 | `month` | INTEGER | NN, `CHECK (month BETWEEN 1 AND 12)` | |
 | `year` | INTEGER | NN, `CHECK (year BETWEEN 1900 AND 9999)` | |
 | `balance` | REAL | NN | money — total da fatura com o sinal do efeito na conta, cache derivado |
@@ -1390,7 +1405,9 @@ for refatorado. O texto original é mantido como está no diagrama, seguido da t
    um arquivo `.sql` independente de runner, transcrito tabela por tabela a partir da
    [§4](#4-tabelas). A
    [0002_disabled_registries.sql](../../db/migrations/0002_disabled_registries.sql)
-   acrescenta `disabled_at` a `accounts` e `credit_cards` ([§4.4](#44-accounts)). Ela foi exercitada contra o SQLite 3.46: um perfil totalmente
+   acrescenta `disabled_at` a `accounts` e `credit_cards` ([§4.4](#44-accounts)). A
+   [0003_invoice_payment_date.sql](../../db/migrations/0003_invoice_payment_date.sql)
+   acrescenta `payment_date` a `invoices` ([§4.7](#47-invoices)). Ela foi exercitada contra o SQLite 3.46: um perfil totalmente
    populado, após hard delete, deixa as tabelas vazias; uma transação órfã bloqueia essa
    exclusão; toda verificação de domínio e todo índice único parcial se comportam como
    documentado. Esse exercício precisa virar um teste permanente assim que a stack e seu

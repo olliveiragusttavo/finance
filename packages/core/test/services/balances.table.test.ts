@@ -296,6 +296,107 @@ describe('Extrato consolidado e virada do mês', () => {
     });
 });
 
+describe('Entradas e saídas do extrato', () => {
+    it('cada movimento conta pelo sinal do efeito; consolidado só o pago, previsto tudo', async () => {
+        const { world, profileId, accountId, base } = setup(1000);
+        const other = world.account(profileId, { openingBalance: 0 });
+        const creditCardId = world.creditCard(profileId, accountId, 10, 17);
+        const source = { kind: 'account', accountId } as const;
+        await world.create(base, { source, type: 'income', value: 5000, dueDate: '2026-03-05', paymentDate: '2026-03-05' });
+        await world.create(base, { source, value: 100, charges: 2, dueDate: '2026-03-06', paymentDate: '2026-03-06' });
+        // Estorno: despesa negativa é entrada, pelo sinal do efeito, e não saída pelo tipo.
+        await world.create(base, { source, value: -80, dueDate: '2026-03-07', paymentDate: '2026-03-07' });
+        await world.create(base, { source, value: 300, dueDate: '2026-03-20' });
+        await world.create(base, { source: { kind: 'account', accountId: other }, type: 'transference', destinationAccountId: accountId, value: 50, dueDate: '2026-03-04' });
+        // Fatura de março em aberto, vence 17/03; a de fevereiro é paga em 02/03.
+        await world.create(base, { source: { kind: 'creditCard', creditCardId }, value: 400, dueDate: '2026-03-05' });
+        const february = await world.create(base, { source: { kind: 'creditCard', creditCardId }, value: 200, dueDate: '2026-02-05' });
+        if (february.container.kind !== 'invoice') {
+            throw new Error('compra no cartão deveria cair numa fatura');
+        }
+        await world.ok('invoices.pay', { invoiceId: february.container.invoiceId, paymentDate: '2026-03-02' });
+
+        const statement = await world.ok('statements.get', { accountId, period: '2026-03' });
+        // Entradas: 5000 + 80 pagas; + 50 da transferência em aberto no previsto.
+        expect(statement.inflows.consolidated).toEqualMoney('5080');
+        expect(statement.inflows.projected).toEqualMoney('5130');
+        // Saídas: 102 + 200 (fatura paga); + 300 em aberto e 400 da fatura que vence no previsto.
+        expect(statement.outflows.consolidated).toEqualMoney('-302');
+        expect(statement.outflows.projected).toEqualMoney('-1002');
+        expect(statement.opening.consolidated).toEqualMoney('1000');
+        expect(statement.closing.consolidated).toEqualMoney('5778');
+        expect(statement.closing.projected).toEqualMoney('5128');
+
+        expect(statement.paidInvoices).toEqual([expect.objectContaining({ creditCardName: 'Cartão', period: '2026-02', paymentDate: '2026-03-02' })]);
+        expect(statement.openInvoicesDue).toEqual([expect.objectContaining({ creditCardName: 'Cartão', period: '2026-03', dueDate: '2026-03-17', paymentDate: null })]);
+    });
+
+    it('pagamento parcial que chega à conta é saída', async () => {
+        const { world, profileId, accountId, base } = setup(1000);
+        const creditCardId = world.creditCard(profileId, accountId, 10, 17);
+        await world.create(base, { source: { kind: 'creditCard', creditCardId }, value: 400, dueDate: '2026-03-05' });
+        await world.create(base, {
+            source: { kind: 'creditCard', creditCardId, invoicePeriod: '2026-03' },
+            type: 'transference',
+            destinationAccountId: accountId,
+            value: -150,
+            dueDate: '2026-03-12',
+            paymentDate: '2026-03-12',
+        });
+
+        const statement = await world.ok('statements.get', { accountId, period: '2026-03' });
+        expect(statement.incomingTransfers).toHaveLength(1);
+        expect(statement.inflows.projected).toEqualMoney('0');
+        // −150 do parcial já pago; o previsto soma os −250 que restam na fatura.
+        expect(statement.outflows.consolidated).toEqualMoney('-150');
+        expect(statement.outflows.projected).toEqualMoney('-400');
+    });
+
+    it('mês sem movimento não tem entradas nem saídas', async () => {
+        const { world, accountId } = setup(1000);
+        const statement = await world.ok('statements.get', { accountId, period: '2026-03' });
+        expect(statement.exists).toBe(false);
+        expect(statement.inflows.projected).toEqualMoney('0');
+        expect(statement.outflows.projected).toEqualMoney('0');
+    });
+});
+
+describe('Dia do pagamento da fatura', () => {
+    it('pagar grava o dia; reabrir apaga o dia junto do vínculo', async () => {
+        const { world, profileId, accountId, base } = setup(1000);
+        const creditCardId = world.creditCard(profileId, accountId, 10, 17);
+        const purchase = await world.create(base, { source: { kind: 'creditCard', creditCardId }, value: 400, dueDate: '2026-03-05' });
+        if (purchase.container.kind !== 'invoice') {
+            throw new Error('compra no cartão deveria cair numa fatura');
+        }
+        const invoiceId = purchase.container.invoiceId;
+
+        const paid = await world.ok('invoices.pay', { invoiceId, paymentDate: '2026-04-07' });
+        expect(paid.paymentDate).toBe('2026-04-07');
+        expect((await world.ok('invoices.get', { invoiceId })).paymentDate).toBe('2026-04-07');
+
+        const reopened = await world.ok('invoices.reopen', { invoiceId });
+        expect(reopened.paymentDate).toBeNull();
+        expect(world.database.get('SELECT payment_date FROM invoices WHERE id = :invoiceId', { invoiceId })).toEqual({ payment_date: null });
+    });
+
+    it('fatura paga antes da migration 0003, sem o dia, continua paga', async () => {
+        const { world, profileId, accountId, base } = setup(1000);
+        const creditCardId = world.creditCard(profileId, accountId, 10, 17);
+        const purchase = await world.create(base, { source: { kind: 'creditCard', creditCardId }, value: 400, dueDate: '2026-03-05' });
+        if (purchase.container.kind !== 'invoice') {
+            throw new Error('compra no cartão deveria cair numa fatura');
+        }
+        const invoiceId = purchase.container.invoiceId;
+        await world.ok('invoices.pay', { invoiceId, paymentDate: '2026-04-07' });
+        world.database.run('UPDATE invoices SET payment_date = NULL WHERE id = :invoiceId', { invoiceId });
+
+        const statement = await world.ok('statements.get', { accountId, period: '2026-04' });
+        expect(statement.paidInvoices).toEqual([expect.objectContaining({ status: 'paid', paidInPeriod: '2026-04', paymentDate: null })]);
+        expect(statement.closing.consolidated).toEqualMoney('600');
+    });
+});
+
 describe('Extrato pela data de pagamento', () => {
     it('despesa paga em mês diferente do vencimento cai no extrato do pagamento', async () => {
         const { world, accountId, base } = setup(1000);

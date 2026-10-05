@@ -128,7 +128,7 @@ export class InvoiceService {
                 throw new NotFoundError('Account', creditCard.accountId);
             }
             const statement = this.consolidation.ensureStatement(account, paymentDate.period);
-            const paid = invoice.pay({ statementId: statement.id, period: statement.period });
+            const paid = invoice.pay({ statementId: statement.id, period: statement.period, date: paymentDate });
             this.invoices.savePayment(paid);
             this.recalculation.apply(this.impacts.ofInvoice(invoice, creditCard).merge(this.impacts.ofInvoice(paid, creditCard)));
             return this.requireInvoice(invoiceId);

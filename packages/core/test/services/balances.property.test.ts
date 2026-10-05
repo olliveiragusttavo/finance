@@ -249,6 +249,14 @@ function assertInvariants(s: Scenario): void {
             AND printf('%04d-%02d', bs.year, bs.month) <> substr(CASE WHEN t.paid = 1 THEN t.payment_date ELSE t.due_date END, 1, 7)`,
     )).toEqual([]);
 
+    // O dia do pagamento anda junto do vínculo: em aberto não tem dia; paga, o dia é do mês do extrato.
+    expect(db.all(
+        `SELECT i.id FROM invoices i LEFT JOIN bank_statements bs ON bs.id = i.bank_statement_id
+        WHERE i.deleted_at IS NULL
+            AND (CASE WHEN i.bank_statement_id IS NULL THEN i.payment_date IS NOT NULL
+                ELSE i.payment_date IS NULL OR substr(i.payment_date, 1, 7) <> printf('%04d-%02d', bs.year, bs.month) END)`,
+    )).toEqual([]);
+
     // Total de cada fatura = soma dos efeitos de todas as transações vivas dela.
     const invoices = db.all(
         `SELECT i.id, i.year, i.month, i.balance, i.credit_card_id, c.account_id, c.closing_date, c.due_date,
@@ -362,6 +370,31 @@ describe('propriedades dos saldos (backend-design §5.6)', () => {
                 expect(await s.world.ok('integrity.verifyBalances', {})).toEqual({ checkedAccounts: 2, drifts: [] });
             }),
             { numRuns: 150 },
+        );
+    });
+
+    it('em todo mês, inicial + entradas + saídas = final no extrato, nos dois saldos', async () => {
+        await fc.assert(
+            fc.asyncProperty(fc.array(operationArb, { minLength: 1, maxLength: 30 }), async (operations) => {
+                const s = scenario();
+                for (const operation of operations) {
+                    await apply(s, operation);
+                }
+                for (const accountId of s.accounts) {
+                    for (let month = 1; month <= 7; month += 1) {
+                        const period = `2026-${String(month).padStart(2, '0')}`;
+                        const statement = await s.world.ok('statements.get', { accountId, period });
+                        for (const side of ['consolidated', 'projected'] as const) {
+                            const label = `${accountId} ${period} ${side}`;
+                            const sum = statement.opening[side].amount + statement.inflows[side].amount + statement.outflows[side].amount;
+                            expect(Math.abs(sum - statement.closing[side].amount), label).toBeLessThan(EPSILON);
+                            expect(statement.inflows[side].amount, label).toBeGreaterThanOrEqual(0);
+                            expect(statement.outflows[side].amount, label).toBeLessThanOrEqual(0);
+                        }
+                    }
+                }
+            }),
+            { numRuns: 100 },
         );
     });
 });

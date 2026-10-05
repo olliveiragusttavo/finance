@@ -1,10 +1,19 @@
-import type { CreditCard } from '../../domain/creditCard/CreditCard.ts';
-import type { Invoice } from '../../domain/invoice/Invoice.ts';
+import type { InvoiceWithCard } from '../../repositories/InvoiceRepository.ts';
 import type { StatementView } from '../../services/statement/StatementView.ts';
 import { toInvoiceResponse, type InvoiceResponse } from '../invoices/InvoiceResponse.ts';
 import { toBalancePairResponse, type BalancePairResponse } from '../shared/BalancePairResponse.ts';
 import { toMoneyResponse } from '../shared/MoneyResponse.ts';
 import { toTransactionResponse, type TransactionResponse } from '../transactions/TransactionResponse.ts';
+
+/** Fatura no extrato da conta que a quita, com o nome do cartão para a linha da tabela. */
+export interface StatementInvoiceResponse extends InvoiceResponse {
+    readonly creditCardName: string;
+}
+
+/** Fatura em aberto que vence no mês: pesa no previsto na data do vencimento. */
+export interface StatementOpenInvoiceResponse extends StatementInvoiceResponse {
+    readonly dueDate: string;
+}
 
 /** Extrato consolidado de uma conta no mês, com tudo que afeta o saldo dela. */
 export interface StatementResponse {
@@ -15,15 +24,22 @@ export interface StatementResponse {
     readonly opening: BalancePairResponse;
     readonly closing: BalancePairResponse;
     readonly movement: BalancePairResponse;
+    /** Movimentos que aumentam o saldo; inicial + entradas + saídas = final. */
+    readonly inflows: BalancePairResponse;
+    /** Movimentos que diminuem o saldo, com sinal negativo. */
+    readonly outflows: BalancePairResponse;
     readonly transactions: readonly TransactionResponse[];
     readonly incomingTransfers: readonly TransactionResponse[];
-    readonly paidInvoices: readonly InvoiceResponse[];
-    readonly openInvoicesDue: readonly (InvoiceResponse & { readonly creditCardName: string })[];
+    readonly paidInvoices: readonly StatementInvoiceResponse[];
+    readonly openInvoicesDue: readonly StatementOpenInvoiceResponse[];
 }
 
 /**
  * Deriva o movimento do mês aqui (fechamento − abertura) para a UI não refazer a conta com
  * valores já arredondados, o que poderia divergir em um centavo do saldo exibido.
+ *
+ * Entradas e saídas vêm do Service pelo mesmo motivo: somadas sem arredondar e
+ * arredondadas uma vez aqui.
  *
  * @param view Extrato consolidado do Service; fonte dos saldos, lançamentos e faturas do mês.
  * @return O extrato serializável, com o movimento do mês já derivado.
@@ -40,12 +56,19 @@ export function toStatementResponse(view: StatementView): StatementResponse {
             consolidated: toMoneyResponse(view.closing.consolidated.subtract(view.opening.consolidated)),
             projected: toMoneyResponse(view.closing.projected.subtract(view.opening.projected)),
         },
+        inflows: toBalancePairResponse(view.inflows),
+        outflows: toBalancePairResponse(view.outflows),
         transactions: view.transactions.map(toTransactionResponse),
         incomingTransfers: view.incomingTransfers.map(toTransactionResponse),
-        paidInvoices: view.paidInvoices.map(toInvoiceResponse),
-        openInvoicesDue: view.openInvoicesDue.map(({ invoice, creditCard }: { invoice: Invoice; creditCard: CreditCard }) => ({
-            ...toInvoiceResponse(invoice),
-            creditCardName: creditCard.name,
-        })),
+        paidInvoices: view.paidInvoices.map(toStatementInvoiceResponse),
+        openInvoicesDue: view.openInvoicesDue.map((entry) => ({ ...toStatementInvoiceResponse(entry), dueDate: entry.dueDate.toString() })),
     };
+}
+
+/**
+ * @param entry Fatura e o cartão dono, como o Repository as entrega.
+ * @return A fatura serializável com o nome do cartão.
+ */
+function toStatementInvoiceResponse({ invoice, creditCard }: InvoiceWithCard): StatementInvoiceResponse {
+    return { ...toInvoiceResponse(invoice), creditCardName: creditCard.name };
 }

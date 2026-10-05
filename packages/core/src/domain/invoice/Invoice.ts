@@ -1,15 +1,19 @@
 import { invoiceIdFor } from '../shared/DeterministicIds.ts';
 import type { BankStatementId, CreditCardId, InvoiceId } from '../shared/ids.ts';
+import type { LocalDate } from '../shared/LocalDate.ts';
 import { Money } from '../shared/Money.ts';
 import type { YearMonth } from '../shared/YearMonth.ts';
 
 /**
- * Onde a fatura foi paga: o extrato da conta no mês do pagamento. Carrega a competência
- * junto do id porque é ela que decide a partir de que mês o saldo da conta muda.
+ * Onde e quando a fatura foi paga: o extrato da conta no mês do pagamento e o dia. Carrega a
+ * competência junto do id porque é ela que decide a partir de que mês o saldo da conta muda;
+ * o dia não decide nada, só situa o pagamento entre os movimentos do extrato.
  */
 export interface InvoicePayment {
     readonly statementId: BankStatementId;
     readonly period: YearMonth;
+    /** `null` nas faturas pagas antes da migration `0003`, que não guardava o dia. */
+    readonly date: LocalDate | null;
 }
 
 /** Dados de uma fatura, já validados e tipados. */
@@ -84,7 +88,7 @@ export class Invoice implements InvoiceProps {
      * Regra de negócio (Fatura): pagar vincula a fatura ao extrato do mês do pagamento, para
      * que a movimentação do cartão entre no saldo da conta dona (database-design §4.7).
      *
-     * @param payment Extrato do mês do pagamento.
+     * @param payment Extrato do mês do pagamento e o dia em que ele aconteceu.
      * @return A fatura paga.
      */
     public pay(payment: InvoicePayment): Invoice {

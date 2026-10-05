@@ -123,10 +123,11 @@ export function AccountsSection({ query }: { readonly query: UseQueryResult<Acco
  * Desativa ou reativa uma conta, conforme a situação atual. Sem confirmação: as duas ações
  * se desfazem uma com a outra e não mudam nenhum saldo (desktop-mvp-plan §5.1). O aviso
  * lembra o que desativar preserva, para que ninguém desative achando que perdeu o histórico.
+ * Exportado porque a tela Contas oferece as mesmas ações no extrato.
  *
  * @return A ação de alternar a conta.
  */
-function useToggleAccount(): (account: AccountResponse) => void {
+export function useToggleAccount(): (account: AccountResponse) => void {
     const disable = useCoreMutation('accounts.disable');
     const enable = useCoreMutation('accounts.enable');
     return (account) => {
@@ -157,13 +158,24 @@ const ACCOUNT_FIELD_BY_CORE_FIELD: Readonly<Partial<Record<string, keyof Account
 };
 
 /**
- * Criar ou editar conta: nome, tipo, moeda, saldo inicial e se entra no total.
+ * Criar ou editar conta: nome, tipo, moeda, saldo inicial e se entra no total. Exportado
+ * porque a tela Contas tem "+ Nova conta" e "Editar conta" (mockup `DesktopContas`): um
+ * diálogo só, para que as duas telas validem e expliquem o cadastro do mesmo jeito.
  *
  * @param props.account Conta a editar, ou `null` para criar uma.
  * @param props.onClose Fecha o diálogo.
+ * @param props.onCreated Recebe a conta criada, para a tela Contas abrir o extrato dela.
  * @return O diálogo com o formulário.
  */
-function AccountDialog({ account, onClose }: { readonly account: AccountResponse | null; readonly onClose: () => void }): ReactNode {
+export function AccountDialog({
+    account,
+    onClose,
+    onCreated,
+}: {
+    readonly account: AccountResponse | null;
+    readonly onClose: () => void;
+    readonly onCreated?: (account: AccountResponse) => void;
+}): ReactNode {
     const { profile } = useActiveProfile();
     /**
      * Valida pelo `readAccountForm`, que aplica o schema das rotas de conta, e entrega ao envio
@@ -186,7 +198,10 @@ function AccountDialog({ account, onClose }: { readonly account: AccountResponse
         setGeneralError(null);
         try {
             if (account === null) {
-                await create.mutateAsync({ ...content, profileId: profile.id });
+                // Criar antes e avisar depois: dentro de `onCreated?.(…)` a criação não rodaria
+                // quando não há quem avisar, porque a chamada opcional não avalia o argumento.
+                const created = await create.mutateAsync({ ...content, profileId: profile.id });
+                onCreated?.(created);
             } else {
                 await update.mutateAsync({ ...content, id: account.id });
             }

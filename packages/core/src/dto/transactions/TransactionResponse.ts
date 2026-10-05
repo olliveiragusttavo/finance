@@ -33,13 +33,16 @@ export interface TransactionResponse {
     readonly paymentDate: string | null;
     /** Efeito no saldo da origem; a UI usa para mostrar entrada/saída sem reaplicar a regra. */
     readonly originEffect: MoneyResponse;
+    /** Efeito no saldo da conta de destino; `null` quando não há destino. */
+    readonly destinationEffect: MoneyResponse | null;
     /** Tags do lançamento, por nome. */
     readonly tagIds: readonly string[];
 }
 
 /**
- * Converte a transação do domínio no contrato de saída. O `originEffect` vai calculado
- * porque a regra de sinal por tipo pertence ao domínio — a UI não deve reimplementá-la.
+ * Converte a transação do domínio no contrato de saída. Os efeitos vão calculados porque a
+ * regra de sinal por tipo pertence ao domínio — a UI não deve reimplementá-la; o do destino é
+ * o que o extrato da conta que recebe a transferência mostra.
  *
  * @param transaction Transação do domínio; fonte de todos os campos e do efeito na origem.
  * @return A transação serializável, com datas e períodos como string ISO.
@@ -68,6 +71,16 @@ export function toTransactionResponse(transaction: Transaction): TransactionResp
         paid: transaction.isPaid(),
         paymentDate: transaction.paymentDate?.toString() ?? null,
         originEffect: toMoneyResponse(transaction.originEffect()),
+        destinationEffect: destinationEffectResponse(transaction),
         tagIds: transaction.tagIds,
     };
+}
+
+/**
+ * @param transaction Transação do domínio.
+ * @return O efeito no destino, ou `null` quando a transação não tem conta de destino.
+ */
+function destinationEffectResponse(transaction: Transaction): MoneyResponse | null {
+    const effect = transaction.destinationEffect();
+    return effect === null ? null : toMoneyResponse(effect);
 }
