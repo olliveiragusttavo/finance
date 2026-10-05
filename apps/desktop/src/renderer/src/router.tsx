@@ -4,6 +4,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AccountsScreen } from './accounts/AccountsScreen.tsx';
 import { parseAccountsSearch, type AccountsSearch } from './accounts/accountsSearch.ts';
+import { CardsScreen } from './cards/CardsScreen.tsx';
 import { parseCardsSearch, type CardsSearch } from './cards/cardsSearch.ts';
 import { RegistryScreen } from './registry/RegistryScreen.tsx';
 import { parseRegistrySearch, type RegistrySearch } from './registry/registryKinds.ts';
@@ -58,11 +59,10 @@ const routeTree = rootRoute.addChildren([
             component: AccountsScreen,
             validateSearch: (search: Record<string, unknown>): AccountsSearch => parseAccountsSearch(search),
         }),
-        // A busca já existe porque o extrato leva à fatura ("ver fatura"); a tela chega na Fase 8.
         createRoute({
             getParentRoute: () => shellRoute,
             path: '/cards' satisfies AppPath,
-            component: blankScreen('Cartões', false),
+            component: CardsScreen,
             validateSearch: (search: Record<string, unknown>): CardsSearch => parseCardsSearch(search),
         }),
         createRoute({ getParentRoute: () => shellRoute, path: '/reports/category' satisfies AppPath, component: blankScreen('Relatório por categoria', false) }),

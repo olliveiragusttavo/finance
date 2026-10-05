@@ -1,4 +1,4 @@
-import { YearMonth } from '@finance/core';
+import { LocalDate, YearMonth } from '@finance/core';
 import { z } from 'zod';
 
 /*
@@ -55,6 +55,15 @@ function isSupportedYear(period: string): boolean {
  */
 export function currentPeriod(now: Date): string {
     return YearMonth.of(now.getFullYear(), now.getMonth() + 1).toString();
+}
+
+/**
+ * @param now Instante atual, no fuso do aparelho.
+ * @return A data de hoje `YYYY-MM-DD`, pelo calendário local e pelo mesmo motivo do
+ * `currentPeriod`: a data sugerida para um pagamento é a do relógio de parede do usuário.
+ */
+export function currentDate(now: Date): string {
+    return LocalDate.of(now.getFullYear(), now.getMonth() + 1, now.getDate()).toString();
 }
 
 /**

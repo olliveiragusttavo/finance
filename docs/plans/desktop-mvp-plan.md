@@ -1,6 +1,6 @@
 # Plano do MVP Desktop — CRUD e primeiros relatórios
 
-**Status:** Em andamento — Fases 0 a 7 concluídas (só o `Ctrl K` da Fase 4 ficou pendente). Primeira entrega com tela do projeto: o app desktop
+**Status:** Em andamento — Fases 0 a 8 concluídas (só o `Ctrl K` da Fase 4 ficou pendente). Primeira entrega com tela do projeto: o app desktop
 (Electron) com os cadastros e lançamentos básicos e os dois primeiros relatórios
 personalizados, que são a motivação original do projeto ([README](../../README.md#motivação)).
 O mobile fica inteiro para depois.
@@ -350,13 +350,14 @@ Ordem pensada para que cada fase entregue algo testável. As fases 1–2 (núcle
 
 ### Fase 8 — Cartões (fatura)
 
-- [ ] Lista de cartões com fatura do mês, situação e totais
-- [ ] Detalhe da fatura: total a pagar (em módulo), situação, fechamento, vencimento, limite usado, lançamentos
-- [ ] Pagar fatura (conta pagadora sugerida, data) → fatura "Paga em dd/mm", extrato do mês do pagamento atualizado — o dia já é gravado desde a Fase 7 (`paymentDate` no `InvoiceResponse`)
-- [ ] Ler os *search params* `card` e `invoice` de `/cards` (`cards/cardsSearch.ts`), que o "ver fatura" do extrato já envia
-- [ ] Pagamento parcial (diálogo de valor → transferência negativa na fatura)
-- [ ] Reabrir fatura com confirmação explicando que o saldo da conta volta
-- [ ] Próximas faturas do cartão
+- [x] Lista de cartões com fatura do mês, situação e totais — "Em aberto · vence 10/10", "Paga em 07/10" (ou "Paga no extrato de out" sem o dia gravado) e, no mês em que nada caiu, "Sem lançamentos" com o valor `—` (`formatInvoiceSituation`/`formatInvoiceAmount`, view-model `invoiceView.ts` do `client`); rodapé com os totais do núcleo; cartão desativado marcado. Sem `card` na URL, abre o primeiro da lista (o núcleo ordena por nome). "+ Novo cartão" usa o diálogo de Cadastros e abre a fatura do cartão criado
+- [x] Detalhe da fatura: total a pagar (em módulo), situação, fechamento, vencimento (com a nota de onde a fatura pesa: previsto da pagadora em aberto, extrato do pagamento quando paga), limite usado (`describeLimitUsage`: percentual, barra limitada a 100%, `—` no cartão sem limite) e lançamentos (`buildInvoiceTable`). **Decisão:** cada linha mostra quanto soma à fatura — o oposto do efeito na conta —, então a compra é positiva e o estorno e o pagamento parcial são negativos, com etiqueta e `⇄`; a soma fecha com o total a pagar. O "⋯" leva editar, desativar/reativar e excluir o cartão, como em Contas
+- [x] Pagar fatura (conta pagadora sugerida, data) → fatura "Paga em dd/mm", extrato do mês do pagamento atualizado — data sugerida é hoje (`currentDate`), e a confirmação mostra o extrato que recebe a fatura e o consolidado da conta antes → depois (`describeInvoicePayment`, do mockup `MobilePagarFatura`). **Decisão:** a conta não se escolhe no pagamento: o vínculo da fatura é com o extrato da conta pagadora do cartão (database-design §4.7; o `ImpactCalculator` recalcula sempre essa conta), e pagar por outra mudaria o modelo. O diálogo mostra a pagadora; trocá-la é editar o cartão
+- [x] Ler os *search params* `card` e `invoice` de `/cards` (`cards/cardsSearch.ts`), que o "ver fatura" do extrato já envia — fatura fora do mês de referência mostra um aviso com o link para a do mês. **Decisão:** trocar o mês na barra superior tira o `invoice` da URL (`shouldDropInvoice`), para o detalhe acompanhar a lista; voltar no histórico ou seguir um link, que mudam mês e fatura juntos, mantêm a fatura pedida
+- [x] Pagamento parcial (diálogo de valor → transferência negativa na fatura) — `readPartialPaymentForm` monta a transferência já paga, com a conta que pagou como destino, validada pelo `createTransactionRequest`. **Decisões:** a conta sugerida é a pagadora do cartão, mas qualquer conta ativa pode ter pago (é um lançamento comum, não o vínculo da fatura); o diálogo pede a subcategoria, porque toda transação tem uma e não há subcategoria de sistema (transferências ficam fora do relatório por categoria, R2); o valor é maior que zero e **menor** que o valor a pagar — igual ou maior deixaria a fatura zerada ou credora e ainda em aberto, e quitar tudo é "Pagar fatura". Sem valor a pagar, o botão fica desabilitado
+- [x] Reabrir fatura com confirmação explicando que o saldo da conta volta — `describeInvoiceReopening`: de qual extrato o pagamento sai e em que mês e dia a fatura volta a pesar no previsto
+- [x] Próximas faturas do cartão — só as que existem depois da aberta, cada uma levando ao detalhe (`invoice`). A fase segue o mockup: "aberta" é a que recebe as compras de hoje, "futura" a que ainda não começou; também "fechada · vence dd/mm" e "paga" (`invoiceStage`, pelo dia de fechamento com o ajuste de fim de mês)
+- [x] Testes: `client` (`test/invoiceView.test.ts`: situação, lançamentos com estorno e parcial, fases das próximas faturas com o dia do fechamento e o fim de mês, limite usado, frases de pagar e reabrir), desktop (`test/cards.test.ts`: cartão e fatura abertos, troca do mês, formulários de pagar e de pagamento parcial) e ponta a ponta (`e2e/cards.spec.ts`: lista e totais, detalhe, parcial, pagar com a prévia do saldo e o extrato da conta, reabrir, "ver fatura" de outro mês, troca do mês, cartão novo e desativado)
 
 ### Fase 9 — Transações
 
@@ -389,7 +390,7 @@ Ordem pensada para que cada fase entregue algo testável. As fases 1–2 (núcle
 
 - [ ] KPIs: faturas do mês (cartões, quantas em aberto), peso nas entradas, média dos 3 meses anteriores
 - [ ] Grade mês × cartão com valor, situação ("paga no extrato de jul", "Em aberto · vence 10/10", "Futura"), total e peso
-- [ ] Decidir com o mockup duas diferenças achadas no view-model da Fase 3.2: o mockup mostra "Paga em 07/10" (data) no mês de referência, e o `reports.cardImpact` só traz o mês do extrato — o dia existe desde a Fase 7 (`invoices.payment_date`), falta levá-lo ao relatório; e distingue "Aberta" (ciclo recebendo compras) de "Futura", que o núcleo junta em `future` (reports-design §4)
+- [ ] Decidir com o mockup duas diferenças achadas no view-model da Fase 3.2: o mockup mostra "Paga em 07/10" (data) no mês de referência, e o `reports.cardImpact` só traz o mês do extrato — o dia existe desde a Fase 7 (`invoices.payment_date`), falta levá-lo ao relatório; e distingue "Aberta" (ciclo recebendo compras) de "Futura", que o núcleo junta em `future` (reports-design §4) — a distinção já existe no `client` desde a Fase 8 (`invoiceStage`)
 - [ ] Linha do mês de referência destacada; links de cada célula para a fatura
 - [ ] Nota explicando que a fatura em aberto pesa no previsto no vencimento e, paga, no extrato do pagamento
 - [ ] Estados: perfil sem cartão; mês sem receitas (peso "—")
