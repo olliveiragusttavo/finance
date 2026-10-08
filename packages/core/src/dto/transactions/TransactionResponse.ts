@@ -22,6 +22,8 @@ export interface TransactionResponse {
     readonly partnerId: string | null;
     readonly goalId: string | null;
     readonly recurrenceId: string | null;
+    /** Número da ocorrência na série (a 1ª é 1); `null` num lançamento avulso. */
+    readonly occurrence: number | null;
     readonly name: string;
     readonly description: string | null;
     readonly value: MoneyResponse;
@@ -61,6 +63,7 @@ export function toTransactionResponse(transaction: Transaction): TransactionResp
         partnerId: transaction.partnerId,
         goalId: transaction.goalId,
         recurrenceId: transaction.recurrenceId,
+        occurrence: transaction.occurrence,
         name: transaction.name,
         description: transaction.description,
         value: toMoneyResponse(transaction.value),

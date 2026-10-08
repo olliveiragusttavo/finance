@@ -1,8 +1,9 @@
 import { Currency, Money } from '@finance/core';
-import type { AccountResponse, CategoryBranchResponse, CreditCardResponse, InvoiceResponse, MoneyResponse, TransactionResponse } from '@finance/core';
+import type { AccountResponse, CategoryBranchResponse, CreditCardResponse, InvoiceResponse, MoneyResponse, RecurrenceResponse, TransactionResponse } from '@finance/core';
 import { formatDayMonth, formatMonthAbbreviation } from '../format/dates.ts';
 import { formatMoney } from '../format/money.ts';
 import { matchesAllTerms, normalizeForSearch } from '../format/searchText.ts';
+import { formatRecurrenceTag } from './recurrenceView.ts';
 
 /**
  * Situação de um lançamento na tabela:
@@ -36,6 +37,8 @@ export interface TransactionTableSource {
      * um dinheiro saiu sem saber.
      */
     readonly invoices: readonly Pick<InvoiceResponse, 'id' | 'status'>[];
+    /** Séries do perfil, para a coluna "Rec."; ausente, a coluna mostra só que há uma série. */
+    readonly recurrences?: readonly RecurrenceResponse[];
 }
 
 /** Uma linha da tabela, com os textos prontos e os valores crus para ordenar e filtrar. */
@@ -61,8 +64,10 @@ export interface TransactionRow {
     readonly direction: TransactionDirection;
     readonly situation: TransactionSituation;
     readonly situationText: string;
-    /** Gerada por recorrência; a coluna "Rec." do mockup. */
+    /** Gerada por recorrência. */
     readonly recurring: boolean;
+    /** A coluna "Rec." do mockup: "3/12", "Fixa"; `null` num lançamento avulso. */
+    readonly recurrenceTag: string | null;
 }
 
 /** Filtros da tela de Transações; `null` e texto vazio significam "Todos/Todas". */
@@ -157,6 +162,7 @@ interface Lookup {
     readonly creditCards: ReadonlyMap<string, string>;
     readonly subCategories: ReadonlyMap<string, { readonly categoryId: string; readonly label: string }>;
     readonly paidInvoices: ReadonlySet<string>;
+    readonly recurrences: ReadonlyMap<string, RecurrenceResponse>;
 }
 
 /**
@@ -172,6 +178,7 @@ function createLookup(source: TransactionTableSource): Lookup {
             { categoryId: category.id, label: `${category.name} › ${sub.name}` },
         ]))),
         paidInvoices: new Set(source.invoices.filter((invoice) => invoice.status === 'paid').map((invoice) => invoice.id)),
+        recurrences: new Map((source.recurrences ?? []).map((recurrence) => [recurrence.id, recurrence])),
     };
 }
 
@@ -200,6 +207,7 @@ function toRow(transaction: TransactionResponse, lookup: Lookup): TransactionRow
         situation,
         situationText: SITUATION_LABELS[situation],
         recurring: transaction.recurrenceId !== null,
+        recurrenceTag: formatRecurrenceTag(transaction, transaction.recurrenceId === null ? undefined : lookup.recurrences.get(transaction.recurrenceId)),
     };
 }
 

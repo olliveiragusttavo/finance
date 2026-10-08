@@ -35,6 +35,23 @@ export class UnitOfWork {
     }
 
     /**
+     * Como `run`, mas exige ser a unidade mais externa: `work` é confirmado ou desfeito
+     * sozinho. Existe para quem trata a falha de uma parte e segue com as outras — o
+     * complemento das recorrências, série a série. Dentro de outra unidade, `run` só
+     * participaria dela, e as escritas da parte que falhou ficariam gravadas pela metade.
+     *
+     * @param work Trabalho a executar na sua própria transação.
+     * @return O que `work` devolveu; uma exceção desfaz só esta transação.
+     * @throws {Error} Quando chamado dentro de outra unidade de trabalho.
+     */
+    public runAlone<T>(work: () => T): T {
+        if (this.depth > 0) {
+            throw new Error('UnitOfWork.runAlone não pode rodar dentro de outra unidade de trabalho');
+        }
+        return this.run(work);
+    }
+
+    /**
      * Executa `work` numa transação que é **sempre desfeita**. Existe para conferir o que um
      * caso de uso gravaria sem gravar — a verificação de integridade roda a rotina de
      * recálculo de verdade e compara o resultado com o cache, mas um desvio é bug a expor,

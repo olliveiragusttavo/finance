@@ -10,7 +10,7 @@ import type { CoreInput, CoreOutput, InvoiceResponse } from '@finance/core';
 import type { UseQueryResult } from '@tanstack/react-query';
 import type { CoreCallError } from '../errors/CoreCallError.ts';
 import type { ReadRoute } from '../queries/routes.ts';
-import { useCoreQueries, useCoreQuery } from './coreHooks.ts';
+import { useCoreQueries, useCoreQuery, useCoreRehearsal } from './coreHooks.ts';
 
 /** Estado de uma consulta de rota, com o erro tipado. */
 type Query<R extends ReadRoute> = UseQueryResult<CoreOutput<R>, CoreCallError>;
@@ -93,6 +93,54 @@ export function useTransaction(input: CoreInput<'transactions.get'> | null): Que
  */
 export function useTransactions(input: CoreInput<'transactions.listByPeriod'> | null): Query<'transactions.listByPeriod'> {
     return useCoreQuery('transactions.listByPeriod', input);
+}
+
+/**
+ * @param input Perfil; `null` deixa a consulta parada.
+ * @return As séries vivas do perfil, para a coluna "Rec." e o subtítulo do painel.
+ */
+export function useRecurrences(input: CoreInput<'recurrences.list'> | null): Query<'recurrences.list'> {
+    return useCoreQuery('recurrences.list', input);
+}
+
+/**
+ * @param input Série; `null` enquanto o diálogo de escopo está fechado.
+ * @return As ocorrências vivas da série, que o diálogo conta (pagas, meses afetados).
+ */
+export function useRecurrenceOccurrences(input: CoreInput<'recurrences.occurrences'> | null): Query<'recurrences.occurrences'> {
+    return useCoreQuery('recurrences.occurrences', input);
+}
+
+/**
+ * @param input Origem, data, valor e repetição; `null` enquanto o formulário não tem os dados.
+ * @return As ocorrências que a criação gravaria — a prévia das parcelas.
+ */
+export function useRecurrencePreview(input: CoreInput<'recurrences.preview'> | null): Query<'recurrences.preview'> {
+    return useCoreQuery('recurrences.preview', input);
+}
+
+/**
+ * @param input Lançamento novo com repetição; `null` enquanto o diálogo de revisão está fechado.
+ * @return O que a criação gravaria — as ocorrências que a série lança agora.
+ */
+export function useCreatePlan(input: CoreInput<'recurrences.planCreate'> | null): Query<'recurrences.planCreate'> {
+    return useCoreRehearsal('recurrences.planCreate', input);
+}
+
+/**
+ * @param input Edição com escopo e série; `null` enquanto o diálogo de revisão está fechado.
+ * @return O que a edição faria: as ocorrências excluídas, criadas e alteradas, e as regras.
+ */
+export function useUpdatePlan(input: CoreInput<'recurrences.planUpdate'> | null): Query<'recurrences.planUpdate'> {
+    return useCoreRehearsal('recurrences.planUpdate', input);
+}
+
+/**
+ * @param input Ocorrência e escopo; `null` enquanto o diálogo de revisão está fechado.
+ * @return O que a exclusão faria.
+ */
+export function useDeletePlan(input: CoreInput<'recurrences.planDelete'> | null): Query<'recurrences.planDelete'> {
+    return useCoreRehearsal('recurrences.planDelete', input);
 }
 
 /**

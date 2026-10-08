@@ -348,7 +348,12 @@ Toda abertura do banco passa por um único caminho, nesta ordem:
 
 No desktop, qualquer falha da sequência bloqueia a abertura — inclusive a falha ao montar
 o núcleo ou ao rodar a verificação de integridade (os desvios encontrados por ela só vão
-para o log). A restauração do backup copia a cópia para um arquivo provisório antes de
+para o log). A exceção é a falha de uma **série** no complemento de recorrências: cada série
+é complementada na própria transação, e a que falha é desfeita sozinha e vai para o log
+(`recurrences.top-up-partial`), sem bloquear. O banco continua íntegro — só a previsão
+daquela série fica incompleta —, e bloquear repetiria a mesma falha em toda abertura, sem o
+usuário chegar à tela para corrigir a série. O complemento que nem consegue rodar continua
+bloqueando, como qualquer etapa. A restauração do backup copia a cópia para um arquivo provisório antes de
 tirar o banco do lugar, desfaz as etapas se uma falhar e grava uma marca
 (`restore-pending.json`) enquanto não termina: com a marca presente, a abertura bloqueia
 em vez de criar um banco vazio no lugar do que saiu. A primeira migration que falha também
@@ -661,14 +666,17 @@ cobertura de linhas é exigida: o mutation testing mede o que ela fingiria medir
    ([§4.3](#43-migrations-são-somente-para-a-frente-e-imutáveis)). Pendente no runner: o
    tratamento de `foreign_keys` para reconstrução de tabelas
    ([§4.7](#47-mudanças-que-o-alter-table-não-faz)).
-4. ~~**Implementar `Money` e o domínio puro de datas**~~ — feito para a fatura de uma
-   compra e o vencimento; falta a expansão de recorrências e a divisão de parcelas.
+4. ~~**Implementar `Money` e o domínio puro de datas**~~ — feito: a fatura de uma compra,
+   o vencimento, a expansão de recorrências (`RecurrenceSchedule`) e a divisão de parcelas
+   (`Money.split`), na Fase 9.1 do [desktop-mvp-plan.md](desktop-mvp-plan.md#fase-91--recorrências).
 5. ~~**Implementar a rotina de recálculo**~~ — feita (`BalanceRecalculationService`), com
    testes de mesa e teste de propriedade contra um oráculo independente. A
    **verificação de integridade** cobre o desvio de saldo (rota `integrity.verifyBalances`,
    que roda o recálculo numa transação desfeita e só relata); faltam órfãs e anexos ausentes.
-6. ~~Os Services de lançamento~~ — CRUD de transações (escopo "somente esta"), consolidação
-   de extrato, pagamento e reabertura de fatura e saldo do perfil, expostos pelo mapa de
-   rotas. Faltam o serviço de recorrências (escopos "esta e as futuras" e "todas"), os
-   cadastros (perfil, conta, cartão, categorias, tags), anexos e o Stryker
-   ([§5.11](#511-mutation-testing-no-núcleo-de-saldos)).
+6. ~~Os Services de lançamento~~ — CRUD de transações, consolidação de extrato, pagamento
+   e reabertura de fatura e saldo do perfil, expostos pelo mapa de rotas. Os cadastros
+   (perfil, conta, cartão, categorias, tags) entraram nas Fases 1 e 6 do
+   [desktop-mvp-plan.md](desktop-mvp-plan.md), e o serviço de recorrências
+   (`RecurrenceService`, com os escopos "somente esta", "esta e as futuras" e "todas", o
+   complemento na abertura e o plano do diálogo de revisão) nas Fases 9.1 e 9.2. Faltam
+   anexos e o Stryker ([§5.11](#511-mutation-testing-no-núcleo-de-saldos)).

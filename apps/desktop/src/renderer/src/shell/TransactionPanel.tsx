@@ -1,20 +1,19 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { TransactionForm } from '@/transactions/TransactionForm';
+import { TransactionDialog } from '@/transactions/TransactionDialog';
 
-/** Abre e fecha o painel de transação de qualquer ponto do app. */
+/** Abre e fecha o diálogo de lançamento de qualquer ponto do app. */
 interface TransactionPanelValue {
     readonly isOpen: boolean;
-    /** Abre o painel para um lançamento novo: "+ Lançamento" e atalho `N`. */
+    /** Abre o diálogo de lançamento novo: "+ Lançamento" e atalho `N`. */
     readonly openNew: () => void;
     /**
-     * @param open Novo estado; o painel fecha por `Esc`, pelo véu ou pelo `×`.
+     * @param open Novo estado; o diálogo fecha por `Esc`, pelo véu ou pelo "Cancelar".
      */
     readonly setOpen: (open: boolean) => void;
     /**
-     * Registra a tela que abre o lançamento novo no próprio layout, no lugar do painel.
+     * Registra a tela que abre o lançamento novo por conta própria, no lugar do diálogo do shell.
      *
-     * @param host Abre o formulário na tela; `null` devolve o "+ Lançamento" ao painel.
+     * @param host Abre o diálogo da tela; `null` devolve o "+ Lançamento" ao shell.
      */
     readonly setHost: (host: (() => void) | null) => void;
 }
@@ -22,13 +21,13 @@ interface TransactionPanelValue {
 const TransactionPanelContext = createContext<TransactionPanelValue | null>(null);
 
 /**
- * Dono do painel de transação global (desktop-mvp-plan Fase 4). Fica no shell, e não na tela
- * de Transações, porque "+ Lançamento" e o atalho `N` valem em toda tela: lançar não pode
- * exigir navegar antes. Na tela de Transações o formulário abre na coluna ao lado da tabela,
- * como no mockup (decisão da Fase 9); a tela se registra como *host* e o painel não abre lá.
+ * Dono do lançamento global (desktop-mvp-plan Fase 4). Fica no shell, e não na tela de
+ * Transações, porque "+ Lançamento" e o atalho `N` valem em toda tela: lançar não pode exigir
+ * navegar antes. Abre o mesmo diálogo de lançamento da tela de Transações; lá a tela se registra
+ * como *host* e abre o dela, que sugere a origem do filtro e seleciona o gravado na tabela.
  *
- * @param props.children O shell, que abre o painel pela barra superior e pelos atalhos.
- * @return O provedor e o painel.
+ * @param props.children O shell, que abre o lançamento pela barra superior e pelos atalhos.
+ * @return O provedor e o diálogo.
  */
 export function TransactionPanelProvider({ children }: { readonly children: ReactNode }): ReactNode {
     const [isOpen, setOpen] = useState(false);
@@ -53,28 +52,20 @@ export function TransactionPanelProvider({ children }: { readonly children: Reac
     return (
         <TransactionPanelContext value={value}>
             {children}
-            <Sheet open={isOpen} onOpenChange={setOpen}>
-                <SheetContent className="w-95 gap-3 overflow-y-auto p-5 sm:max-w-none">
-                    <SheetHeader className="p-0">
-                        <SheetTitle>Novo lançamento</SheetTitle>
-                        <SheetDescription>Despesa, receita, transferência ou investimento.</SheetDescription>
-                    </SheetHeader>
-                    {isOpen && (
-                        <TransactionForm
-                            transaction={null}
-                            onClose={() => {
-                                setOpen(false);
-                            }}
-                        />
-                    )}
-                </SheetContent>
-            </Sheet>
+            {isOpen && (
+                <TransactionDialog
+                    transaction={null}
+                    onClose={() => {
+                        setOpen(false);
+                    }}
+                />
+            )}
         </TransactionPanelContext>
     );
 }
 
 /**
- * @return O estado do painel de transação e as ações de abri-lo.
+ * @return O estado do diálogo de lançamento e as ações de abri-lo.
  * @throws {Error} Fora do `TransactionPanelProvider`, um erro de montagem do app.
  */
 export function useTransactionPanel(): TransactionPanelValue {
@@ -86,10 +77,10 @@ export function useTransactionPanel(): TransactionPanelValue {
 }
 
 /**
- * Faz a tela atual abrir o lançamento novo no próprio layout enquanto estiver montada — a tela de
- * Transações, onde o formulário é a coluna ao lado da tabela e um painel por cima a cobriria.
+ * Faz a tela atual abrir o lançamento novo por conta própria enquanto estiver montada — a tela de
+ * Transações, cujo diálogo sugere a origem filtrada e seleciona na tabela o lançamento gravado.
  *
- * @param openNew Abre o formulário de lançamento novo na tela; precisa ser estável entre renders
+ * @param openNew Abre o diálogo de lançamento novo da tela; precisa ser estável entre renders
  * (`useCallback`), senão o registro se refaz a cada render.
  */
 export function useTransactionPanelHost(openNew: () => void): void {

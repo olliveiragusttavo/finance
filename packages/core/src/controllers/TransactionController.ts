@@ -1,6 +1,7 @@
 import { toTransactionResponse, type TransactionResponse } from '../dto/transactions/TransactionResponse.ts';
 import {
     createTransactionRequest,
+    deleteTransactionRequest,
     listTransactionsRequest,
     setPaidRequest,
     transactionIdRequest,
@@ -52,8 +53,8 @@ export class TransactionController {
      * @return `null` em caso de sucesso — não há o que devolver de uma linha excluída.
      */
     public delete(raw: unknown): Promise<CoreResult<null>> {
-        return handle(transactionIdRequest, raw, ({ id }) => {
-            this.transactions.delete(id);
+        return handle(deleteTransactionRequest, raw, ({ id, scope }) => {
+            this.transactions.delete(id, scope);
             return null;
         }, this.onUnexpected);
     }

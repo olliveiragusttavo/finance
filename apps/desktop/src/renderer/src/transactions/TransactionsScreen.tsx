@@ -2,13 +2,13 @@ import {
     buildTransactionTable,
     formatMonthShort,
     formatTransactionSituation,
-    formatTransactionType,
     TRANSACTION_SITUATIONS,
     useAccounts,
     useCategoryTree,
     useCoreMutation,
     useCreditCards,
     useInvoicesByCards,
+    useRecurrences,
     useTags,
     useTransactions,
     type TransactionFilters,
@@ -27,7 +27,7 @@ import { useActiveProfile } from '@/shell/activeProfile';
 import { useTransactionPanel, useTransactionPanelHost } from '@/shell/TransactionPanel';
 import { useReferenceMonth } from '@/shell/useReferenceMonth';
 import { DeleteTransactionDialog } from './DeleteTransactionDialog.tsx';
-import { TransactionForm } from './TransactionForm.tsx';
+import { TransactionDialog } from './TransactionDialog.tsx';
 import { sourceKey } from './transactionForm.ts';
 import { TransactionGrid } from './TransactionGrid.tsx';
 import {
@@ -40,7 +40,7 @@ import {
     withFilters,
 } from './transactionsSearch.ts';
 
-/** O que a coluna de edição mostra: um lançamento novo ou a edição de um existente. */
+/** O que o diálogo de lançamento mostra: um lançamento novo ou a edição de um existente. */
 type EditorState = { readonly mode: 'new' } | { readonly mode: 'edit'; readonly transaction: TransactionResponse };
 
 /** Valor dos campos de filtro para "Todos/Todas": o `Select` do Radix não aceita valor vazio. */
@@ -48,9 +48,10 @@ const ALL = 'all';
 
 /**
  * Transações (mockup `DesktopTransacoes`; desktop-mvp-plan Fase 9): a tabela densa do mês com os
- * filtros e a linha-resumo, e a coluna de criação e edição ao lado, como no mockup. Os filtros
- * ficam na URL (`transactionsSearch.ts`). O "+ Lançamento" e o `N` abrem a coluna desta tela no
- * lugar do painel do shell.
+ * filtros e a linha-resumo. Criar e editar abrem o diálogo de lançamento, como os de contas e
+ * cartões (pedido do usuário, divergindo da coluna ao lado da tabela do mockup). Os filtros ficam
+ * na URL (`transactionsSearch.ts`). O "+ Lançamento" e o `N` abrem o diálogo desta tela no lugar
+ * do do shell, para sugerir a origem do filtro e selecionar na tabela o lançamento gravado.
  *
  * @return A tela de Transações.
  */
@@ -65,6 +66,7 @@ export function TransactionsScreen(): ReactNode {
     const creditCards = useCreditCards({ profileId: profile.id, period });
     const categories = useCategoryTree({ profileId: profile.id });
     const tags = useTags({ profileId: profile.id });
+    const recurrences = useRecurrences({ profileId: profile.id });
     const invoices = useMonthInvoices(transactions.data);
     const [editor, setEditor] = useState<EditorState | null>(null);
     const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -82,10 +84,17 @@ export function TransactionsScreen(): ReactNode {
             transactions.data === undefined || accounts.data === undefined || creditCards.data === undefined || categories.data === undefined
                 ? null
                 : buildTransactionTable(
-                      { transactions: transactions.data, accounts: accounts.data.accounts, creditCards: creditCards.data.creditCards, categories: categories.data, invoices },
+                      {
+                          transactions: transactions.data,
+                          accounts: accounts.data.accounts,
+                          creditCards: creditCards.data.creditCards,
+                          categories: categories.data,
+                          invoices,
+                          recurrences: recurrences.data ?? [],
+                      },
                       filters,
                   ),
-        [transactions.data, accounts.data, creditCards.data, categories.data, invoices, filters],
+        [transactions.data, accounts.data, creditCards.data, categories.data, invoices, recurrences.data, filters],
     );
     const failed = [transactions, accounts, creditCards, categories].find((query) => query.error !== null)?.error ?? null;
 
@@ -136,60 +145,59 @@ export function TransactionsScreen(): ReactNode {
                 summary={table?.summary ?? null}
                 onChange={changeFilters}
             />
-            <div className="flex min-w-0 items-start gap-4">
-                <section aria-label="Lançamentos do mês" className="min-w-0 flex-1 overflow-hidden rounded-10 border border-line bg-surface text-13">
-                    {failed !== null ? (
-                        <div className="p-4">
-                            <ErrorState error={failed} />
-                        </div>
-                    ) : table === null ? (
-                        <TableSkeleton />
-                    ) : (
-                        <TransactionGrid
-                            rows={table.rows}
-                            selectedId={selectedId}
-                            editingId={editor?.mode === 'edit' ? editor.transaction.id : null}
-                            empty={
-                                <EmptyTable
-                                    table={table}
-                                    period={period}
-                                    monthHasTransactions={(transactions.data?.length ?? 0) > 0}
-                                    onNew={panel.openNew}
-                                    onClear={() => {
-                                        changeFilters(withoutFilters(filters));
-                                    }}
-                                />
-                            }
-                            onSelect={setSelectedId}
-                            onEdit={(row) => {
-                                setSelectedId(row.id);
-                                setEditor({ mode: 'edit', transaction: row.transaction });
-                            }}
-                            onTogglePaid={togglePaid}
-                            onDelete={(row) => {
-                                setDeleting(row.transaction);
-                            }}
-                        />
-                    )}
-                </section>
-                {editor !== null && (
-                    <EditorColumn
-                        key={editor.mode === 'edit' ? editor.transaction.id : 'new'}
-                        editor={editor}
-                        row={editor.mode === 'edit' ? (table?.rows.find((row) => row.id === editor.transaction.id) ?? null) : null}
-                        initialSource={initialSourceOf(filters)}
-                        onClose={() => {
-                            setEditor(null);
+            <section aria-label="Lançamentos do mês" className="min-w-0 overflow-hidden rounded-10 border border-line bg-surface text-13">
+                {failed !== null ? (
+                    <div className="p-4">
+                        <ErrorState error={failed} />
+                    </div>
+                ) : table === null ? (
+                    <TableSkeleton />
+                ) : (
+                    <TransactionGrid
+                        rows={table.rows}
+                        selectedId={selectedId}
+                        editingId={editor?.mode === 'edit' ? editor.transaction.id : null}
+                        empty={
+                            <EmptyTable
+                                table={table}
+                                period={period}
+                                monthHasTransactions={(transactions.data?.length ?? 0) > 0}
+                                onNew={panel.openNew}
+                                onClear={() => {
+                                    changeFilters(withoutFilters(filters));
+                                }}
+                            />
+                        }
+                        onSelect={setSelectedId}
+                        onEdit={(row) => {
+                            setSelectedId(row.id);
+                            setEditor({ mode: 'edit', transaction: row.transaction });
                         }}
-                        onSaved={(saved) => {
-                            setSelectedId(saved.id);
-                        }}
-                        onDelete={(transaction) => {
-                            setDeleting(transaction);
+                        onTogglePaid={togglePaid}
+                        onDelete={(row) => {
+                            setDeleting(row.transaction);
                         }}
                     />
                 )}
-            </div>
+            </section>
+            {editor !== null && (
+                <TransactionDialog
+                    key={editor.mode === 'edit' ? editor.transaction.id : 'new'}
+                    transaction={editor.mode === 'edit' ? editor.transaction : null}
+                    container={editor.mode === 'edit' ? (table?.rows.find((row) => row.id === editor.transaction.id)?.container ?? null) : null}
+                    recurrence={editor.mode === 'edit' ? (recurrences.data?.find((recurrence) => recurrence.id === editor.transaction.recurrenceId) ?? null) : null}
+                    initialSource={initialSourceOf(filters)}
+                    onClose={() => {
+                        setEditor(null);
+                    }}
+                    onSaved={(saved) => {
+                        setSelectedId(saved.id);
+                    }}
+                    onDelete={(transaction) => {
+                        setDeleting(transaction);
+                    }}
+                />
+            )}
             {deleting !== null && (
                 <DeleteTransactionDialog
                     transaction={deleting}
@@ -487,69 +495,6 @@ function EmptyTable({
             <p className="text-muted">Nenhum lançamento em {formatMonthShort(period)}.</p>
             <Button onClick={onNew}>+ Lançamento</Button>
         </div>
-    );
-}
-
-/**
- * Coluna de criação e edição ao lado da tabela, como no mockup (decisão da Fase 9). Fica presa ao
- * topo da área que rola, para continuar à vista quando a linha editada está no fim de uma tabela
- * longa.
- *
- * @param props.editor Lançamento novo ou editado.
- * @param props.row Linha do lançamento editado na tabela, para o subtítulo; `null` num novo ou
- * quando o filtro o escondeu.
- * @param props.initialSource Origem sugerida para o novo.
- * @param props.onClose Fecha a coluna.
- * @param props.onSaved Recebe o lançamento gravado.
- * @param props.onDelete Abre a confirmação de excluir o editado.
- * @return A coluna.
- */
-function EditorColumn({
-    editor,
-    row,
-    initialSource,
-    onClose,
-    onSaved,
-    onDelete,
-}: {
-    readonly editor: EditorState;
-    readonly row: TransactionRow | null;
-    readonly initialSource: string;
-    readonly onClose: () => void;
-    readonly onSaved: (saved: TransactionResponse) => void;
-    readonly onDelete: (transaction: TransactionResponse) => void;
-}): ReactNode {
-    const transaction = editor.mode === 'edit' ? editor.transaction : null;
-    const title = transaction?.name ?? 'Novo lançamento';
-    const subtitle = transaction === null ? 'Despesa, receita, transferência ou investimento.' : [formatTransactionType(transaction.type), row?.container].filter((part) => part !== undefined).join(' · ');
-    return (
-        <aside
-            aria-label={transaction === null ? 'Novo lançamento' : 'Editar transação'}
-            className="sticky top-20 flex max-h-[calc(100vh-6rem)] w-85 shrink-0 flex-col gap-3.5 overflow-y-auto rounded-10 border border-line bg-surface p-5"
-        >
-            <div className="flex flex-col gap-1">
-                <div className="flex items-start justify-between gap-2">
-                    <h2 className="text-16 font-semibold break-words">{title}</h2>
-                    <Button variant="ghost" size="icon-sm" aria-label="Fechar painel" onClick={onClose}>
-                        ✕
-                    </Button>
-                </div>
-                <p className="text-12 text-muted">{subtitle}</p>
-            </div>
-            <TransactionForm
-                transaction={transaction}
-                initialSource={initialSource}
-                onClose={onClose}
-                onSaved={onSaved}
-                onDelete={
-                    transaction === null
-                        ? undefined
-                        : () => {
-                              onDelete(transaction);
-                          }
-                }
-            />
-        </aside>
     );
 }
 

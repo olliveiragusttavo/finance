@@ -108,6 +108,28 @@ export class Money {
     }
 
     /**
+     * Divide em partes iguais na precisão da moeda.
+     * Regra de negócio (Parcelamento, database-design §4.12): cada parte é arredondada e **a
+     * diferença do arredondamento vai para a primeira**, para que a soma das partes seja sempre
+     * exatamente o total — R$ 1.000,00 em 3 é `333,34 + 333,33 + 333,33`. Trabalha em unidades
+     * menores inteiras, e não em float, para que o resto não sofra erro binário.
+     *
+     * @param parts Quantidade de partes, inteira e positiva.
+     * @return As partes, a primeira com o resto.
+     * @throws {InvalidValueError} Quando `parts` não é um inteiro positivo.
+     */
+    public split(parts: number): readonly Money[] {
+        if (!Number.isInteger(parts) || parts < 1) {
+            throw new InvalidValueError('parts', `quantidade de partes inválida: ${parts}`);
+        }
+        const scale = 10 ** this.currency.minorUnits;
+        const total = Math.round(roundHalfAwayFromZero(this.amount, this.currency.minorUnits) * scale);
+        const share = Math.trunc(total / parts);
+        const remainder = total - share * parts;
+        return Array.from({ length: parts }, (_, index) => Money.of((index === 0 ? share + remainder : share) / scale, this.currency));
+    }
+
+    /**
      * Igualdade com epsilon de meia unidade mínima da moeda (`0,005` em BRL). É o único
      * comparador de dinheiro permitido: `===` entre doubles falharia para valores que o
      * usuário enxerga como iguais (backend-design §3.3).

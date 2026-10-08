@@ -1,5 +1,5 @@
 import { NO_TRANSACTION_FILTERS } from '@finance/client';
-import type { TransactionResponse } from '@finance/core';
+import type { RecurrenceResponse, TransactionResponse } from '@finance/core';
 import { describe, expect, it } from 'vitest';
 import {
     cashPeriodOf,
@@ -8,6 +8,8 @@ import {
     readTransactionForm,
     sourceKey,
     TRANSACTION_FIELDS,
+    changesSeries,
+    formChangesSeries,
     transactionFormFrom,
     type TransactionFormValues,
 } from '../src/renderer/src/transactions/transactionForm.ts';
@@ -62,6 +64,7 @@ function purchase(overrides: Partial<TransactionResponse> = {}): TransactionResp
         partnerId: null,
         goalId: null,
         recurrenceId: null,
+        occurrence: null,
         name: 'Estorno Uber',
         description: null,
         value: brl(-23.9),
@@ -139,6 +142,7 @@ describe('formulário de lançamento (desktop-mvp-plan Fase 9)', () => {
                     dueDate: '2026-10-15',
                     paymentDate: null,
                     tagIds: [],
+                    repeat: null,
                 },
             },
         });
@@ -200,7 +204,7 @@ describe('formulário de lançamento (desktop-mvp-plan Fase 9)', () => {
         const values = transactionFormFrom(transaction, '2026-10-15');
         expect(values).toMatchObject({ amount: '23,90', inverted: true, source: sourceKey({ kind: 'creditCard', id: ROXINHO }), invoicePeriod: '2026-11', tagIds: [TAG], charges: '' });
 
-        const result = readTransactionForm({ ...values, name: 'Estorno Uber (corrida)' }, { mode: 'update', transaction });
+        const result = readTransactionForm({ ...values, name: 'Estorno Uber (corrida)' }, { mode: 'update', transaction, recurrence: null });
         expect(result).toEqual({
             ok: true,
             submission: {
@@ -222,6 +226,7 @@ describe('formulário de lançamento (desktop-mvp-plan Fase 9)', () => {
                     dueDate: '2026-10-09',
                     paymentDate: null,
                     tagIds: [TAG],
+                    repeat: null,
                 },
             },
         });
@@ -241,5 +246,80 @@ describe('formulário de lançamento (desktop-mvp-plan Fase 9)', () => {
         const card = sourceKey({ kind: 'creditCard', id: ROXINHO });
         expect(cashPeriodOf(filled({ source: card }), '2026-11')).toBe('2026-11');
         expect(cashPeriodOf(filled({ source: card, invoicePeriod: '2026-12' }), '2026-11')).toBe('2026-12');
+    });
+});
+
+/**
+ * @param overrides Campos a trocar.
+ * @return Uma série parcelada em 12x, como `recurrences.list` a devolve.
+ */
+function series(overrides: Partial<RecurrenceResponse> = {}): RecurrenceResponse {
+    return {
+        id: '99999999-9999-4999-8999-000000000001',
+        profileId: PROFILE,
+        kind: 'installments',
+        frequency: 'monthly',
+        installments: 12,
+        valueType: 'total',
+        endAt: null,
+        type: 'expense',
+        name: 'Notebook',
+        value: { amount: 4800, currency: 'BRL' },
+        total: { amount: 4800, currency: 'BRL' },
+        ...overrides,
+    };
+}
+
+describe('"Repetir" no formulário (desktop-mvp-plan Fase 9.1)', () => {
+    it('lançamento novo: não repetir, parcelado e fixo viram a repetição da rota', () => {
+        const repeatOf = (overrides: Partial<TransactionFormValues>): unknown => {
+            const result = readTransactionForm(filled(overrides), CREATE);
+            return result.ok && result.submission.route === 'transactions.create' ? result.submission.input.repeat : result;
+        };
+        expect(repeatOf({})).toBeNull();
+        expect(repeatOf({ repeatKind: 'installments', installments: '12', valueType: 'total' })).toEqual({ kind: 'installments', frequency: 'monthly', installments: 12, valueType: 'total' });
+        expect(repeatOf({ repeatKind: 'fixed', frequency: 'weekly', endAt: '' })).toEqual({ kind: 'fixed', frequency: 'weekly', endAt: null });
+        expect(repeatOf({ repeatKind: 'fixed', endAt: '2026-12-31' })).toEqual({ kind: 'fixed', frequency: 'monthly', endAt: '2026-12-31' });
+    });
+
+    it('parcelas fora de 2 a 360, ou que não são número, apontam o campo', () => {
+        for (const installments of ['1', '361', 'doze', '']) {
+            const result = readTransactionForm(filled({ repeatKind: 'installments', installments }), CREATE);
+            expect(result.ok ? null : result.errors.installments).toBe('Use de 2 a 360 parcelas.');
+        }
+    });
+
+    it('a edição de uma ocorrência traz a série, com o valor por parcela, e manda a repetição junto', () => {
+        const transaction = purchase({ recurrenceId: '99999999-9999-4999-8999-000000000001', occurrence: 3, value: { amount: 400, currency: 'BRL' } });
+        const values = transactionFormFrom(transaction, '2026-10-15', series());
+        expect(values).toMatchObject({ repeatKind: 'installments', frequency: 'monthly', installments: '12', valueType: 'perInstallment', amount: '400,00', inverted: false });
+        const result = readTransactionForm({ ...values, installments: '6' }, { mode: 'update', transaction, recurrence: series() });
+        expect(result.ok && result.submission.input.repeat).toEqual({ kind: 'installments', frequency: 'monthly', installments: 6, valueType: 'perInstallment' });
+        // Lançamento avulso não manda repetição, nem com o campo preenchido por engano.
+        const single = readTransactionForm({ ...values, repeatKind: 'fixed' }, { mode: 'update', transaction: purchase(), recurrence: null });
+        expect(single.ok && single.submission.input.repeat).toBeNull();
+    });
+
+    it('mudar tipo, frequência, parcelas ou fim muda a série; o resto não', () => {
+        expect(changesSeries(series(), { kind: 'installments', frequency: 'monthly', installments: 12, valueType: 'perInstallment' })).toBe(false);
+        expect(changesSeries(series(), { kind: 'installments', frequency: 'monthly', installments: 6, valueType: 'perInstallment' })).toBe(true);
+        expect(changesSeries(series(), { kind: 'installments', frequency: 'weekly', installments: 12, valueType: 'perInstallment' })).toBe(true);
+        expect(changesSeries(series(), { kind: 'fixed', frequency: 'monthly', endAt: null })).toBe(true);
+        const fixed = series({ kind: 'fixed', installments: null, valueType: null, endAt: '2026-12-31', total: null });
+        expect(changesSeries(fixed, { kind: 'fixed', frequency: 'monthly', endAt: '2026-12-31' })).toBe(false);
+        expect(changesSeries(fixed, { kind: 'fixed', frequency: 'monthly', endAt: null })).toBe(true);
+        expect(changesSeries(fixed, null)).toBe(false);
+    });
+
+    it('a fixa editada começa sem parcelas: virar parcelada exige informar a quantidade', () => {
+        const fixed = series({ kind: 'fixed', installments: null, valueType: null, endAt: null, total: null });
+        const transaction = purchase({ recurrenceId: fixed.id, occurrence: 3 });
+        const values = transactionFormFrom(transaction, '2026-10-15', fixed);
+        expect(values).toMatchObject({ repeatKind: 'fixed', installments: '' });
+        expect(formChangesSeries(values, fixed)).toBe(false);
+        const switched = { ...values, repeatKind: 'installments' as const };
+        expect(formChangesSeries(switched, fixed)).toBe(true);
+        const result = readTransactionForm(switched, { mode: 'update', transaction, recurrence: fixed });
+        expect(result.ok ? null : result.errors.installments).toBe('Use de 2 a 360 parcelas.');
     });
 });

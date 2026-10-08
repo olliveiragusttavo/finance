@@ -16,7 +16,30 @@ const TRANSACTION_CONTENT: readonly ReadRoute[] = [
     'statements.get',
     'invoices.get',
     'reports.categoryTransactions',
+    'recurrences.occurrences',
 ];
+
+/**
+ * Ensaios do diálogo de revisão (database-design §4.12): cada um executa uma escrita
+ * numa transação desfeita para mostrar o que ela faria. Ficam fora do mapa de propósito — não
+ * são uma visão do estado a manter atualizada, e sim a prévia de uma intenção. Invalidados, a
+ * própria escrita confirmada no diálogo fazia o plano ainda aberto ser ensaiado de novo sobre o
+ * estado já gravado: a exclusão confirmada ensaiava excluir um id já excluído e o diálogo mostrava
+ * o erro antes de fechar, e a criação ensaiava outra série inteira só para descartá-la. Para não
+ * mostrar um plano velho ao reabrir, a consulta de um ensaio não fica no cache (`useCoreRehearsal`).
+ */
+export const REHEARSAL_ROUTES = ['recurrences.planCreate', 'recurrences.planUpdate', 'recurrences.planDelete'] as const satisfies readonly ReadRoute[];
+
+/** Rota de leitura que ensaia uma escrita do diálogo de revisão. */
+export type RehearsalRoute = (typeof REHEARSAL_ROUTES)[number];
+
+/**
+ * @param route Rota de leitura.
+ * @return `true` quando ela é um ensaio, que nenhuma escrita invalida.
+ */
+export function isRehearsalRoute(route: ReadRoute): route is RehearsalRoute {
+    return REHEARSAL_ROUTES.some((rehearsal) => rehearsal === route);
+}
 
 /**
  * Tudo que depende de saldo, transação, fatura ou cadastro de conta e cartão — todas as
@@ -50,6 +73,11 @@ const MONEY: readonly ReadRoute[] = [
     'reports.cardImpact',
     // O uso de cada tag (contagem, total, último uso) sai dos lançamentos.
     'tags.list',
+    // As séries mudam com as escritas de transação (escopos, exclusão em cadeia) e a prévia
+    // depende do ciclo do cartão. Os planos do diálogo de revisão ficam de fora (`REHEARSAL_ROUTES`).
+    'recurrences.list',
+    'recurrences.occurrences',
+    'recurrences.preview',
 ];
 
 /** Toda leitura do núcleo; para escritas que mudam o perfil (moeda) ou criam um perfil novo. */
@@ -96,6 +124,8 @@ const INVALIDATIONS: Readonly<Record<WriteRoute, readonly ReadRoute[]>> = {
     'transactions.update': MONEY,
     'transactions.delete': MONEY,
     'transactions.setPaid': MONEY,
+    // O complemento emite ocorrências: mexe em extratos, faturas e relatórios dos meses à frente.
+    'recurrences.topUp': MONEY,
     'balances.rebuildAccount': MONEY,
     'invoices.pay': MONEY,
     'invoices.reopen': MONEY,

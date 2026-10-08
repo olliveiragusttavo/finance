@@ -16,10 +16,12 @@ import {
     useCreditCards,
     useInvoicesByCard,
     useInvoiceSuggestion,
+    useRecurrences,
     useTags,
+    type EditScope,
     type SourceOption,
 } from '@finance/client';
-import { movesToDestination, type AccountInPeriodResponse, type CategoryBranchResponse, type CreditCardInPeriodResponse, type TagResponse, type TransactionResponse } from '@finance/core';
+import { movesToDestination, type AccountInPeriodResponse, type CategoryBranchResponse, type CreditCardInPeriodResponse, type RecurrenceResponse, type TagResponse, type TransactionResponse } from '@finance/core';
 import { useId, useState, type ReactNode } from 'react';
 import { Controller, useForm, type Resolver } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -27,6 +29,7 @@ import { periodOfDate } from '@/cards/invoiceForms';
 import { Skeleton } from '@/components/states';
 import { Field, fieldAria, toFieldErrors } from '@/components/form';
 import { Button } from '@/components/ui/button';
+import { DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/cn';
@@ -36,8 +39,13 @@ import { useActiveProfile } from '@/shell/activeProfile';
 import { currentDate, shiftPeriod } from '@/shell/referenceMonth';
 import { useReferenceMonth } from '@/shell/useReferenceMonth';
 import { TagPicker, SubCategoryPicker } from './pickers.tsx';
+import { RepeatSection } from './RepeatSection.tsx';
+import { ScopeDialog } from './ScopeDialog.tsx';
+import { SeriesReviewDialog } from './SeriesReviewDialog.tsx';
 import {
     cashPeriodOf,
+    changesSeries,
+    formChangesSeries,
     newTransactionForm,
     parseSourceKey,
     readTransactionForm,
@@ -47,6 +55,7 @@ import {
     type TransactionErrorField,
     type TransactionFormTarget,
     type TransactionFormValues,
+    type TransactionSubmission,
 } from './transactionForm.ts';
 
 /** Campo do formulário de cada campo que o núcleo aponta numa recusa. */
@@ -68,19 +77,31 @@ export interface TransactionFormProps {
     /** Lançamento editado; `null` num lançamento novo. */
     readonly transaction: TransactionResponse | null;
     /** Origem sugerida num lançamento novo (`sourceKey`), como o filtro de conta da tela. */
-    readonly initialSource?: string;
-    /** Fecha o painel, depois de salvar ou ao desistir. */
+    readonly initialSource?: string | undefined;
+    /** Fecha o diálogo, depois de salvar ou ao desistir. */
     readonly onClose: () => void;
     /** Recebe o lançamento gravado, para a tela selecioná-lo na tabela. */
-    readonly onSaved?: (saved: TransactionResponse) => void;
+    readonly onSaved?: ((saved: TransactionResponse) => void) | undefined;
     /** Abre a confirmação de excluir; só na edição. */
     readonly onDelete?: (() => void) | undefined;
 }
 
+/** Edição de uma ocorrência, como o envio a lê. */
+type UpdateSubmission = Extract<TransactionSubmission, { route: 'transactions.update' }>;
+
+/**
+ * Onde o salvar de uma série está: na escolha do escopo ou no diálogo de revisão
+ * (database-design §4.12). A revisão guarda de onde veio, para o "Voltar" voltar um
+ * passo, e o escopo escolhido — `null` na criação, que não tem escopo.
+ */
+type PendingSave =
+    | { readonly step: 'scope'; readonly submission: UpdateSubmission }
+    | { readonly step: 'review'; readonly submission: TransactionSubmission; readonly scope: EditScope | null; readonly from: 'form' | 'scope' };
+
 /**
  * Formulário de lançamento (desktop-mvp-plan Fase 9; mockup `DesktopTransacoes`). O mesmo
- * formulário serve à coluna de edição da tela de Transações e ao painel "+ Lançamento" das outras
- * telas, para que lançar seja igual de qualquer lugar. Espera os cadastros que as escolhas
+ * formulário serve ao diálogo de lançamento (`TransactionDialog`) da tela de Transações e do
+ * "+ Lançamento" das outras telas, para que lançar seja igual de qualquer lugar. Espera os cadastros que as escolhas
  * oferecem antes de montar, para que os valores iniciais já caiam em opções existentes.
  *
  * @param props O lançamento, a origem sugerida e o que fazer ao salvar, fechar e excluir.
@@ -93,7 +114,11 @@ export function TransactionForm(props: TransactionFormProps): ReactNode {
     const creditCards = useCreditCards({ profileId: profile.id, period });
     const categories = useCategoryTree({ profileId: profile.id });
     const tags = useTags({ profileId: profile.id });
-    if (accounts.data === undefined || creditCards.data === undefined || categories.data === undefined || tags.data === undefined) {
+    const recurring = props.transaction !== null && props.transaction.recurrenceId !== null;
+    // A série só é esperada na edição de uma ocorrência: ela preenche "Repetir" e decide se o
+    // salvar pergunta o escopo.
+    const recurrences = useRecurrences(recurring ? { profileId: profile.id } : null);
+    if (accounts.data === undefined || creditCards.data === undefined || categories.data === undefined || tags.data === undefined || (recurring && recurrences.data === undefined)) {
         return (
             <div role="status" aria-busy="true" aria-label="Carregando o formulário" className="flex flex-col gap-3">
                 <Skeleton className="h-9" />
@@ -113,6 +138,7 @@ export function TransactionForm(props: TransactionFormProps): ReactNode {
             creditCards={creditCards.data.creditCards}
             categories={categories.data}
             tags={tags.data}
+            recurrence={recurrences.data?.find((recurrence) => recurrence.id === props.transaction?.recurrenceId) ?? null}
         />
     );
 }
@@ -126,6 +152,8 @@ interface FormRegistries {
     readonly creditCards: readonly CreditCardInPeriodResponse[];
     readonly categories: readonly CategoryBranchResponse[];
     readonly tags: readonly TagResponse[];
+    /** Série do lançamento editado; `null` num lançamento novo ou avulso. */
+    readonly recurrence: RecurrenceResponse | null;
 }
 
 /**
@@ -133,15 +161,15 @@ interface FormRegistries {
  * Regra de negócio (Contas e Cartões, desktop-mvp-plan §5.1): conta e cartão desativados não
  * são escolha de lançamento novo; na edição, a origem e o destino atuais continuam.
  * Regra de negócio (Cartão, database-design §4.7): a compra no cartão cai na fatura sugerida pela
- * data, que se pode trocar; escolher uma paga a reabre, e o painel avisa antes.
+ * data, que se pode trocar; escolher uma paga a reabre, e o formulário avisa antes.
  *
  * @param props O formulário e os cadastros.
  * @return O formulário.
  */
-function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, onDelete, profileId, currency, accounts, creditCards, categories, tags }: TransactionFormProps & FormRegistries): ReactNode {
+function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, onDelete, profileId, currency, accounts, creditCards, categories, tags, recurrence }: TransactionFormProps & FormRegistries): ReactNode {
     const id = useId();
     const today = currentDate(new Date());
-    const target: TransactionFormTarget = transaction === null ? { mode: 'create', profileId, currency } : { mode: 'update', transaction };
+    const target: TransactionFormTarget = transaction === null ? { mode: 'create', profileId, currency } : { mode: 'update', transaction, recurrence };
     /**
      * Valida pelo `readTransactionForm`, que aplica o schema da rota de criação ou de edição; os
      * valores seguem para o envio, que relê a chamada pronta.
@@ -154,7 +182,7 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
         return result.ok ? { values, errors: {} } : { values: {}, errors: toFieldErrors<TransactionFormValues>(TRANSACTION_FIELDS, result.errors) };
     };
     const form = useForm<TransactionFormValues>({
-        defaultValues: transaction === null ? newTransactionForm(today, initialSource ?? '') : transactionFormFrom(transaction, today),
+        defaultValues: transaction === null ? newTransactionForm(today, initialSource ?? '') : transactionFormFrom(transaction, today, recurrence),
         resolver,
     });
     const create = useCoreMutation('transactions.create');
@@ -168,26 +196,35 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
     const invoice = useInvoiceChoice({ card, values, transaction, accounts });
     const notice = recalculationNotice({ before: transaction?.container.period ?? null, after: cashPeriodOf(values, invoice.suggestedPeriod), today });
     /**
-     * Id de um campo, único por formulário: a coluna da tela e o painel das outras telas podem
-     * existir ao mesmo tempo no documento.
+     * Id de um campo, único por formulário: nada impede dois formulários no documento ao mesmo
+     * tempo, e um id repetido ligaria o rótulo ao campo errado.
      *
      * @param name Nome curto do campo.
      * @return O id do campo.
      */
     const fieldId = (name: string): string => `${id}-${name}`;
 
-    const submit = form.handleSubmit(async (current) => {
-        const result = readTransactionForm(current, target);
-        if (!result.ok) {
-            return;
-        }
+    const [pending, setPending] = useState<PendingSave | null>(null);
+
+    /**
+     * Grava a chamada pronta. Numa ocorrência de série, com o escopo escolhido no diálogo.
+     *
+     * @param submission Criação ou edição lida do formulário.
+     * @param scope Escopo da edição de uma ocorrência; ausente no lançamento avulso.
+     */
+    const save = async (submission: TransactionSubmission, scope?: EditScope): Promise<void> => {
         setGeneralError(null);
         try {
-            const saved = result.submission.route === 'transactions.create' ? await create.mutateAsync(result.submission.input) : await update.mutateAsync(result.submission.input);
-            toast.success(transaction === null ? `“${saved.name}” lançado.` : `“${saved.name}” salvo.`);
+            const saved = submission.route === 'transactions.create'
+                ? await create.mutateAsync(submission.input)
+                : await update.mutateAsync(scope === undefined ? submission.input : { ...submission.input, scope });
+            const series = submission.route === 'transactions.create' && submission.input.repeat !== null;
+            toast.success(transaction === null ? (series ? `“${saved.name}” lançado com a repetição.` : `“${saved.name}” lançado.`) : `“${saved.name}” salvo.`);
+            setPending(null);
             onSaved?.(saved);
             onClose();
         } catch (error) {
+            setPending(null);
             reportRejection(
                 error,
                 FIELD_BY_CORE_FIELD,
@@ -197,6 +234,27 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
                 setGeneralError,
             );
         }
+    };
+
+    const submit = form.handleSubmit(async (current) => {
+        const result = readTransactionForm(current, target);
+        if (!result.ok) {
+            return;
+        }
+        const { submission } = result;
+        // Regra de negócio (Recorrências, database-design §4.12):
+        // criar ou editar uma série passa pelo diálogo de revisão. Editar uma ocorrência pergunta
+        // antes a quais da série a edição se aplica — menos quando a série muda, o que vale sempre
+        // para a editada e as futuras.
+        if (submission.route === 'transactions.create' && submission.input.repeat !== null) {
+            setPending({ step: 'review', submission, scope: null, from: 'form' });
+            return;
+        }
+        if (submission.route === 'transactions.update' && recurrence !== null) {
+            setPending(changesSeries(recurrence, submission.input.repeat ?? null) ? { step: 'review', submission, scope: 'future', from: 'form' } : { step: 'scope', submission });
+            return;
+        }
+        await save(submission);
     });
 
     return (
@@ -209,7 +267,7 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
             }}
         >
             <Controller control={form.control} name="type" render={({ field }) => <TypeSelector value={field.value} onChange={field.onChange} />} />
-            <AmountField id={fieldId('amount')} form={form} currency={currency} />
+            <AmountField id={fieldId('amount')} form={form} currency={currency} autoFocus={transaction === null} />
             <Field id={fieldId('name')} label="Nome" error={errors.name}>
                 <Input id={fieldId('name')} {...fieldAria(fieldId('name'), errors.name)} {...form.register('name')} />
             </Field>
@@ -333,6 +391,16 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
                     )}
                 </div>
             )}
+            {(transaction === null || recurrence !== null) && (
+                <RepeatSection
+                    form={form}
+                    idOf={fieldId}
+                    mode={transaction === null ? 'create' : 'edit'}
+                    seriesKind={recurrence?.kind ?? null}
+                    profileId={profileId}
+                    currency={currency}
+                />
+            )}
             <Field id={fieldId('tags')} label="Tags" error={errors.tagIds?.message === undefined ? undefined : { type: 'validate', message: errors.tagIds.message }}>
                 <Controller control={form.control} name="tagIds" render={({ field }) => <TagPicker id={fieldId('tags')} tags={tags} value={field.value} onChange={field.onChange} />} />
             </Field>
@@ -345,6 +413,13 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
                     {...form.register('description')}
                 />
             </Field>
+            {recurrence !== null && (
+                <p role="note" className="rounded-6 bg-warn-bg px-2.5 py-2 text-warn-ink">
+                    {formChangesSeries(values, recurrence)
+                        ? 'Mudar a repetição vale para este lançamento e os seguintes. Antes de salvar, você revisa o que será excluído e criado.'
+                        : 'Ao salvar, perguntaremos: somente esta, esta e as futuras, ou todas. Depois você revisa o que muda antes de confirmar.'}
+                </p>
+            )}
             {notice !== null && (
                 <p role="note" className="rounded-6 bg-warn-bg px-2.5 py-2 text-warn-ink">
                     {notice}
@@ -355,23 +430,59 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
                     {generalError}
                 </p>
             )}
-            <div className="flex gap-2">
-                <Button type="submit" size="lg" className="flex-1" disabled={create.isPending || update.isPending}>
-                    {create.isPending || update.isPending ? 'Salvando…' : 'Salvar'}
-                </Button>
+            <DialogFooter>
                 {onDelete !== undefined && (
-                    <Button type="button" variant="outline" size="lg" className="px-3.5 font-normal text-danger" onClick={onDelete}>
+                    <Button type="button" variant="outline" className="font-normal text-danger sm:mr-auto" onClick={onDelete}>
                         Excluir
                     </Button>
                 )}
-            </div>
+                <Button type="button" variant="outline" onClick={onClose}>
+                    Cancelar
+                </Button>
+                <Button type="submit" disabled={create.isPending || update.isPending}>
+                    {create.isPending || update.isPending ? 'Salvando…' : 'Salvar'}
+                </Button>
+            </DialogFooter>
+            {pending?.step === 'scope' && transaction !== null && (
+                <ScopeDialog
+                    transaction={transaction}
+                    title={`Salvar “${transaction.name}”`}
+                    action="edit"
+                    onConfirm={(scope) => {
+                        setPending({ step: 'review', submission: pending.submission, scope, from: 'scope' });
+                    }}
+                    onClose={() => {
+                        setPending(null);
+                    }}
+                />
+            )}
+            {pending?.step === 'review' && (
+                <SeriesReviewDialog
+                    name={pending.submission.input.name}
+                    request={
+                        pending.submission.route === 'transactions.create'
+                            ? { action: 'create', input: pending.submission.input }
+                            : { action: 'edit', input: { ...pending.submission.input, scope: pending.scope ?? 'single' } }
+                    }
+                    accounts={accounts}
+                    pending={create.isPending || update.isPending}
+                    error={null}
+                    onConfirm={() => {
+                        void save(pending.submission, pending.scope ?? undefined);
+                    }}
+                    onClose={() => {
+                        // "Voltar" volta um passo: para a escolha do escopo, quando ela veio antes.
+                        setPending(pending.from === 'scope' && pending.submission.route === 'transactions.update' ? { step: 'scope', submission: pending.submission } : null);
+                    }}
+                />
+            )}
         </form>
     );
 }
 
 /**
  * Rótulo curto de cada tipo no seletor, como no mockup `MobileLancamento` ("Transf.", "Invest."):
- * os quatro nomes inteiros não cabem lado a lado na coluna de 340px. O nome inteiro continua no
+ * os quatro nomes inteiros não cabem lado a lado na largura do diálogo. O nome inteiro continua no
  * nome acessível do botão.
  */
 const SHORT_TYPE_LABELS: Readonly<Record<TransactionResponse['type'], string>> = {
@@ -419,9 +530,21 @@ function TypeSelector({ value, onChange }: { readonly value: TransactionResponse
  * @param props.id Id do campo.
  * @param props.form O formulário, de onde vêm o valor, o "±", o tipo e os encargos.
  * @param props.currency Moeda do perfil.
+ * @param props.autoFocus Foca o valor ao abrir — só no lançamento novo: na edição, aberta pelo
+ * clique numa linha, o foco fica na tabela para `↑↓`, `P` e `Del` continuarem valendo.
  * @return O campo de valor.
  */
-function AmountField({ id, form, currency }: { readonly id: string; readonly form: ReturnType<typeof useForm<TransactionFormValues>>; readonly currency: string }): ReactNode {
+function AmountField({
+    id,
+    form,
+    currency,
+    autoFocus,
+}: {
+    readonly id: string;
+    readonly form: ReturnType<typeof useForm<TransactionFormValues>>;
+    readonly currency: string;
+    readonly autoFocus: boolean;
+}): ReactNode {
     const { errors } = form.formState;
     const [type, amountText, inverted, chargesText] = form.watch(['type', 'amount', 'inverted', 'charges']);
     const amount = parseMoneyInput(amountText, currency);
@@ -431,7 +554,7 @@ function AmountField({ id, form, currency }: { readonly id: string; readonly for
     return (
         <Field id={id} label={`Valor (${currency})`} error={errors.amount}>
             <div className="flex items-center gap-2">
-                <Input id={id} inputMode="decimal" placeholder="0,00" className="text-right text-15 tabular-nums" autoFocus {...fieldAria(id, errors.amount)} {...form.register('amount')} />
+                <Input id={id} inputMode="decimal" placeholder="0,00" className="text-right text-15 tabular-nums" autoFocus={autoFocus} {...fieldAria(id, errors.amount)} {...form.register('amount')} />
                 <Button
                     type="button"
                     variant="outline"

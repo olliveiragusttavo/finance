@@ -6,7 +6,7 @@ import { launchApp, removeUserData } from './launchApp.ts';
 
 /*
  * Transações (desktop-mvp-plan Fase 9) no app empacotado: lançar, editar, marcar pago e excluir
- * pela coluna e pelo teclado, a fatura sugerida do cartão com o aviso de reabertura, os filtros
+ * pelo diálogo e pelo teclado, a fatura sugerida do cartão com o aviso de reabertura, os filtros
  * na URL, a ordenação por coluna, o menu de contexto e o "+ Lançamento" das outras telas. Os
  * cliques usam `dispatchEvent` e as listas do Radix são operadas pelo teclado, pelo motivo
  * explicado em `firstUse.ts`.
@@ -97,7 +97,7 @@ async function chooseOption(page: Page, field: Locator, option: string): Promise
  * Escolhe a subcategoria pela busca do campo "Categoria", como o usuário faz pelo teclado.
  *
  * @param page Janela do app.
- * @param panel Coluna ou painel do formulário.
+ * @param panel Diálogo do formulário.
  * @param search Texto digitado na busca.
  */
 async function chooseCategory(page: Page, panel: Locator, search: string): Promise<void> {
@@ -125,7 +125,7 @@ function rowOf(page: Page, name: string): Locator {
     return grid(page).getByRole('row').filter({ hasText: name });
 }
 
-test('lança pela coluna, edita, marca pago e exclui pelo teclado', async () => {
+test('lança pelo diálogo, edita, marca pago e exclui pelo teclado', async () => {
     const { app, window: page, userData } = await launchApp();
     const period = currentPeriod(new Date());
     try {
@@ -133,11 +133,11 @@ test('lança pela coluna, edita, marca pago e exclui pelo teclado', async () => 
         await openTransactions(page);
         await expect(grid(page)).toContainText(`Nenhum lançamento em ${formatMonthShort(period)}.`);
 
-        // `N` abre a coluna desta tela, e não o painel do shell.
+        // `N` abre o diálogo desta tela, e não também o do shell.
         await page.keyboard.press('n');
-        const column = page.getByRole('complementary', { name: 'Novo lançamento' });
+        const column = page.getByRole('dialog', { name: 'Novo lançamento' });
         await expect(column).toBeVisible();
-        await expect(page.getByRole('dialog')).toHaveCount(0);
+        await expect(page.getByRole('dialog')).toHaveCount(1);
 
         await column.getByRole('button', { name: 'Salvar' }).dispatchEvent('click');
         await expect(column.getByLabel('Valor (BRL)')).toHaveAccessibleDescription('Informe o valor.');
@@ -157,15 +157,24 @@ test('lança pela coluna, edita, marca pago e exclui pelo teclado', async () => 
         await expect(rowOf(page, 'Mercado')).toContainText('Pendente');
         await expect(page.getByRole('search', { name: 'Filtros' })).toContainText('1 lançamento · resultado −R$ 123,45');
 
-        // Clique abre a edição na coluna, com a linha marcada.
+        // Clique abre a edição no diálogo.
         await rowOf(page, 'Mercado').dispatchEvent('click');
-        const editor = page.getByRole('complementary', { name: 'Editar transação' });
-        await expect(editor.getByRole('heading', { name: 'Mercado' })).toBeVisible();
+        const editor = page.getByRole('dialog', { name: 'Editar Mercado' });
+        await expect(editor.getByRole('heading', { name: 'Editar Mercado' })).toBeVisible();
         await expect(editor).toContainText('Despesa · Nubank');
         await editor.getByLabel('Valor (BRL)').fill('150,00');
         await editor.getByRole('button', { name: 'Salvar' }).dispatchEvent('click');
         await expect(editor).toHaveCount(0);
         await expect(rowOf(page, 'Mercado')).toContainText('−R$ 150,00');
+
+        // "Excluir" no diálogo de edição abre a confirmação por cima; desistir volta à edição.
+        await rowOf(page, 'Mercado').dispatchEvent('click');
+        await editor.getByRole('button', { name: 'Excluir' }).dispatchEvent('click');
+        await page.getByRole('alertdialog').getByRole('button', { name: 'Cancelar' }).dispatchEvent('click');
+        await expect(page.getByRole('alertdialog')).toHaveCount(0);
+        await expect(editor).toBeVisible();
+        await editor.getByRole('button', { name: 'Cancelar' }).dispatchEvent('click');
+        await expect(editor).toHaveCount(0);
 
         // Teclado: `P` marca pago com a data de hoje, `Del` pede confirmação e exclui.
         await rowOf(page, 'Mercado').focus();
@@ -192,7 +201,7 @@ test('compra no cartão: fatura sugerida, aviso ao escolher a fatura paga, e est
         await seed(page, false);
         await openTransactions(page);
         await page.keyboard.press('n');
-        const column = page.getByRole('complementary', { name: 'Novo lançamento' });
+        const column = page.getByRole('dialog', { name: 'Novo lançamento' });
 
         await column.getByLabel('Valor (BRL)').fill('23,90');
         await column.getByRole('button', { name: 'Inverter sinal (estorno)' }).dispatchEvent('click');
@@ -280,7 +289,7 @@ test('filtros ficam na URL, ordenação por coluna, menu de contexto e a tag abe
     }
 });
 
-test('"+ Lançamento" em outra tela abre o painel; editar mês passado avisa o recálculo', async () => {
+test('"+ Lançamento" em outra tela abre o diálogo; editar mês passado avisa o recálculo', async () => {
     const { app, window: page, userData } = await launchApp();
     const period = currentPeriod(new Date());
     const previous = shiftPeriod(period, -1);
@@ -307,7 +316,7 @@ test('"+ Lançamento" em outra tela abre o painel; editar mês passado avisa o r
         await openTransactions(page);
         await page.keyboard.press('[');
         await rowOf(page, 'Padaria').dispatchEvent('click');
-        const editor = page.getByRole('complementary', { name: 'Editar transação' });
+        const editor = page.getByRole('dialog', { name: 'Editar Padaria' });
         await expect(editor.getByRole('note')).toContainText(`Este lançamento mexe em ${formatMonthShort(previous)}, um mês passado`);
     } finally {
         await app.close();

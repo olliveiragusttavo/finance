@@ -28,7 +28,7 @@ function sortBy(key: TransactionSortKey): SortFn<typeof features, TransactionRow
     return (a, b) => compare(a.original, b.original);
 }
 
-/** Colunas do mockup, menos a seleção em lote (fora do MVP); "Rec." fica, vazia até haver recorrências. */
+/** Colunas do mockup, menos a seleção em lote (fora do MVP); "Rec." mostra "3/12" ou "Fixa". */
 const columns = helper.columns([
     helper.accessor((row) => row.dueDate, { id: 'date', sortFn: sortBy('date') }),
     helper.accessor((row) => row.name, { id: 'name', sortFn: sortBy('name') }),
@@ -294,14 +294,7 @@ function GridRow({
             <TableCell className="truncate">{row.container}</TableCell>
             <TableCell className={cn('text-right font-semibold tabular-nums', row.direction === 'out' ? 'text-out' : row.direction === 'in' ? 'text-in' : 'text-ink2')}>{row.amountText}</TableCell>
             <TableCell className={cn(row.situation === 'pending' ? 'text-warn-ink' : row.situation === 'onInvoice' ? 'text-muted' : undefined)}>{row.situationText}</TableCell>
-            <TableCell className="pr-4 text-muted">
-                {row.recurring && (
-                    <span title="Gerada por recorrência">
-                        <span aria-hidden="true">↻</span>
-                        <span className="sr-only">recorrente</span>
-                    </span>
-                )}
-            </TableCell>
+            <TableCell className="pr-4 text-muted tabular-nums">{row.recurrenceTag}</TableCell>
         </TableRow>
     );
 }

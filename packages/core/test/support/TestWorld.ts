@@ -296,6 +296,39 @@ export class TestWorld {
     }
 
     /**
+     * Edita uma transação partindo do que ela é hoje, para que o teste diga só o que muda — os
+     * escopos de série aplicam às outras ocorrências justamente o que mudou.
+     *
+     * @param transaction Transação como o núcleo a devolveu.
+     * @param overrides Campos que mudam, o escopo e a série.
+     * @return A transação editada.
+     */
+    public async edit(transaction: CoreOutput<'transactions.get'>, overrides: Partial<UpdateInput>): Promise<CoreOutput<'transactions.update'>> {
+        const { container } = transaction;
+        return this.ok('transactions.update', {
+            id: transaction.id,
+            type: transaction.type,
+            source: container.kind === 'statement'
+                ? { kind: 'account', accountId: container.accountId }
+                : { kind: 'creditCard', creditCardId: container.creditCardId, invoicePeriod: container.period },
+            subCategoryId: transaction.subCategoryId,
+            destinationAccountId: transaction.destinationAccountId,
+            partnerId: transaction.partnerId,
+            goalId: transaction.goalId,
+            name: transaction.name,
+            description: transaction.description,
+            value: transaction.value.amount,
+            charges: transaction.charges.amount,
+            originCurrency: transaction.originCurrency,
+            conversionRate: transaction.conversionRate,
+            dueDate: transaction.dueDate,
+            paymentDate: transaction.paymentDate,
+            tagIds: [...transaction.tagIds],
+            ...overrides,
+        });
+    }
+
+    /**
      * @param accountId Conta.
      * @param period Competência `YYYY-MM`.
      * @return Os quatro saldos do extrato vivo, ou `undefined` quando o mês não tem extrato.

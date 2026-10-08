@@ -25,6 +25,18 @@ function counted(count: number, singular: string, plural: string): string {
 }
 
 /**
+ * Regra de negócio (Recorrências, database-design §4.12): a série que usa a conta ou o cartão
+ * excluído é excluída junto e para de gerar lançamentos — o alerta diz isso, porque é um efeito
+ * no futuro que a contagem de lançamentos de hoje não mostra.
+ *
+ * @param count Séries excluídas junto.
+ * @return A frase, ou `null` sem séries.
+ */
+function recurrencesItem(count: number): string | null {
+    return count > 0 ? counted(count, 'repetição, que para de gerar lançamentos', 'repetições, que param de gerar lançamentos') : null;
+}
+
+/**
  * Monta o alerta da exclusão de conta. Regra de negócio (Contas, desktop-mvp-plan §5.1):
  * nada de aviso genérico — o alerta conta cada item da cadeia e nomeia as outras contas cujo
  * saldo vai mudar, porque uma transferência apagada mexe também na conta do outro lado e um
@@ -44,6 +56,7 @@ export function describeAccountDeletion(impact: AccountDeletionImpactResponse): 
         impact.incomingTransfers > 0
             ? counted(impact.incomingTransfers, 'transferência ou investimento recebido de outra conta', 'transferências e investimentos recebidos de outras contas')
             : null,
+        recurrencesItem(impact.recurrences),
     ];
     return { items: items.filter((item) => item !== null), affectedAccounts: impact.affectedAccounts.map((account) => account.name) };
 }
@@ -63,6 +76,6 @@ export function describeCreditCardDeletion(impact: CreditCardDeletionImpactRespo
             ? null
             : counted(impact.transactions, 'lançamento nas faturas', 'lançamentos nas faturas') +
               (impact.partialPayments > 0 ? `, incluindo ${counted(impact.partialPayments, 'pagamento parcial', 'pagamentos parciais')}` : '');
-    const items = [impact.invoices > 0 ? counted(impact.invoices, 'fatura', 'faturas') : null, transactions];
+    const items = [impact.invoices > 0 ? counted(impact.invoices, 'fatura', 'faturas') : null, transactions, recurrencesItem(impact.recurrences)];
     return { items: items.filter((item) => item !== null), affectedAccounts: impact.affectedAccounts.map((account) => account.name) };
 }

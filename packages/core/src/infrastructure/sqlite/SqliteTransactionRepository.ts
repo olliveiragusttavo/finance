@@ -20,9 +20,9 @@ import { Money } from '../../domain/shared/Money.ts';
 import { YearMonth } from '../../domain/shared/YearMonth.ts';
 import { Transaction } from '../../domain/transaction/Transaction.ts';
 import type { TransactionContainer } from '../../domain/transaction/TransactionContainer.ts';
-import type { Clock } from '../../ports/Clock.ts';
+import { parseTimestamp, type Clock, type Timestamp } from '../../ports/Clock.ts';
 import type { Database, SqlParams, SqlRow } from '../../ports/Database.ts';
-import type { TransactionRepository } from '../../repositories/TransactionRepository.ts';
+import type { RowStamps, TransactionRepository } from '../../repositories/TransactionRepository.ts';
 import { decodeEnum, TRANSACTION_TYPE_CODE } from './enumCodes.ts';
 import { cashDateSql, monthBounds, periodKey, REPORT_SOURCES_CTE } from './periodSql.ts';
 import { RowReader } from './RowReader.ts';
@@ -34,7 +34,7 @@ import { RowReader } from './RowReader.ts';
 // transação num extrato excluído não existe mais para o usuário.
 const SELECT_TRANSACTION = `
     SELECT t.id, t.sub_category_id, t.bank_statement_id, t.invoice_id, t.destination_account_id,
-        t.partner_id, t.goal_id, t.recurrence_id, t.name, t.description, t.value, t.currency,
+        t.partner_id, t.goal_id, t.recurrence_id, t.occurrence, t.name, t.description, t.value, t.currency,
         t.conversion_rate, t.due_date, t.paid, t.payment_date, t.charges, t.type,
         bs.account_id AS statement_account_id, bs.year AS statement_year, bs.month AS statement_month,
         i.credit_card_id AS invoice_card_id, i.year AS invoice_year, i.month AS invoice_month,
@@ -73,19 +73,41 @@ export class SqliteTransactionRepository implements TransactionRepository {
     }
 
     /**
+     * Grava uma transação nova. Uma ocorrência de recorrência tem id derivado do número
+     * (`occurrenceIdFor`), então gerar de novo um número que já existiu e foi excluído encontra
+     * a linha antiga: ela é **revivida** com o conteúdo novo, em vez de esbarrar na chave
+     * primária (sync-design §5.6). A revivida ganha `created_at` novo, pelo relógio do motor
+     * como no insert (database-design §3.6): para o usuário é uma ocorrência nova, e o
+     * `created_at` antigo a faria parecer editada à mão no diálogo de revisão.
+     *
      * @param transaction Transação nova.
      * @return void
+     * @throws {Error} Quando o id já é de uma transação viva — um erro de programação, porque
+     * ids aleatórios não colidem e a emissão de uma série pula os números que já estão vivos.
+     * Ignorar a colisão aqui esconderia o erro e deixaria o Service somar no saldo o impacto de
+     * uma linha que não foi gravada.
      */
     public insert(transaction: Transaction): void {
-        this.database.run(
+        const { changes } = this.database.run(
             `INSERT INTO transactions (id, sub_category_id, bank_statement_id, invoice_id, destination_account_id,
-                partner_id, goal_id, recurrence_id, name, description, value, currency, conversion_rate,
+                partner_id, goal_id, recurrence_id, occurrence, name, description, value, currency, conversion_rate,
                 due_date, paid, payment_date, charges, type, updated_at)
             VALUES (:id, :subCategoryId, :statementId, :invoiceId, :destinationAccountId,
-                :partnerId, :goalId, :recurrenceId, :name, :description, :value, :currency, :conversionRate,
-                :dueDate, :paid, :paymentDate, :charges, :type, :now)`,
-            { ...this.contentParams(transaction), recurrenceId: transaction.recurrenceId },
+                :partnerId, :goalId, :recurrenceId, :occurrence, :name, :description, :value, :currency, :conversionRate,
+                :dueDate, :paid, :paymentDate, :charges, :type, :now)
+            ON CONFLICT (id) DO UPDATE SET sub_category_id = excluded.sub_category_id, bank_statement_id = excluded.bank_statement_id,
+                invoice_id = excluded.invoice_id, destination_account_id = excluded.destination_account_id,
+                partner_id = excluded.partner_id, goal_id = excluded.goal_id, recurrence_id = excluded.recurrence_id,
+                occurrence = excluded.occurrence, name = excluded.name, description = excluded.description, value = excluded.value,
+                currency = excluded.currency, conversion_rate = excluded.conversion_rate, due_date = excluded.due_date,
+                paid = excluded.paid, payment_date = excluded.payment_date, charges = excluded.charges, type = excluded.type,
+                created_at = strftime('%Y-%m-%d %H:%M:%S', 'now'), updated_at = excluded.updated_at, deleted_at = NULL
+            WHERE transactions.deleted_at IS NOT NULL`,
+            { ...this.contentParams(transaction), recurrenceId: transaction.recurrenceId, occurrence: transaction.occurrence },
         );
+        if (changes === 0) {
+            throw new Error(`a transação ${transaction.id} já existe e está viva`);
+        }
         this.syncTags(transaction);
     }
 
@@ -159,23 +181,32 @@ export class SqliteTransactionRepository implements TransactionRepository {
     }
 
     /**
-     * Consulta só a tabela de transações, sem os joins do contêiner, porque o índice único
-     * `uq_transactions_recurrence_due_date` que esta checagem antecipa também não olha o
-     * contêiner.
+     * Consulta só a tabela de transações, sem os joins do contêiner: os carimbos são da linha,
+     * e o conteúdo já vem por `listOccurrences`.
      *
-     * @param recurrenceId Recorrência da série.
-     * @param dueDate Data de vencimento procurada.
-     * @param excluding Ocorrência sendo editada.
-     * @return `true` quando outra ocorrência viva da série já vence nessa data.
+     * @param recurrenceId Série consultada.
+     * @return Os carimbos de criação e de última escrita de cada ocorrência viva, por id.
+     * @throws {CorruptRowError} Quando um carimbo está fora do formato do schema.
      */
-    public hasOccurrenceOn(recurrenceId: RecurrenceId, dueDate: LocalDate, excluding: TransactionId): boolean {
-        const row = this.database.get(
-            `SELECT 1 AS found FROM transactions
-            WHERE recurrence_id = :recurrenceId AND due_date = :dueDate AND id <> :excluding AND deleted_at IS NULL
-            LIMIT 1`,
-            { recurrenceId, dueDate: dueDate.toString(), excluding },
+    public listOccurrenceStamps(recurrenceId: RecurrenceId): ReadonlyMap<TransactionId, RowStamps> {
+        const rows = this.database.all(
+            'SELECT id, created_at, updated_at FROM transactions WHERE recurrence_id = :recurrenceId AND deleted_at IS NULL',
+            { recurrenceId },
         );
-        return row !== undefined;
+        return new Map(
+            rows.map((row) => {
+                const reader = new RowReader('transactions', row);
+                return [TransactionId(reader.text('id')), { createdAt: stampOf(reader, 'created_at'), updatedAt: stampOf(reader, 'updated_at') }] as const;
+            }),
+        );
+    }
+
+    /**
+     * @param recurrenceId Série consultada.
+     * @return As ocorrências vivas da série, por data de vencimento e número.
+     */
+    public listOccurrences(recurrenceId: RecurrenceId): readonly Transaction[] {
+        return this.list('WHERE t.recurrence_id = :recurrenceId AND t.deleted_at IS NULL ORDER BY t.due_date, t.occurrence', { recurrenceId });
     }
 
     /**
@@ -313,6 +344,7 @@ export class SqliteTransactionRepository implements TransactionRepository {
             id: TransactionId(reader.text('id')),
             profileId: ProfileId(reader.text('profile_id')),
             recurrenceId: nullableId('recurrence_id', RecurrenceId),
+            occurrence: reader.nullableNumber('occurrence'),
             type: decodeEnum(TRANSACTION_TYPE_CODE, reader.number('type'), 'transactions'),
             container: this.toContainer(reader),
             subCategoryId: SubCategoryId(reader.text('sub_category_id')),
@@ -356,5 +388,24 @@ export class SqliteTransactionRepository implements TransactionRepository {
             };
         }
         throw new CorruptRowError('transactions', `transação ${reader.text('id')} fora de exatamente um contêiner`);
+    }
+}
+
+/**
+ * Lê um carimbo da linha. Um carimbo fora do formato só existe se alguém escreveu na tabela
+ * por fora do app — o `CHECK` do schema recusaria —, então vira `CorruptRowError`, como as
+ * outras colunas ilegíveis, e não um erro de valor do usuário.
+ *
+ * @param reader Leitor da linha.
+ * @param column `created_at` ou `updated_at`.
+ * @return O carimbo marcado.
+ * @throws {CorruptRowError} Quando o texto não está no formato `YYYY-MM-DD HH:MM:SS`.
+ */
+function stampOf(reader: RowReader, column: 'created_at' | 'updated_at'): Timestamp {
+    const raw = reader.text(column);
+    try {
+        return parseTimestamp(raw);
+    } catch {
+        throw new CorruptRowError('transactions', `${column} fora do formato: "${raw}"`);
     }
 }

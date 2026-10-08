@@ -64,17 +64,24 @@ export class SqliteCategoryRepository implements CategoryRepository {
 
     /**
      * Conta só transações vivas, que são as que o usuário enxerga nas listas; uma transação
-     * excluída que ainda aponta para a subcategoria não a deixa "em uso".
+     * excluída que ainda aponta para a subcategoria não a deixa "em uso". Uma recorrência viva
+     * sem nenhuma ocorrência viva conta como um uso, porque a próxima ocorrência nasceria ali.
      *
      * @param profileId Perfil dono.
-     * @return Transações vivas por subcategoria do perfil.
+     * @return Usos vivos por subcategoria do perfil.
      */
     public transactionCounts(profileId: ProfileId): ReadonlyMap<SubCategoryId, number> {
         const rows = this.database.all(
             `SELECT s.id, COUNT(t.id) AS total
             FROM transaction_sub_categories s
             JOIN transaction_categories c ON c.id = s.category_id
-            JOIN transactions t ON t.sub_category_id = s.id AND t.deleted_at IS NULL
+            JOIN (
+                SELECT sub_category_id, id FROM transactions WHERE deleted_at IS NULL
+                -- Uma série viva usa a subcategoria mesmo sem ocorrência viva agora: a próxima
+                -- nasceria nela. Conta como uso, para a exclusão pedir para onde mover.
+                UNION ALL SELECT sub_category_id, id FROM recurrences WHERE deleted_at IS NULL
+                    AND NOT EXISTS (SELECT 1 FROM transactions o WHERE o.recurrence_id = recurrences.id AND o.deleted_at IS NULL)
+            ) t ON t.sub_category_id = s.id
             WHERE c.profile_id = :profileId
             GROUP BY s.id`,
             { profileId },
@@ -139,16 +146,21 @@ export class SqliteCategoryRepository implements CategoryRepository {
 
     /**
      * Carimba `updated_at` em cada transação movida, porque a reclassificação é uma revisão
-     * da linha e precisa se propagar pela sincronização como qualquer edição.
+     * da linha e precisa se propagar pela sincronização como qualquer edição. Move também o
+     * modelo das recorrências que usam a subcategoria.
      *
      * @param from Subcategoria de origem.
      * @param to Subcategoria de destino.
      * @return Quantas transações vivas foram movidas.
      */
     public moveTransactions(from: SubCategoryId, to: SubCategoryId): number {
+        const params = { from, to, now: this.clock.now() };
+        // O modelo das recorrências vai junto: senão a próxima ocorrência nasceria na
+        // subcategoria excluída (database-design §4.12).
+        this.database.run('UPDATE recurrences SET sub_category_id = :to, updated_at = :now WHERE sub_category_id = :from AND deleted_at IS NULL', params);
         return this.database.run(
             'UPDATE transactions SET sub_category_id = :to, updated_at = :now WHERE sub_category_id = :from AND deleted_at IS NULL',
-            { from, to, now: this.clock.now() },
+            params,
         ).changes;
     }
 

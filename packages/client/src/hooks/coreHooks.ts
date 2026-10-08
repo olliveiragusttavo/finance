@@ -12,7 +12,7 @@ import {
 } from '@tanstack/react-query';
 import type { CoreClient } from '../core/CoreClient.ts';
 import { CoreCallError } from '../errors/CoreCallError.ts';
-import { invalidatedBy } from '../queries/invalidation.ts';
+import { invalidatedBy, type RehearsalRoute } from '../queries/invalidation.ts';
 import { CORE_QUERY_ROOT, coreQueryKey, coreRouteKey, type ReadRoute, type WriteRoute } from '../queries/routes.ts';
 import { useCoreClient } from './CoreClientContext.tsx';
 
@@ -66,6 +66,24 @@ export function useCoreQuery<R extends ReadRoute>(route: R, input: CoreInput<R> 
     return useQuery<CoreOutput<R>, CoreCallError>({
         queryKey: input === null ? [CORE_QUERY_ROOT, route, null] : coreQueryKey(route, input),
         queryFn: input === null ? skipToken : () => callOrThrow(client, route, input),
+    });
+}
+
+/**
+ * Consulta de um ensaio do diálogo de revisão (`REHEARSAL_ROUTES`). Sem cache depois que o
+ * diálogo fecha (`gcTime: 0`): como nenhuma escrita invalida um ensaio, um plano guardado seria
+ * mostrado velho ao reabrir o diálogo com a mesma entrada depois de outras escritas.
+ *
+ * @param route Rota de ensaio.
+ * @param input Entrada da rota, ou `null` enquanto o diálogo está fechado.
+ * @return O estado da consulta, com o erro já tipado como `CoreCallError`.
+ */
+export function useCoreRehearsal<R extends RehearsalRoute>(route: R, input: CoreInput<R> | null): UseQueryResult<CoreOutput<R>, CoreCallError> {
+    const client = useCoreClient();
+    return useQuery<CoreOutput<R>, CoreCallError>({
+        queryKey: input === null ? [CORE_QUERY_ROOT, route, null] : coreQueryKey(route, input),
+        queryFn: input === null ? skipToken : () => callOrThrow(client, route, input),
+        gcTime: 0,
     });
 }
 

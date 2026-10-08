@@ -26,7 +26,12 @@ const RULE_MESSAGES: Readonly<Record<BusinessRule, string>> = {
     'move-target-deleted': 'Escolha para onde mover os lançamentos entre as subcategorias que continuam existindo.',
     'partner-requires-business-profile': 'Só perfis empresariais registram o sócio que pagou.',
     'profile-currency-locked': 'A moeda do perfil não pode mudar depois que há lançamentos.',
-    'recurrence-occurrence-date-taken': 'Outra ocorrência desta recorrência já vence nesta data.',
+    'recurrence-change-requires-scope': 'Mudar a repetição vale para esta e as futuras.',
+    'recurrence-daily-date-single-only': 'Numa série diária, trocar a data só vale para "somente esta".',
+    'recurrence-end-before-occurrence': 'A repetição não pode terminar antes do lançamento que você está editando.',
+    'recurrence-end-before-start': 'A repetição termina antes do primeiro lançamento. Escolha um fim depois dele.',
+    'recurrence-installments-below-occurrence': 'O parcelamento não pode ter menos parcelas que a parcela que você está editando.',
+    'recurrence-scope-requires-series': 'Este lançamento não faz parte de uma série.',
     'reference-outside-profile': 'O item escolhido pertence a outro perfil.',
     'sub-category-in-use': 'Esta subcategoria tem lançamentos. Escolha para onde movê-los antes de excluir.',
 };

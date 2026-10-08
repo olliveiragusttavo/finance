@@ -1,5 +1,5 @@
-import { formatMoneyForInput, parseMoneyInput, type SourceOption } from '@finance/client';
-import { movesToDestination, type CoreInput, type TransactionResponse, type TransactionType } from '@finance/core';
+import { formatMoneyForInput, parseMoneyInput, type RecurrenceFrequency, type SourceOption } from '@finance/client';
+import { movesToDestination, type CoreInput, type RecurrenceResponse, type TransactionResponse, type TransactionType } from '@finance/core';
 import { createTransactionRequest, updateTransactionRequest } from '@finance/core/requests';
 import type { z } from 'zod';
 import { periodOfDate } from '../cards/invoiceForms.ts';
@@ -35,7 +35,19 @@ export interface TransactionFormValues {
     readonly destinationAccountId: string;
     readonly subCategoryId: string;
     readonly tagIds: readonly string[];
+    /** "Repetir" (mockup `MobileParcelar`): não repetir, parcelado ou fixo. */
+    readonly repeatKind: RepeatKind;
+    readonly frequency: RecurrenceFrequency;
+    /** Quantidade de parcelas, digitada; só no parcelado. */
+    readonly installments: string;
+    /** O valor digitado é o total da compra ou o de cada parcela; só no parcelado novo. */
+    readonly valueType: 'total' | 'perInstallment';
+    /** Última data da série fixa, `YYYY-MM-DD`; vazio repete sem fim. */
+    readonly endAt: string;
 }
+
+/** Forma da repetição no formulário. */
+export type RepeatKind = 'none' | 'installments' | 'fixed';
 
 /** Campo do formulário de lançamento. */
 export type TransactionField = keyof TransactionFormValues;
@@ -54,6 +66,8 @@ export const TRANSACTION_FIELDS = [
     'paymentDate',
     'tagIds',
     'description',
+    'installments',
+    'endAt',
 ] as const satisfies readonly TransactionField[];
 
 /** Campo do formulário com mensagem de erro. */
@@ -70,7 +84,7 @@ export type TransactionFormResult = { readonly ok: true; readonly submission: Tr
 /** Para quem o formulário grava: um lançamento novo no perfil, ou a edição de um existente. */
 export type TransactionFormTarget =
     | { readonly mode: 'create'; readonly profileId: string; readonly currency: string }
-    | { readonly mode: 'update'; readonly transaction: TransactionResponse };
+    | { readonly mode: 'update'; readonly transaction: TransactionResponse; readonly recurrence: RecurrenceResponse | null };
 
 /**
  * Chave da origem no campo "Conta ou cartão": um `Select` só com os dois grupos, como no mockup.
@@ -123,18 +137,27 @@ export function newTransactionForm(today: string, source: string): TransactionFo
         destinationAccountId: '',
         subCategoryId: '',
         tagIds: [],
+        repeatKind: 'none',
+        frequency: 'monthly',
+        installments: '12',
+        valueType: 'total',
+        endAt: '',
     };
 }
 
 /**
  * Valores da edição. O valor aparece em módulo, com o "±" ligado quando é negativo, para que o
- * estorno se leia pelo botão e não por um hífen fácil de perder.
+ * estorno se leia pelo botão e não por um hífen fácil de perder. Numa ocorrência de série, a
+ * repetição vem da série, e o valor é o da ocorrência — por isso "por parcela". Numa fixa, as
+ * parcelas começam vazias: se ela virar parcelada, a quantidade é o usuário quem informa, sem
+ * sugestão (desktop-mvp-plan Fase 9.2).
  *
  * @param transaction Lançamento editado.
  * @param today Hoje, sugerido como data de pagamento se o usuário marcar "Pago".
+ * @param recurrence Série do lançamento; `null` num avulso (ou enquanto a série carrega).
  * @return Os valores iniciais da edição.
  */
-export function transactionFormFrom(transaction: TransactionResponse, today: string): TransactionFormValues {
+export function transactionFormFrom(transaction: TransactionResponse, today: string, recurrence: RecurrenceResponse | null = null): TransactionFormValues {
     const { container, value } = transaction;
     return {
         type: transaction.type,
@@ -151,7 +174,45 @@ export function transactionFormFrom(transaction: TransactionResponse, today: str
         destinationAccountId: transaction.destinationAccountId ?? '',
         subCategoryId: transaction.subCategoryId,
         tagIds: transaction.tagIds,
+        repeatKind: recurrence?.kind ?? 'none',
+        frequency: recurrence?.frequency ?? 'monthly',
+        installments: recurrence === null ? '12' : recurrence.installments === null ? '' : String(recurrence.installments),
+        valueType: 'perInstallment',
+        endAt: recurrence?.endAt ?? '',
     };
+}
+
+/** Repetição como as rotas a recebem. */
+export type RepeatSubmission = NonNullable<CoreInput<'transactions.create'>['repeat']>;
+
+/**
+ * @param recurrence Série atual.
+ * @param repeat Repetição do formulário.
+ * @return `true` quando o formulário muda a série — tipo, frequência, parcelas ou fim. Regra de
+ * negócio (Recorrências, database-design §4.12): mudar a série vale sempre para a editada e as
+ * futuras, então o salvar pula a escolha do escopo e vai direto para a revisão.
+ */
+export function changesSeries(recurrence: RecurrenceResponse, repeat: RepeatSubmission | null): boolean {
+    if (repeat === null) {
+        return false;
+    }
+    if (repeat.kind !== recurrence.kind || repeat.frequency !== recurrence.frequency) {
+        return true;
+    }
+    return repeat.kind === 'installments' ? repeat.installments !== recurrence.installments : (repeat.endAt ?? null) !== recurrence.endAt;
+}
+
+/**
+ * Se o formulário, como está, muda a série — para o aviso do formulário dizer o que o salvar
+ * vai fazer antes de o usuário apertar o botão.
+ *
+ * @param values Valores dos campos.
+ * @param recurrence Série atual.
+ * @return `true` quando a repetição do formulário difere da série (`changesSeries`).
+ */
+export function formChangesSeries(values: TransactionFormValues, recurrence: RecurrenceResponse): boolean {
+    const installments = /^\d{1,3}$/.test(values.installments.trim()) ? Number(values.installments.trim()) : 0;
+    return changesSeries(recurrence, repeatOf(values, installments));
 }
 
 /** Id válido no formato, usado só para validar os outros campos sem escolha feita. */
@@ -175,7 +236,12 @@ const FIELD_BY_PATH: Readonly<Record<string, FieldTarget<TransactionErrorField>>
     paymentDate: { field: 'paymentDate', label: 'a data do pagamento', kind: 'choice' },
     charges: { field: 'charges', label: 'os encargos', kind: 'nonNegativeMoney' },
     tagIds: { field: 'tagIds', label: 'as tags', kind: 'choice' },
+    'repeat.installments': { field: 'installments', label: 'as parcelas', kind: 'choice' },
+    'repeat.endAt': { field: 'endAt', label: 'o fim', kind: 'choice' },
 };
+
+/** Faixa de parcelas que a rota aceita (`repeatSchema`). */
+const INSTALLMENTS_RANGE = { min: 2, max: 360 } as const;
 
 /**
  * Lê o formulário e monta a chamada de criação ou de edição.
@@ -230,6 +296,12 @@ export function readTransactionForm(values: TransactionFormValues, target: Trans
     if (paid && values.paymentDate.trim() === '') {
         initial.paymentDate = 'Informe a data do pagamento.';
     }
+    const recurring = target.mode === 'create' || target.recurrence !== null;
+    const installments = /^\d{1,3}$/.test(values.installments.trim()) ? Number(values.installments.trim()) : null;
+    if (recurring && values.repeatKind === 'installments' && (installments === null || installments < INSTALLMENTS_RANGE.min || installments > INSTALLMENTS_RANGE.max)) {
+        initial.installments = `Use de ${String(INSTALLMENTS_RANGE.min)} a ${String(INSTALLMENTS_RANGE.max)} parcelas.`;
+    }
+    const repeat = recurring ? repeatOf(values, installments ?? INSTALLMENTS_RANGE.min) : null;
 
     const dueDate = values.dueDate.trim() === '' ? PLACEHOLDER_DATE : values.dueDate;
     const content = {
@@ -247,7 +319,7 @@ export function readTransactionForm(values: TransactionFormValues, target: Trans
     };
     const submission: TransactionSubmission =
         target.mode === 'create'
-            ? { route: 'transactions.create', input: { profileId: target.profileId, ...content } }
+            ? { route: 'transactions.create', input: { profileId: target.profileId, ...content, repeat } }
             : {
                   route: 'transactions.update',
                   input: {
@@ -257,6 +329,7 @@ export function readTransactionForm(values: TransactionFormValues, target: Trans
                       goalId: target.transaction.goalId,
                       originCurrency: target.transaction.originCurrency,
                       conversionRate: target.transaction.conversionRate,
+                      repeat,
                   },
               };
     // Os campos vazios já têm a frase acima; o schema valida o resto com um valor neutro no
@@ -266,6 +339,22 @@ export function readTransactionForm(values: TransactionFormValues, target: Trans
         return { ok: true, submission };
     }
     return { ok: false, errors: collectIssues(parsed.success ? [] : parsed.error.issues.map(withTagPath), FIELD_BY_PATH, currency, initial) };
+}
+
+/**
+ * @param values Valores dos campos.
+ * @param installments Parcelas já lidas (ou a mínima, só para validar o resto).
+ * @return A repetição da rota; `null` em "Não repetir".
+ */
+function repeatOf(values: TransactionFormValues, installments: number): RepeatSubmission | null {
+    switch (values.repeatKind) {
+        case 'none':
+            return null;
+        case 'installments':
+            return { kind: 'installments', frequency: values.frequency, installments, valueType: values.valueType };
+        case 'fixed':
+            return { kind: 'fixed', frequency: values.frequency, endAt: values.endAt.trim() === '' ? null : values.endAt };
+    }
 }
 
 /**

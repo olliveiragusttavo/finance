@@ -21,6 +21,8 @@ export interface AccountDeletionImpactResponse {
     readonly cardTransactions: number;
     /** Transferências e investimentos de outras contas que chegam a esta. */
     readonly incomingTransfers: number;
+    /** Séries que param de emitir junto com a conta (database-design §4.12). */
+    readonly recurrences: number;
     readonly affectedAccounts: readonly AffectedAccountResponse[];
 }
 
@@ -32,6 +34,8 @@ export interface CreditCardDeletionImpactResponse {
     readonly transactions: number;
     /** Pagamentos parciais entre os lançamentos — devolvem dinheiro à conta que pagou. */
     readonly partialPayments: number;
+    /** Séries que param de emitir junto com o cartão. */
+    readonly recurrences: number;
     readonly affectedAccounts: readonly AffectedAccountResponse[];
 }
 
@@ -52,6 +56,7 @@ export function toAccountDeletionImpactResponse(impact: DeletionImpact): Account
         invoices: scope.invoices.length,
         cardTransactions: scope.transactions.filter((transaction) => transaction.role === 'creditCard').length,
         incomingTransfers: scope.transactions.filter((transaction) => transaction.role === 'incoming').length,
+        recurrences: scope.recurrences.length,
         affectedAccounts: impact.affectedAccounts.map((account) => ({ id: account.id, name: account.name })),
     };
 }
@@ -70,6 +75,7 @@ export function toCreditCardDeletionImpactResponse(impact: DeletionImpact): Cred
         invoices: scope.invoices.length,
         transactions: scope.transactions.length,
         partialPayments: scope.transactions.filter((transaction) => transaction.type === 'transference').length,
+        recurrences: scope.recurrences.length,
         affectedAccounts: impact.affectedAccounts.map((account) => ({ id: account.id, name: account.name })),
     };
 }

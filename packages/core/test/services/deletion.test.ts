@@ -188,6 +188,7 @@ describe('excluir cartão em cadeia (desktop-mvp-plan §5.1)', () => {
             invoices: 2,
             transactions: 3,
             partialPayments: 1,
+            recurrences: 0,
             affectedAccounts: [{ id: a, name: 'Conta A' }, { id: b, name: 'Conta B' }],
         });
 

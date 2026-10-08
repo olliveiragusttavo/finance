@@ -57,12 +57,25 @@ export function handle<S extends z.ZodType, T>(
     try {
         return Promise.resolve({ ok: true, data: action(parsed.data) });
     } catch (error) {
-        if (error instanceof DomainError) {
-            return Promise.resolve(failure({ code: error.code, message: error.message, details: error.details }));
-        }
-        onUnexpected(error);
-        return Promise.resolve(failure({ code: 'INTERNAL', message: 'Erro inesperado', details: {} }));
+        return Promise.resolve(failure(toCoreError(error, onUnexpected)));
     }
+}
+
+/**
+ * Tradução única de exceção em erro de fronteira, exportada para as rotas que devolvem falhas
+ * parciais dentro de um resultado de sucesso (o complemento, série a série) — para que elas
+ * falhem do mesmo jeito que uma rota inteira.
+ *
+ * @param error O que o caso de uso lançou.
+ * @param onUnexpected Destino do log, que recebe o erro quando ele não é de domínio (um bug).
+ * @return O erro de domínio como dados, ou `INTERNAL` sem detalhes para qualquer outro.
+ */
+export function toCoreError(error: unknown, onUnexpected: UnexpectedErrorListener): CoreError {
+    if (error instanceof DomainError) {
+        return { code: error.code, message: error.message, details: error.details };
+    }
+    onUnexpected(error);
+    return { code: 'INTERNAL', message: 'Erro inesperado', details: {} };
 }
 
 /**
