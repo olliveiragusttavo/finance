@@ -17,6 +17,7 @@ const TRANSACTION_CONTENT: readonly ReadRoute[] = [
     'invoices.get',
     'reports.categoryTransactions',
     'recurrences.occurrences',
+    'goals.contributions',
 ];
 
 /**
@@ -73,6 +74,10 @@ const MONEY: readonly ReadRoute[] = [
     'reports.cardImpact',
     // O uso de cada tag (contagem, total, último uso) sai dos lançamentos.
     'tags.list',
+    // O progresso de cada meta é a soma das transações vinculadas pagas (database-design §4.11):
+    // lançar, pagar, excluir ou reabrir a fatura muda o que já conta.
+    'goals.list',
+    'goals.contributions',
     // As séries mudam com as escritas de transação (escopos, exclusão em cadeia) e a prévia
     // depende do ciclo do cartão. Os planos do diálogo de revisão ficam de fora (`REHEARSAL_ROUTES`).
     'recurrences.list',
@@ -120,6 +125,12 @@ const INVALIDATIONS: Readonly<Record<WriteRoute, readonly ReadRoute[]>> = {
     'notes.create': ['notes.list'],
     'notes.update': ['notes.list'],
     'notes.delete': ['notes.list'],
+    // Criar e editar mudam só a meta: as transações vinculadas continuam as mesmas. As opções
+    // do campo "Meta" só mudam aqui, e não com o dinheiro: por isso ficam fora do `MONEY`.
+    'goals.create': ['goals.list', 'goals.options'],
+    'goals.update': ['goals.list', 'goals.options'],
+    // Excluir tira a meta dos lançamentos e das séries, que continuam existindo.
+    'goals.delete': ['goals.list', 'goals.options', 'recurrences.list', ...TRANSACTION_CONTENT],
     'transactions.create': MONEY,
     'transactions.update': MONEY,
     'transactions.delete': MONEY,

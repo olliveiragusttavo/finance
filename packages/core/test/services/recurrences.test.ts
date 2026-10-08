@@ -243,6 +243,26 @@ describe('editar com escopo (database-design §4.12)', () => {
         expect(await drifts(world)).toEqual([]);
     });
 
+    it('Regra de negócio (Transação, database-design §4.13): o tipo não muda em nenhum escopo, nem ao recomeçar a série', async () => {
+        const { world, accountId, base } = setup();
+        const repeat = { kind: 'fixed', frequency: 'monthly', endAt: null } as const;
+        const first = await world.create(base, { source: { kind: 'account', accountId }, type: 'income', name: 'Salário', value: 5000, dueDate: '2026-10-05', repeat });
+        const third = await occurrenceOf(world, first, 3);
+        const before = await series(world, first);
+
+        for (const scope of ['single', 'future', 'all'] as const) {
+            expect((await world.editFailure(third, { type: 'expense', scope })).details).toMatchObject({ rule: 'transaction-type-locked', field: 'type' });
+        }
+        // Mudar a periodicidade recomeça a série pelo formulário, sem passar pela edição da ocorrência.
+        expect((await world.editFailure(third, { type: 'expense', scope: 'future', repeat: { ...repeat, frequency: 'weekly' } })).details).toMatchObject({ rule: 'transaction-type-locked' });
+
+        expect(await series(world, first)).toEqual(before);
+        world.clock.set('2026-11-10');
+        await world.ok('recurrences.topUp', {});
+        expect((await series(world, first)).every((transaction) => transaction.type === 'income')).toBe(true);
+        expect(await drifts(world)).toEqual([]);
+    });
+
     it('escopo de série num lançamento avulso é recusado', async () => {
         const { world, accountId, base } = setup();
         const single = await world.create(base, { source: { kind: 'account', accountId } });

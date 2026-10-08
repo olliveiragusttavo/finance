@@ -1,6 +1,6 @@
 # Plano do MVP Desktop — CRUD e primeiros relatórios
 
-**Status:** Em andamento — Fases 0 a 9.2 concluídas (ficaram pendentes só o `Ctrl K` da Fase 4 e a pendência da Fase 9.2 que depende da sincronização). Primeira entrega com tela do projeto: o app desktop
+**Status:** Em andamento — Fases 0 a 9.3 concluídas (ficaram pendentes só o `Ctrl K` da Fase 4 e a pendência da Fase 9.2 que depende da sincronização). Primeira entrega com tela do projeto: o app desktop
 (Electron) com os cadastros e lançamentos básicos e os dois primeiros relatórios
 personalizados, que são a motivação original do projeto ([README](../../README.md#motivação)).
 O mobile fica inteiro para depois.
@@ -33,6 +33,7 @@ categoria/subcategoria** e **quanto as faturas do cartão pesam no saldo do mês
 | Cartões | `DesktopCartoes` | Lista com fatura do mês → detalhe da fatura, pagar, pagamento parcial, reabrir, próximas faturas |
 | Transações | `DesktopTransacoes` | Tabela do mês, filtros, diálogo de criação/edição, marcar pago, excluir, atalhos |
 | Recorrências (Fase 9.1) | `DesktopTransacoes`, adaptando `MobileParcelar` e `MobileEscopo` | Parcelado e fixo, com os escopos "somente esta", "esta e as futuras" e "todas" |
+| Metas (Fase 9.3) | `DesktopMetas` | Lista com progresso → detalhe com quanto falta, data-alvo, ritmo necessário e transações vinculadas; campo "Meta" no lançamento |
 | Visão geral | `Main` | KPIs, evolução do saldo, maiores categorias, contas e cartões |
 | **Relatório por categoria** | `DesktopRelCategoria` | Drill-down categoria → subcategoria → lançamentos, comparação com outro período, gráfico + tabela |
 | **Impacto do cartão** | `DesktopRelCartao` | Faturas por mês e cartão, extrato onde foram pagas, peso nas entradas |
@@ -43,8 +44,9 @@ categoria/subcategoria** e **quanto as faturas do cartão pesam no saldo do mês
 - **Mobile inteiro** (React Native / Expo).
 - **Sincronização e Dispositivos** (`DesktopDispositivos`): o indicador da barra lateral
   mostra só "Dados só neste aparelho".
-- Metas, sócios, anexos e os relatórios D5 (fluxo por conta), D7 (sócio) e D8 (tag). Tags e
-  anotações entraram em Cadastros (Fase 6); o relatório por tag continua fora.
+- Sócios, anexos e os relatórios D5 (fluxo por conta), D7 (sócio) e D8 (tag). Tags e
+  anotações entraram em Cadastros (Fase 6), e Metas, na Fase 9.3; o relatório por tag continua
+  fora.
 - Importação do histórico do app atual.
 - Instaladores de Windows e macOS (o MVP empacota para Linux).
 
@@ -146,7 +148,7 @@ Nenhuma decisão de produto está aberta. Ficaram decididas:
 | Decisão | Regra |
 |---|---|
 | Período dos relatórios | Mês do pagamento ([§3.1](#31-regra-mestra-o-período-é-o-do-pagamento)) |
-| Itens do menu sem tela no MVP (Metas, Dispositivos, Fluxo por conta, Por sócio, Por tag) | Aparecem no menu normalmente e levam a uma **tela em branco**, já com a rota e o mês de referência; "Por sócio" continua só no perfil empresarial |
+| Itens do menu sem tela no MVP (Dispositivos, Fluxo por conta, Por sócio, Por tag) | Aparecem no menu normalmente e levam a uma **tela em branco**, já com a rota e o mês de referência; "Por sócio" continua só no perfil empresarial |
 | Excluir conta ou cartão | Ver [§5.1](#51-desativar-e-excluir-conta-ou-cartão) |
 | Trocar a moeda do perfil | Só enquanto o perfil não tem lançamentos: a moeda é a unidade de todo valor gravado e a troca não converte nada (database-design §4.1). Renomear continua livre |
 | Limite usado do cartão | Valor a pagar somado de **todas** as faturas em aberto do cartão, futuras de parcelas incluídas; fatura credora conta zero |
@@ -367,7 +369,7 @@ Ordem pensada para que cada fase entregue algo testável. As fases 1–2 (núcle
 - [x] Tabela densa (TanStack Table + Table do shadcn): data, nome, categoria › sub, conta/fatura, valor, situação; números tabulares à direita — `TransactionGrid.tsx`, com a TanStack Table 9 só para o estado da ordenação; a junção dos nomes e a situação continuam no view-model `buildTransactionTable` do `client`. A situação das compras no cartão lê as faturas de cada cartão a partir da mais antiga que o mês usa (`useInvoicesByCards`, sobre o novo `useCoreQueries`). **Decisões (perguntadas):** a coluna de seleção em lote do mockup saiu (não há ação em lote no MVP); "Rec." ficou, e desde a Fase 9.1 mostra "3/12" ou "Fixa"
 - [x] Entrada/saída sem depender de cor: sinal, `⇄` em transferência, rótulo de estorno — `formatTransactionAmount` no `client`, o mesmo da prévia do formulário
 - [x] Ordenação por coluna; filtros conta/cartão, categoria, situação e busca; linha-resumo "N lançamentos · resultado" — a ordem de cada coluna é `compareTransactionRows` (sem diferenciar acentos; empate pela data e pelo nome), o primeiro clique é sempre crescente e a ordenação nunca é removida. Os filtros ficam na URL (`transactions/transactionsSearch.ts`: `q`, `account`, `card`, `category`, `subCategory`, `tag`, `situation`), para o histórico e para outras telas abrirem Transações filtrada. **Decisão (perguntada):** entrou o filtro de Tag do mockup (`TransactionFilters.tagId`), e o "Ver lançamentos em Transações" do painel de Tags passou a abrir a tela filtrada pela tag. Estado vazio distingue o mês sem lançamento ("+ Lançamento") do filtro sem resultado ("Limpar filtros")
-- [x] Formulário de criação/edição: tipo, valor (com inversão de sinal), nome, descrição, data, pago + data de pagamento, encargos, conta **ou** cartão (só ativos em lançamento novo), conta de destino (transferência/investimento), subcategoria com busca, tags (o núcleo já aceita `tagIds` desde a Fase 6) — `TransactionForm.tsx`, validado pelos schemas de `transactions.create`/`update` (`transactions/transactionForm.ts`); as escolhas oferecidas são view-models do `client` (`transactionSourceOptions`, `destinationAccountOptions`, `subCategoryOptions`), e a prévia do valor usa a regra de sinal do núcleo (`originEffect`, agora exportado). **Decisão (pedida pelo usuário depois da Fase 9.1, divergindo do mockup):** criar e editar abrem o diálogo de lançamento (`TransactionDialog.tsx`), como os de contas e cartões, no lugar da coluna de 340px ao lado da tabela; nas outras telas, "+ Lançamento" e `N` abrem o mesmo diálogo pelo shell, que antes usava um `Sheet`. A tela de Transações continua registrada como *host* (`useTransactionPanelHost`) para sugerir a origem do filtro e selecionar na tabela o lançamento gravado. O rodapé segue o dos cadastros: "Excluir" à esquerda, que abre a confirmação por cima da edição, e "Cancelar" e "Salvar" à direita. **Decisões:** o valor é digitado sem sinal e maior que zero — o "±" grava o negativo (estorno); encargos não têm sinal; "Pago" só aparece numa conta, porque no cartão quem decide é a fatura; o seletor de tipo usa "Transf." e "Invest.", como o `MobileLancamento`, porque os nomes inteiros não cabem na coluna; num lançamento novo, o filtro de conta ou cartão da tela vira a origem sugerida
+- [x] Formulário de criação/edição: tipo, valor (com inversão de sinal), nome, descrição, data, pago + data de pagamento, encargos, conta **ou** cartão (só ativos em lançamento novo), conta de destino (transferência/investimento), subcategoria com busca, tags (o núcleo já aceita `tagIds` desde a Fase 6) — `TransactionForm.tsx`, validado pelos schemas de `transactions.create`/`update` (`transactions/transactionForm.ts`); as escolhas oferecidas são view-models do `client` (`transactionSourceOptions`, `destinationAccountOptions`, `subCategoryOptions`), e a prévia do valor usa a regra de sinal do núcleo (`originEffect`, agora exportado). **Decisão (pedida pelo usuário depois da Fase 9.1, divergindo do mockup):** criar e editar abrem o diálogo de lançamento (`TransactionDialog.tsx`), como os de contas e cartões, no lugar da coluna de 340px ao lado da tabela; nas outras telas, "+ Lançamento" e `N` abrem o mesmo diálogo pelo shell, que antes usava um `Sheet`. A tela de Transações continua registrada como *host* (`useTransactionPanelHost`) para sugerir a origem do filtro e selecionar na tabela o lançamento gravado. O rodapé segue o dos cadastros: "Excluir" à esquerda, que abre a confirmação por cima da edição, e "Cancelar" e "Salvar" à direita. **Decisões:** o valor é digitado sem sinal e maior que zero — o "±" grava o negativo (estorno); encargos não têm sinal; "Pago" só aparece numa conta, porque no cartão quem decide é a fatura; o seletor de tipo usa "Transf." e "Invest.", como o `MobileLancamento`, porque os nomes inteiros não cabem na coluna; num lançamento novo, o filtro de conta ou cartão da tela vira a origem sugerida; na edição o seletor de tipo fica travado no tipo gravado, porque o núcleo recusa a troca (`transaction-type-locked`, database-design §4.13)
 - [x] Despesa no cartão: fatura sugerida (`invoices.suggest`) com troca para outra fatura do cartão; aviso quando a escolhida está paga (será reaberta) — a sugestão passou a trazer o fechamento e o vencimento da competência (`closingDate`, `dueDate`), para o painel dizer "Sugerida pela data da compra: nov/2026, vence 10/11" antes de a fatura existir. A troca oferece a anterior, a sugerida e as duas seguintes, mais a atual na edição (`invoiceChoices`); o aviso de reabertura (`invoiceReopenWarning`) diz de qual extrato o pagamento sai, e não aparece quando o lançamento já está na fatura paga
 - [x] Excluir com confirmação; editar mês passado avisa que os meses seguintes serão recalculados — a confirmação diz de onde o valor sai e quais saldos mudam (`describeTransactionDeletion`; o pagamento parcial volta para a fatura e para a conta). O aviso de recálculo (`recalculationNotice`) vale para o mês de onde o lançamento sai e para onde vai, também num lançamento novo em mês passado
 - [x] Teclado: `↑↓` navegar, `Enter` editar, `P` marcar pago, `Del` excluir; menu de contexto com as mesmas ações — a linha selecionada é a única no `Tab` (*roving tabindex*); clique abre a edição. **Decisão:** `P` numa compra no cartão não marca nada e avisa que a situação é a da fatura (pagar ou reabrir em Cartões); no menu de contexto a ação fica desabilitada
@@ -430,6 +432,45 @@ itens abaixo.
 - [x] `SeriesReviewDialog.tsx`: toda criação, edição e exclusão de transação recorrente passa por ele, depois do escopo quando há escolha; mudar a série vai direto para a revisão. "Repetir" na edição oferece Parcelado e Fixo, e a fixa que vira parcelada pede a quantidade e a leitura do valor
 - [x] Testes: `client` (`test/recurrenceView.test.ts`, invalidação com as rotas de plano), desktop (`test/transactions.test.ts`) e ponta a ponta (`e2e/recurrences.spec.ts`)
 - [ ] Pendência: a duplicação vinda de um aparelho offline quando a série é recomeçada fica para a sincronização (sync-design §5.6)
+
+### Fase 9.3 — Metas
+
+Entrou depois da Fase 9.2, a pedido: o mockup `DesktopMetas` (D9) já existia, mas Metas estava
+fora do escopo. As regras estão em [database-design.md §4.11](database-design.md#411-goals); as
+decisões tomadas antes do código foram:
+
+- **Perguntadas:** a meta é um objetivo de **economia** (guardar um valor), e só **receitas e
+  transferências** são vinculadas a ela; o progresso soma as vinculadas **pagas até hoje**, num
+  valor só, independente do mês de referência (série fixa é gerada 12 meses à frente e
+  inflaria o progresso); o vínculo é pelo campo "Meta" do lançamento; prazo, ritmo necessário e
+  projeção contam a partir do **fim do mês de referência**.
+- **Técnicas:** o valor entra com sinal (estorno desconta) e sem encargos, como o total das
+  tags; num cartão, conta o dia em que a fatura foi paga; os meses até a data-alvo são meses
+  médios (dias ÷ 30,44), para não depender do tamanho de cada mês; a média mensal vai do mês da
+  1ª contribuição até o de referência (ou o atual, se o de referência for futuro), com mês sem
+  aporte valendo zero.
+- **Revisão (2026-10-08, item 2):** o ritmo e a projeção partem do guardado **no fim do mês de
+  referência** (`paceBase`), e não do total de hoje, que contava duas vezes os aportes entre um
+  mês passado e hoje e deixava de fora os meses entre hoje e um mês futuro. Num mês encerrado,
+  vale o que estava pago no fim dele; no atual, o de hoje; num futuro, o de hoje mais a média
+  por mês inteiro até ele. Fora do mês atual, a nota da projeção diz essa base ("No fim de
+  jan/2026 havia R$ 500,00 guardados.") para não contradizer o total do progresso.
+- **Revisão (2026-10-08, item 5):** o campo "Meta" do lançamento lê a rota `goals.options` (só
+  id e nome, sem mês de referência), e não `goals.list`, que mede o progresso de todas as metas.
+  Ela é invalidada só por criar, editar e excluir meta, e não pelas escritas de dinheiro.
+
+**Núcleo**
+- [x] Domínio `Goal` (nome até 45, valor-alvo maior que zero, data-alvo opcional) e o cálculo puro `measureGoalProgress` (progresso, falta, percentual, pendentes, meses restantes, ritmo necessário, média e projeção)
+- [x] Regra `goal-requires-saving-type` nos invariantes da transação (`feedsGoal`, exportada para o formulário), valendo também para as ocorrências das séries; a posse da meta saiu do `ReferenceRepository` para o `GoalRepository`
+- [x] `GoalService` e rotas `goals.list` (com o progresso no mês), `goals.contributions` (as transações que contam, pelo dia do pagamento), `goals.create`, `goals.update` e `goals.delete` — excluir limpa `goal_id` das transações e dos modelos de recorrência
+- [x] Testes: `test/domain/goal.test.ts` (cenário do mockup, pagas até hoje, estorno, meta atingida, sem prazo, prazo encerrado, média com mês vazio e mês futuro) e `test/services/goals.test.ts` (cadastro, regra do tipo na criação e na edição, outro perfil, progresso com pendentes, cartão pela fatura paga e reaberta, transação excluída, exclusão da meta com a série e o complemento)
+
+**Client e desktop**
+- [x] Rotas no mapa de invalidação: escritas de transação invalidam `goals.list` e `goals.contributions` (que entra no conteúdo de transação, porque carrega transações inteiras); excluir a meta invalida o conteúdo de transação e as séries. Hooks `useGoals` e `useGoalContributions`; mensagens da regra nova e da meta não encontrada no `describeError`
+- [x] View-model `goalView.ts`: item da lista (percentual, barra limitada, "R$ x de R$ y · até dd/mm/aaaa"), os três números com a nota de cada situação (sem prazo, prazo encerrado, atingida), a frase da projeção, o aviso das pendentes, o aviso da exclusão e a tabela das vinculadas
+- [x] Tela `GoalsScreen.tsx` no lugar da tela em branco: lista à esquerda, meta aberta no *search param* `goal` (`goals/goalsSearch.ts`), detalhe com progresso, números, projeção e tabela com total; "+ Nova meta" e "Editar meta" em diálogo (`goalForm.ts`, validado pelo `goalContentShape`), "⋯" com excluir e a confirmação que diz quantos lançamentos perdem o vínculo. **Decisões:** o rótulo "Meta de economia" do mockup ficou fixo; as vinculadas ainda em aberto ficam fora da tabela (a soma dela é o progresso) e aparecem numa nota no rodapé
+- [x] Campo "Meta" no formulário de lançamento, só em receita e transferência; trocar para outro tipo descarta a meta
+- [x] Testes: `client` (`test/goalView.test.ts`, invalidação com as rotas novas), desktop (`test/goals.test.ts`: formulário e URL; `test/transactions.test.ts`: meta no lançamento) e ponta a ponta (`e2e/goals.spec.ts`: criar, vincular pelo lançamento, progresso, editar e excluir)
 
 ### Fase 10 — Visão geral
 

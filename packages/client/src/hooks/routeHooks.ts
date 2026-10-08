@@ -80,6 +80,44 @@ export function useNotes(input: CoreInput<'notes.list'> | null): Query<'notes.li
 }
 
 /**
+ * Lista da tela de Metas. O mês de referência faz parte da entrada, e portanto da chave do
+ * cache, porque o ritmo e a projeção contam a partir do fim dele (desktop-mvp-plan Fase 9.3):
+ * sem ele na chave, navegar pelos meses mostraria o ritmo do mês anterior. Para só listar os
+ * nomes, use `useGoalOptions`, que não refaz o progresso.
+ *
+ * @param input Perfil e mês de referência; `null` deixa a consulta parada, enquanto o perfil
+ * ativo ainda não foi escolhido.
+ * @return As metas do perfil por nome, com o progresso e o ritmo de cada uma.
+ */
+export function useGoals(input: CoreInput<'goals.list'> | null): Query<'goals.list'> {
+    return useCoreQuery('goals.list', input);
+}
+
+/**
+ * Opções do campo "Meta" do lançamento. Hook à parte do `useGoals` porque o formulário só
+ * precisa de id e nome: sem mês de referência na chave e fora da invalidação por dinheiro, a
+ * consulta não se repete a cada troca de mês nem a cada lançamento gravado.
+ *
+ * @param input Perfil; `null` deixa a consulta parada.
+ * @return As metas do perfil por nome, só com id e nome.
+ */
+export function useGoalOptions(input: CoreInput<'goals.options'> | null): Query<'goals.options'> {
+    return useCoreQuery('goals.options', input);
+}
+
+/**
+ * Tabela "Transações vinculadas" do detalhe. Consulta à parte da lista porque carrega
+ * transações inteiras, que só o detalhe mostra; e não depende do mês de referência, porque o que
+ * conta no progresso é o que foi pago até hoje (Regra de negócio, Metas).
+ *
+ * @param input Meta aberta; `null` deixa a consulta parada quando nenhuma meta está aberta.
+ * @return As transações que contam no progresso da meta, pelo dia do pagamento.
+ */
+export function useGoalContributions(input: CoreInput<'goals.contributions'> | null): Query<'goals.contributions'> {
+    return useCoreQuery('goals.contributions', input);
+}
+
+/**
  * @param input Transação; `null` enquanto o painel de edição está fechado.
  * @return A transação para o formulário de edição.
  */

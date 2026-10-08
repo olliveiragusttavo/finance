@@ -304,8 +304,32 @@ export class TestWorld {
      * @return A transação editada.
      */
     public async edit(transaction: CoreOutput<'transactions.get'>, overrides: Partial<UpdateInput>): Promise<CoreOutput<'transactions.update'>> {
+        return this.ok('transactions.update', TestWorld.editInput(transaction, overrides));
+    }
+
+    /**
+     * Edição que deve ser recusada, montada como em `edit`, para que o teste de uma regra diga
+     * só o campo que a viola em vez de repetir a transação inteira.
+     *
+     * @param transaction Transação como o núcleo a devolveu.
+     * @param overrides Campos que mudam, o escopo e a série.
+     * @return O erro devolvido.
+     */
+    public async editFailure(transaction: CoreOutput<'transactions.get'>, overrides: Partial<UpdateInput>): Promise<CoreError> {
+        return this.failure('transactions.update', TestWorld.editInput(transaction, overrides));
+    }
+
+    /**
+     * Entrada completa da edição a partir da transação como está, compartilhada por `edit` e
+     * `editFailure` para que as duas montem a mesma chamada.
+     *
+     * @param transaction Transação como o núcleo a devolveu.
+     * @param overrides Campos que mudam, o escopo e a série.
+     * @return A entrada de `transactions.update`.
+     */
+    private static editInput(transaction: CoreOutput<'transactions.get'>, overrides: Partial<UpdateInput>): UpdateInput {
         const { container } = transaction;
-        return this.ok('transactions.update', {
+        return {
             id: transaction.id,
             type: transaction.type,
             source: container.kind === 'statement'
@@ -325,7 +349,7 @@ export class TestWorld {
             paymentDate: transaction.paymentDate,
             tagIds: [...transaction.tagIds],
             ...overrides,
-        });
+        };
     }
 
     /**

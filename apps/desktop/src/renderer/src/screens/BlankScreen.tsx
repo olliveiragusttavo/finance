@@ -5,7 +5,7 @@ import { useActiveProfile } from '@/shell/activeProfile';
 
 /**
  * Tela em branco dentro do shell, com título. Serve a dois casos: os itens do menu sem tela no
- * MVP (Metas, Dispositivos, Fluxo por conta, Por sócio, Por tag — desktop-mvp-plan §5), que
+ * MVP (Dispositivos, Fluxo por conta, Por sócio, Por tag — desktop-mvp-plan §5), que
  * existem para que a navegação já esteja pronta, e as telas do MVP que ainda não chegaram,
  * cada uma substituída na sua fase.
  *

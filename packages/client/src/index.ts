@@ -26,3 +26,4 @@ export * from './viewModels/cardImpactGrid.ts';
 export * from './viewModels/deletionImpact.ts';
 export * from './viewModels/statementTable.ts';
 export * from './viewModels/invoiceView.ts';
+export * from './viewModels/goalView.ts';

@@ -945,8 +945,30 @@ diferenciar maiúsculas de minúsculas.
 
 ### 4.11 goals
 
-Uma meta de economia ou de gasto pertencente a um perfil, alimentada pelas transações
-vinculadas a ela (`transactions.goal_id`).
+Uma meta de economia pertencente a um perfil — um valor que se quer guardar —, alimentada
+pelas transações vinculadas a ela (`transactions.goal_id`). O rascunho original previa também
+metas de gasto; a implementação (desktop-mvp-plan Fase 9.3) ficou só com a de economia, e o
+schema não tem coluna de tipo.
+
+#### Regras de negócio
+
+Decididas na Fase 9.3 do desktop-mvp-plan, a pedido do usuário:
+
+- **Só receitas e transferências** são vinculadas a uma meta (regra
+  `goal-requires-saving-type`, verificada nos invariantes da transação). Despesa é gasto, e o
+  investimento já tem destino próprio.
+- O progresso soma as vinculadas **pagas até hoje** — numa conta, pelo `payment_date`; num
+  cartão, pelo dia em que a fatura foi paga —, independente do mês de referência da tela. Uma
+  série fixa é gerada 12 meses à frente ([§4.12](#412-recurrences)), e somar o que ainda não
+  saiu da conta daria a meta por cumprida antes da hora.
+- O valor entra **com sinal** (o estorno desconta) e **sem encargos**.
+- O valor-alvo é maior que zero; a data-alvo é opcional.
+- Prazo, ritmo necessário e projeção contam a partir do **fim do mês de referência**, em meses
+  médios (dias ÷ 30,44); a média mensal vai do mês da 1ª contribuição até o de referência (ou
+  o atual, se o de referência for futuro), com mês sem aporte valendo zero.
+- Excluir a meta (soft delete) limpa `goal_id` das transações e dos modelos de recorrência na
+  mesma unidade de trabalho, porque o `SET NULL` não dispara num `UPDATE`
+  ([§3.6](#36-colunas-presentes-em-todas-as-tabelas)); as transações continuam.
 
 #### O progresso é calculado, nunca armazenado
 
@@ -1165,8 +1187,8 @@ de finanças, significa números históricos errados.
   pela data o que sai e pelo número o que é recriado perdia lançamentos ou recriava um id
   ainda vivo.
 - **Somente esta** grava só a ocorrência e deixa a regra intocada.
-- **Esta e as futuras** e **todas** aplicam **o que mudou** na ocorrência editada (tipo,
-  origem, destino, subcategoria, nome, descrição, valor, encargos, tags) a cada ocorrência
+- **Esta e as futuras** e **todas** aplicam **o que mudou** na ocorrência editada (origem,
+  destino, subcategoria, nome, descrição, valor, encargos, tags) a cada ocorrência
   do escopo e ao modelo da regra. Só o que mudou, e não o formulário inteiro, porque cada
   ocorrência pode ter algo próprio que o usuário não tocou: renomear a parcela 3 de
   "1.000,00 em 3x" não pode copiar os 333,33 dela para a parcela 1, que tem 333,34, e quebrar
@@ -1374,6 +1396,16 @@ transações mais as que chegam por `destination_account_id`
 fatura como origem ([§4.7](#47-invoices)). Os relatórios precisam evitar contagem dupla: uma transferência não é
 receita nem despesa líquida no nível do perfil, apenas no nível da conta.
 
+#### O tipo é fixo desde a criação
+
+Nenhuma edição troca o `type` de uma transação, em nenhum escopo de série: uma despesa
+continua despesa, uma receita continua receita, e o mesmo vale para transferência e
+investimento. Trocar o tipo inverte a direção do efeito no saldo, cria ou some com a conta de
+destino e muda quem pode alimentar uma meta; aceitar a troca numa edição deixava vínculos
+inválidos para trás (uma meta presa numa despesa, por exemplo). Lançar com outro tipo é
+excluir e lançar de novo. A regra é da aplicação (`transaction-type-locked`), verificada na
+entidade ao editar; o formulário só mostra o tipo atual.
+
 #### Uma transação registra qual sócio a pagou
 
 `partner_id` identifica o sócio que pagou esta transação específica — distinto da
@@ -1385,10 +1417,10 @@ está presente.
 
 #### Os demais vínculos
 
-`goal_id` — uma transação pode contribuir para uma meta ou para nenhuma
+`goal_id` — uma receita ou transferência pode contribuir para uma meta ou para nenhuma
 ([§4.11](#411-goals)). `recurrence_id` — preenchido apenas em transações emitidas por uma
-regra ([§4.12](#412-recurrences)). Nenhum dos dois restringe o outro ou qualquer outra
-coisa. `paid` e `payment_date` precisam concordar, o que é uma regra da aplicação.
+regra ([§4.12](#412-recurrences)). Nenhum dos dois restringe o outro; a meta só restringe
+o tipo da transação. `paid` e `payment_date` precisam concordar, o que é uma regra da aplicação.
 
 #### Colunas
 

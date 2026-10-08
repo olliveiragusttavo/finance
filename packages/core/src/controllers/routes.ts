@@ -22,6 +22,7 @@ import type { MonthSummaryResponse } from '../dto/reports/MonthSummaryResponse.t
 import type { NoteResponse } from '../dto/notes/NoteResponse.ts';
 import type { StatementResponse } from '../dto/statements/StatementResponse.ts';
 import type { TagResponse, TagUsageResponse } from '../dto/tags/TagResponse.ts';
+import type { GoalContributionResponse, GoalOptionResponse, GoalProgressResponse, GoalResponse } from '../dto/goals/GoalResponse.ts';
 import type { OccurrencePreviewResponse, RecurrenceResponse } from '../dto/recurrences/RecurrenceResponse.ts';
 import type { SeriesPlanResponse } from '../dto/recurrences/SeriesPlanResponse.ts';
 import type { TopUpResponse } from '../dto/recurrences/TopUpResponse.ts';
@@ -61,6 +62,7 @@ import type {
 } from '../requests/recurrenceRequests.ts';
 import type { getStatementRequest } from '../requests/statementRequests.ts';
 import type { createTagRequest, listTagsRequest, renameTagRequest, tagIdRequest } from '../requests/tagRequests.ts';
+import type { createGoalRequest, goalIdRequest, goalOptionsRequest, listGoalsRequest, updateGoalRequest } from '../requests/goalRequests.ts';
 import type {
     createTransactionRequest,
     deleteTransactionRequest,
@@ -111,6 +113,12 @@ export interface CoreRoutes {
     'notes.create': { input: z.input<typeof createNoteRequest>; output: NoteResponse };
     'notes.update': { input: z.input<typeof rewriteNoteRequest>; output: NoteResponse };
     'notes.delete': { input: z.input<typeof noteIdRequest>; output: null };
+    'goals.list': { input: z.input<typeof listGoalsRequest>; output: readonly GoalProgressResponse[] };
+    'goals.options': { input: z.input<typeof goalOptionsRequest>; output: readonly GoalOptionResponse[] };
+    'goals.contributions': { input: z.input<typeof goalIdRequest>; output: readonly GoalContributionResponse[] };
+    'goals.create': { input: z.input<typeof createGoalRequest>; output: GoalResponse };
+    'goals.update': { input: z.input<typeof updateGoalRequest>; output: GoalResponse };
+    'goals.delete': { input: z.input<typeof goalIdRequest>; output: null };
     'transactions.create': { input: z.input<typeof createTransactionRequest>; output: TransactionResponse };
     'transactions.update': { input: z.input<typeof updateTransactionRequest>; output: TransactionResponse };
     'transactions.delete': { input: z.input<typeof deleteTransactionRequest>; output: null };

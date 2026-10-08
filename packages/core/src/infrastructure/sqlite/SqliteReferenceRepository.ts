@@ -1,4 +1,4 @@
-import { ProfileId, type GoalId, type PartnerId } from '../../domain/shared/ids.ts';
+import { ProfileId, type PartnerId } from '../../domain/shared/ids.ts';
 import type { Database } from '../../ports/Database.ts';
 import type { ReferenceRepository } from '../../repositories/ReferenceRepository.ts';
 import { RowReader } from './RowReader.ts';
@@ -16,14 +16,6 @@ export class SqliteReferenceRepository implements ReferenceRepository {
      */
     public partnerOwner(id: PartnerId): ProfileId | null {
         return this.owner('partners', 'SELECT profile_id FROM partners WHERE id = :id AND deleted_at IS NULL', id);
-    }
-
-    /**
-     * @param id Meta referenciada.
-     * @return O perfil dono, ou `null`.
-     */
-    public goalOwner(id: GoalId): ProfileId | null {
-        return this.owner('goals', 'SELECT profile_id FROM goals WHERE id = :id AND deleted_at IS NULL', id);
     }
 
     /**

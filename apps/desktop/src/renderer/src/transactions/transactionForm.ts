@@ -1,5 +1,5 @@
 import { formatMoneyForInput, parseMoneyInput, type RecurrenceFrequency, type SourceOption } from '@finance/client';
-import { movesToDestination, type CoreInput, type RecurrenceResponse, type TransactionResponse, type TransactionType } from '@finance/core';
+import { feedsGoal, movesToDestination, type CoreInput, type RecurrenceResponse, type TransactionResponse, type TransactionType } from '@finance/core';
 import { createTransactionRequest, updateTransactionRequest } from '@finance/core/requests';
 import type { z } from 'zod';
 import { periodOfDate } from '../cards/invoiceForms.ts';
@@ -35,6 +35,8 @@ export interface TransactionFormValues {
     readonly destinationAccountId: string;
     readonly subCategoryId: string;
     readonly tagIds: readonly string[];
+    /** Meta que o lançamento alimenta; vazio sem meta. Só vale em receita e transferência (`feedsGoal`). */
+    readonly goalId: string;
     /** "Repetir" (mockup `MobileParcelar`): não repetir, parcelado ou fixo. */
     readonly repeatKind: RepeatKind;
     readonly frequency: RecurrenceFrequency;
@@ -65,6 +67,7 @@ export const TRANSACTION_FIELDS = [
     'charges',
     'paymentDate',
     'tagIds',
+    'goalId',
     'description',
     'installments',
     'endAt',
@@ -137,6 +140,7 @@ export function newTransactionForm(today: string, source: string): TransactionFo
         destinationAccountId: '',
         subCategoryId: '',
         tagIds: [],
+        goalId: '',
         repeatKind: 'none',
         frequency: 'monthly',
         installments: '12',
@@ -174,6 +178,7 @@ export function transactionFormFrom(transaction: TransactionResponse, today: str
         destinationAccountId: transaction.destinationAccountId ?? '',
         subCategoryId: transaction.subCategoryId,
         tagIds: transaction.tagIds,
+        goalId: transaction.goalId ?? '',
         repeatKind: recurrence?.kind ?? 'none',
         frequency: recurrence?.frequency ?? 'monthly',
         installments: recurrence === null ? '12' : recurrence.installments === null ? '' : String(recurrence.installments),
@@ -236,6 +241,7 @@ const FIELD_BY_PATH: Readonly<Record<string, FieldTarget<TransactionErrorField>>
     paymentDate: { field: 'paymentDate', label: 'a data do pagamento', kind: 'choice' },
     charges: { field: 'charges', label: 'os encargos', kind: 'nonNegativeMoney' },
     tagIds: { field: 'tagIds', label: 'as tags', kind: 'choice' },
+    goalId: { field: 'goalId', label: 'a meta', kind: 'choice' },
     'repeat.installments': { field: 'installments', label: 'as parcelas', kind: 'choice' },
     'repeat.endAt': { field: 'endAt', label: 'o fim', kind: 'choice' },
 };
@@ -250,6 +256,8 @@ const INSTALLMENTS_RANGE = { min: 2, max: 360 } as const;
  * custo da origem, então não têm sinal. Pago e data de pagamento andam juntos (brief §3).
  * Regra de negócio (Transferência): transferência e investimento exigem a conta de destino, e só
  * eles têm uma — o destino escolhido antes de trocar o tipo não vai junto.
+ * Regra de negócio (Metas, desktop-mvp-plan Fase 9.3): só receita e transferência alimentam uma
+ * meta — a meta escolhida antes de trocar para outro tipo também não vai junto.
  * Regra de negócio (Cartão, database-design §4.7): sem fatura escolhida vale a sugerida pela data
  * da compra; na edição no mesmo cartão a fatura atual vai explícita, porque a sugestão nunca é
  * recalculada depois.
@@ -257,7 +265,7 @@ const INSTALLMENTS_RANGE = { min: 2, max: 360 } as const;
  *
  * @param values Valores dos campos.
  * @param target Perfil do lançamento novo, ou o lançamento editado (que fornece o que o painel
- * não edita: sócio, meta e moeda de origem).
+ * não edita: sócio e moeda de origem).
  * @return A chamada a fazer, ou a mensagem de cada campo com problema.
  * @throws {Error} Quando o schema aponta um caminho que o formulário não tem.
  */
@@ -316,6 +324,7 @@ export function readTransactionForm(values: TransactionFormValues, target: Trans
         dueDate,
         paymentDate: paid ? (values.paymentDate.trim() === '' ? PLACEHOLDER_DATE : values.paymentDate) : null,
         tagIds: [...values.tagIds],
+        goalId: feedsGoal(values.type) && values.goalId !== '' ? values.goalId : null,
     };
     const submission: TransactionSubmission =
         target.mode === 'create'
@@ -326,7 +335,6 @@ export function readTransactionForm(values: TransactionFormValues, target: Trans
                       id: target.transaction.id,
                       ...content,
                       partnerId: target.transaction.partnerId,
-                      goalId: target.transaction.goalId,
                       originCurrency: target.transaction.originCurrency,
                       conversionRate: target.transaction.conversionRate,
                       repeat,

@@ -189,15 +189,16 @@ export class RecurrenceService {
      * dia novo dentro do próprio mês (ou da própria semana). Pago e data de pagamento continuam
      * individuais. Mudar a série vale sempre para a editada e as futuras: a quantidade de
      * parcelas e o término de uma fixa só criam ou apagam o que a mudança exige
-     * (`reshapeSeries`); a periodicidade e o tipo encerram a regra e começam outra na editada
-     * (`restartSeries`).
+     * (`reshapeSeries`); a periodicidade e a forma (parcelada ou fixa) encerram a regra e
+     * começam outra na editada (`restartSeries`). O tipo do lançamento não muda em nenhum
+     * escopo (database-design §4.13).
      *
      * @param command Conteúdo completo da editada, com o escopo e a série pedida.
      * @return A ocorrência editada, relida do banco — numa série recomeçada, a 1ª da regra nova.
      * @throws {NotFoundError} Quando a transação, a regra ou uma referência não existe.
-     * @throws {BusinessRuleViolation} Quando o lançamento não é de uma série, a série mudou fora
-     * de "esta e as futuras", a data de uma diária mudou fora de "somente esta", as parcelas
-     * ficaram abaixo da editada ou o término ficou antes dela.
+     * @throws {BusinessRuleViolation} Quando o lançamento não é de uma série, o tipo mudou, a
+     * série mudou fora de "esta e as futuras", a data de uma diária mudou fora de "somente
+     * esta", as parcelas ficaram abaixo da editada ou o término ficou antes dela.
      */
     public update(command: UpdateTransactionCommand): Transaction {
         return this.unitOfWork.run(() => {
@@ -213,6 +214,9 @@ export class RecurrenceService {
             if (change.kind !== 'none' && command.scope !== 'future') {
                 throw new BusinessRuleViolation('recurrence-change-requires-scope', 'mudar a série vale para esta e as futuras', { field: 'scope' });
             }
+            // Antes de qualquer caminho: recomeçar a série grava a editada pelo modelo novo sem
+            // passar por `Transaction.revise`, que é quem recusa a troca de tipo nos demais.
+            current.assertTypeKept(command.type);
             this.composer.assertReferences(profile, command, current);
             if (change.kind === 'restart') {
                 return this.restartSeries(profile, recurrence, current, command, change.repeat);
@@ -621,7 +625,7 @@ export class RecurrenceService {
             ? this.sourceFor(changes.source.kind === 'creditCard' ? { ...changes.source, invoiceOffset: context.offset ?? 0 } : changes.source, dueDate)
             : sourceOf(member);
         const input: TransactionInput = {
-            type: changes.type ?? member.type,
+            type: member.type,
             source,
             subCategoryId: changes.subCategoryId ?? member.subCategoryId,
             destinationAccountId: changes.destinationAccountId === undefined ? member.destinationAccountId : changes.destinationAccountId,
@@ -732,9 +736,11 @@ export class RecurrenceService {
     }
 }
 
-/** O que mudou na ocorrência editada; ausente = não mudou. */
+/**
+ * O que mudou na ocorrência editada; ausente = não mudou. Não tem o tipo porque ele é fixo
+ * desde a criação (`Transaction.assertTypeKept`): nenhuma edição o propaga para a série.
+ */
 type TemplateChanges = Partial<{
-    readonly type: Transaction['type'];
     readonly source: RecurrenceSource;
     readonly destinationAccountId: Transaction['destinationAccountId'];
     readonly subCategoryId: Transaction['subCategoryId'];
@@ -758,9 +764,6 @@ type TemplateChanges = Partial<{
  */
 function changesBetween(before: Transaction, after: Transaction): TemplateChanges {
     const changes: { -readonly [K in keyof TemplateChanges]: TemplateChanges[K] } = {};
-    if (before.type !== after.type) {
-        changes.type = after.type;
-    }
     const beforeSource = sourceKey(before);
     const afterSource = sourceKey(after);
     // Trocar de conta ou de cartão, ou de fatura no mesmo cartão: o deslocamento da editada passa
@@ -816,7 +819,7 @@ function applyChanges(template: RecurrenceTemplate, changes: TemplateChanges, of
           ? { ...changes.source, invoiceOffset: offset ?? 0 }
           : changes.source;
     return {
-        type: changes.type ?? template.type,
+        type: template.type,
         source,
         destinationAccountId: changes.destinationAccountId === undefined ? template.destinationAccountId : changes.destinationAccountId,
         subCategoryId: changes.subCategoryId ?? template.subCategoryId,

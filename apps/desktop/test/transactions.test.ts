@@ -142,6 +142,7 @@ describe('formulário de lançamento (desktop-mvp-plan Fase 9)', () => {
                     dueDate: '2026-10-15',
                     paymentDate: null,
                     tagIds: [],
+                    goalId: null,
                     repeat: null,
                 },
             },
@@ -168,6 +169,25 @@ describe('formulário de lançamento (desktop-mvp-plan Fase 9)', () => {
         expect(transfer.ok && transfer.submission.input.destinationAccountId).toBe(TESOURO);
         const expense = readTransactionForm(filled({ type: 'expense', destinationAccountId: TESOURO }), CREATE);
         expect(expense.ok && expense.submission.input.destinationAccountId).toBeNull();
+    });
+
+    it('Regra de negócio (Metas): a meta vai só em receita e transferência; trocar para outro tipo a descarta', () => {
+        const goal = '44444444-4444-4444-8444-444444444444';
+        const income = readTransactionForm(filled({ type: 'income', goalId: goal }), CREATE);
+        expect(income.ok && income.submission.input.goalId).toBe(goal);
+        const transfer = readTransactionForm(filled({ type: 'transference', destinationAccountId: TESOURO, goalId: goal }), CREATE);
+        expect(transfer.ok && transfer.submission.input.goalId).toBe(goal);
+        for (const type of ['expense', 'investment'] as const) {
+            const other = readTransactionForm(filled({ type, destinationAccountId: TESOURO, goalId: goal }), CREATE);
+            expect(other.ok && other.submission.input.goalId).toBeNull();
+        }
+        // Na edição, a meta vem do formulário, e não mais do lançamento como estava.
+        const edited = readTransactionForm(
+            { ...transactionFormFrom(purchase({ type: 'income', goalId: goal, container: { kind: 'statement', statementId: TRANSACTION, accountId: NUBANK, period: '2026-10' } }), '2026-10-15'), goalId: '' },
+            { mode: 'update', transaction: purchase({ goalId: goal }), recurrence: null },
+        );
+        expect(edited.ok && edited.submission.input.goalId).toBeNull();
+        expect(transactionFormFrom(purchase({ goalId: goal }), '2026-10-15').goalId).toBe(goal);
     });
 
     it('aponta todos os campos com problema no mesmo envio', () => {

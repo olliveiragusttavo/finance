@@ -40,3 +40,4 @@ export * from './notes/NoteResponse.ts';
 export * from './recurrences/RecurrenceResponse.ts';
 export * from './recurrences/SeriesPlanResponse.ts';
 export * from './recurrences/TopUpResponse.ts';
+export * from './goals/GoalResponse.ts';

@@ -10,6 +10,7 @@ import type { TransactionContainer } from '../../domain/transaction/TransactionC
 import type { AccountRepository } from '../../repositories/AccountRepository.ts';
 import type { CategoryRepository } from '../../repositories/CategoryRepository.ts';
 import type { CreditCardRepository } from '../../repositories/CreditCardRepository.ts';
+import type { GoalRepository } from '../../repositories/GoalRepository.ts';
 import type { ProfileRepository } from '../../repositories/ProfileRepository.ts';
 import type { ReferenceRepository } from '../../repositories/ReferenceRepository.ts';
 import type { TagRepository } from '../../repositories/TagRepository.ts';
@@ -47,9 +48,10 @@ export class TransactionComposer {
      * @param accounts Conta de origem ou de destino.
      * @param creditCards Cartão de origem e o ciclo que sugere a fatura.
      * @param transactions Transações.
-     * @param references Posse de sócio e meta.
+     * @param references Posse do sócio.
      * @param categories Posse da subcategoria.
      * @param tags Posse das tags.
+     * @param goals Posse da meta.
      * @param consolidation Garante extrato e fatura em que a transação cai.
      * @param invoiceService Reabre a fatura paga escolhida para um lançamento.
      */
@@ -61,6 +63,7 @@ export class TransactionComposer {
         private readonly references: ReferenceRepository,
         private readonly categories: CategoryRepository,
         private readonly tags: TagRepository,
+        private readonly goals: GoalRepository,
         private readonly consolidation: StatementConsolidationService,
         private readonly invoiceService: InvoiceService,
     ) {}
@@ -89,7 +92,7 @@ export class TransactionComposer {
             this.assertOwnedBy(profile, 'partnerId', input.partnerId, this.references.partnerOwner(input.partnerId));
         }
         if (input.goalId !== null) {
-            this.assertOwnedBy(profile, 'goalId', input.goalId, this.references.goalOwner(input.goalId));
+            this.assertOwnedBy(profile, 'goalId', input.goalId, this.goals.findById(input.goalId)?.profileId ?? null);
         }
         for (const tagId of input.tagIds) {
             this.assertOwnedBy(profile, 'tagIds', tagId, this.tags.findById(tagId)?.profileId ?? null);

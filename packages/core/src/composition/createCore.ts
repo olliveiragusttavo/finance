@@ -1,6 +1,7 @@
 import { AccountController } from '../controllers/AccountController.ts';
 import { CategoryController } from '../controllers/CategoryController.ts';
 import { CreditCardController } from '../controllers/CreditCardController.ts';
+import { GoalController } from '../controllers/GoalController.ts';
 import { IntegrityController } from '../controllers/IntegrityController.ts';
 import { InvoiceController } from '../controllers/InvoiceController.ts';
 import { NoteController } from '../controllers/NoteController.ts';
@@ -23,6 +24,7 @@ import { SqliteBankStatementRepository } from '../infrastructure/sqlite/SqliteBa
 import { SqliteCategoryRepository } from '../infrastructure/sqlite/SqliteCategoryRepository.ts';
 import { SqliteCreditCardRepository } from '../infrastructure/sqlite/SqliteCreditCardRepository.ts';
 import { SqliteDeletionRepository } from '../infrastructure/sqlite/SqliteDeletionRepository.ts';
+import { SqliteGoalRepository } from '../infrastructure/sqlite/SqliteGoalRepository.ts';
 import { SqliteInvoiceRepository } from '../infrastructure/sqlite/SqliteInvoiceRepository.ts';
 import { SqliteNoteRepository } from '../infrastructure/sqlite/SqliteNoteRepository.ts';
 import { SqliteProfileRepository } from '../infrastructure/sqlite/SqliteProfileRepository.ts';
@@ -42,6 +44,7 @@ import { ImpactCalculator } from '../services/balance/ImpactCalculator.ts';
 import { CategoryService } from '../services/category/CategoryService.ts';
 import { CreditCardService } from '../services/creditCard/CreditCardService.ts';
 import { CascadeDeletionService } from '../services/deletion/CascadeDeletionService.ts';
+import { GoalService } from '../services/goal/GoalService.ts';
 import { BalanceIntegrityService } from '../services/integrity/BalanceIntegrityService.ts';
 import { InvoiceService } from '../services/invoice/InvoiceService.ts';
 import { NoteService } from '../services/note/NoteService.ts';
@@ -74,6 +77,7 @@ export interface CoreServices {
     readonly categories: CategoryService;
     readonly tags: TagService;
     readonly notes: NoteService;
+    readonly goals: GoalService;
     readonly deletions: CascadeDeletionService;
     readonly transactions: TransactionService;
     readonly recurrences: RecurrenceService;
@@ -150,6 +154,7 @@ export function createCore(ports: CorePorts): Core {
     const categories = new SqliteCategoryRepository(database, clock);
     const tags = new SqliteTagRepository(database, clock);
     const notes = new SqliteNoteRepository(database, clock);
+    const goals = new SqliteGoalRepository(database, clock);
     const deletions = new SqliteDeletionRepository(database, clock);
     const ledger = new SqliteBalanceLedgerRepository(database);
     const reportRepository = new SqliteReportRepository(database);
@@ -159,7 +164,7 @@ export function createCore(ports: CorePorts): Core {
     const impacts = new ImpactCalculator(invoices, creditCards);
     const consolidation = new StatementConsolidationService(unitOfWork, accounts, statements, invoices, transactions);
     const invoiceService = new InvoiceService(unitOfWork, creditCards, accounts, invoices, transactions, consolidation, impacts, recalculation);
-    const composer = new TransactionComposer(profiles, accounts, creditCards, transactions, references, categories, tags, consolidation, invoiceService);
+    const composer = new TransactionComposer(profiles, accounts, creditCards, transactions, references, categories, tags, goals, consolidation, invoiceService);
     const recurrenceService = new RecurrenceService(unitOfWork, ids, clock, composer, transactions, recurrenceRepository, impacts, recalculation);
     const transactionService = new TransactionService(unitOfWork, ids, composer, accounts, transactions, consolidation, recurrenceService, impacts, recalculation, clock);
     const profileService = new ProfileService(unitOfWork, ids, profiles);
@@ -168,6 +173,7 @@ export function createCore(ports: CorePorts): Core {
     const categoryService = new CategoryService(unitOfWork, ids, profileService, categories);
     const tagService = new TagService(unitOfWork, ids, profileService, tags);
     const noteService = new NoteService(unitOfWork, ids, profileService, notes);
+    const goalService = new GoalService(unitOfWork, ids, clock, profileService, goals, transactions);
     const onboardingService = new OnboardingService(unitOfWork, profileService, accountService, categoryService);
     const cascadeDeletion = new CascadeDeletionService(unitOfWork, deletions, accounts, creditCards, invoices, transactions, recalculation);
     const balances = new AccountBalanceService(unitOfWork, profiles, accounts, recalculation);
@@ -186,6 +192,7 @@ export function createCore(ports: CorePorts): Core {
     const reportController = new ReportController(reportService, onUnexpected);
     const tagController = new TagController(tagService, onUnexpected);
     const noteController = new NoteController(noteService, onUnexpected);
+    const goalController = new GoalController(goalService, onUnexpected);
 
     const handlers: RouteHandlers = {
         'profiles.list': (raw) => profileController.list(raw),
@@ -221,6 +228,12 @@ export function createCore(ports: CorePorts): Core {
         'notes.create': (raw) => noteController.create(raw),
         'notes.update': (raw) => noteController.rewrite(raw),
         'notes.delete': (raw) => noteController.delete(raw),
+        'goals.list': (raw) => goalController.list(raw),
+        'goals.options': (raw) => goalController.options(raw),
+        'goals.contributions': (raw) => goalController.contributions(raw),
+        'goals.create': (raw) => goalController.create(raw),
+        'goals.update': (raw) => goalController.update(raw),
+        'goals.delete': (raw) => goalController.delete(raw),
         'transactions.create': (raw) => transactionController.create(raw),
         'transactions.update': (raw) => transactionController.update(raw),
         'transactions.delete': (raw) => transactionController.delete(raw),
@@ -259,6 +272,7 @@ export function createCore(ports: CorePorts): Core {
             categories: categoryService,
             tags: tagService,
             notes: noteService,
+            goals: goalService,
             deletions: cascadeDeletion,
             transactions: transactionService,
             recurrences: recurrenceService,

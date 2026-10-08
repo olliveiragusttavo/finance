@@ -20,3 +20,4 @@ export * from './reportRequests.ts';
 export * from './tagRequests.ts';
 export * from './noteRequests.ts';
 export * from './recurrenceRequests.ts';
+export * from './goalRequests.ts';

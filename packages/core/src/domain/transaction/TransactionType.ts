@@ -18,6 +18,19 @@ export function movesToDestination(type: TransactionType): boolean {
 }
 
 /**
+ * Regra de negócio (Metas): a meta é um objetivo de guardar um valor, e só receita e
+ * transferência podem ser vinculadas a ela — são os lançamentos que juntam dinheiro
+ * (desktop-mvp-plan Fase 9.3, decisão perguntada). Fica ao lado de `movesToDestination` para
+ * que o formulário mostre o campo "Meta" pela mesma regra que o núcleo aplica.
+ *
+ * @param type Tipo da transação.
+ * @return `true` quando o tipo pode alimentar uma meta.
+ */
+export function feedsGoal(type: TransactionType): boolean {
+    return type === 'income' || type === 'transference';
+}
+
+/**
  * Efeito de uma transação (ou de uma soma de transações do mesmo tipo) no saldo do
  * contêiner de **origem** — o extrato da conta ou a fatura do cartão.
  *

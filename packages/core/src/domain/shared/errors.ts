@@ -84,6 +84,7 @@ export type BusinessRule =
     | 'destination-equals-origin'
     | 'destination-not-allowed'
     | 'destination-required'
+    | 'goal-requires-saving-type'
     | 'invoice-already-paid'
     | 'invoice-not-paid'
     | 'move-target-deleted'
@@ -96,7 +97,8 @@ export type BusinessRule =
     | 'recurrence-installments-below-occurrence'
     | 'recurrence-scope-requires-series'
     | 'reference-outside-profile'
-    | 'sub-category-in-use';
+    | 'sub-category-in-use'
+    | 'transaction-type-locked';
 
 /**
  * Uma regra de negócio que relaciona colunas ou linhas foi violada — o tipo de regra que

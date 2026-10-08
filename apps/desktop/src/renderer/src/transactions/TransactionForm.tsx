@@ -14,6 +14,7 @@ import {
     useCategoryTree,
     useCoreMutation,
     useCreditCards,
+    useGoalOptions,
     useInvoicesByCard,
     useInvoiceSuggestion,
     useRecurrences,
@@ -21,7 +22,17 @@ import {
     type EditScope,
     type SourceOption,
 } from '@finance/client';
-import { movesToDestination, type AccountInPeriodResponse, type CategoryBranchResponse, type CreditCardInPeriodResponse, type RecurrenceResponse, type TagResponse, type TransactionResponse } from '@finance/core';
+import {
+    feedsGoal,
+    movesToDestination,
+    type AccountInPeriodResponse,
+    type CategoryBranchResponse,
+    type CreditCardInPeriodResponse,
+    type GoalOptionResponse,
+    type RecurrenceResponse,
+    type TagResponse,
+    type TransactionResponse,
+} from '@finance/core';
 import { useId, useState, type ReactNode } from 'react';
 import { Controller, useForm, type Resolver } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -66,11 +77,18 @@ const FIELD_BY_CORE_FIELD: Readonly<Partial<Record<string, TransactionErrorField
     destinationAccountId: 'destinationAccountId',
     subCategoryId: 'subCategoryId',
     tagIds: 'tagIds',
+    goalId: 'goalId',
     dueDate: 'dueDate',
     paymentDate: 'paymentDate',
     name: 'name',
     value: 'amount',
 };
+
+/**
+ * Valor do item "Sem meta" no `Select`, que não aceita item de valor vazio; o campo do
+ * formulário continua vazio sem meta.
+ */
+const NO_GOAL = 'none';
 
 /** O que o formulário faz e para onde volta. */
 export interface TransactionFormProps {
@@ -114,11 +132,12 @@ export function TransactionForm(props: TransactionFormProps): ReactNode {
     const creditCards = useCreditCards({ profileId: profile.id, period });
     const categories = useCategoryTree({ profileId: profile.id });
     const tags = useTags({ profileId: profile.id });
+    const goals = useGoalOptions({ profileId: profile.id });
     const recurring = props.transaction !== null && props.transaction.recurrenceId !== null;
     // A série só é esperada na edição de uma ocorrência: ela preenche "Repetir" e decide se o
     // salvar pergunta o escopo.
     const recurrences = useRecurrences(recurring ? { profileId: profile.id } : null);
-    if (accounts.data === undefined || creditCards.data === undefined || categories.data === undefined || tags.data === undefined || (recurring && recurrences.data === undefined)) {
+    if (accounts.data === undefined || creditCards.data === undefined || categories.data === undefined || tags.data === undefined || goals.data === undefined || (recurring && recurrences.data === undefined)) {
         return (
             <div role="status" aria-busy="true" aria-label="Carregando o formulário" className="flex flex-col gap-3">
                 <Skeleton className="h-9" />
@@ -138,6 +157,7 @@ export function TransactionForm(props: TransactionFormProps): ReactNode {
             creditCards={creditCards.data.creditCards}
             categories={categories.data}
             tags={tags.data}
+            goals={goals.data}
             recurrence={recurrences.data?.find((recurrence) => recurrence.id === props.transaction?.recurrenceId) ?? null}
         />
     );
@@ -152,6 +172,8 @@ interface FormRegistries {
     readonly creditCards: readonly CreditCardInPeriodResponse[];
     readonly categories: readonly CategoryBranchResponse[];
     readonly tags: readonly TagResponse[];
+    /** Metas do perfil, para o campo "Meta" das receitas e transferências. */
+    readonly goals: readonly GoalOptionResponse[];
     /** Série do lançamento editado; `null` num lançamento novo ou avulso. */
     readonly recurrence: RecurrenceResponse | null;
 }
@@ -166,7 +188,7 @@ interface FormRegistries {
  * @param props O formulário e os cadastros.
  * @return O formulário.
  */
-function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, onDelete, profileId, currency, accounts, creditCards, categories, tags, recurrence }: TransactionFormProps & FormRegistries): ReactNode {
+function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, onDelete, profileId, currency, accounts, creditCards, categories, tags, goals, recurrence }: TransactionFormProps & FormRegistries): ReactNode {
     const id = useId();
     const today = currentDate(new Date());
     const target: TransactionFormTarget = transaction === null ? { mode: 'create', profileId, currency } : { mode: 'update', transaction, recurrence };
@@ -266,7 +288,7 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
                 void submit(event);
             }}
         >
-            <Controller control={form.control} name="type" render={({ field }) => <TypeSelector value={field.value} onChange={field.onChange} />} />
+            <Controller control={form.control} name="type" render={({ field }) => <TypeSelector value={field.value} onChange={field.onChange} locked={transaction !== null} />} />
             <AmountField id={fieldId('amount')} form={form} currency={currency} autoFocus={transaction === null} />
             <Field id={fieldId('name')} label="Nome" error={errors.name}>
                 <Input id={fieldId('name')} {...fieldAria(fieldId('name'), errors.name)} {...form.register('name')} />
@@ -404,6 +426,35 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
             <Field id={fieldId('tags')} label="Tags" error={errors.tagIds?.message === undefined ? undefined : { type: 'validate', message: errors.tagIds.message }}>
                 <Controller control={form.control} name="tagIds" render={({ field }) => <TagPicker id={fieldId('tags')} tags={tags} value={field.value} onChange={field.onChange} />} />
             </Field>
+            {feedsGoal(values.type) && (
+                <Field id={fieldId('goal')} label="Meta" error={errors.goalId} hint={goals.length === 0 ? 'Nenhuma meta cadastrada; crie uma na tela Metas.' : undefined}>
+                    <Controller
+                        control={form.control}
+                        name="goalId"
+                        render={({ field }) => (
+                            <Select
+                                value={field.value === '' ? NO_GOAL : field.value}
+                                disabled={goals.length === 0}
+                                onValueChange={(value) => {
+                                    field.onChange(value === NO_GOAL ? '' : value);
+                                }}
+                            >
+                                <SelectTrigger id={fieldId('goal')} className="w-full" {...fieldAria(fieldId('goal'), errors.goalId, goals.length === 0)}>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value={NO_GOAL}>Sem meta</SelectItem>
+                                    {goals.map((goal) => (
+                                        <SelectItem key={goal.id} value={goal.id}>
+                                            {goal.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
+                    />
+                </Field>
+            )}
             <Field id={fieldId('description')} label="Descrição" error={errors.description}>
                 <textarea
                     id={fieldId('description')}
@@ -494,15 +545,25 @@ const SHORT_TYPE_LABELS: Readonly<Record<TransactionResponse['type'], string>> =
 
 /**
  * Tipo do lançamento como botões de opção, como o seletor do mockup `MobileLancamento`: os
- * quatro tipos à vista, sem abrir lista.
+ * quatro tipos à vista, sem abrir lista. Na edição o seletor continua visível, para mostrar o
+ * tipo, mas os outros tipos ficam desabilitados.
+ * Regra de negócio (Transação, database-design §4.13): o tipo é fixo desde a criação; o núcleo
+ * recusa a troca, e travar aqui evita que o usuário preencha o formulário só para ver o erro.
  *
  * @param props.value Tipo escolhido.
  * @param props.onChange Recebe o tipo escolhido.
+ * @param props.locked `true` na edição, quando o tipo já não pode mudar.
  * @return O seletor.
  */
-function TypeSelector({ value, onChange }: { readonly value: TransactionResponse['type']; readonly onChange: (type: TransactionResponse['type']) => void }): ReactNode {
+function TypeSelector({ value, onChange, locked }: { readonly value: TransactionResponse['type']; readonly onChange: (type: TransactionResponse['type']) => void; readonly locked: boolean }): ReactNode {
     return (
-        <div role="radiogroup" aria-label="Tipo" className="grid grid-cols-4 gap-0.5 rounded-8 bg-surface2 p-0.5 ring-1 ring-line">
+        <div
+            role="radiogroup"
+            aria-label="Tipo"
+            aria-disabled={locked}
+            title={locked ? 'O tipo não muda depois que o lançamento é criado.' : undefined}
+            className="grid grid-cols-4 gap-0.5 rounded-8 bg-surface2 p-0.5 ring-1 ring-line"
+        >
             {TRANSACTION_TYPE_ORDER.map((type) => (
                 <button
                     key={type}
@@ -510,7 +571,8 @@ function TypeSelector({ value, onChange }: { readonly value: TransactionResponse
                     role="radio"
                     aria-checked={type === value}
                     aria-label={formatTransactionType(type)}
-                    className={cn('rounded-6 px-1 py-1.5 text-12 text-ink2', type === value && 'bg-surface font-semibold text-ink ring-1 ring-line')}
+                    disabled={locked && type !== value}
+                    className={cn('rounded-6 px-1 py-1.5 text-12 text-ink2 disabled:cursor-not-allowed disabled:opacity-50', type === value && 'bg-surface font-semibold text-ink ring-1 ring-line')}
                     onClick={() => {
                         onChange(type);
                     }}

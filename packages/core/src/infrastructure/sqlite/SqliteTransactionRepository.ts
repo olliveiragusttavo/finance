@@ -210,6 +210,14 @@ export class SqliteTransactionRepository implements TransactionRepository {
     }
 
     /**
+     * @param goalId Meta consultada.
+     * @return As transações vivas vinculadas à meta, pelo índice `idx_transactions_goal_id`.
+     */
+    public listByGoal(goalId: GoalId): readonly Transaction[] {
+        return this.list('WHERE t.goal_id = :goalId AND t.deleted_at IS NULL', { goalId });
+    }
+
+    /**
      * @param statementId Extrato de origem.
      * @return As transações vivas do extrato.
      */

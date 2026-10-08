@@ -4,7 +4,7 @@ import type { AccountId, GoalId, PartnerId, ProfileId, RecurrenceId, SubCategory
 import type { LocalDate } from '../shared/LocalDate.ts';
 import type { Money } from '../shared/Money.ts';
 import type { TransactionContainer } from './TransactionContainer.ts';
-import { destinationEffect, movesToDestination, originEffect, type TransactionType } from './TransactionType.ts';
+import { destinationEffect, feedsGoal, movesToDestination, originEffect, type TransactionType } from './TransactionType.ts';
 
 const NAME_MAX_LENGTH = 100;
 
@@ -112,7 +112,7 @@ export class Transaction implements TransactionProps {
      * @param props Dados da transação, com id já gerado pela aplicação (database-design §3.5).
      * @return A transação.
      * @throws {InvalidValueError} Quando um campo isolado é inválido (nome, taxa).
-     * @throws {BusinessRuleViolation} Quando campos se contradizem (destino em receita).
+     * @throws {BusinessRuleViolation} Quando campos se contradizem (destino em receita, meta em despesa).
      */
     public static create(props: TransactionProps): Transaction {
         return new Transaction(Transaction.validated(props));
@@ -131,17 +131,38 @@ export class Transaction implements TransactionProps {
     }
 
     /**
-     * Edita os campos do usuário. Identidade, perfil e vínculo com a recorrência não mudam:
-     * o id de uma ocorrência é derivado da data em que foi gerada e nunca é recalculado
-     * (sync-design §5.6).
+     * Edita os campos do usuário. Identidade, perfil, tipo e vínculo com a recorrência não
+     * mudam: o id de uma ocorrência é derivado da data em que foi gerada e nunca é recalculado
+     * (sync-design §5.6), e o tipo é fixo desde a criação (`assertTypeKept`).
      *
      * @param content Novo conteúdo completo da transação.
      * @return A transação editada.
      * @throws {InvalidValueError} Quando um campo isolado é inválido.
-     * @throws {BusinessRuleViolation} Quando campos se contradizem.
+     * @throws {BusinessRuleViolation} Quando campos se contradizem ou o tipo mudou.
      */
     public revise(content: TransactionContent): Transaction {
+        this.assertTypeKept(content.type);
         return new Transaction(Transaction.validated({ ...content, id: this.id, profileId: this.profileId, recurrenceId: this.recurrenceId, occurrence: this.occurrence }));
+    }
+
+    /**
+     * Recusa a troca de tipo numa edição. Fica exposto, e não só dentro de `revise`, porque
+     * recomeçar uma série grava a editada de novo pelo modelo da regra nova sem passar por
+     * `revise`, e a regra precisa valer também ali.
+     * Regra de negócio (Transação, database-design §4.13): o tipo é fixo desde a criação — uma
+     * despesa continua despesa, uma receita continua receita. Trocar o tipo inverte a direção
+     * do efeito no saldo, cria ou some com a conta de destino e muda quem pode alimentar uma
+     * meta; aceitar isso numa edição deixava vínculos inválidos para trás (meta numa despesa,
+     * revisão de 2026-10-08, item 1). Lançar com outro tipo é excluir e lançar de novo.
+     *
+     * @param type Tipo que a edição pede.
+     * @return void
+     * @throws {BusinessRuleViolation} Quando o tipo pedido difere do gravado.
+     */
+    public assertTypeKept(type: TransactionType): void {
+        if (type !== this.type) {
+            throw new BusinessRuleViolation('transaction-type-locked', `o tipo do lançamento não muda depois de criado (${this.type} → ${type})`, { field: 'type' });
+        }
     }
 
     /**
@@ -247,6 +268,12 @@ export class Transaction implements TransactionProps {
         }
         if (!movesToDestination(props.type) && props.destinationAccountId !== null) {
             throw new BusinessRuleViolation('destination-not-allowed', 'só transferências e investimentos têm conta de destino');
+        }
+        // Regra de negócio (Metas): a meta é um valor que se quer guardar, e só receita e
+        // transferência levam dinheiro a ela (desktop-mvp-plan Fase 9.3). Despesa é gasto e
+        // investimento já tem destino próprio; nenhum dos dois junta dinheiro para a meta.
+        if (props.goalId !== null && !feedsGoal(props.type)) {
+            throw new BusinessRuleViolation('goal-requires-saving-type', 'só receitas e transferências podem ser vinculadas a uma meta', { field: 'goalId' });
         }
         // Uma transferência para a própria conta somaria zero e apareceria duas vezes no
         // extrato; não representa movimento nenhum.

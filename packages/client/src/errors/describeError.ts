@@ -21,6 +21,7 @@ const RULE_MESSAGES: Readonly<Record<BusinessRule, string>> = {
     'destination-equals-origin': 'A conta de destino precisa ser diferente da conta de origem.',
     'destination-not-allowed': 'Só transferências e investimentos têm conta de destino.',
     'destination-required': 'Escolha a conta de destino da transferência ou do investimento.',
+    'goal-requires-saving-type': 'Só receitas e transferências podem ser vinculadas a uma meta.',
     'invoice-already-paid': 'Esta fatura já está paga. Reabra a fatura antes de pagá-la de novo.',
     'invoice-not-paid': 'Esta fatura já está em aberto.',
     'move-target-deleted': 'Escolha para onde mover os lançamentos entre as subcategorias que continuam existindo.',
@@ -34,6 +35,7 @@ const RULE_MESSAGES: Readonly<Record<BusinessRule, string>> = {
     'recurrence-scope-requires-series': 'Este lançamento não faz parte de uma série.',
     'reference-outside-profile': 'O item escolhido pertence a outro perfil.',
     'sub-category-in-use': 'Esta subcategoria tem lançamentos. Escolha para onde movê-los antes de excluir.',
+    'transaction-type-locked': 'O tipo do lançamento não muda depois de criado. Exclua-o e lance de novo com o outro tipo.',
 };
 
 /**
@@ -44,6 +46,7 @@ const ENTITY_NAMES: Readonly<Record<string, string>> = {
     Account: 'A conta',
     Category: 'A categoria',
     CreditCard: 'O cartão',
+    Goal: 'A meta',
     Invoice: 'A fatura',
     Note: 'A anotação',
     Profile: 'O perfil',
@@ -51,6 +54,7 @@ const ENTITY_NAMES: Readonly<Record<string, string>> = {
     Tag: 'A tag',
     Transaction: 'O lançamento',
     category: 'uma categoria',
+    goalId: 'A meta',
     subCategory: 'uma subcategoria nesta categoria',
     tag: 'uma tag',
     tagIds: 'A tag',

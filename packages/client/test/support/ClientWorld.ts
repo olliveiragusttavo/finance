@@ -54,6 +54,8 @@ export interface Scenario {
     /** Tag aplicada à compra no cartão. */
     readonly tagId: string;
     readonly noteId: string;
+    /** Meta alimentada pelo salário, pago no cenário. */
+    readonly goalId: string;
 }
 
 /**
@@ -99,8 +101,9 @@ export class ClientWorld {
 
     /**
      * Monta o cenário que exercita todas as leituras: perfil com duas contas, cartão pago por
-     * uma delas, receita, despesa pendente, compra no cartão em aberto (com uma tag), fatura
-     * de setembro paga em outubro, transferência entre as contas e uma anotação.
+     * uma delas, receita paga vinculada a uma meta, despesa pendente, compra no cartão em aberto
+     * (com uma tag), fatura de setembro paga em outubro, transferência entre as contas e uma
+     * anotação.
      *
      * @return Os ids do cenário.
      */
@@ -118,9 +121,10 @@ export class ClientWorld {
         const rent = await this.ok('subCategories.create', { categoryId: housing.id, name: 'Aluguel' });
         const tag = await this.ok('tags.create', { profileId: profile.id, name: 'viagem' });
         const note = await this.ok('notes.create', { profileId: profile.id, text: 'IPTU 2027' });
+        const goal = await this.ok('goals.create', { profileId: profile.id, name: 'Reserva', value: 30000, targetDate: '2027-12-31' });
         const card = await this.ok('creditCards.create', { profileId: profile.id, accountId: account.id, name: 'Roxinho', limit: 5000, closingDay: 3, dueDay: 10 });
         const base = { profileId: profile.id, subCategoryId: sub.id } as const;
-        const income = await this.ok('transactions.create', { ...base, type: 'income', source: { kind: 'account', accountId: account.id }, name: 'Salário', value: 9500, dueDate: '2026-10-01', paymentDate: '2026-10-01' });
+        const income = await this.ok('transactions.create', { ...base, type: 'income', source: { kind: 'account', accountId: account.id }, name: 'Salário', value: 9500, dueDate: '2026-10-01', paymentDate: '2026-10-01', goalId: goal.id });
         const expense = await this.ok('transactions.create', { ...base, type: 'expense', source: { kind: 'account', accountId: account.id }, name: 'Aluguel', value: 2300, dueDate: '2026-10-05' });
         const september = await this.ok('transactions.create', { ...base, type: 'expense', source: { kind: 'creditCard', creditCardId: card.id }, name: 'Feira', value: 120, dueDate: '2026-08-20' });
         const purchase = await this.ok('transactions.create', { ...base, type: 'expense', source: { kind: 'creditCard', creditCardId: card.id }, name: 'Supermercado', value: 487.32, dueDate: '2026-10-06', tagIds: [tag.id] });
@@ -144,6 +148,7 @@ export class ClientWorld {
             openInvoiceId: invoiceIdOf(purchase),
             tagId: tag.id,
             noteId: note.id,
+            goalId: goal.id,
         };
     }
 }

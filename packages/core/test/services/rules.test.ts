@@ -76,6 +76,29 @@ describe('ponto de controle das regras de negócio (database-design §3.10)', ()
         expect(error.details['rule']).toBe('destination-not-allowed');
     });
 
+    it('Regra de negócio (Transação, database-design §4.13): o tipo do lançamento não muda na edição', async () => {
+        const { world, profileId, accountId, base } = setup();
+        const savingsId = world.account(profileId);
+        const source = { kind: 'account', accountId } as const;
+        const types = ['income', 'expense', 'transference', 'investment'] as const;
+        /**
+         * @param type Tipo do lançamento.
+         * @return A conta de destino que o tipo exige; `null` nos que não têm destino.
+         */
+        const destinationOf = (type: (typeof types)[number]): string | null => (type === 'transference' || type === 'investment' ? savingsId : null);
+        for (const type of types) {
+            const created = await world.create(base, { source, type, destinationAccountId: destinationOf(type) });
+            for (const other of types.filter((candidate) => candidate !== type)) {
+                expect(await world.editFailure(created, { type: other, destinationAccountId: destinationOf(other) })).toMatchObject({
+                    code: 'BUSINESS_RULE_VIOLATION',
+                    details: { rule: 'transaction-type-locked', field: 'type' },
+                });
+            }
+            // O resto continua editável, e o tipo gravado fica como estava.
+            expect(await world.edit(created, { name: 'Renomeado' })).toMatchObject({ type, name: 'Renomeado' });
+        }
+    });
+
     it('recusa pagar uma fatura já paga', async () => {
         const { world, profileId, accountId, base } = setup();
         const creditCardId = world.creditCard(profileId, accountId, 10, 17);

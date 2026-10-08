@@ -6,6 +6,8 @@ import { AccountsScreen } from './accounts/AccountsScreen.tsx';
 import { parseAccountsSearch, type AccountsSearch } from './accounts/accountsSearch.ts';
 import { CardsScreen } from './cards/CardsScreen.tsx';
 import { parseCardsSearch, type CardsSearch } from './cards/cardsSearch.ts';
+import { GoalsScreen } from './goals/GoalsScreen.tsx';
+import { parseGoalsSearch, type GoalsSearch } from './goals/goalsSearch.ts';
 import { RegistryScreen } from './registry/RegistryScreen.tsx';
 import { parseRegistrySearch, type RegistrySearch } from './registry/registryKinds.ts';
 import { blankScreen, PartnerReportScreen } from './screens/BlankScreen.tsx';
@@ -81,11 +83,16 @@ const routeTree = rootRoute.addChildren([
             validateSearch: (search: Record<string, unknown>): RegistrySearch => parseRegistrySearch(search),
         }),
         createRoute({ getParentRoute: () => shellRoute, path: '/settings' satisfies AppPath, component: blankScreen('Ajustes', false) }),
+        createRoute({
+            getParentRoute: () => shellRoute,
+            path: '/goals' satisfies AppPath,
+            component: GoalsScreen,
+            validateSearch: (search: Record<string, unknown>): GoalsSearch => parseGoalsSearch(search),
+        }),
         // Fora do MVP: tela em branco, com a rota e o mês já prontos (desktop-mvp-plan §5).
         createRoute({ getParentRoute: () => shellRoute, path: '/reports/account-flow' satisfies AppPath, component: blankScreen('Fluxo mensal por conta', true) }),
         createRoute({ getParentRoute: () => shellRoute, path: '/reports/partner' satisfies AppPath, component: PartnerReportScreen }),
         createRoute({ getParentRoute: () => shellRoute, path: '/reports/tag' satisfies AppPath, component: blankScreen('Relatório por tag', true) }),
-        createRoute({ getParentRoute: () => shellRoute, path: '/goals' satisfies AppPath, component: blankScreen('Metas', true) }),
         createRoute({ getParentRoute: () => shellRoute, path: '/devices' satisfies AppPath, component: blankScreen('Dispositivos', true) }),
     ]),
 ]);

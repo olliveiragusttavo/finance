@@ -1,5 +1,5 @@
 import type { CategoryScope } from '../domain/report/CategoryScope.ts';
-import type { AccountId, BankStatementId, InvoiceId, ProfileId, RecurrenceId, TransactionId } from '../domain/shared/ids.ts';
+import type { AccountId, BankStatementId, GoalId, InvoiceId, ProfileId, RecurrenceId, TransactionId } from '../domain/shared/ids.ts';
 import type { LocalDate } from '../domain/shared/LocalDate.ts';
 import type { YearMonth } from '../domain/shared/YearMonth.ts';
 import type { Transaction } from '../domain/transaction/Transaction.ts';
@@ -56,6 +56,14 @@ export interface TransactionRepository {
      * "esta e as futuras" e "todas" são recortes desta lista (database-design §4.12).
      */
     listOccurrences(recurrenceId: RecurrenceId): readonly Transaction[];
+
+    /**
+     * Transações de uma meta numa leitura só, para a tabela do detalhe não buscar uma por uma.
+     *
+     * @param goalId Meta consultada.
+     * @return As transações vivas vinculadas à meta, pagas ou não, em qualquer ordem.
+     */
+    listByGoal(goalId: GoalId): readonly Transaction[];
 
     /**
      * @param statementId Extrato de origem.
