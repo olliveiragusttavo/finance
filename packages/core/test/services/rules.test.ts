@@ -76,44 +76,6 @@ describe('ponto de controle das regras de negócio (database-design §3.10)', ()
         expect(error.details['rule']).toBe('destination-not-allowed');
     });
 
-    it('recusa mover uma ocorrência de recorrência para a data de outra ocorrência da série', async () => {
-        const { world, profileId, accountId, base } = setup();
-        const source = { kind: 'account', accountId } as const;
-        const first = await world.create(base, { source, dueDate: '2026-03-05' });
-        const second = await world.create(base, { source, dueDate: '2026-03-06' });
-        // A recorrência e o vínculo são semeados por SQL: o serviço de recorrências ainda
-        // não existe, mas a edição "somente esta" de uma ocorrência já precisa da regra.
-        const recurrenceId = world.ids.random();
-        world.database.run(
-            `INSERT INTO recurrences (id, profile_id, type, recurrence, materialized_through, updated_at)
-            VALUES (:recurrenceId, :profileId, 2, 3, '2026-12-31', :now)`,
-            { recurrenceId, profileId, now: world.clock.now() },
-        );
-        world.database.run('UPDATE transactions SET recurrence_id = :recurrenceId WHERE id IN (:first, :second)', { recurrenceId, first: first.id, second: second.id });
-
-        const result = await world.core.call('transactions.update', {
-            id: second.id,
-            subCategoryId: base.subCategoryId,
-            source,
-            type: 'expense',
-            name: 'Lançamento',
-            value: 100,
-            charges: 0,
-            description: null,
-            destinationAccountId: null,
-            partnerId: null,
-            goalId: null,
-            originCurrency: null,
-            conversionRate: 1,
-            dueDate: '2026-03-05',
-            paymentDate: null,
-            tagIds: [],
-        });
-        expect(result.ok ? null : result.error.details['rule']).toBe('recurrence-occurrence-date-taken');
-        // A mesma edição numa data livre continua permitida.
-        expect((await world.update(base, second.id, { source, dueDate: '2026-03-07' })).dueDate).toBe('2026-03-07');
-    });
-
     it('recusa pagar uma fatura já paga', async () => {
         const { world, profileId, accountId, base } = setup();
         const creditCardId = world.creditCard(profileId, accountId, 10, 17);

@@ -88,6 +88,8 @@ export class SqliteTagRepository implements TagRepository {
     public softDelete(id: TagId): void {
         const params = { id, now: this.clock.now() };
         this.database.run('UPDATE transactions_tags SET deleted_at = :now, updated_at = :now WHERE tag_id = :id AND deleted_at IS NULL', params);
+        // A tag também sai do modelo das recorrências, para não voltar nas próximas ocorrências.
+        this.database.run('UPDATE recurrences_tags SET deleted_at = :now, updated_at = :now WHERE tag_id = :id AND deleted_at IS NULL', params);
         this.database.run('UPDATE tags SET deleted_at = :now, updated_at = :now WHERE id = :id AND deleted_at IS NULL', params);
     }
 

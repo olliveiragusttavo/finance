@@ -56,13 +56,55 @@ function options(overrides: Partial<OpenCoreOptions> = {}): OpenCoreOptions & { 
 }
 
 describe('abertura do banco no processo do núcleo (backend-design §4.5)', () => {
-    it('banco novo: migra sem backup, monta o núcleo e registra a integridade', async () => {
+    it('banco novo: migra sem backup, monta o núcleo, registra a integridade e completa as recorrências', async () => {
         const opts = options();
         const opened = await openCore(opts);
         expect(opened.status).toEqual({ kind: 'ready' });
         expect(opened.core).not.toBeNull();
-        expect(opts.log.events()).toEqual(['database.opened', 'integrity.ok']);
+        expect(opts.log.events()).toEqual(['database.opened', 'integrity.ok', 'recurrences.topped-up']);
         opened.close();
+    });
+
+    it('série que falha no complemento: abre mesmo assim e registra a falha no log', async () => {
+        const opts = options();
+        const first = await openCore(opts);
+        const core = first.core;
+        if (core === null) {
+            throw new Error('a primeira abertura deveria montar o núcleo');
+        }
+        const started = await core.call('onboarding.start', {
+            profile: { name: 'Pessoal', type: 'personal', currency: 'BRL' },
+            account: { name: 'Nubank', type: 'checking', openingBalance: 100 },
+        });
+        if (!started.ok) {
+            throw new Error('o onboarding deveria criar o perfil');
+        }
+        const tree = await core.call('categories.tree', { profileId: started.data.profile.id });
+        const subCategoryId = tree.ok ? tree.data[0]?.subCategories[0]?.id ?? '' : '';
+        const created = await core.call('transactions.create', {
+            profileId: started.data.profile.id,
+            subCategoryId,
+            type: 'expense',
+            name: 'Aluguel',
+            value: 100,
+            source: { kind: 'account', accountId: started.data.account.id },
+            dueDate: '2026-10-05',
+            repeat: { kind: 'fixed', frequency: 'monthly', endAt: null },
+        });
+        expect(created.ok).toBe(true);
+        first.close();
+        // A regra perde a origem: o complemento não consegue mais lê-la.
+        const database = BetterSqliteDatabase.open(opts.databasePath);
+        database.run('UPDATE recurrences SET account_id = NULL');
+        database.close();
+
+        const reopened = await openCore(opts);
+        expect(reopened.status).toEqual({ kind: 'ready' });
+        expect(reopened.core).not.toBeNull();
+        const partial = opts.log.lines.find((line) => line.event === 'recurrences.top-up-partial');
+        expect(partial?.level).toBe('warn');
+        expect(partial?.data).toMatchObject({ emitted: 0, failures: [{ error: { code: 'INTERNAL' } }] });
+        reopened.close();
     });
 
     it('banco mais novo que o app: bloqueia com as duas versões e não migra nada', async () => {

@@ -89,7 +89,12 @@ export type BusinessRule =
     | 'move-target-deleted'
     | 'partner-requires-business-profile'
     | 'profile-currency-locked'
-    | 'recurrence-occurrence-date-taken'
+    | 'recurrence-change-requires-scope'
+    | 'recurrence-daily-date-single-only'
+    | 'recurrence-end-before-occurrence'
+    | 'recurrence-end-before-start'
+    | 'recurrence-installments-below-occurrence'
+    | 'recurrence-scope-requires-series'
     | 'reference-outside-profile'
     | 'sub-category-in-use';
 

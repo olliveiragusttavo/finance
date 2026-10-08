@@ -1,6 +1,6 @@
-import type { CoreInput, CoreOutput, CoreResult, CoreRoute } from '@finance/core';
+import type { CoreInput, CoreOutput, CoreResult, CoreRoute, SeriesPlanResponse } from '@finance/core';
 import { describe, expect, it } from 'vitest';
-import { allRoutes, invalidatedBy, isReadRoute, type ReadRoute, type WriteRoute } from '../src/index.ts';
+import { allRoutes, invalidatedBy, isReadRoute, isRehearsalRoute, type ReadRoute, type WriteRoute } from '../src/index.ts';
 import { ClientWorld, type Scenario } from './support/ClientWorld.ts';
 
 const PERIOD = '2026-10';
@@ -15,9 +15,21 @@ type Probe = { readonly [R in ReadRoute]: { readonly route: R; readonly input: C
  * @param s Ids do cenário.
  * @return As sondas, cobrindo toda rota de leitura.
  */
-function probes(s: Scenario): readonly Probe[] {
+function probes(s: SeriesScenario): readonly Probe[] {
     return [
         { route: 'profiles.list', input: {} },
+        { route: 'recurrences.list', input: { profileId: s.profileId } },
+        { route: 'recurrences.occurrences', input: { recurrenceId: s.recurrenceId } },
+        {
+            route: 'recurrences.planCreate',
+            input: { ...seriesContent(s), profileId: s.profileId, dueDate: '2027-04-01', repeat: { kind: 'installments', frequency: 'monthly', installments: 3, valueType: 'total' } },
+        },
+        { route: 'recurrences.planUpdate', input: { ...seriesContent(s), id: s.seriesFirstId, partnerId: null, goalId: null, originCurrency: null, conversionRate: 1, charges: 0, description: null, destinationAccountId: null, paymentDate: null, value: 12, scope: 'future' } },
+        { route: 'recurrences.planDelete', input: { id: s.seriesFirstId, scope: 'future' } },
+        {
+            route: 'recurrences.preview',
+            input: { profileId: s.profileId, source: { kind: 'creditCard', creditCardId: s.creditCardId }, dueDate: '2026-10-05', value: 300, repeat: { kind: 'installments', frequency: 'monthly', installments: 3, valueType: 'total' } },
+        },
         ...['2026-09', PERIOD, '2026-11'].flatMap((period): Probe[] => [
             { route: 'accounts.list', input: { profileId: s.profileId, period } },
             { route: 'creditCards.list', input: { profileId: s.profileId, period } },
@@ -126,7 +138,49 @@ const WRITES: readonly Write[] = [
     { route: 'balances.rebuildAccount', input: (s) => ({ accountId: s.checkingId }), unchanged: true },
     { route: 'invoices.pay', input: (s) => ({ invoiceId: s.openInvoiceId, paymentDate: '2026-10-09' }) },
     { route: 'invoices.reopen', input: (s) => ({ invoiceId: s.paidInvoiceId }) },
+    // Com o relógio parado, o complemento não tem o que emitir: a criação já foi até o horizonte.
+    { route: 'recurrences.topUp', input: () => ({}), unchanged: true },
 ];
+
+/** O cenário do `ClientWorld` e uma série fixa para as sondas de recorrência. */
+interface SeriesScenario extends Scenario {
+    readonly recurrenceId: string;
+    /** 1ª ocorrência da série, a editada e excluída nas sondas de plano. */
+    readonly seriesFirstId: string;
+}
+
+/**
+ * @param s Ids do cenário.
+ * @return O conteúdo da série do cenário, comum às sondas de plano.
+ */
+function seriesContent(s: SeriesScenario): { type: 'expense'; source: { kind: 'account'; accountId: string }; subCategoryId: string; name: string; value: number; dueDate: string; tagIds: string[] } {
+    return { type: 'expense', source: { kind: 'account', accountId: s.savingsId }, subCategoryId: s.subCategoryId, name: 'Taxa de custódia', value: 10, dueDate: '2027-03-10', tagIds: [s.tagId] };
+}
+
+/**
+ * Semeia o cenário e uma série fixa mensal no Tesouro a partir de março de 2027. Fica aqui, e
+ * não no `ClientWorld`, porque os outros testes contam os lançamentos de outubro; numa conta e
+ * em meses que nenhuma outra sonda olha, a série só aparece nas sondas de recorrência — e nas
+ * escritas que a levam junto (excluir a conta) ou mudam o ciclo do cartão.
+ *
+ * @param world Núcleo do teste.
+ * @return O cenário com a série.
+ */
+async function seedWithSeries(world: ClientWorld): Promise<SeriesScenario> {
+    const scenario = await world.seed();
+    const first = await world.ok('transactions.create', {
+        profileId: scenario.profileId,
+        subCategoryId: scenario.subCategoryId,
+        type: 'expense',
+        source: { kind: 'account', accountId: scenario.savingsId },
+        name: 'Taxa de custódia',
+        value: 10,
+        dueDate: '2027-03-10',
+        tagIds: [scenario.tagId],
+        repeat: { kind: 'fixed', frequency: 'monthly', endAt: null },
+    });
+    return { ...scenario, recurrenceId: first.recurrenceId ?? '', seriesFirstId: first.id };
+}
 
 /**
  * Chama uma rota de uma união rota/entrada. O genérico correlaciona as duas — com a união
@@ -146,13 +200,41 @@ function invoke<R extends CoreRoute>(world: ClientWorld, call: { readonly route:
  * @return O resultado serializado de cada sonda, na ordem.
  */
 async function snapshot(world: ClientWorld, list: readonly Probe[]): Promise<readonly string[]> {
-    return Promise.all(list.map(async (probe) => JSON.stringify(await invoke(world, probe))));
+    return Promise.all(
+        list.map(async (probe) => {
+            if (probe.route === 'recurrences.planCreate' || probe.route === 'recurrences.planUpdate' || probe.route === 'recurrences.planDelete') {
+                const plan = await invoke(world, probe);
+                return JSON.stringify(plan.ok ? withoutFreshIds(plan.data) : plan);
+            }
+            return JSON.stringify(await invoke(world, probe));
+        }),
+    );
+}
+
+/**
+ * O plano ensaia a escrita, e a regra que ela cria ganha um id novo a cada ensaio — o gerador
+ * avança mesmo com o rollback —, assim como as ocorrências dela, cujo id deriva do da regra. Sem
+ * trocar esses ids por marcadores, a sonda de plano mudaria a cada leitura, com ou sem escrita
+ * no meio.
+ *
+ * @param plan Plano devolvido pela sonda.
+ * @return O mesmo plano, com os ids do que o ensaio criou trocados por marcadores.
+ */
+function withoutFreshIds(plan: SeriesPlanResponse): SeriesPlanResponse {
+    const fresh = plan.newSeries?.id ?? null;
+    return {
+        ...plan,
+        newSeries: plan.newSeries === null ? null : { ...plan.newSeries, id: 'regra-nova' },
+        created: plan.created.map((item) =>
+            item.transaction.recurrenceId === fresh ? { ...item, transaction: { ...item.transaction, id: `nova-${String(item.transaction.occurrence)}`, recurrenceId: 'regra-nova' } } : item,
+        ),
+    };
 }
 
 describe('mapa de invalidação (desktop-mvp-plan Fase 3.2 e §8)', () => {
     it('toda rota de escrita do núcleo tem uma escrita neste teste, e toda leitura tem sonda', async () => {
         const world = new ClientWorld();
-        const covered = new Set([...WRITES.map((write) => write.route), ...probes(await world.seed()).map((probe) => probe.route)]);
+        const covered = new Set([...WRITES.map((write) => write.route), ...probes(await seedWithSeries(world)).map((probe) => probe.route)]);
         expect(allRoutes().filter((route) => !covered.has(route))).toEqual([]);
     });
 
@@ -160,7 +242,7 @@ describe('mapa de invalidação (desktop-mvp-plan Fase 3.2 e §8)', () => {
         '%s invalida toda leitura cujo resultado muda',
         async (_route, write) => {
             const world = new ClientWorld();
-            const scenario = await world.seed();
+            const scenario = await seedWithSeries(world);
             await write.prepare?.(world, scenario);
             const list = probes(scenario);
             const before = await snapshot(world, list);
@@ -168,14 +250,25 @@ describe('mapa de invalidação (desktop-mvp-plan Fase 3.2 e §8)', () => {
             expect(result.ok, JSON.stringify(result)).toBe(true);
             const after = await snapshot(world, list);
 
+            // Os ensaios mudam com quase toda escrita, mas não são invalidados de propósito
+            // (`REHEARSAL_ROUTES`): a sonda deles só serve para provar que a escrita mudou algo.
             const changed = new Set(list.filter((_probe, index) => before[index] !== after[index]).map((probe) => probe.route));
+            const stale = [...changed].filter((route) => !isRehearsalRoute(route));
             if (write.unchanged !== true) {
                 expect(changed.size, 'a escrita do teste não mudou nada; ela não prova o mapa').toBeGreaterThan(0);
             }
             const invalidated = new Set(invalidatedBy(write.route));
-            expect([...changed].filter((route) => !invalidated.has(route))).toEqual([]);
+            expect(stale.filter((route) => !invalidated.has(route))).toEqual([]);
         },
     );
+
+    it('nenhuma escrita invalida um ensaio do diálogo de revisão, nem a que o próprio diálogo confirma', () => {
+        for (const route of allRoutes()) {
+            if (!isReadRoute(route)) {
+                expect(invalidatedBy(route).filter(isRehearsalRoute)).toEqual([]);
+            }
+        }
+    });
 
     it('só invalida leituras', () => {
         for (const route of allRoutes()) {

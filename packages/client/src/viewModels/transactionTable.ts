@@ -1,7 +1,9 @@
 import { Currency, Money } from '@finance/core';
-import type { AccountResponse, CategoryBranchResponse, CreditCardResponse, InvoiceResponse, MoneyResponse, TransactionResponse } from '@finance/core';
+import type { AccountResponse, CategoryBranchResponse, CreditCardResponse, InvoiceResponse, MoneyResponse, RecurrenceResponse, TransactionResponse } from '@finance/core';
 import { formatDayMonth, formatMonthAbbreviation } from '../format/dates.ts';
 import { formatMoney } from '../format/money.ts';
+import { matchesAllTerms, normalizeForSearch } from '../format/searchText.ts';
+import { formatRecurrenceTag } from './recurrenceView.ts';
 
 /**
  * Situação de um lançamento na tabela:
@@ -35,6 +37,8 @@ export interface TransactionTableSource {
      * um dinheiro saiu sem saber.
      */
     readonly invoices: readonly Pick<InvoiceResponse, 'id' | 'status'>[];
+    /** Séries do perfil, para a coluna "Rec."; ausente, a coluna mostra só que há uma série. */
+    readonly recurrences?: readonly RecurrenceResponse[];
 }
 
 /** Uma linha da tabela, com os textos prontos e os valores crus para ordenar e filtrar. */
@@ -60,20 +64,65 @@ export interface TransactionRow {
     readonly direction: TransactionDirection;
     readonly situation: TransactionSituation;
     readonly situationText: string;
-    /** Gerada por recorrência; a coluna "Rec." do mockup. */
+    /** Gerada por recorrência. */
     readonly recurring: boolean;
+    /** A coluna "Rec." do mockup: "3/12", "Fixa"; `null` num lançamento avulso. */
+    readonly recurrenceTag: string | null;
 }
 
 /** Filtros da tela de Transações; `null` e texto vazio significam "Todos/Todas". */
 export interface TransactionFilters {
     readonly container: { readonly kind: 'account'; readonly accountId: string } | { readonly kind: 'creditCard'; readonly creditCardId: string } | null;
     readonly category: { readonly kind: 'category'; readonly categoryId: string } | { readonly kind: 'subCategory'; readonly subCategoryId: string } | null;
+    /** Tag que o lançamento precisa ter (filtro "Tag" do mockup). */
+    readonly tagId: string | null;
     readonly situation: TransactionSituation | null;
     readonly search: string;
 }
 
 /** Nenhum filtro: o estado inicial da tela. */
-export const NO_TRANSACTION_FILTERS: TransactionFilters = { container: null, category: null, situation: null, search: '' };
+export const NO_TRANSACTION_FILTERS: TransactionFilters = { container: null, category: null, tagId: null, situation: null, search: '' };
+
+/** Situações na ordem dos filtros e da ordenação: o que ainda vai sair da conta vem primeiro. */
+export const TRANSACTION_SITUATIONS: readonly TransactionSituation[] = ['pending', 'onInvoice', 'paid', 'invoicePaid'];
+
+/**
+ * @param situation Situação de um lançamento.
+ * @return O rótulo do mockup ("Pendente", "Na fatura"...), para a tabela e o filtro.
+ */
+export function formatTransactionSituation(situation: TransactionSituation): string {
+    return SITUATION_LABELS[situation];
+}
+
+/** Colunas pelas quais a tabela de Transações pode ser ordenada. */
+export type TransactionSortKey = 'date' | 'name' | 'category' | 'container' | 'amount' | 'situation';
+
+/**
+ * Comparador crescente de uma coluna da tabela; a ordem decrescente é o inverso dele. O empate
+ * cai na data e depois no nome, para que linhas iguais na coluna escolhida não troquem de lugar
+ * entre uma escrita e outra (a tabela se refaz a cada invalidação).
+ *
+ * @param key Coluna da ordenação.
+ * @return A função de comparação de duas linhas.
+ */
+export function compareTransactionRows(key: TransactionSortKey): (a: TransactionRow, b: TransactionRow) => number {
+    const primary = SORT_COMPARATORS[key];
+    return (a, b) => primary(a, b) || compareText(a.dueDate, b.dueDate) || compareNames(a.name, b.name);
+}
+
+/**
+ * Comparação de cada coluna. Textos comparam sem diferenciar maiúsculas nem acentos ("Água"
+ * entre "Aluguel" e "Bar", e não depois do "Z"); o valor compara o efeito com sinal, então
+ * crescente põe as maiores saídas primeiro; a situação segue `TRANSACTION_SITUATIONS`.
+ */
+const SORT_COMPARATORS: Readonly<Record<TransactionSortKey, (a: TransactionRow, b: TransactionRow) => number>> = {
+    date: (a, b) => compareText(a.dueDate, b.dueDate),
+    name: (a, b) => compareNames(a.name, b.name),
+    category: (a, b) => compareNames(a.category, b.category),
+    container: (a, b) => compareNames(a.container, b.container),
+    amount: (a, b) => a.amount.amount - b.amount.amount,
+    situation: (a, b) => TRANSACTION_SITUATIONS.indexOf(a.situation) - TRANSACTION_SITUATIONS.indexOf(b.situation),
+};
 
 /** A tabela filtrada e a linha-resumo. */
 export interface TransactionTable {
@@ -102,7 +151,7 @@ export function buildTransactionTable(source: TransactionTableSource, filters: T
     const rows = source.transactions
         .map((transaction) => toRow(transaction, lookup))
         .filter((row) => matches(row, filters))
-        .sort((a, b) => compareText(a.dueDate, b.dueDate) || compareText(a.name, b.name));
+        .sort(compareTransactionRows('date'));
     const result = sumResult(rows);
     return { rows, result, summary: summaryOf(rows.length, result) };
 }
@@ -113,6 +162,7 @@ interface Lookup {
     readonly creditCards: ReadonlyMap<string, string>;
     readonly subCategories: ReadonlyMap<string, { readonly categoryId: string; readonly label: string }>;
     readonly paidInvoices: ReadonlySet<string>;
+    readonly recurrences: ReadonlyMap<string, RecurrenceResponse>;
 }
 
 /**
@@ -128,6 +178,7 @@ function createLookup(source: TransactionTableSource): Lookup {
             { categoryId: category.id, label: `${category.name} › ${sub.name}` },
         ]))),
         paidInvoices: new Set(source.invoices.filter((invoice) => invoice.status === 'paid').map((invoice) => invoice.id)),
+        recurrences: new Map((source.recurrences ?? []).map((recurrence) => [recurrence.id, recurrence])),
     };
 }
 
@@ -138,7 +189,7 @@ function createLookup(source: TransactionTableSource): Lookup {
  */
 function toRow(transaction: TransactionResponse, lookup: Lookup): TransactionRow {
     const subCategory = lookup.subCategories.get(transaction.subCategoryId);
-    const direction = directionOf(transaction);
+    const amount = formatTransactionAmount(transaction.type, transaction.originEffect);
     const situation = situationOf(transaction, lookup);
     return {
         id: transaction.id,
@@ -151,26 +202,30 @@ function toRow(transaction: TransactionResponse, lookup: Lookup): TransactionRow
         category: subCategory?.label ?? '',
         container: containerLabel(transaction, lookup),
         amount: transaction.originEffect,
-        amountText: direction === 'transfer'
-            ? `⇄ ${formatMoney(transaction.originEffect, 'absolute')}`
-            : formatMoney(transaction.originEffect, 'always'),
-        direction,
+        amountText: amount.text,
+        direction: amount.direction,
         situation,
         situationText: SITUATION_LABELS[situation],
         recurring: transaction.recurrenceId !== null,
+        recurrenceTag: formatRecurrenceTag(transaction, transaction.recurrenceId === null ? undefined : lookup.recurrences.get(transaction.recurrenceId)),
     };
 }
 
 /**
- * @param transaction Transação do núcleo.
- * @return `transfer` para transferência e investimento (movem dinheiro entre contas do
- * perfil); senão o sentido do efeito no saldo, que já inclui estorno e encargos.
+ * Valor de um lançamento como a tabela e a prévia do formulário o mostram, sem depender só da
+ * cor (decisão de interface 7): transferência e investimento com `⇄` e em módulo, porque só
+ * movem dinheiro entre contas do perfil; o resto com o sinal do efeito no saldo, que já inclui
+ * estorno e encargos.
+ *
+ * @param type Tipo do lançamento.
+ * @param effect Efeito no saldo da origem, como o núcleo o calcula.
+ * @return O texto (`−R$ 487,32`, `+R$ 23,90`, `⇄ R$ 500,00`) e o sentido.
  */
-function directionOf(transaction: TransactionResponse): TransactionDirection {
-    if (transaction.type === 'transference' || transaction.type === 'investment') {
-        return 'transfer';
+export function formatTransactionAmount(type: TransactionResponse['type'], effect: MoneyResponse): { readonly text: string; readonly direction: TransactionDirection } {
+    if (type === 'transference' || type === 'investment') {
+        return { text: `⇄ ${formatMoney(effect, 'absolute')}`, direction: 'transfer' };
     }
-    return transaction.originEffect.amount < 0 ? 'out' : 'in';
+    return { text: formatMoney(effect, 'always'), direction: effect.amount < 0 ? 'out' : 'in' };
 }
 
 /**
@@ -208,6 +263,7 @@ function containerLabel(transaction: TransactionResponse, lookup: Lookup): strin
 function matches(row: TransactionRow, filters: TransactionFilters): boolean {
     return matchesContainer(row.transaction, filters.container)
         && matchesCategory(row, filters.category)
+        && (filters.tagId === null || row.transaction.tagIds.includes(filters.tagId))
         && (filters.situation === null || row.situation === filters.situation)
         && matchesSearch(row.transaction, filters.search);
 }
@@ -252,17 +308,7 @@ function matchesCategory(row: TransactionRow, filter: TransactionFilters['catego
  * @return `true` quando todo termo aparece no nome ou na descrição.
  */
 function matchesSearch(transaction: TransactionResponse, search: string): boolean {
-    const terms = normalize(search).split(/\s+/).filter((term) => term !== '');
-    const haystack = normalize(`${transaction.name} ${transaction.description ?? ''}`);
-    return terms.every((term) => haystack.includes(term));
-}
-
-/**
- * @param text Texto livre.
- * @return O texto minúsculo e sem diacríticos.
- */
-function normalize(text: string): string {
-    return text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+    return matchesAllTerms(search, `${transaction.name} ${transaction.description ?? ''}`);
 }
 
 /**
@@ -304,4 +350,14 @@ function summaryOf(count: number, result: MoneyResponse | null): string {
  */
 function compareText(a: string, b: string): number {
     return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/**
+ * @param a Primeiro nome.
+ * @param b Segundo nome.
+ * @return Ordem sem diferenciar maiúsculas nem acentos; o texto original desempata, para que a
+ * ordem seja total e não dependa da ordem de chegada.
+ */
+function compareNames(a: string, b: string): number {
+    return compareText(normalizeForSearch(a), normalizeForSearch(b)) || compareText(a, b);
 }

@@ -6,10 +6,12 @@ import {
     buildStatementTable,
     buildTransactionTable,
     categoryBreadcrumb,
+    compareTransactionRows,
     categoryChartBars,
     comparisonOptions,
     NO_TRANSACTION_FILTERS,
     type StatementTableSource,
+    type TransactionSortKey,
     type TransactionTableSource,
 } from '../src/index.ts';
 import { ClientWorld, type Scenario } from './support/ClientWorld.ts';
@@ -88,6 +90,30 @@ describe('tabela de Transações', () => {
         expect(names({ situation: 'pending' })).toEqual(['Aluguel', 'Aporte']);
         expect(names({ search: '  SALARIO ' })).toEqual(['Salário']);
         expect(buildTransactionTable(source, { ...NO_TRANSACTION_FILTERS, search: 'nada' }).summary).toBe('Nenhum lançamento');
+    });
+
+    it('filtra pela tag do lançamento', async () => {
+        const world = new ClientWorld();
+        const s = await world.seed();
+        const table = buildTransactionTable(await transactionSource(world, s), { ...NO_TRANSACTION_FILTERS, tagId: s.tagId });
+        expect(table.rows.map((row) => row.name)).toEqual(['Supermercado']);
+    });
+
+    it('ordena por coluna sem diferenciar acentos, com empate pela data e pelo nome', async () => {
+        const world = new ClientWorld();
+        const s = await world.seed();
+        await world.ok('transactions.create', {
+            profileId: s.profileId, subCategoryId: s.subCategoryId, type: 'expense', source: { kind: 'account', accountId: s.checkingId }, name: 'Água', value: 80, dueDate: '2026-10-20',
+        });
+        const { rows } = buildTransactionTable(await transactionSource(world, s), NO_TRANSACTION_FILTERS);
+        const sorted = (key: TransactionSortKey): readonly string[] => [...rows].sort(compareTransactionRows(key)).map((row) => row.name);
+
+        expect(sorted('name')).toEqual(['Água', 'Aluguel', 'Aporte', 'Salário', 'Supermercado']);
+        // Crescente pelo efeito com sinal: as maiores saídas primeiro.
+        expect(sorted('amount')).toEqual(['Aluguel', 'Aporte', 'Supermercado', 'Água', 'Salário']);
+        // Pendentes, depois na fatura, depois pagos; o empate segue a data.
+        expect(sorted('situation')).toEqual(['Aluguel', 'Aporte', 'Água', 'Supermercado', 'Salário']);
+        expect(sorted('container')).toEqual(['Salário', 'Aluguel', 'Água', 'Aporte', 'Supermercado']);
     });
 
     it('usa o singular com um lançamento', async () => {

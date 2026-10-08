@@ -226,9 +226,14 @@ desktop e do celular estão desenhadas e aprovadas em
 
 O núcleo começou a ser implementado em `packages/core`, nas camadas Request → Controller
 → Service → Repository → Model: modelos de domínio, Repositories SQLite, CRUD de
-transações, cálculo de saldo (consolidado e previsto) e consolidação de extratos e
-faturas, com o adaptador `better-sqlite3` em `packages/sqlite-better`. O que falta está
-em [backend-design.md §7](docs/plans/backend-design.md#7-próximos-passos).
+transações, recorrências (parcelamentos e lançamentos fixos, com os escopos "somente esta",
+"esta e as futuras" e "todas"), cálculo de saldo (consolidado e previsto) e consolidação
+de extratos e faturas, com o adaptador `better-sqlite3` em `packages/sqlite-better`. O que
+falta está em [backend-design.md §7](docs/plans/backend-design.md#7-próximos-passos).
+
+O app desktop (`apps/desktop`) está sendo construído pelo
+[plano do MVP desktop](docs/plans/desktop-mvp-plan.md), que registra as fases entregues —
+cadastros, contas, cartões, transações e recorrências — e as que faltam.
 
 ### Desenvolvimento
 

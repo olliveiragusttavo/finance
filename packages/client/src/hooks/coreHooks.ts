@@ -3,14 +3,16 @@ import {
     QueryClient,
     skipToken,
     useMutation,
+    useQueries,
     useQuery,
     useQueryClient,
     type UseMutationResult,
+    type UseQueryOptions,
     type UseQueryResult,
 } from '@tanstack/react-query';
 import type { CoreClient } from '../core/CoreClient.ts';
 import { CoreCallError } from '../errors/CoreCallError.ts';
-import { invalidatedBy } from '../queries/invalidation.ts';
+import { invalidatedBy, type RehearsalRoute } from '../queries/invalidation.ts';
 import { CORE_QUERY_ROOT, coreQueryKey, coreRouteKey, type ReadRoute, type WriteRoute } from '../queries/routes.ts';
 import { useCoreClient } from './CoreClientContext.tsx';
 
@@ -65,6 +67,48 @@ export function useCoreQuery<R extends ReadRoute>(route: R, input: CoreInput<R> 
         queryKey: input === null ? [CORE_QUERY_ROOT, route, null] : coreQueryKey(route, input),
         queryFn: input === null ? skipToken : () => callOrThrow(client, route, input),
     });
+}
+
+/**
+ * Consulta de um ensaio do diálogo de revisão (`REHEARSAL_ROUTES`). Sem cache depois que o
+ * diálogo fecha (`gcTime: 0`): como nenhuma escrita invalida um ensaio, um plano guardado seria
+ * mostrado velho ao reabrir o diálogo com a mesma entrada depois de outras escritas.
+ *
+ * @param route Rota de ensaio.
+ * @param input Entrada da rota, ou `null` enquanto o diálogo está fechado.
+ * @return O estado da consulta, com o erro já tipado como `CoreCallError`.
+ */
+export function useCoreRehearsal<R extends RehearsalRoute>(route: R, input: CoreInput<R> | null): UseQueryResult<CoreOutput<R>, CoreCallError> {
+    const client = useCoreClient();
+    return useQuery<CoreOutput<R>, CoreCallError>({
+        queryKey: input === null ? [CORE_QUERY_ROOT, route, null] : coreQueryKey(route, input),
+        queryFn: input === null ? skipToken : () => callOrThrow(client, route, input),
+        gcTime: 0,
+    });
+}
+
+/**
+ * Várias consultas da mesma rota de leitura, uma por entrada, cada uma com a sua chave — a mesma
+ * de `useCoreQuery`, então a invalidação por rota alcança todas. Existe para as telas que
+ * precisam da mesma leitura para uma lista que só se conhece em tempo de execução (as faturas
+ * de cada cartão com lançamentos no mês), onde um hook por item quebraria as regras dos hooks.
+ *
+ * @param route Rota de leitura.
+ * @param inputs Uma entrada por consulta.
+ * @param combine Junta os resultados num valor só. Precisa ser estável (definida fora do
+ * componente): o TanStack Query só a reexecuta quando ela ou algum resultado muda, e então o
+ * valor devolvido mantém a identidade entre renders — o que uma tabela derivada dele precisa.
+ * @return O valor combinado.
+ */
+export function useCoreQueries<R extends ReadRoute, T>(route: R, inputs: readonly CoreInput<R>[], combine: (results: readonly UseQueryResult<CoreOutput<R>, CoreCallError>[]) => T): T {
+    const client = useCoreClient();
+    const queries = inputs.map(
+        (input): UseQueryOptions<CoreOutput<R>, CoreCallError, CoreOutput<R>, ReturnType<typeof coreQueryKey<R>>> => ({
+            queryKey: coreQueryKey(route, input),
+            queryFn: () => callOrThrow(client, route, input),
+        }),
+    );
+    return useQueries({ queries, combine });
 }
 
 /**

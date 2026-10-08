@@ -45,3 +45,24 @@ describe('UnitOfWork.rehearse', () => {
         expect(count()).toEqual({ n: 0 });
     });
 });
+
+describe('UnitOfWork.runAlone', () => {
+    it('confirma ou desfaz cada execução sozinha: a falha de uma não leva a outra junto', () => {
+        const { database, unitOfWork, count } = counterWorld();
+
+        unitOfWork.runAlone(() => database.run('INSERT INTO t (v) VALUES (1)'));
+        expect(() => unitOfWork.runAlone(() => {
+            database.run('INSERT INTO t (v) VALUES (2)');
+            throw new Error('falha da segunda');
+        })).toThrow('falha da segunda');
+
+        expect(count()).toEqual({ n: 1 });
+    });
+
+    it('recusa rodar dentro de outra unidade, onde a falha não desfaria só a parte dela', () => {
+        const { unitOfWork } = counterWorld();
+        expect(() => {
+            unitOfWork.run(() => unitOfWork.runAlone(() => null));
+        }).toThrow('não pode rodar dentro de outra unidade de trabalho');
+    });
+});

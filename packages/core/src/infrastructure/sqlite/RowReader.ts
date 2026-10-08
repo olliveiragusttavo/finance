@@ -54,6 +54,15 @@ export class RowReader {
     }
 
     /**
+     * @param column Nome da coluna numérica anulável.
+     * @return O número, ou `null`.
+     * @throws {CorruptRowError} Quando a coluna não é um número finito nem nula.
+     */
+    public nullableNumber(column: string): number | null {
+        return this.row[column] === null ? null : this.number(column);
+    }
+
+    /**
      * @param column Nome da coluna booleana, gravada como `0`/`1` (database-design §3.9).
      * @return O booleano.
      * @throws {CorruptRowError} Quando a coluna não é `0` nem `1`.

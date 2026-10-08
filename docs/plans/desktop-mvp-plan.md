@@ -1,6 +1,6 @@
 # Plano do MVP Desktop — CRUD e primeiros relatórios
 
-**Status:** Em andamento — Fases 0 a 8 concluídas (só o `Ctrl K` da Fase 4 ficou pendente). Primeira entrega com tela do projeto: o app desktop
+**Status:** Em andamento — Fases 0 a 9.2 concluídas (ficaram pendentes só o `Ctrl K` da Fase 4 e a pendência da Fase 9.2 que depende da sincronização). Primeira entrega com tela do projeto: o app desktop
 (Electron) com os cadastros e lançamentos básicos e os dois primeiros relatórios
 personalizados, que são a motivação original do projeto ([README](../../README.md#motivação)).
 O mobile fica inteiro para depois.
@@ -31,7 +31,8 @@ categoria/subcategoria** e **quanto as faturas do cartão pesam no saldo do mês
 | Cadastros | `DesktopCadastros`, `DesktopTags`, `DesktopAnotacoes` | Perfis, contas, cartões, categorias e subcategorias, tags e anotações |
 | Contas | `DesktopContas` | Lista com consolidado e previsto → extrato do mês |
 | Cartões | `DesktopCartoes` | Lista com fatura do mês → detalhe da fatura, pagar, pagamento parcial, reabrir, próximas faturas |
-| Transações | `DesktopTransacoes` | Tabela do mês, filtros, painel de criação/edição, marcar pago, excluir, atalhos |
+| Transações | `DesktopTransacoes` | Tabela do mês, filtros, diálogo de criação/edição, marcar pago, excluir, atalhos |
+| Recorrências (Fase 9.1) | `DesktopTransacoes`, adaptando `MobileParcelar` e `MobileEscopo` | Parcelado e fixo, com os escopos "somente esta", "esta e as futuras" e "todas" |
 | Visão geral | `Main` | KPIs, evolução do saldo, maiores categorias, contas e cartões |
 | **Relatório por categoria** | `DesktopRelCategoria` | Drill-down categoria → subcategoria → lançamentos, comparação com outro período, gráfico + tabela |
 | **Impacto do cartão** | `DesktopRelCartao` | Faturas por mês e cartão, extrato onde foram pagas, peso nas entradas |
@@ -42,9 +43,6 @@ categoria/subcategoria** e **quanto as faturas do cartão pesam no saldo do mês
 - **Mobile inteiro** (React Native / Expo).
 - **Sincronização e Dispositivos** (`DesktopDispositivos`): o indicador da barra lateral
   mostra só "Dados só neste aparelho".
-- **Recorrências e parcelamento** (escopos "esta e as futuras"/"todas"): o formulário não
-  tem "Repetir"; transações de recorrência só existem quando o serviço de recorrências
-  existir.
 - Metas, sócios, anexos e os relatórios D5 (fluxo por conta), D7 (sócio) e D8 (tag). Tags e
   anotações entraram em Cadastros (Fase 6); o relatório por tag continua fora.
 - Importação do histórico do app atual.
@@ -173,8 +171,13 @@ apagado junto** — e só depois da confirmação exclui a cadeia inteira:
 
 | Excluir | Apaga em cadeia |
 |---|---|
-| Conta | Seus extratos e transações; os cartões que ela paga, com as faturas e os lançamentos deles; as transferências e investimentos em que ela é a **conta de destino** |
-| Cartão | Suas faturas e os lançamentos delas, incluindo os pagamentos parciais |
+| Conta | Seus extratos e transações; os cartões que ela paga, com as faturas e os lançamentos deles; as transferências e investimentos em que ela é a **conta de destino**; as recorrências que têm a conta como origem ou destino, ou um cartão que ela paga como origem (Fase 9.1) |
+| Cartão | Suas faturas e os lançamentos delas, incluindo os pagamentos parciais; as recorrências que têm o cartão como origem (Fase 9.1) |
+
+Uma recorrência excluída em cadeia para de gerar lançamentos, e o alerta a conta à parte
+("N repetições, que param de gerar lançamentos"). Desativar a conta ou o cartão **não**
+para a recorrência: ela continua emitindo, porque desativar não muda nenhum saldo
+(database-design §4.12).
 
 O alerta conta cada item e **nomeia as outras contas cujo saldo vai mudar** — uma
 transferência apagada mexe também na conta do outro lado, e um pagamento de fatura apagado
@@ -297,9 +300,9 @@ Ordem pensada para que cada fase entregue algo testável. As fases 1–2 (núcle
 - [x] Preload expõe **só** o `CoreClient`, as preferências do aparelho e o estado da abertura (com "restaurar backup", a única ação que as telas de bloqueio pedem) via `contextBridge`
 - [x] Telas de bloqueio: banco mais novo que o app; falha de migration com "restaurar backup" (o banco que falhou vai para `backups/falha-*.sqlite` e o app pede para usar a versão anterior); falha do backup; arquivo que não abre
 - [x] ~~Recompilação do `better-sqlite3` para o Electron em `postinstall`~~ — desnecessária: o `better-sqlite3` 13 é N-API 10 e traz os binários no pacote; o teste de fumaça prova que o mesmo `.node` abre o banco no `utilityProcess`. Recompilar no lugar ainda quebraria os testes do núcleo, que usam a mesma cópia no Node
-- [x] Renderer: React 19, TanStack Router (hash), TanStack Query, Tailwind com o preset de `tokens`, shadcn/ui inicializado (Button, Input, Select, Dialog, Sheet, Popover, DropdownMenu, ContextMenu, Table, Tabs, Tooltip, Sonner, Chart) — classes traduzidas para os tokens, `Chart` reescrito com cor de série restrita a token e sem `Intl`
+- [x] Renderer: React 19, TanStack Router (hash), TanStack Query, Tailwind com o preset de `tokens`, shadcn/ui inicializado (Button, Input, Select, Dialog, Sheet, Popover, DropdownMenu, ContextMenu, Table, Tabs, Tooltip, Sonner, Chart; o `Sheet` saiu depois da Fase 9.1, quando o lançamento passou a abrir em diálogo) — classes traduzidas para os tokens, `Chart` reescrito com cor de série restrita a token e sem `Intl`
 - [x] Scripts `pnpm dev:desktop`, `pnpm build:desktop`; `pnpm check` cobrindo lint e tipos do app
-- [x] Teste de fumaça com Playwright (`_electron`): abre, cria perfil, lança uma despesa, vê no extrato — enquanto a tela da Fase 9 não existe, lança pela mesma ponte que ela vai usar (o perfil, desde a Fase 5, pela tela de primeiro uso; o extrato, desde a Fase 7, pela tela de Contas); também confere o isolamento do renderer, a CSP e a tela de bloqueio. No devcontainer e no CI roda com `FINANCE_ELECTRON_NO_SANDBOX=1`, porque o container bloqueia os namespaces de usuário do sandbox de processo do Chromium
+- [x] Teste de fumaça com Playwright (`_electron`): abre, cria perfil, lança uma despesa, vê no extrato — tudo pela tela desde a Fase 9 (o perfil pelo primeiro uso, a despesa em Transações, o extrato em Contas); também confere o isolamento do renderer, a CSP e a tela de bloqueio. No devcontainer e no CI roda com `FINANCE_ELECTRON_NO_SANDBOX=1`, porque o container bloqueia os namespaces de usuário do sandbox de processo do Chromium
 - [x] Medir memória e tempo de abertura ([desktop-shell §6.4](desktop-shell-design.md#6-próximos-passos)) e registrar o número — `pnpm --filter @finance/desktop measure`; resultado em [desktop-shell §6](desktop-shell-design.md#6-próximos-passos)
 
 ### Fase 4 — Shell e navegação
@@ -310,7 +313,7 @@ Ordem pensada para que cada fase entregue algo testável. As fases 1–2 (núcle
 - [x] Mês de referência global (‹ mês ›, "Voltar ao mês atual") como *search param* tipado (`period`), preservado ao navegar (`retainSearchParams`); sem ele na URL, abre o último mês do aparelho (`lastPeriod`) ou o corrente. **Decisão:** escondido em Cadastros, Dispositivos e Ajustes — os mockups dessas telas desenham a barra, mas a regra do README dos mockups ("não aparece em fluxos de configuração") prevaleceu; Metas mantém a barra
 - [x] Tema claro/escuro/seguir o sistema, persistido nas preferências do aparelho. **Decisão:** o botão do mockup (que só alterna claro/escuro) virou um menu com as três opções, com o tema escolhido no rótulo
 - [x] Seletor de perfil (troca o perfil ativo, grava `lastProfileId`, invalida todas as queries); sem perfil no banco, o shell não abre e uma tela provisória ocupa a janela até o primeiro uso (Fase 5)
-- [x] "+ Lançamento" global (atalho `N`) abrindo o painel de transação — o painel (`Sheet`) já é do shell; o formulário entra na Fase 9
+- [x] "+ Lançamento" global (atalho `N`) abrindo o painel de transação — o painel é do shell; o formulário entrou na Fase 9 e, depois da 9.1, passou do `Sheet` ao diálogo de lançamento
 - [x] Atalhos globais: `[` `]` mês anterior/seguinte, `N` novo lançamento — não disparam em campo de texto, com modificador, com tecla segurada nem dentro de menu ou diálogo; `[` `]` não valem nas telas sem mês
 - [ ] `Ctrl K` busca — **pendente:** não há mockup do que a busca abre (paleta de navegação, busca de lançamentos ou foco no filtro de Transações); decidir antes de implementar
 - [x] Estados genéricos: carregando (esqueleto), erro com código (mensagem do `describeError` e "Tentar de novo"), vazio — e `QueryState`, que escolhe entre eles para uma consulta
@@ -361,14 +364,72 @@ Ordem pensada para que cada fase entregue algo testável. As fases 1–2 (núcle
 
 ### Fase 9 — Transações
 
-- [ ] Tabela densa (TanStack Table + Table do shadcn): data, nome, categoria › sub, conta/fatura, valor, situação; números tabulares à direita
-- [ ] Entrada/saída sem depender de cor: sinal, `⇄` em transferência, rótulo de estorno
-- [ ] Ordenação por coluna; filtros conta/cartão, categoria, situação e busca; linha-resumo "N lançamentos · resultado"
-- [ ] Painel lateral de criação/edição: tipo, valor (com inversão de sinal), nome, descrição, data, pago + data de pagamento, encargos, conta **ou** cartão (só ativos em lançamento novo), conta de destino (transferência/investimento), subcategoria com busca, tags (o núcleo já aceita `tagIds` desde a Fase 6)
-- [ ] Despesa no cartão: fatura sugerida (`invoices.suggest`) com troca para outra fatura do cartão; aviso quando a escolhida está paga (será reaberta)
-- [ ] Excluir com confirmação; editar mês passado avisa que os meses seguintes serão recalculados
-- [ ] Teclado: `↑↓` navegar, `Enter` editar, `P` marcar pago, `Del` excluir; menu de contexto com as mesmas ações
-- [ ] Atualização otimista ou invalidação pelo mapa da Fase 3.2 — saldos da barra e relatórios refletem a escrita sem recarregar
+- [x] Tabela densa (TanStack Table + Table do shadcn): data, nome, categoria › sub, conta/fatura, valor, situação; números tabulares à direita — `TransactionGrid.tsx`, com a TanStack Table 9 só para o estado da ordenação; a junção dos nomes e a situação continuam no view-model `buildTransactionTable` do `client`. A situação das compras no cartão lê as faturas de cada cartão a partir da mais antiga que o mês usa (`useInvoicesByCards`, sobre o novo `useCoreQueries`). **Decisões (perguntadas):** a coluna de seleção em lote do mockup saiu (não há ação em lote no MVP); "Rec." ficou, e desde a Fase 9.1 mostra "3/12" ou "Fixa"
+- [x] Entrada/saída sem depender de cor: sinal, `⇄` em transferência, rótulo de estorno — `formatTransactionAmount` no `client`, o mesmo da prévia do formulário
+- [x] Ordenação por coluna; filtros conta/cartão, categoria, situação e busca; linha-resumo "N lançamentos · resultado" — a ordem de cada coluna é `compareTransactionRows` (sem diferenciar acentos; empate pela data e pelo nome), o primeiro clique é sempre crescente e a ordenação nunca é removida. Os filtros ficam na URL (`transactions/transactionsSearch.ts`: `q`, `account`, `card`, `category`, `subCategory`, `tag`, `situation`), para o histórico e para outras telas abrirem Transações filtrada. **Decisão (perguntada):** entrou o filtro de Tag do mockup (`TransactionFilters.tagId`), e o "Ver lançamentos em Transações" do painel de Tags passou a abrir a tela filtrada pela tag. Estado vazio distingue o mês sem lançamento ("+ Lançamento") do filtro sem resultado ("Limpar filtros")
+- [x] Formulário de criação/edição: tipo, valor (com inversão de sinal), nome, descrição, data, pago + data de pagamento, encargos, conta **ou** cartão (só ativos em lançamento novo), conta de destino (transferência/investimento), subcategoria com busca, tags (o núcleo já aceita `tagIds` desde a Fase 6) — `TransactionForm.tsx`, validado pelos schemas de `transactions.create`/`update` (`transactions/transactionForm.ts`); as escolhas oferecidas são view-models do `client` (`transactionSourceOptions`, `destinationAccountOptions`, `subCategoryOptions`), e a prévia do valor usa a regra de sinal do núcleo (`originEffect`, agora exportado). **Decisão (pedida pelo usuário depois da Fase 9.1, divergindo do mockup):** criar e editar abrem o diálogo de lançamento (`TransactionDialog.tsx`), como os de contas e cartões, no lugar da coluna de 340px ao lado da tabela; nas outras telas, "+ Lançamento" e `N` abrem o mesmo diálogo pelo shell, que antes usava um `Sheet`. A tela de Transações continua registrada como *host* (`useTransactionPanelHost`) para sugerir a origem do filtro e selecionar na tabela o lançamento gravado. O rodapé segue o dos cadastros: "Excluir" à esquerda, que abre a confirmação por cima da edição, e "Cancelar" e "Salvar" à direita. **Decisões:** o valor é digitado sem sinal e maior que zero — o "±" grava o negativo (estorno); encargos não têm sinal; "Pago" só aparece numa conta, porque no cartão quem decide é a fatura; o seletor de tipo usa "Transf." e "Invest.", como o `MobileLancamento`, porque os nomes inteiros não cabem na coluna; num lançamento novo, o filtro de conta ou cartão da tela vira a origem sugerida
+- [x] Despesa no cartão: fatura sugerida (`invoices.suggest`) com troca para outra fatura do cartão; aviso quando a escolhida está paga (será reaberta) — a sugestão passou a trazer o fechamento e o vencimento da competência (`closingDate`, `dueDate`), para o painel dizer "Sugerida pela data da compra: nov/2026, vence 10/11" antes de a fatura existir. A troca oferece a anterior, a sugerida e as duas seguintes, mais a atual na edição (`invoiceChoices`); o aviso de reabertura (`invoiceReopenWarning`) diz de qual extrato o pagamento sai, e não aparece quando o lançamento já está na fatura paga
+- [x] Excluir com confirmação; editar mês passado avisa que os meses seguintes serão recalculados — a confirmação diz de onde o valor sai e quais saldos mudam (`describeTransactionDeletion`; o pagamento parcial volta para a fatura e para a conta). O aviso de recálculo (`recalculationNotice`) vale para o mês de onde o lançamento sai e para onde vai, também num lançamento novo em mês passado
+- [x] Teclado: `↑↓` navegar, `Enter` editar, `P` marcar pago, `Del` excluir; menu de contexto com as mesmas ações — a linha selecionada é a única no `Tab` (*roving tabindex*); clique abre a edição. **Decisão:** `P` numa compra no cartão não marca nada e avisa que a situação é a da fatura (pagar ou reabrir em Cartões); no menu de contexto a ação fica desabilitada
+- [x] Atualização otimista ou invalidação pelo mapa da Fase 3.2 — saldos da barra e relatórios refletem a escrita sem recarregar: invalidação pelo mapa (as escritas de transação já invalidam `MONEY`); o teste de ponta a ponta lança num mês passado pelo painel e vê o saldo inicial do extrato mudar sem recarregar
+- [x] Testes: `client` (`test/transactionEditor.test.ts`: origens e destinos com desativados, busca de subcategoria, troca e aviso de fatura, aviso de recálculo, prévia do valor, confirmação de exclusão; `viewModels.test.ts`: filtro de tag e ordenação; `hooks.test.tsx`: várias consultas invalidadas pelo mapa), núcleo (`creditCards.test.ts`: datas do ciclo na sugestão), desktop (`test/transactions.test.ts`: filtros na URL e leitura do formulário) e ponta a ponta (`e2e/transactions.spec.ts`: lançar, editar, `P` e `Del`; cartão com fatura sugerida, aviso de reabertura e estorno; filtros na URL, ordenação, menu de contexto e o atalho do painel de Tags; o painel das outras telas e o aviso de mês passado); o teste de fumaça passou a lançar pela tela
+
+### Fase 9.1 — Recorrências
+
+Entrou depois da Fase 9, a pedido. As regras estão em
+[database-design.md §4.12](database-design.md#412-recurrences); as decisões tomadas antes do
+código foram:
+
+- **Perguntadas:** dia âncora que não existe no mês cai no último dia, e a seguinte volta ao
+  dia âncora; tags e descrição são copiadas para todas as ocorrências; trocar a data em "esta
+  e as futuras" muda o dia **dentro do mês** de cada ocorrência (semanal: o dia da semana
+  dentro da semana; diária: só "somente esta"); mudar frequência, parcelas ou fim regenera as
+  ocorrências futuras (revisto na [Fase 9.2](#fase-92--revisão-da-edição-de-recorrências)); transferência e investimento podem ser recorrentes; a regra guarda o
+  modelo do lançamento em colunas próprias; série com conta ou cartão desativado continua
+  emitindo; no desktop, "Repetir" é uma seção do formulário (adaptando `MobileParcelar`) e o
+  escopo é um diálogo (adaptando `MobileEscopo`).
+- **Técnicas:** o id da ocorrência é derivado do **número** dela, e não da data gerada, e a
+  marca d'água virou contagem (`materialized_count`) — com a data mudando de dia, a chave pela
+  data duplicaria ocorrências entre aparelhos (sync-design §5.6). Parceladas são gravadas
+  inteiras; fixas, com ou sem fim, pelo horizonte de 12 meses. A fatura de cada parcela é a
+  sugerida pela data dela, mais o deslocamento que o usuário escolheu na 1ª.
+
+**Núcleo**
+- [x] Migration `0004`: `recurrences` recriada com o modelo e o calendário (vazia em todo banco; a migration aborta se não estiver), `recurrences_tags`, `transactions.occurrence` e o índice único `(recurrence_id, occurrence)`; `pnpm embed:migrations`
+- [x] Domínio puro: `RecurrenceSchedule` (data da ocorrência *n*, último dia do mês, 29/02, semana ISO), divisão do total em parcelas com o resto na 1ª (`Money.split`), `Recurrence` com invariantes por tipo; aritmética de datas sem `Date` (`LocalDate.plusDays`/`dayOfWeek`, `YearMonth.plusMonths`)
+- [x] `RecurrenceRepository` (regra e tags do modelo), `listOccurrences` no repositório de transações e id determinístico da ocorrência (`occurrenceIdFor`); gerar de novo um número excluído revive a linha
+- [x] `RecurrenceService`: criar a série com o lançamento (`transactions.create` com `repeat`), complemento (`recurrences.topUp`), editar e excluir nos três escopos, troca de dia âncora, regeneração das futuras, recálculo de todos os meses afetados numa unidade de trabalho. As regras de montar um lançamento saíram do `TransactionService` para o `TransactionComposer`, que os dois serviços usam. **Decisão:** nos escopos de série vai para as outras ocorrências só o que **mudou** na editada (database-design §4.12) — renomear a parcela 3 de "1.000,00 em 3x" não pode copiar 333,33 para a 1ª, que tem 333,34
+- [x] Rotas `recurrences.list`, `recurrences.occurrences`, `recurrences.preview` e `recurrences.topUp`; `scope` e `repeat` em `transactions.update`, `scope` em `transactions.delete`; `occurrence` no `TransactionResponse`. Regras novas no `BusinessRule`, com mensagem no `describeError`
+- [x] Cadeias: excluir conta ou cartão exclui as regras que os usam (o alerta conta "N repetições, que param de gerar lançamentos"), mover a subcategoria move o modelo, excluir a tag a tira das regras. **Decisão:** uma série viva sem ocorrência viva conta como uso da subcategoria, para a exclusão pedir para onde mover
+- [x] Testes de mesa (`test/services/recurrences.test.ts`, `test/domain/recurrence.test.ts`): 1.000,00 em 3x e 12x 100,00 virando o ano; mensal no dia 31 e anual em 29/02; os três escopos de edição e de exclusão com ocorrências pagas; troca de dia (mensal e semanal) e a diária recusada; regeneração sem baixar a marca d'água; ocorrência excluída não volta no complemento; complemento idempotente; parcelas no cartão com deslocamento de fatura; prévia igual ao gravado; conta desativada continua gerando; cadeias de conta, cartão, subcategoria e tag; integridade dos saldos depois de cada caso
+
+**Desktop**
+- [x] Complemento na abertura, depois da verificação de integridade, no `utilityProcess` (`openCore.ts`). O complemento que nem consegue rodar bloqueia a abertura, como o resto da sequência; a falha de uma série só vai para o log (`recurrences.top-up-partial`), porque cada série é complementada na própria transação e a que falha é desfeita sozinha (backend-design §4.5)
+- [x] Seção "Repetir" no formulário (`RepeatSection.tsx`): Não repetir / Parcelado / Fixo, frequência, parcelas (2 a 360), valor total ou por parcela, fim da fixa, prévia das parcelas com a fatura de cada uma (`describeRepeatPreview`, sobre `recurrences.preview`). **Decisões:** na edição de uma ocorrência o tipo da série não muda (revisto na Fase 9.2) e o valor é o da ocorrência (por parcela); o resumo da prévia não repete o nome da conta ou do cartão, que está logo acima
+- [x] Coluna "Rec." ("3/12", "Fixa") e subtítulo do painel ("parcela 3 de 12 (valor total …)", "fixa mensal"), com o aviso do mockup de que salvar pergunta o escopo
+- [x] Diálogo de escopo ao salvar e ao excluir uma ocorrência (`ScopeDialog.tsx`; teclado e menu de contexto inclusos), com o aviso das ocorrências pagas e dos meses e contas cujos saldos mudam (`scopeChoices`); mudar a série deixa "somente esta" desabilitado. **Decisão:** clicar numa linha abre a edição sem levar o foco para o valor, para `↑↓`, `P` e `Del` continuarem valendo na tabela; o foco automático ficou só no lançamento novo
+- [x] Testes: `client` (`test/recurrenceView.test.ts`, invalidação com as rotas novas, alerta de exclusão), desktop (`test/transactions.test.ts`: repetição no formulário; `test/openCore.test.ts`: complemento na abertura) e ponta a ponta (`e2e/recurrences.spec.ts`: parcelar no cartão com a prévia e "Rec."; fixa em "esta e as futuras", repetição mudada sem "somente esta" e "excluir todas" com o aviso das pagas)
+
+### Fase 9.2 — Revisão da edição de recorrências
+
+Entrou depois da Fase 9.1, a partir de uma revisão de código que encontrou quatro bugs na
+edição de séries. As regras resultantes estão em
+[database-design.md §4.12](database-design.md#412-recurrences), e as decisões de tela, nos
+itens abaixo.
+
+**Núcleo**
+- [x] Migration `0004` remove também `uq_transactions_recurrence_due_date` (antes numa `0005` à parte, desfeita no code review de 2026-10-07) — duas ocorrências da série podem vencer no mesmo dia, e o complemento não falha mais na abertura por uma data ocupada; saem `assertOccurrenceDateFree`, `hasOccurrenceOn` e a regra `recurrence-occurrence-date-taken`
+- [x] "Futuras" pelo número da ocorrência na edição, na exclusão e na mudança da série
+- [x] Quantidade de parcelas e término da fixa mantêm a regra e só criam ou apagam o que a mudança exige (`reshapeSeries`); periodicidade e tipo encerram a regra e começam outra na editada (`restartSeries`), até o horizonte de 12 meses. Mudar a série só vale para "esta e as futuras". Regra nova `recurrence-end-before-occurrence`; sai `recurrence-kind-locked`
+- [x] A ocorrência revivida ganha `created_at` novo
+- [x] Plano do diálogo de revisão: `recurrences.planCreate`, `planUpdate` e `planDelete` (`SeriesPlanner`), que ensaiam a escrita numa transação desfeita (`UnitOfWork.rehearse`) e comparam a série antes e depois; a ocorrência conta como editada à mão quando `updated_at` passa de `created_at` em mais de 1 segundo
+- [x] Testes: `test/services/recurrences.test.ts` (futuras pelo número, mesma data, parcelas, término, periodicidade, tipo, recomeço na 1ª) e `test/services/seriesPlans.test.ts`
+
+**Client e desktop**
+- [x] `scopeChoices` pelo número e só com a escolha; `describeSeriesPlan` monta o resumo, os avisos (pagas, editadas à mão) e os grupos excluídas/criadas/alteradas, com 5 linhas e "e mais n transações"
+- [x] `SeriesReviewDialog.tsx`: toda criação, edição e exclusão de transação recorrente passa por ele, depois do escopo quando há escolha; mudar a série vai direto para a revisão. "Repetir" na edição oferece Parcelado e Fixo, e a fixa que vira parcelada pede a quantidade e a leitura do valor
+- [x] Testes: `client` (`test/recurrenceView.test.ts`, invalidação com as rotas de plano), desktop (`test/transactions.test.ts`) e ponta a ponta (`e2e/recurrences.spec.ts`)
+- [ ] Pendência: a duplicação vinda de um aparelho offline quando a série é recomeçada fica para a sincronização (sync-design §5.6)
 
 ### Fase 10 — Visão geral
 
@@ -429,4 +490,4 @@ Ordem pensada para que cada fase entregue algo testável. As fases 1–2 (núcle
 | Regra de período mudar no refinamento dos relatórios | O mês de pagamento é uma expressão SQL única (Fase 2.1); os testes de mesa documentam a regra atual |
 | Exclusão em cadeia apagar mais (ou menos) do que o alerta mostrou | `deletionImpact` e a exclusão usam as mesmas consultas; teste confere que o que foi apagado é exatamente o que foi contado |
 | Invalidação incompleta deixar saldo velho na tela | Mapa de invalidação centralizado e testado (Fase 3.2), não `invalidateQueries` espalhado |
-| Escopo crescer com recorrências e tags | Recorrências ficam explicitamente fora ([§1](#1-objetivo-e-escopo)); o formulário não mostra "Repetir". Tags entraram só como cadastro e marcação; o relatório por tag continua fora |
+| Escopo crescer com recorrências e tags | Recorrências entraram numa fase própria (9.1), com as regras fechadas antes do código (database-design §4.12). Tags entraram só como cadastro e marcação; o relatório por tag continua fora |

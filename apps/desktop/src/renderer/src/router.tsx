@@ -10,6 +10,8 @@ import { RegistryScreen } from './registry/RegistryScreen.tsx';
 import { parseRegistrySearch, type RegistrySearch } from './registry/registryKinds.ts';
 import { blankScreen, PartnerReportScreen } from './screens/BlankScreen.tsx';
 import { AppShell } from './shell/AppShell.tsx';
+import { TransactionsScreen } from './transactions/TransactionsScreen.tsx';
+import { parseTransactionsSearch, type TransactionsSearch } from './transactions/transactionsSearch.ts';
 import type { AppPath } from './shell/navigation.ts';
 import { parseShellSearch, type ShellSearch } from './shell/referenceMonth.ts';
 
@@ -52,7 +54,12 @@ const routeTree = rootRoute.addChildren([
     shellRoute.addChildren([
         // Telas do MVP, cada uma substituída na sua fase (desktop-mvp-plan §6).
         createRoute({ getParentRoute: () => shellRoute, path: '/' satisfies AppPath, component: blankScreen('Visão geral', false) }),
-        createRoute({ getParentRoute: () => shellRoute, path: '/transactions' satisfies AppPath, component: blankScreen('Transações', false) }),
+        createRoute({
+            getParentRoute: () => shellRoute,
+            path: '/transactions' satisfies AppPath,
+            component: TransactionsScreen,
+            validateSearch: (search: Record<string, unknown>): TransactionsSearch => parseTransactionsSearch(search),
+        }),
         createRoute({
             getParentRoute: () => shellRoute,
             path: '/accounts' satisfies AppPath,

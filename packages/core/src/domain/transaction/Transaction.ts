@@ -46,6 +46,11 @@ export interface TransactionProps extends TransactionContent {
     readonly profileId: ProfileId;
     /** Preenchido só em ocorrências emitidas por uma recorrência; o usuário não edita. */
     readonly recurrenceId: RecurrenceId | null;
+    /**
+     * Número da ocorrência na série (a 1ª é 1), preenchido exatamente com `recurrenceId`; é a
+     * chave do id determinístico da ocorrência (database-design §4.12).
+     */
+    readonly occurrence: number | null;
 }
 
 /**
@@ -58,6 +63,7 @@ export class Transaction implements TransactionProps {
     public readonly id: TransactionId;
     public readonly profileId: ProfileId;
     public readonly recurrenceId: RecurrenceId | null;
+    public readonly occurrence: number | null;
     public readonly type: TransactionType;
     public readonly container: TransactionContainer;
     public readonly subCategoryId: SubCategoryId;
@@ -81,6 +87,7 @@ export class Transaction implements TransactionProps {
         this.id = props.id;
         this.profileId = props.profileId;
         this.recurrenceId = props.recurrenceId;
+        this.occurrence = props.occurrence;
         this.type = props.type;
         this.container = props.container;
         this.subCategoryId = props.subCategoryId;
@@ -134,7 +141,7 @@ export class Transaction implements TransactionProps {
      * @throws {BusinessRuleViolation} Quando campos se contradizem.
      */
     public revise(content: TransactionContent): Transaction {
-        return new Transaction(Transaction.validated({ ...content, id: this.id, profileId: this.profileId, recurrenceId: this.recurrenceId }));
+        return new Transaction(Transaction.validated({ ...content, id: this.id, profileId: this.profileId, recurrenceId: this.recurrenceId, occurrence: this.occurrence }));
     }
 
     /**
@@ -155,6 +162,7 @@ export class Transaction implements TransactionProps {
             id: this.id,
             profileId: this.profileId,
             recurrenceId: this.recurrenceId,
+            occurrence: this.occurrence,
             type: this.type,
             container,
             subCategoryId: this.subCategoryId,
@@ -218,6 +226,10 @@ export class Transaction implements TransactionProps {
      * @throws {BusinessRuleViolation} Quando campos se contradizem.
      */
     private static validated(props: TransactionProps): TransactionProps {
+        // O número e a série andam juntos: um sem o outro não identifica a ocorrência.
+        if ((props.recurrenceId === null) !== (props.occurrence === null) || (props.occurrence !== null && (!Number.isInteger(props.occurrence) || props.occurrence < 1))) {
+            throw new InvalidValueError('occurrence', `número de ocorrência inválido: ${String(props.occurrence)}`);
+        }
         const name = props.name.trim();
         if (name.length === 0 || name.length > NAME_MAX_LENGTH) {
             throw new InvalidValueError('name', `o nome precisa ter de 1 a ${NAME_MAX_LENGTH} caracteres`);
@@ -241,9 +253,21 @@ export class Transaction implements TransactionProps {
         if (props.container.kind === 'statement' && props.destinationAccountId === props.container.accountId) {
             throw new BusinessRuleViolation('destination-equals-origin', 'a conta de destino precisa ser diferente da conta de origem');
         }
-        const description = props.description?.trim() ?? null;
         // A mesma tag duas vezes seria o mesmo vínculo duas vezes, que o índice único do par
         // recusaria com erro de SQL (database-design §4.14); a repetição é descartada.
-        return { ...props, name, description: description === '' ? null : description, tagIds: [...new Set(props.tagIds)] };
+        return { ...props, name, description: normalizedDescription(props.description), tagIds: [...new Set(props.tagIds)] };
     }
+}
+
+/**
+ * Normalização única da descrição de um lançamento, exportada para que o modelo de uma
+ * recorrência guarde a descrição do mesmo jeito que as ocorrências que ele emite — uma cópia
+ * da regra em outro lugar podia divergir, e o modelo deixaria de bater com as ocorrências.
+ *
+ * @param description Descrição como veio.
+ * @return A descrição aparada, ou `null` quando vazia.
+ */
+export function normalizedDescription(description: string | null): string | null {
+    const trimmed = description?.trim() ?? null;
+    return trimmed === '' ? null : trimmed;
 }

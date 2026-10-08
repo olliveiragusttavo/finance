@@ -3,7 +3,8 @@
 **Status:** Design concluído — motor escolhido (SQLite), contrato físico especificado
 (tipos, restrições, ações de chave estrangeira, índices).
 **DDL:** [db/migrations/0001_initial_schema.sql](../../db/migrations/0001_initial_schema.sql)
-— uma transcrição da §4; validada contra o SQLite 3.46.
+— uma transcrição da §4; validada contra o SQLite 3.46 — e as migrations seguintes em
+[db/migrations/](../../db/migrations/) ([§6](#6-próximos-passos)).
 **Fonte da verdade visual:** [docs/drawio/project.drawio](../drawio/project.drawio)
 **Sincronização:** [docs/plans/sync-design.md](sync-design.md) — como este schema é
 replicado entre dispositivos.
@@ -67,6 +68,12 @@ erDiagram
     transactions ||--o{ transactions_tags : "tem"
     tags ||--o{ transactions_tags : "tem"
     transactions ||--o{ attachments : "tem"
+
+    recurrences }o--o| accounts : "origem ou destino do modelo"
+    recurrences }o--o| credit_cards : "origem do modelo"
+    recurrences }o--|| transaction_sub_categories : "classifica o modelo"
+    recurrences ||--o{ recurrences_tags : "tem"
+    tags ||--o{ recurrences_tags : "tem"
 
     goals ||--o{ transactions : "alimentada por"
 ```
@@ -206,7 +213,7 @@ offline, sem coordenação e sem colisão.
 - **Exceto linhas identificadas pelo conteúdo, que recebem uma versão 5 determinística**
   — um hash de um namespace fixo da aplicação e da chave natural da linha:
   `bank_statements` e `invoices` (dono, ano, mês), transações emitidas por uma
-  recorrência (`recurrence_id`, `due_date` gerado), pares de `transactions_tags` e dados
+  recorrência (`recurrence_id`, número da ocorrência), pares de `transactions_tags` e de `recurrences_tags` e dados
   padrão semeados no primeiro uso. Dois dispositivos offline criando "o extrato de
   março" derivam então o mesmo id, e a sincronização mescla uma única linha em vez de
   colidir em um índice único parcial. Recriar uma linha desse tipo que sofreu soft
@@ -233,7 +240,7 @@ tabela na [§4](#4-tabelas) e das caixas do diagrama:
 | Coluna | Tipo | Restrições | Notas |
 |---|---|---|---|
 | `id` | TEXT | NN, `PRIMARY KEY`, `CHECK (length(id) = 36)` | uuid — [§3.5](#35-chaves-primárias-são-uuids) |
-| `created_at` | TEXT | NN, timestamp, `DEFAULT (strftime('%Y-%m-%d %H:%M:%S', 'now'))` | UTC. O banco preenche; a aplicação nunca escreve nela |
+| `created_at` | TEXT | NN, timestamp, `DEFAULT (strftime('%Y-%m-%d %H:%M:%S', 'now'))` | UTC. O banco preenche; a aplicação nunca escreve nela. Única exceção: a ocorrência revivida recebe um novo, também pelo relógio do motor ([§4.12](#412-recurrences)) |
 | `updated_at` | TEXT | NN, timestamp | UTC. Carimbada pela aplicação em todo insert e update; sem trigger |
 | `deleted_at` | TEXT | null, timestamp | Marcador de soft delete. Uma linha está viva quando `deleted_at IS NULL` |
 
@@ -1033,45 +1040,111 @@ Qual das três precisa estar preenchida para cada `type` é uma regra da aplica�
 ([§3.10](#310-o-que-o-banco-garante-e-o-que-a-aplicação-garante)); as
 verificações abaixo apenas limitam cada valor quando presente.
 
-#### Séries finitas são materializadas por inteiro; as infinitas avançam aos poucos
+#### A regra guarda o modelo e o calendário da série
 
-- **Finitas** — `installments`, ou `fixed` com `end_at`: a **série inteira é gravada na
-  criação**, em uma única transação de banco. A quantidade é conhecida, o número de
-  linhas é limitado e trivial, e é o que o usuário espera — quem compra em 24x quer ver
-  24 lançamentos e a fatura em que cada um cai. A geração parcial faria uma fatura futura
-  parecer vazia até algum processo em segundo plano alcançá-la.
-- **Infinitas** — `fixed` com `end_at` nulo: as ocorrências são gravadas até um
-  **horizonte móvel de 12 meses**, estendido conforme o tempo passa. Doze cobre um ano
-  inteiro de previsão e é o mínimo que mostra pelo menos uma ocorrência de uma regra
-  `yearly`. O custo é desprezível — uma regra mensal são 12 linhas por ano.
+Desde a migration `0004` (desktop-mvp-plan Fase 9.1), a linha de `recurrences` guarda tudo
+o que ela emite — o **modelo** de cada ocorrência — e o **calendário** da série. É o que
+permite à regra emitir ocorrências que ainda não existem (séries sem fim) e regenerar as
+futuras quando o usuário muda a série, sem copiar de uma ocorrência existente: uma
+ocorrência editada em "somente esta" (um valor atípico num mês) nunca vaza para as
+seguintes.
 
-**`materialized_through` é a marca d'água** (watermark) que registra até onde a regra
-foi expandida. O complemento (top-up) gera ocorrências da marca d'água em diante até
-`today + 12 months` e, então, a avança. Ele roda na abertura do app e após qualquer
-edição de recorrência, e é o mesmo mecanismo para os dois casos — uma série finita
-simplesmente chega ao fim e para. Uma marca d'água, em vez de "existe uma linha para esta
-data?", porque:
+- **Modelo:** tipo, conta **ou** cartão de origem, conta de destino, subcategoria, sócio,
+  meta, nome, descrição, valor, encargos, moeda e taxa de origem — as mesmas colunas e
+  regras de `transactions` ([§4.13](#413-transactions)) — e as tags, em
+  `recurrences_tags`, com o mesmo desenho de `transactions_tags`
+  ([§4.14](#414-transactions_tags)). Regra de negócio (Recorrências): **tags e descrição
+  são copiadas para todas as ocorrências**.
+- **Fatura das compras no cartão:** `invoice_offset` guarda quantos meses a fatura
+  escolhida para a ocorrência está depois da sugerida pela data dela. Cada ocorrência cai
+  na fatura sugerida pela **própria** data mais esse deslocamento — então quem lançou a
+  1ª parcela numa fatura à frente da sugerida tem todas as parcelas deslocadas igual. Cair
+  numa fatura já paga a reabre, como em qualquer lançamento ([§4.7](#47-invoices)).
+- **Calendário:** `starts_on` é a data de uma ocorrência de referência, `starts_at` o
+  número dela na série (a 1ª é 1), e `anchor_day` o dia que a série procura: o dia do mês
+  (1–31) em `monthly` e `yearly`, o dia da semana ISO (1 = segunda … 7 = domingo) em
+  `weekly`, nulo em `daily`. A ocorrência *n* vence em:
+  - `daily`: `starts_on` + (*n* − `starts_at`) dias;
+  - `weekly`: o dia `anchor_day` da semana (segunda a domingo) de `starts_on` + 7 × (*n* − `starts_at`) dias;
+  - `monthly`: o dia `anchor_day` do mês de `starts_on` + (*n* − `starts_at`) meses;
+  - `yearly`: o dia `anchor_day` do mês de `starts_on`, (*n* − `starts_at`) anos depois.
+
+  Regra de negócio (Recorrências): **num mês que não tem o dia âncora, a ocorrência cai no
+  último dia do mês**, e a seguinte volta ao dia âncora — mensal no dia 31 vence em 31/01,
+  28/02 (29/02 no bissexto), 31/03; anual em 29/02 vence em 28/02 nos anos comuns. O dia
+  âncora fica numa coluna própria justamente para não se perder depois de um mês curto.
+
+#### Cada ocorrência tem um número, que também é a sua identidade
+
+`transactions.occurrence` é o número da ocorrência na série (1, 2, 3…), preenchido junto
+com `recurrence_id`. É ele que a tabela mostra ("3/12") e é ele — e não a data — a chave
+natural do id determinístico da ocorrência: `(recurrence_id, occurrence)`
+([sync-design.md §5.6](sync-design.md#56-linhas-identificadas-pelo-conteúdo-recebem-ids-determinísticos)).
+Pela data não serviria: a data de uma série pode mudar ("esta e as futuras" troca o dia), e
+dois aparelhos — um mudando o dia, o outro completando a série offline — gerariam a mesma
+ocorrência com datas, e portanto ids, diferentes. Pelo número, geram a mesma linha.
+
+Gerar de novo uma ocorrência cujo número já existiu e foi excluído deriva o id antigo e
+**revive** a linha (sync-design §5.6), com o conteúdo novo e um `created_at` novo,
+carimbado pelo relógio do motor como no insert: a linha revivida é uma ocorrência nova para
+o usuário, e o `created_at` antigo a faria parecer editada à mão no diálogo de revisão.
+
+Regra de negócio (Recorrências): **duas ocorrências da mesma série podem vencer no mesmo
+dia.** O calendário nunca gera duas na mesma data; a coincidência só aparece quando o
+usuário move uma ocorrência de propósito, e o banco não tem por que recusar. A proteção
+contra gerar a mesma ocorrência duas vezes é o número — o id determinístico e o índice
+`uq_transactions_recurrence_occurrence` —, não a data. O índice único por
+`(recurrence_id, due_date)` da `0001` foi removido na própria `0004`: além de redundante, ele
+fazia o complemento falhar na abertura do app quando a data da próxima ocorrência já estava
+ocupada por uma movida.
+
+#### Parceladas são gravadas inteiras; as fixas avançam por um horizonte
+
+- **Parceladas** (`installments`): a **série inteira é gravada na criação**, em uma única
+  transação de banco. A quantidade é conhecida e é o que o usuário espera — quem compra em
+  24x quer ver 24 lançamentos e a fatura em que cada um cai. A geração parcial faria uma
+  fatura futura parecer vazia até algum processo em segundo plano alcançá-la.
+- **Fixas** (`fixed`): as ocorrências são gravadas até um **horizonte móvel de 12 meses**
+  a partir de hoje, sem passar de `end_at` quando ele existe, e o horizonte é estendido
+  conforme o tempo passa. Doze cobre um ano inteiro de previsão e é o mínimo que mostra
+  pelo menos uma ocorrência de uma regra `yearly`. O custo é desprezível — uma regra
+  mensal são 12 linhas por ano. A fixa com fim usa o mesmo horizonte, e não a gravação
+  inteira: a regra é "trabalho limitado na criação", e uma fixa até 2099 emitiria
+  novecentas linhas.
+
+**`materialized_count` é a marca d'água** (watermark): quantas ocorrências a regra já
+emitiu. O complemento (top-up) emite a ocorrência de número `materialized_count + 1` em
+diante, enquanto ela vencer até `today + 12 months` (e até `end_at`), e então avança a
+marca. Ele roda na abertura do app, depois da verificação de integridade
+([backend-design.md §4.5](backend-design.md#45-a-sequência-de-abertura)), e logo após criar
+ou mudar uma série. Uma marca d'água, em vez de "existe uma linha para esta data?",
+porque:
 
 - É **inerentemente idempotente** — rodar o top-up duas vezes não grava nada na segunda,
   sem nenhuma varredura de `transactions`.
 - **Faz a exclusão valer.** Se o top-up procurasse uma linha viva, um usuário que
   excluísse o aluguel de abril o encontraria **recriado na próxima abertura**, porque o
   soft delete esconde a linha dessa consulta. Uma marca d'água que só avança nunca
-  revisita uma data pela qual já passou.
+  revisita um número pelo qual já passou.
 - É inspecionável — "até onde esta regra foi expandida" é uma coluna, não uma
   propriedade inferida.
 
 Consequências: o top-up escreve na abertura do app, então precisa ser transacional e não
 pode rodar antes de o banco estar pronto, e é uma escrita que a sincronização precisa
-reconciliar. Uma regra `fixed` com um `end_at` muito distante (o ano 2099) é finita no
-papel, mas cai no comportamento móvel em vez de emitir novecentas linhas — a regra é
-"trabalho limitado na criação". Dois dispositivos rodando o top-up offline emitem as
-mesmas ocorrências — mas o id de cada ocorrência é derivado de
-`(recurrence_id, due_date)` ([§3.5](#35-chaves-primárias-são-uuids)), então eles emitem
-as **mesmas linhas** e a sincronização as mescla. O índice único
-`uq_transactions_recurrence_due_date` da [§4.13](#413-transactions) continua sendo a
-rede de segurança, e a própria marca d'água é mesclada como o maior dos dois valores
-([sync-design.md §5.5](sync-design.md#55-colunas-que-nunca-sincronizam)).
+reconciliar. Cada série é complementada na **sua própria transação**: a que falha é
+desfeita sozinha e registrada no log, e as outras seguem
+([backend-design.md §4.5](backend-design.md#45-a-sequência-de-abertura)). Um número que já
+está vivo acima da marca d'água — chegado de outro aparelho antes da marca dele — é pulado,
+e não regravado. Dois aparelhos rodando o top-up offline emitem as **mesmas linhas** (mesmo
+número, mesmo id) e a sincronização as mescla; a marca d'água é mesclada como o maior dos
+dois valores ([sync-design.md §5.5](sync-design.md#55-colunas-que-nunca-sincronizam)).
+
+Regra de negócio (Recorrências): a série cuja conta ou cartão foi **desativado continua
+emitindo** — desativar não muda nenhum saldo, nem o previsto dos meses seguintes
+(desktop-mvp-plan §5.1). Para parar, exclui-se "esta e as futuras". Já a **exclusão** da
+conta ou do cartão de origem ou de destino exclui a regra junto, na mesma cadeia
+(desktop-mvp-plan §5.1). Excluir uma subcategoria movendo os lançamentos move também o
+modelo das regras; excluir uma tag a tira das regras.
 
 #### Editar uma transação recorrente pergunta o escopo ao usuário
 
@@ -1084,21 +1157,80 @@ adivinhar em silêncio reescreve dados que o usuário não pretendia tocar, o qu
 de finanças, significa números históricos errados.
 
 - Isso é responsabilidade da camada Service, e o retorno de materializar linhas reais: os
-  três escopos são apenas cláusulas `WHERE` diferentes sobre as linhas que compartilham
-  um `recurrence_id`.
-- **"Futuras" é definido por `due_date`**, nunca pela ordem de inserção ou pelo id.
-- Os escopos 2 e 3 também atualizam a própria linha de `recurrences`, já que a regra que
-  emite ocorrências ainda não materializadas precisa concordar com o que o usuário pediu.
-  Eles não precisam mover a marca d'água — o horizonte não muda. O escopo 1 deixa a regra
-  intocada.
+  três escopos são apenas cláusulas `WHERE` diferentes sobre as linhas vivas que
+  compartilham um `recurrence_id`.
+- **"Futuras" é definido pelo número da ocorrência** — a editada e as de número maior —,
+  na edição, na exclusão e na mudança da série. Nunca pela data: uma ocorrência movida em
+  "somente esta" para depois da editada continua sendo anterior a ela na série, e escolher
+  pela data o que sai e pelo número o que é recriado perdia lançamentos ou recriava um id
+  ainda vivo.
+- **Somente esta** grava só a ocorrência e deixa a regra intocada.
+- **Esta e as futuras** e **todas** aplicam **o que mudou** na ocorrência editada (tipo,
+  origem, destino, subcategoria, nome, descrição, valor, encargos, tags) a cada ocorrência
+  do escopo e ao modelo da regra. Só o que mudou, e não o formulário inteiro, porque cada
+  ocorrência pode ter algo próprio que o usuário não tocou: renomear a parcela 3 de
+  "1.000,00 em 3x" não pode copiar os 333,33 dela para a parcela 1, que tem 333,34, e quebrar
+  o total. Pago e data de pagamento continuam individuais: só a ocorrência editada recebe
+  os do formulário. Ao trocar a fatura de uma compra no cartão, o novo deslocamento da
+  editada vale para as demais.
+- **Trocar a data** nesses escopos muda o **dia âncora**, não o período: regra de negócio
+  (Recorrências) — cada ocorrência vai para o novo dia **dentro do mês em que já está**
+  (`monthly` e `yearly`, com o último dia do mês quando o dia não existe) ou para o novo
+  dia da semana **dentro da semana em que já está** (`weekly`). Só a editada recebe a data
+  inteira do formulário. Na `daily` não há dia âncora, e trocar a data só vale para
+  "somente esta". Regra de negócio (Recorrências): **trocar o dia não muda quais
+  ocorrências a série tem** — nada é criado nem apagado. Numa fixa com fim, o `end_at`
+  acompanha o dia novo: fica entre a data nova da última ocorrência e a véspera da
+  seguinte (ou como estava, se já estiver nesse intervalo). Mantido o fim digitado, o dia
+  novo podia deixar a última ocorrência gravada fora da série, trazer a seguinte para
+  dentro dela, ou pôr a 1ª depois do fim numa edição que nem mexeu no término.
+- **Mudar a série** vale sempre para a editada e as futuras: não há escolha de escopo, e o
+  Service recusa "somente esta" e "todas". As demais alterações do formulário feitas na
+  mesma edição também valem para a editada e as futuras. Há dois casos, conforme o que
+  mudou:
+  - **Quantidade de parcelas ou término de uma fixa — a regra continua.** Regra de negócio
+    (Recorrências): o calendário não muda, então só se cria ou se apaga o que a mudança
+    exige, e as demais ocorrências ficam intactas, com as edições feitas nelas. Aumentar as
+    parcelas cria os números novos; reduzir apaga as excedentes. Estender o término (ou
+    tirá-lo) cria as ocorrências até o novo fim, limitado ao horizonte de 12 meses;
+    encurtá-lo apaga as que passam do novo fim. As apagadas saem **mesmo pagas**. A nova
+    quantidade de parcelas não pode ser menor que o número da editada, nem o novo término
+    anterior à data dela. Numa parcelada, a série passa a valer por parcela
+    (`value_type = per_installment`). Regra de negócio (Parcelamento): se o valor foi
+    alterado no formulário, ele vale para as parcelas novas; se não foi, elas recebem o
+    **valor regular** da série — no "valor total", o de uma parcela sem o resto do
+    arredondamento; no "por parcela", o do modelo. O valor da ocorrência na tela podia ser o
+    da 1ª, com o resto do arredondamento, ou um valor próprio dado em "somente esta", e
+    copiá-lo faria a série somar mais que a compra.
+  - **Periodicidade ou tipo (parcelada ↔ fixa) — nasce uma regra nova.** Regra de negócio
+    (Recorrências): a regra atual é encerrada na anterior à editada (`end_at` = véspera da
+    data que o calendário dá à editada na fixa, `installments` = número da editada − 1 na
+    parcelada) — ou excluída,
+    quando a editada é a 1ª —, a editada e todas as futuras são excluídas, **mesmo pagas**,
+    e uma regra nova começa na editada, que vira a 1ª ocorrência dela com os dados do
+    formulário. As passadas ficam na regra antiga, sem vínculo com a nova: a sequência se
+    perde, e o diálogo de revisão diz isso antes. A fixa nova vai até o horizonte de 12
+    meses; a parcelada nova tem como total as parcelas restantes (quantidade do formulário −
+    número da editada + 1) quando já era parcelada, valendo por parcela, ou a quantidade
+    informada pelo usuário, com "total" ou "por parcela" escolhido como na criação, quando
+    era fixa. Uma regra nova, e não a regeneração da mesma, porque o calendário novo não
+    tem relação com a numeração antiga — e recriar até a contagem antiga gravava séries
+    de décadas (uma diária virando mensal).
 - A exclusão segue os mesmos três escopos, carimbando `deleted_at` em todo o conjunto
-  selecionado em uma única transação.
+  selecionado em uma única transação. "Esta e as futuras" também encerra a regra — numa
+  fixa, `end_at` passa a ser a véspera da data que o **calendário** dá à editada, e não da
+  data gravada nela, que pode ter sido movida em "somente esta"; numa parcelada,
+  `installments` passa a ser o número anterior ao dela e, no "valor total", o total passa a
+  ser a soma das parcelas que ficam — para que o top-up não emita mais nada e o painel não
+  mostre o total da compra inteira sobre menos parcelas. "Todas" exclui a regra.
 - Qualquer escopo que toque uma ocorrência passada altera um mês com saldo consolidado,
   então o recálculo roda de novo para cada mês afetado.
-- **Ocorrências já pagas não são protegidas.** O app precisa **confirmar antes de
-  executar** quando o conjunto selecionado contém linhas pagas, dizendo o que realmente
-  está em jogo — quantas ocorrências pagas, os saldos de quais meses vão mudar — em vez
-  de um aviso genérico. Valores passados neste sistema são mutáveis por design: uma
+- **Ocorrências já pagas não são protegidas.** O app **confirma antes de executar** toda
+  criação, edição e exclusão de uma transação recorrente num diálogo de revisão, que diz o
+  que realmente está em jogo — as ocorrências que serão excluídas, criadas e alteradas,
+  quais estão pagas, os saldos de quais meses vão mudar — em vez de um aviso genérico. O
+  Service calcula essa lista executando a própria operação numa transação desfeita
+  (`UnitOfWork.rehearse`), para que ela nunca discorde do que é gravado. Valores passados neste sistema são mutáveis por design: uma
   ferramenta de finanças pessoais muitas vezes está *corrigindo* o histórico, e não
   apenas registrando-o. O custo é que um relatório gerado duas vezes pode legitimamente
   dar resultados diferentes, e `updated_at` é o único rastro de que um número passado foi
@@ -1113,20 +1245,42 @@ de finanças, significa números históricos errados.
 | `recurrence` | INTEGER | NN, `CHECK (recurrence IN (1, 2, 3, 4))` | enum — `1: daily`, `2: weekly`, `3: monthly`, `4: yearly` |
 | `installments` | INTEGER | null, `CHECK (installments IS NULL OR installments > 0)` | Número de partes — somente `type = 1` |
 | `value_type` | INTEGER | null, `CHECK (value_type IS NULL OR value_type IN (1, 2))` | enum — `1: total`, `2: per_installment` — somente `type = 1` |
-| `end_at` | TEXT | null, date | Quando a regra para de emitir — somente `type = 2` |
-| `materialized_through` | TEXT | NN, date | Marca d'água; só avança. Sempre preenchida, já que a criação materializa pelo menos o primeiro horizonte |
+| `end_at` | TEXT | null, date | Última data em que a regra emite — somente `type = 2`; nulo = sem fim |
+| `starts_on` | TEXT | NN, date | Data da ocorrência de referência do calendário |
+| `starts_at` | INTEGER | NN, `CHECK (starts_at > 0)` | Número da ocorrência de `starts_on` |
+| `anchor_day` | INTEGER | null, `CHECK (anchor_day IS NULL OR anchor_day BETWEEN 1 AND 31)` | Dia do mês (`monthly`, `yearly`) ou da semana ISO (`weekly`); nulo em `daily` |
+| `materialized_count` | INTEGER | NN, `CHECK (materialized_count >= 0)` | Marca d'água; só avança |
+| `transaction_type` | INTEGER | NN, `CHECK (transaction_type IN (1, 2, 3, 4))` | Modelo — como `transactions.type` |
+| `account_id` | TEXT | null, FK | Modelo — origem numa conta; exclusiva com `credit_card_id` (regra da aplicação) |
+| `credit_card_id` | TEXT | null, FK | Modelo — origem num cartão |
+| `invoice_offset` | INTEGER | null | Meses entre a fatura escolhida e a sugerida — somente com `credit_card_id` |
+| `destination_account_id` | TEXT | null, FK | Modelo — tipos 3 e 4 |
+| `sub_category_id` | TEXT | NN, FK | Modelo |
+| `partner_id`, `goal_id` | TEXT | null, FK | Modelo |
+| `name` | TEXT | NN, `CHECK (length(name) <= 100)` | Modelo |
+| `description` | TEXT | null | Modelo |
+| `value` | REAL | NN | Modelo — o total quando `value_type = total`, senão o valor de cada ocorrência |
+| `charges` | REAL | NN | Modelo |
+| `currency`, `conversion_rate` | TEXT, REAL | NN | Modelo — proveniência, como em `transactions` |
 
 #### Chaves estrangeiras
 
 | FK | Destino | Nulo? | On delete | Por quê |
 |---|---|---|---|---|
 | `profile_id` | profiles | NN | `CASCADE` | Propriedade |
+| `account_id`, `credit_card_id`, `destination_account_id` | accounts, credit_cards | null | `CASCADE` | A regra não emite para uma conta ou um cartão que não existe; o soft delete em cadeia é da aplicação |
+| `sub_category_id` | transaction_sub_categories | NN | `NO ACTION` | Vocabulário, como em `transactions` |
+| `partner_id`, `goal_id` | partners, goals | null | `SET NULL` | Referência |
 
 #### Índices
 
 | Índice | Colunas | Tipo |
 |---|---|---|
 | `idx_recurrences_profile_id` | `(profile_id)` | simples |
+| `idx_recurrences_account_id`, `idx_recurrences_credit_card_id`, `idx_recurrences_destination_account_id` | cada coluna | simples — exclusão em cadeia |
+
+`recurrences_tags` repete `transactions_tags` com `recurrence_id` no lugar de
+`transaction_id`: id derivado do par, índice único parcial do par entre as linhas vivas.
 
 ### 4.13 transactions
 
@@ -1247,6 +1401,7 @@ coisa. `paid` e `payment_date` precisam concordar, o que é uma regra da aplica�
 | `partner_id` | TEXT | null, FK | Somente perfis empresariais, opcional mesmo nesses |
 | `goal_id` | TEXT | null, FK | |
 | `recurrence_id` | TEXT | null, FK | Somente quando emitida por uma regra |
+| `occurrence` | INTEGER | null, `CHECK (occurrence IS NULL OR occurrence > 0)` | Número da ocorrência na série — preenchido exatamente com `recurrence_id` (regra da aplicação); chave do id determinístico ([§4.12](#412-recurrences)). Migration `0004` |
 | `name` | TEXT | NN, `CHECK (length(name) <= 100)` | O tamanho não estava especificado no diagrama; 100 foi escolhido |
 | `description` | TEXT | null | Texto livre, sem limite de tamanho |
 | `value` | REAL | NN | money — **sempre já convertido** para a moeda do perfil |
@@ -1285,8 +1440,8 @@ exclusivo.
 | `idx_transactions_partner_id` | `(partner_id)` | simples |
 | `idx_transactions_goal_id` | `(goal_id)` | simples |
 | `idx_transactions_recurrence_id` | `(recurrence_id)` | simples |
-| `idx_transactions_due_date` | `(due_date)` | simples — relatórios por período e o escopo "esta e as futuras" |
-| `uq_transactions_recurrence_due_date` | `(recurrence_id, due_date)` | único, parcial — `WHERE deleted_at IS NULL AND recurrence_id IS NOT NULL` |
+| `idx_transactions_due_date` | `(due_date)` | simples — relatórios por período (o escopo "esta e as futuras" usa o número da ocorrência, [§4.12](#412-recurrences)) |
+| `uq_transactions_recurrence_occurrence` | `(recurrence_id, occurrence)` | único, parcial — `WHERE deleted_at IS NULL AND recurrence_id IS NOT NULL`; migration `0004` |
 
 ### 4.14 transactions_tags
 
@@ -1407,7 +1562,11 @@ for refatorado. O texto original é mantido como está no diagrama, seguido da t
    [0002_disabled_registries.sql](../../db/migrations/0002_disabled_registries.sql)
    acrescenta `disabled_at` a `accounts` e `credit_cards` ([§4.4](#44-accounts)). A
    [0003_invoice_payment_date.sql](../../db/migrations/0003_invoice_payment_date.sql)
-   acrescenta `payment_date` a `invoices` ([§4.7](#47-invoices)). Ela foi exercitada contra o SQLite 3.46: um perfil totalmente
+   acrescenta `payment_date` a `invoices` ([§4.7](#47-invoices)). A
+   [0004_recurrence_template.sql](../../db/migrations/0004_recurrence_template.sql)
+   recria `recurrences` com o modelo e o calendário da série, cria `recurrences_tags`,
+   acrescenta `occurrence` a `transactions` e troca a unicidade das ocorrências da data
+   pelo número ([§4.12](#412-recurrences)). A 0001 foi exercitada contra o SQLite 3.46: um perfil totalmente
    populado, após hard delete, deixa as tabelas vazias; uma transação órfã bloqueia essa
    exclusão; toda verificação de domínio e todo índice único parcial se comportam como
    documentado. Esse exercício precisa virar um teste permanente assim que a stack e seu

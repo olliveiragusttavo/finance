@@ -6,11 +6,11 @@
  * duplicaria o mapa. `integrity.verifyBalances` também não tem: quem a chama é o shell na
  * abertura, não uma tela.
  */
-import type { CoreInput, CoreOutput } from '@finance/core';
+import type { CoreInput, CoreOutput, InvoiceResponse } from '@finance/core';
 import type { UseQueryResult } from '@tanstack/react-query';
 import type { CoreCallError } from '../errors/CoreCallError.ts';
 import type { ReadRoute } from '../queries/routes.ts';
-import { useCoreQuery } from './coreHooks.ts';
+import { useCoreQueries, useCoreQuery, useCoreRehearsal } from './coreHooks.ts';
 
 /** Estado de uma consulta de rota, com o erro tipado. */
 type Query<R extends ReadRoute> = UseQueryResult<CoreOutput<R>, CoreCallError>;
@@ -96,6 +96,54 @@ export function useTransactions(input: CoreInput<'transactions.listByPeriod'> | 
 }
 
 /**
+ * @param input Perfil; `null` deixa a consulta parada.
+ * @return As séries vivas do perfil, para a coluna "Rec." e o subtítulo do painel.
+ */
+export function useRecurrences(input: CoreInput<'recurrences.list'> | null): Query<'recurrences.list'> {
+    return useCoreQuery('recurrences.list', input);
+}
+
+/**
+ * @param input Série; `null` enquanto o diálogo de escopo está fechado.
+ * @return As ocorrências vivas da série, que o diálogo conta (pagas, meses afetados).
+ */
+export function useRecurrenceOccurrences(input: CoreInput<'recurrences.occurrences'> | null): Query<'recurrences.occurrences'> {
+    return useCoreQuery('recurrences.occurrences', input);
+}
+
+/**
+ * @param input Origem, data, valor e repetição; `null` enquanto o formulário não tem os dados.
+ * @return As ocorrências que a criação gravaria — a prévia das parcelas.
+ */
+export function useRecurrencePreview(input: CoreInput<'recurrences.preview'> | null): Query<'recurrences.preview'> {
+    return useCoreQuery('recurrences.preview', input);
+}
+
+/**
+ * @param input Lançamento novo com repetição; `null` enquanto o diálogo de revisão está fechado.
+ * @return O que a criação gravaria — as ocorrências que a série lança agora.
+ */
+export function useCreatePlan(input: CoreInput<'recurrences.planCreate'> | null): Query<'recurrences.planCreate'> {
+    return useCoreRehearsal('recurrences.planCreate', input);
+}
+
+/**
+ * @param input Edição com escopo e série; `null` enquanto o diálogo de revisão está fechado.
+ * @return O que a edição faria: as ocorrências excluídas, criadas e alteradas, e as regras.
+ */
+export function useUpdatePlan(input: CoreInput<'recurrences.planUpdate'> | null): Query<'recurrences.planUpdate'> {
+    return useCoreRehearsal('recurrences.planUpdate', input);
+}
+
+/**
+ * @param input Ocorrência e escopo; `null` enquanto o diálogo de revisão está fechado.
+ * @return O que a exclusão faria.
+ */
+export function useDeletePlan(input: CoreInput<'recurrences.planDelete'> | null): Query<'recurrences.planDelete'> {
+    return useCoreRehearsal('recurrences.planDelete', input);
+}
+
+/**
  * @param input Conta e mês; `null` deixa a consulta parada.
  * @return O extrato do mês da conta.
  */
@@ -133,6 +181,35 @@ export function useInvoice(input: CoreInput<'invoices.get'> | null): Query<'invo
  */
 export function useInvoicesByCard(input: CoreInput<'invoices.listByCard'> | null): Query<'invoices.listByCard'> {
     return useCoreQuery('invoices.listByCard', input);
+}
+
+/** Faturas de vários cartões juntas, e se alguma consulta ainda carrega. */
+export interface CardsInvoices {
+    readonly invoices: readonly InvoiceResponse[];
+    readonly pending: boolean;
+}
+
+/**
+ * Junta as competências de cada cartão nas faturas que existem. Fica fora do hook para ser
+ * estável, o que mantém a identidade do resultado entre renders (`useCoreQueries`).
+ *
+ * @param results Uma consulta de `invoices.listByCard` por cartão.
+ * @return As faturas existentes de todos os cartões e se alguma consulta ainda carrega.
+ */
+function joinInvoices(results: readonly Query<'invoices.listByCard'>[]): CardsInvoices {
+    return {
+        invoices: results.flatMap((result) => (result.data ?? []).flatMap((cycle) => (cycle.invoice === null ? [] : [cycle.invoice]))),
+        pending: results.some((result) => result.isPending),
+    };
+}
+
+/**
+ * @param inputs Um cartão e a competência inicial por consulta.
+ * @return As faturas de todos os cartões a partir da competência pedida de cada um — a tela de
+ * Transações lê a situação das faturas em que caíram as compras do mês.
+ */
+export function useInvoicesByCards(inputs: readonly CoreInput<'invoices.listByCard'>[]): CardsInvoices {
+    return useCoreQueries('invoices.listByCard', inputs, joinInvoices);
 }
 
 /**

@@ -14,8 +14,8 @@ import { launchApp, removeUserData } from './launchApp.ts';
  * Semeia pela ponte os dois cartões da Nubank. Roxinho (fecha 3, vence 10, limite 5.000): a
  * Farmácia do dia 10 do mês anterior cai na fatura do mês, em aberto, e o Notebook do dia 5 do
  * mês cai na seguinte. Click (fecha 25, vence 5): o Livro do dia 26 do mês anterior cai na
- * fatura do mês, paga no dia 2. Pela ponte, e não pela tela, porque o formulário de lançamento
- * é da Fase 9.
+ * fatura do mês, paga no dia 2. Pela ponte, e não pela tela: o teste é da fatura, e lançar pela
+ * tela é coberto em `transactions.spec.ts`.
  *
  * @param page Janela do app, com o shell aberto.
  * @param period Mês de referência `YYYY-MM`.

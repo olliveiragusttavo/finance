@@ -3,7 +3,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, it } from 'vitest';
-import { CoreCallError, CoreClientProvider, createQueryClient, useCoreMutation, useStatement, useTransactions, type CoreClient } from '../src/index.ts';
+import { CoreCallError, CoreClientProvider, createQueryClient, useCoreMutation, useInvoicesByCards, useStatement, useTransactions, type CoreClient } from '../src/index.ts';
 import { ClientWorld } from './support/ClientWorld.ts';
 
 /**
@@ -60,6 +60,25 @@ describe('hooks de dados (desktop-mvp-plan Fase 3.2)', () => {
         });
         expect(result.current.error?.code).toBe('VALIDATION_FAILED');
         expect(calls).toBe(1);
+    });
+
+    it('várias consultas da mesma rota também se refazem pelo mapa depois de uma escrita', async () => {
+        const world = new ClientWorld();
+        const s = await world.seed();
+        const { result } = renderHook(() => ({
+            invoices: useInvoicesByCards([{ creditCardId: s.creditCardId, from: '2026-09' }]),
+            reopen: useCoreMutation('invoices.reopen'),
+        }), { wrapper: providers(world.client) });
+
+        await waitFor(() => {
+            expect(result.current.invoices.invoices.find((invoice) => invoice.id === s.paidInvoiceId)?.status).toBe('paid');
+        });
+
+        await act(() => result.current.reopen.mutateAsync({ invoiceId: s.paidInvoiceId }));
+
+        await waitFor(() => {
+            expect(result.current.invoices.invoices.find((invoice) => invoice.id === s.paidInvoiceId)?.status).toBe('open');
+        });
     });
 
     it('entrada nula deixa a consulta parada, sem chamar o núcleo', () => {

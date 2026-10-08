@@ -1,4 +1,4 @@
-import { AccountId, BankStatementId, CreditCardId, InvoiceId, TransactionId } from '../../domain/shared/ids.ts';
+import { AccountId, BankStatementId, CreditCardId, InvoiceId, RecurrenceId, TransactionId } from '../../domain/shared/ids.ts';
 import { CorruptRowError } from '../../domain/shared/errors.ts';
 import type { Clock } from '../../ports/Clock.ts';
 import type { Database, SqlParams } from '../../ports/Database.ts';
@@ -85,6 +85,13 @@ export class SqliteDeletionRepository implements DeletionRepository {
             statements,
             invoices: invoices.map((invoice) => invoice.id),
             transactions: transactions.map(({ doomed }) => doomed),
+            recurrences: this.ids(
+                `SELECT r.id FROM recurrences r LEFT JOIN credit_cards c ON c.id = r.credit_card_id
+                WHERE r.deleted_at IS NULL AND (r.account_id = :accountId OR r.destination_account_id = :accountId OR c.account_id = :accountId)
+                ORDER BY r.id`,
+                params,
+                RecurrenceId,
+            ),
             reopenedInvoices: reopened.map((invoice) => invoice.id),
             touchedAccounts: unique([
                 accountId,
@@ -109,6 +116,7 @@ export class SqliteDeletionRepository implements DeletionRepository {
             statements: [],
             invoices: invoices.map((invoice) => invoice.id),
             transactions: transactions.map(({ doomed }) => doomed),
+            recurrences: this.ids('SELECT id FROM recurrences WHERE credit_card_id = :creditCardId AND deleted_at IS NULL ORDER BY id', params, RecurrenceId),
             reopenedInvoices: [],
             touchedAccounts: unique([
                 ...invoices.flatMap(accountsOf),
@@ -120,7 +128,8 @@ export class SqliteDeletionRepository implements DeletionRepository {
     /**
      * Apaga de baixo para cima no grafo de propriedade — faturas, extratos, cartões, contas
      * — só por organização: dentro da unidade de trabalho a ordem não muda o resultado, e o
-     * soft delete não dispara cascade nenhum (database-design §3.6).
+     * soft delete não dispara cascade nenhum (database-design §3.6). As recorrências do escopo
+     * saem junto, com as tags do modelo, para que o complemento não emita para quem não existe.
      *
      * @param scope Escopo calculado na mesma unidade de trabalho.
      * @return void
@@ -137,6 +146,10 @@ export class SqliteDeletionRepository implements DeletionRepository {
             for (const id of ids) {
                 this.database.run(`UPDATE ${table} SET deleted_at = :now, updated_at = :now WHERE id = :id AND deleted_at IS NULL`, { id, now });
             }
+        }
+        for (const id of scope.recurrences) {
+            this.database.run('UPDATE recurrences SET deleted_at = :now, updated_at = :now WHERE id = :id AND deleted_at IS NULL', { id, now });
+            this.database.run('UPDATE recurrences_tags SET deleted_at = :now, updated_at = :now WHERE recurrence_id = :id AND deleted_at IS NULL', { id, now });
         }
     }
 

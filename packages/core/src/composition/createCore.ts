@@ -10,6 +10,7 @@ import { ReportController } from '../controllers/ReportController.ts';
 import type { CoreApi, CoreRoute, RouteHandlers } from '../controllers/routes.ts';
 import { StatementController } from '../controllers/StatementController.ts';
 import { TagController } from '../controllers/TagController.ts';
+import { RecurrenceController } from '../controllers/RecurrenceController.ts';
 import { TransactionController } from '../controllers/TransactionController.ts';
 import { embeddedMigrations } from '../infrastructure/migrations/embedded.generated.ts';
 import type { Migration } from '../infrastructure/migrations/Migration.ts';
@@ -26,6 +27,7 @@ import { SqliteInvoiceRepository } from '../infrastructure/sqlite/SqliteInvoiceR
 import { SqliteNoteRepository } from '../infrastructure/sqlite/SqliteNoteRepository.ts';
 import { SqliteProfileRepository } from '../infrastructure/sqlite/SqliteProfileRepository.ts';
 import { SqliteReferenceRepository } from '../infrastructure/sqlite/SqliteReferenceRepository.ts';
+import { SqliteRecurrenceRepository } from '../infrastructure/sqlite/SqliteRecurrenceRepository.ts';
 import { SqliteReportRepository } from '../infrastructure/sqlite/SqliteReportRepository.ts';
 import { SqliteTagRepository } from '../infrastructure/sqlite/SqliteTagRepository.ts';
 import { SqliteTransactionRepository } from '../infrastructure/sqlite/SqliteTransactionRepository.ts';
@@ -48,6 +50,9 @@ import { ProfileService } from '../services/profile/ProfileService.ts';
 import { ReportService } from '../services/report/ReportService.ts';
 import { StatementConsolidationService } from '../services/statement/StatementConsolidationService.ts';
 import { TagService } from '../services/tag/TagService.ts';
+import { RecurrenceService } from '../services/recurrence/RecurrenceService.ts';
+import { SeriesPlanner } from '../services/recurrence/SeriesPlanner.ts';
+import { TransactionComposer } from '../services/transaction/TransactionComposer.ts';
 import { TransactionService } from '../services/transaction/TransactionService.ts';
 import { UnitOfWork } from '../services/UnitOfWork.ts';
 
@@ -71,6 +76,7 @@ export interface CoreServices {
     readonly notes: NoteService;
     readonly deletions: CascadeDeletionService;
     readonly transactions: TransactionService;
+    readonly recurrences: RecurrenceService;
     readonly consolidation: StatementConsolidationService;
     readonly invoices: InvoiceService;
     readonly balances: AccountBalanceService;
@@ -147,14 +153,15 @@ export function createCore(ports: CorePorts): Core {
     const deletions = new SqliteDeletionRepository(database, clock);
     const ledger = new SqliteBalanceLedgerRepository(database);
     const reportRepository = new SqliteReportRepository(database);
+    const recurrenceRepository = new SqliteRecurrenceRepository(database, clock);
 
     const recalculation = new BalanceRecalculationService(unitOfWork, accounts, statements, invoices, ledger, clock);
     const impacts = new ImpactCalculator(invoices, creditCards);
     const consolidation = new StatementConsolidationService(unitOfWork, accounts, statements, invoices, transactions);
     const invoiceService = new InvoiceService(unitOfWork, creditCards, accounts, invoices, transactions, consolidation, impacts, recalculation);
-    const transactionService = new TransactionService(
-        unitOfWork, ids, profiles, accounts, creditCards, transactions, references, categories, tags, consolidation, invoiceService, impacts, recalculation, clock,
-    );
+    const composer = new TransactionComposer(profiles, accounts, creditCards, transactions, references, categories, tags, consolidation, invoiceService);
+    const recurrenceService = new RecurrenceService(unitOfWork, ids, clock, composer, transactions, recurrenceRepository, impacts, recalculation);
+    const transactionService = new TransactionService(unitOfWork, ids, composer, accounts, transactions, consolidation, recurrenceService, impacts, recalculation, clock);
     const profileService = new ProfileService(unitOfWork, ids, profiles);
     const accountService = new AccountService(unitOfWork, ids, profileService, accounts, statements, recalculation);
     const creditCardService = new CreditCardService(unitOfWork, ids, profileService, accountService, creditCards, invoices, recalculation);
@@ -168,6 +175,7 @@ export function createCore(ports: CorePorts): Core {
     const reportService = new ReportService(unitOfWork, profileService, reportRepository, transactions, creditCards, categories, clock);
 
     const transactionController = new TransactionController(transactionService, onUnexpected);
+    const recurrenceController = new RecurrenceController(recurrenceService, new SeriesPlanner(unitOfWork, transactionService, composer, transactions, recurrenceRepository), onUnexpected);
     const statementController = new StatementController(consolidation, balances, onUnexpected);
     const invoiceController = new InvoiceController(invoiceService, onUnexpected);
     const integrityController = new IntegrityController(integrity, onUnexpected);
@@ -219,6 +227,13 @@ export function createCore(ports: CorePorts): Core {
         'transactions.get': (raw) => transactionController.get(raw),
         'transactions.listByPeriod': (raw) => transactionController.listByPeriod(raw),
         'transactions.setPaid': (raw) => transactionController.setPaid(raw),
+        'recurrences.list': (raw) => recurrenceController.list(raw),
+        'recurrences.occurrences': (raw) => recurrenceController.occurrences(raw),
+        'recurrences.preview': (raw) => recurrenceController.preview(raw),
+        'recurrences.planCreate': (raw) => recurrenceController.planCreate(raw),
+        'recurrences.planUpdate': (raw) => recurrenceController.planUpdate(raw),
+        'recurrences.planDelete': (raw) => recurrenceController.planDelete(raw),
+        'recurrences.topUp': (raw) => recurrenceController.topUp(raw),
         'statements.get': (raw) => statementController.getStatement(raw),
         'balances.ofProfile': (raw) => statementController.profileBalances(raw),
         'balances.rebuildAccount': (raw) => statementController.rebuildAccount(raw),
@@ -246,6 +261,7 @@ export function createCore(ports: CorePorts): Core {
             notes: noteService,
             deletions: cascadeDeletion,
             transactions: transactionService,
+            recurrences: recurrenceService,
             consolidation,
             invoices: invoiceService,
             balances,

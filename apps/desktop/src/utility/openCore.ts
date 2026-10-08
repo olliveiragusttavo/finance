@@ -51,10 +51,12 @@ export interface OpenedCore {
 
 /**
  * A sequência de abertura do desktop (backend-design §4.5): abrir o arquivo, migrar com
- * backup, montar o núcleo com as portas reais e rodar a verificação de integridade. Cada
+ * backup, montar o núcleo com as portas reais, rodar a verificação de integridade e o
+ * complemento das recorrências. Cada
  * falha vira um `StartupStatus` de bloqueio em vez de exceção, porque o processo do núcleo
- * precisa continuar vivo para dizer à janela o que aconteceu. Qualquer erro bloqueia: o app
- * só segue com o banco aberto, migrado e verificado.
+ * precisa continuar vivo para dizer à janela o que aconteceu. Qualquer erro bloqueia — exceto a
+ * falha de uma série no complemento, abaixo: o app só segue com o banco aberto, migrado e
+ * verificado.
  *
  * Antes de tudo, uma restauração de backup interrompida bloqueia sem abrir o arquivo: o
  * `better-sqlite3` criaria um banco vazio no lugar do que saiu, e o app abriria como se fosse
@@ -68,6 +70,13 @@ export interface OpenedCore {
  * A verificação de integridade só registra os desvios no log, sem bloquear nem corrigir
  * (desktop-mvp-plan Fase 0): corrigir em silêncio esconderia o bug que causou o desvio. Já a
  * verificação que não consegue rodar bloqueia, porque aí ninguém sabe se o banco está são.
+ *
+ * O complemento das recorrências vem por último (backend-design §4.5; database-design §4.12):
+ * estende as séries fixas até 12 meses à frente de hoje, para que o previsto dos próximos meses
+ * esteja completo assim que o app abre. Só depois da verificação, porque escreve no banco. Cada
+ * série é complementada à parte, e a que falha só vai para o log: o banco continua íntegro, e
+ * bloquear repetiria a mesma falha em toda abertura, sem o usuário chegar à tela para corrigir
+ * a série. Já o complemento que nem consegue rodar bloqueia, como qualquer etapa.
  *
  * @param options Caminhos, portas e log.
  * @return O núcleo pronto, ou o estado de bloqueio com a conexão já fechada.
@@ -132,6 +141,18 @@ export async function openCore(options: OpenCoreOptions): Promise<OpenedCore> {
             log.write('warn', 'integrity.drift', { checkedAccounts: integrity.data.checkedAccounts, drifts: integrity.data.drifts });
         } else {
             log.write('info', 'integrity.ok', { checkedAccounts: integrity.data.checkedAccounts });
+        }
+        const topUp = await core.call('recurrences.topUp', {});
+        if (!topUp.ok) {
+            close();
+            log.write('error', 'recurrences.top-up-failed', { error: topUp.error });
+            return blocked({ kind: 'unexpected' }, () => undefined);
+        }
+        // Uma série que falha não bloqueia: o banco está íntegro, só a previsão dela fica incompleta.
+        if (topUp.data.failures.length > 0) {
+            log.write('warn', 'recurrences.top-up-partial', { emitted: topUp.data.emitted, failures: topUp.data.failures });
+        } else {
+            log.write('info', 'recurrences.topped-up', { emitted: topUp.data.emitted });
         }
         return { status: { kind: 'ready' }, core, close };
     } catch (error) {

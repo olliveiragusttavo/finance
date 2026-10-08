@@ -124,7 +124,7 @@ test('trocar de perfil mostra "Por sócio" no empresarial e é lembrado ao reabr
     }
 });
 
-test('N e "+ Lançamento" abrem o painel de lançamento em qualquer tela', async () => {
+test('N e "+ Lançamento" abrem o diálogo de lançamento em qualquer tela', async () => {
     const { app, window: page, userData } = await launchApp();
     try {
         await seedProfiles(page);

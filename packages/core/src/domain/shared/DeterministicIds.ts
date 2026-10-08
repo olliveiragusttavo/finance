@@ -1,6 +1,6 @@
 import { sha1 } from '@noble/hashes/legacy.js';
 import { utf8ToBytes } from '@noble/hashes/utils.js';
-import type { AccountId, BankStatementId, CreditCardId, InvoiceId, TagId, TransactionId, TransactionTagId, Uuid } from './ids.ts';
+import type { AccountId, BankStatementId, CreditCardId, InvoiceId, RecurrenceId, RecurrenceTagId, TagId, TransactionId, TransactionTagId, Uuid } from './ids.ts';
 import type { YearMonth } from './YearMonth.ts';
 
 /**
@@ -84,6 +84,31 @@ export function invoiceIdFor(creditCardId: CreditCardId, period: YearMonth): Inv
  */
 export function transactionTagIdFor(transactionId: TransactionId, tagId: TagId): TransactionTagId {
     return deriveUuid(`transactions_tags:${transactionId}:${tagId}`) as TransactionTagId;
+}
+
+/**
+ * Id de uma ocorrência de recorrência (database-design §4.12; sync-design §5.6). Derivado do
+ * **número** da ocorrência, e não da data, porque a data de uma série muda quando o usuário
+ * troca o dia âncora; pelo número, dois aparelhos que completam a mesma série offline derivam a
+ * mesma linha, e gerar de novo um número já excluído revive a linha. O formato da chave é
+ * contrato permanente, como o namespace.
+ * @param recurrenceId Série da ocorrência.
+ * @param occurrence Número da ocorrência na série, a partir de 1.
+ * @return O id determinístico da ocorrência.
+ */
+export function occurrenceIdFor(recurrenceId: RecurrenceId, occurrence: number): TransactionId {
+    return deriveUuid(`transactions:${recurrenceId}:${String(occurrence)}`) as TransactionId;
+}
+
+/**
+ * Id do vínculo entre uma recorrência e uma tag do modelo, pelo mesmo motivo do vínculo das
+ * transações (`transactionTagIdFor`). O formato da chave é contrato permanente.
+ * @param recurrenceId Recorrência marcada.
+ * @param tagId Tag do modelo.
+ * @return O id determinístico do vínculo.
+ */
+export function recurrenceTagIdFor(recurrenceId: RecurrenceId, tagId: TagId): RecurrenceTagId {
+    return deriveUuid(`recurrences_tags:${recurrenceId}:${tagId}`) as RecurrenceTagId;
 }
 
 /**

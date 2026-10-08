@@ -50,14 +50,21 @@ export class InvoiceService {
      *
      * @param creditCardId Cartão da compra.
      * @param purchaseDate Data da compra.
-     * @return A competência sugerida e a fatura, se já existir.
+     * @return A competência sugerida com o fechamento e o vencimento dela, e a fatura, se já existir.
      * @throws {NotFoundError} Quando o cartão não existe.
      */
     public suggest(creditCardId: CreditCardId, purchaseDate: LocalDate): InvoiceSuggestion {
         return this.unitOfWork.run(() => {
             const creditCard = this.requireCard(creditCardId);
-            const period = creditCard.billingCycle.suggestedInvoicePeriod(purchaseDate);
-            return { creditCard, period, invoice: this.invoices.findByPeriod(creditCardId, period) };
+            const { billingCycle } = creditCard;
+            const period = billingCycle.suggestedInvoicePeriod(purchaseDate);
+            return {
+                creditCard,
+                period,
+                closingDate: billingCycle.closingDateOf(period),
+                dueDate: billingCycle.dueDateOf(period),
+                invoice: this.invoices.findByPeriod(creditCardId, period),
+            };
         });
     }
 

@@ -66,28 +66,36 @@ Contexto extra informado pelo usuário (pode estar vazio): $ARGUMENTS
 - Cite os nomes reais de arquivos, classes, funções e tipos entre crases (ex.: `InvoiceService`)
 - Explique o **porquê** quando ele não for óbvio (o que resolve, qual regra de negócio atende), não o "como"
 - Bullets sem ponto final
+- Cada linha do corpo tem **no máximo 72 colunas**, o limite recomendado pelo Git para o `git log` caber em um terminal de 80 colunas sem quebra automática. Quebre o bullet longo em várias linhas, recuando a continuação em 2 espaços para ela ficar sob o texto do bullet. Quebre só entre palavras, nunca dentro de um identificador ou caminho entre crases
 - Omita o corpo só quando a alteração for trivial e o título bastar (ex.: correção de digitação em um único arquivo)
 
 **BREAKING CHANGE:** `!` após o tipo/escopo (`feat(core)!:`) e/ou rodapé `BREAKING CHANGE: <o que quebra>`.
 
 ## Exemplos do próprio repositório
 
-Replique este padrão (commits `dd74d3e` e `1fbddf6`):
+Replique este padrão (commits `dd74d3e` e `1fbddf6`, com o corpo já quebrado em 72 colunas):
 
 ```
 chore(devcontainer): adiciona ambiente de desenvolvimento em Docker
 
-- Adiciona `.devcontainer/Dockerfile` com Node 24 (Debian completo, por causa do módulo nativo `better-sqlite3`), as bibliotecas do Chromium/Electron e o pnpm via corepack
-- Adiciona `.env.example` com `CLAUDE_CODE_OAUTH_TOKEN`, para o Claude Code entrar autenticado no container após cada rebuild
-- Ignora `.env` e `.devcontainer/.env` no `.gitignore` para não versionar segredos nem o GID gerado por máquina
+- Adiciona `.devcontainer/Dockerfile` com Node 24 (Debian completo, por
+  causa do módulo nativo `better-sqlite3`), as bibliotecas do
+  Chromium/Electron e o pnpm via corepack
+- Adiciona `.env.example` com `CLAUDE_CODE_OAUTH_TOKEN`, para o Claude
+  Code entrar autenticado no container após cada rebuild
+- Ignora `.env` e `.devcontainer/.env` no `.gitignore` para não
+  versionar segredos nem o GID gerado por máquina
 ```
 
 ```
 docs(desktop): adiciona plano do MVP desktop com CRUD e primeiros relatórios
 
-- Adiciona `docs/plans/desktop-mvp-plan.md` com escopo, decisões e lista de tarefas em 15 fases, espelhadas nas issues #17 a #31
-- Define a regra-mestra dos relatórios: todo valor conta no mês do pagamento, com compras no cartão no extrato em que a fatura foi paga
-- Fecha a escolha de electron-vite, electron-builder, TanStack Router e Recharts, pendente no `desktop-shell-design.md`
+- Adiciona `docs/plans/desktop-mvp-plan.md` com escopo, decisões e
+  lista de tarefas em 15 fases, espelhadas nas issues #17 a #31
+- Define a regra-mestra dos relatórios: todo valor conta no mês do
+  pagamento, com compras no cartão no extrato em que a fatura foi paga
+- Fecha a escolha de electron-vite, electron-builder, TanStack Router
+  e Recharts, pendente no `desktop-shell-design.md`
 
 Refs #15, #16
 ```

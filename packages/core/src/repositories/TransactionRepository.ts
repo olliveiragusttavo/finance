@@ -3,6 +3,13 @@ import type { AccountId, BankStatementId, InvoiceId, ProfileId, RecurrenceId, Tr
 import type { LocalDate } from '../domain/shared/LocalDate.ts';
 import type { YearMonth } from '../domain/shared/YearMonth.ts';
 import type { Transaction } from '../domain/transaction/Transaction.ts';
+import type { Timestamp } from '../ports/Clock.ts';
+
+/** Quando a linha foi criada e quando foi escrita pela última vez, em UTC. */
+export interface RowStamps {
+    readonly createdAt: Timestamp;
+    readonly updatedAt: Timestamp;
+}
 
 /** Acesso às transações. Toda leitura considera só transações vivas. */
 export interface TransactionRepository {
@@ -35,12 +42,20 @@ export interface TransactionRepository {
     softDelete(id: TransactionId): void;
 
     /**
-     * @param recurrenceId Recorrência da série.
-     * @param dueDate Data de vencimento procurada.
-     * @param excluding Transação a desconsiderar — a própria ocorrência sendo editada.
-     * @return `true` quando outra ocorrência viva da série já vence nessa data.
+     * Carimbos das ocorrências, à parte da entidade porque só o diálogo de revisão os usa: dizer
+     * quais ocorrências foram editadas à mão depois de criadas (database-design §4.12).
+     *
+     * @param recurrenceId Série consultada.
+     * @return Os carimbos de cada ocorrência viva da série, por id.
      */
-    hasOccurrenceOn(recurrenceId: RecurrenceId, dueDate: LocalDate, excluding: TransactionId): boolean;
+    listOccurrenceStamps(recurrenceId: RecurrenceId): ReadonlyMap<TransactionId, RowStamps>;
+
+    /**
+     * @param recurrenceId Série consultada.
+     * @return As ocorrências vivas da série, por data de vencimento e número — os escopos
+     * "esta e as futuras" e "todas" são recortes desta lista (database-design §4.12).
+     */
+    listOccurrences(recurrenceId: RecurrenceId): readonly Transaction[];
 
     /**
      * @param statementId Extrato de origem.
