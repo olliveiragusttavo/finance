@@ -1,4 +1,4 @@
-import { compareTransactionRows, type TransactionRow, type TransactionSortKey } from '@finance/client';
+import { compareTransactionRows, type TransactionSortKey, type TransactionTableRow } from '@finance/client';
 import { createColumnHelper, createSortedRowModel, rowSortingFeature, tableFeatures, useTable, type SortFn, type SortingState } from '@tanstack/react-table';
 import { useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuShortcut, ContextMenuTrigger } from '@/components/ui/context-menu';
@@ -16,14 +16,14 @@ import { StatusTag } from '@/registry/registryUi';
 /** Recursos da tabela: só a ordenação no cliente — os filtros já vieram aplicados pelo view-model. */
 const features = tableFeatures({ rowSortingFeature, sortedRowModel: createSortedRowModel() });
 
-const helper = createColumnHelper<typeof features, TransactionRow>();
+const helper = createColumnHelper<typeof features, TransactionTableRow>();
 
 /**
  * @param key Coluna da ordenação.
  * @return O comparador crescente da coluna no formato da TanStack Table, que inverte sozinha
  * para a ordem decrescente.
  */
-function sortBy(key: TransactionSortKey): SortFn<typeof features, TransactionRow> {
+function sortBy(key: TransactionSortKey): SortFn<typeof features, TransactionTableRow> {
     const compare = compareTransactionRows(key);
     return (a, b) => compare(a.original, b.original);
 }
@@ -55,7 +55,7 @@ const INITIAL_SORTING: SortingState = [{ id: 'date', desc: false }];
 
 /** O que a tabela faz com as linhas: a tela é dona do estado e dos diálogos. */
 export interface TransactionGridProps {
-    readonly rows: readonly TransactionRow[];
+    readonly rows: readonly TransactionTableRow[];
     /** Linha selecionada pelo teclado ou pelo clique. */
     readonly selectedId: string | null;
     /** Lançamento aberto na coluna de edição, marcado como no mockup. */
@@ -63,9 +63,10 @@ export interface TransactionGridProps {
     /** O que mostrar sem linhas (mês vazio ou filtro sem resultado). */
     readonly empty: ReactNode;
     readonly onSelect: (id: string) => void;
-    readonly onEdit: (row: TransactionRow) => void;
-    readonly onTogglePaid: (row: TransactionRow) => void;
-    readonly onDelete: (row: TransactionRow) => void;
+    /** Abre a edição do lançamento, ou a fatura na linha da fatura. */
+    readonly onEdit: (row: TransactionTableRow) => void;
+    readonly onTogglePaid: (row: TransactionTableRow) => void;
+    readonly onDelete: (row: TransactionTableRow) => void;
 }
 
 /**
@@ -73,7 +74,7 @@ export interface TransactionGridProps {
  * Teclado (desktop-mvp-plan Fase 9): `↑↓` navegam, `Enter` edita, `P` marca ou desmarca o
  * pagamento, `Del` exclui; o botão direito abre as mesmas ações. A linha selecionada é a única
  * que entra no `Tab` (*roving tabindex*), para que atravessar a tela não exija passar por
- * centenas de linhas.
+ * centenas de linhas. Na linha da fatura (tabela agrupada), `Enter` e o clique abrem a fatura.
  *
  * @param props As linhas, a seleção e as ações.
  * @return A tabela.
@@ -91,7 +92,7 @@ export function TransactionGrid({ rows, selectedId, editingId, empty, onSelect, 
     /**
      * @param row Linha a selecionar e focar, depois de `↑↓`.
      */
-    const moveTo = (row: TransactionRow): void => {
+    const moveTo = (row: TransactionTableRow): void => {
         onSelect(row.id);
         rowElements.current.get(row.id)?.focus();
     };
@@ -195,7 +196,19 @@ export function TransactionGrid({ rows, selectedId, editingId, empty, onSelect, 
                             )}
                         </TableBody>
                     </ContextMenuTrigger>
-                    {selected !== null && (
+                    {selected?.kind === 'invoice' && (
+                        <ContextMenuContent>
+                            <ContextMenuItem
+                                onSelect={() => {
+                                    onEdit(selected);
+                                }}
+                            >
+                                Abrir fatura
+                                <ContextMenuShortcut>Enter</ContextMenuShortcut>
+                            </ContextMenuItem>
+                        </ContextMenuContent>
+                    )}
+                    {selected?.kind === 'transaction' && (
                         <ContextMenuContent>
                             <ContextMenuItem
                                 onSelect={() => {
@@ -206,7 +219,7 @@ export function TransactionGrid({ rows, selectedId, editingId, empty, onSelect, 
                                 <ContextMenuShortcut>Enter</ContextMenuShortcut>
                             </ContextMenuItem>
                             <ContextMenuItem
-                                disabled={selected.transaction.container.kind === 'invoice'}
+                                disabled={selected.transaction.container.kind === 'invoice' && !selected.invoicePayment}
                                 onSelect={() => {
                                     onTogglePaid(selected);
                                 }}
@@ -244,7 +257,7 @@ export function TransactionGrid({ rows, selectedId, editingId, empty, onSelect, 
  * etiqueta de estorno, não só pela cor (decisão de interface 7); os números são tabulares e
  * alinhados à direita (decisão 8).
  *
- * @param props.row Linha montada pelo view-model.
+ * @param props.row Linha montada pelo view-model: um lançamento ou, na tabela agrupada, uma fatura.
  * @param props.selected Se é a linha selecionada.
  * @param props.editing Se é o lançamento aberto na coluna de edição.
  * @param props.focusable Se é a linha que entra no `Tab`.
@@ -262,7 +275,7 @@ function GridRow({
     onSelect,
     onEdit,
 }: {
-    readonly row: TransactionRow;
+    readonly row: TransactionTableRow;
     readonly selected: boolean;
     readonly editing: boolean;
     readonly focusable: boolean;
@@ -284,7 +297,7 @@ function GridRow({
             <TableCell className="pl-4 tabular-nums">{row.date}</TableCell>
             <TableCell className="truncate">
                 <span className={cn(editing && 'font-semibold')}>{row.name}</span>
-                {row.refund && (
+                {row.kind === 'transaction' && row.refund && (
                     <span className="ml-1.5">
                         <StatusTag tone="neutral">estorno</StatusTag>
                     </span>
@@ -293,8 +306,22 @@ function GridRow({
             <TableCell className="truncate text-ink2">{row.category}</TableCell>
             <TableCell className="truncate">{row.container}</TableCell>
             <TableCell className={cn('text-right font-semibold tabular-nums', row.direction === 'out' ? 'text-out' : row.direction === 'in' ? 'text-in' : 'text-ink2')}>{row.amountText}</TableCell>
-            <TableCell className={cn(row.situation === 'pending' ? 'text-warn-ink' : row.situation === 'onInvoice' ? 'text-muted' : undefined)}>{row.situationText}</TableCell>
+            <TableCell className={situationClass(row)}>{row.situationText}</TableCell>
             <TableCell className="pr-4 text-muted tabular-nums">{row.recurrenceTag}</TableCell>
         </TableRow>
     );
+}
+
+/**
+ * Cor da situação. O que ainda vai sair da conta — o pendente e a fatura em aberto — fica em
+ * destaque; a compra numa fatura em aberto fica apagada, porque quem pesa é a fatura, não ela.
+ *
+ * @param row Linha da tabela.
+ * @return A classe da célula, ou `undefined` sem destaque.
+ */
+function situationClass(row: TransactionTableRow): string | undefined {
+    if (row.situation === 'pending' || (row.kind === 'invoice' && row.situation === 'onInvoice')) {
+        return 'text-warn-ink';
+    }
+    return row.situation === 'onInvoice' ? 'text-muted' : undefined;
 }

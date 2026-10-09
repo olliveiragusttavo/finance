@@ -108,10 +108,12 @@ test('parcelar no cartão: prévia com as faturas, "Rec." 1/3 e as parcelas nos 
         await expect(review.getByRole('region', { name: '3 transações serão criadas' })).toBeVisible();
         await confirmReview(review, 'Lançar');
 
+        // Sem filtro, as parcelas ficam nas faturas; a busca mostra as compras uma a uma.
+        await page.getByRole('searchbox').fill('Geladeira');
         await expect(rowOf(page, 'Geladeira')).toContainText(`Roxinho · fat. ${formatMonthAbbreviation(next)}`);
         await expect(rowOf(page, 'Geladeira')).toContainText('−R$ 333,34');
         await expect(rowOf(page, 'Geladeira')).toContainText('1/3');
-        await page.keyboard.press(']');
+        await page.getByRole('button', { name: 'Próximo mês' }).dispatchEvent('click');
         await expect(rowOf(page, 'Geladeira')).toContainText('2/3');
         await expect(rowOf(page, 'Geladeira')).toContainText('−R$ 333,33');
 

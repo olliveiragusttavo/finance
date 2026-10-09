@@ -64,6 +64,8 @@ const MONEY: readonly ReadRoute[] = [
     'transactions.get',
     'transactions.listByPeriod',
     'statements.get',
+    // As faturas do mês mudam com as compras, os pagamentos e o cadastro de contas e cartões.
+    'statements.profileInvoices',
     'balances.ofProfile',
     'invoices.suggest',
     'invoices.get',

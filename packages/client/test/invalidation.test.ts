@@ -36,6 +36,7 @@ function probes(s: SeriesScenario): readonly Probe[] {
             { route: 'transactions.listByPeriod', input: { profileId: s.profileId, period } },
             { route: 'statements.get', input: { accountId: s.checkingId, period } },
             { route: 'statements.get', input: { accountId: s.savingsId, period } },
+            { route: 'statements.profileInvoices', input: { profileId: s.profileId, period } },
             { route: 'reports.monthSummary', input: { profileId: s.profileId, period } },
             { route: 'reports.byCategory', input: { profileId: s.profileId, period } },
             { route: 'reports.categoryTransactions', input: { profileId: s.profileId, period, subCategoryId: s.subCategoryId } },

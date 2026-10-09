@@ -8,6 +8,11 @@
     }
   },
   "theme": "dark",
+  "permissions": {
+    "ask": [
+      "Read(//home/node/.cache/graphify/**)"
+    ]
+  },
   "remoteControlAtStartup": false,
   "agentPushNotifEnabled": true,
   "enabledPlugins": {

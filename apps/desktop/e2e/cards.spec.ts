@@ -233,3 +233,37 @@ test('fatura: reabrir, "ver fatura" de outro mês, próximas faturas, troca do m
         removeUserData(userData);
     }
 });
+
+test('fatura: editar e excluir as compras pela fatura, que Transações agrupa', async () => {
+    const { app, window: page, userData } = await launchApp();
+    try {
+        await completeFirstUse(page, { profileName: 'Gustavo', accountName: 'Nubank', openingBalance: '1.000,00' });
+        const period = currentPeriod(new Date());
+        await seedCards(page, period);
+        await openCards(page);
+        await page.getByRole('list', { name: 'Cartões' }).getByRole('link', { name: /^Roxinho/ }).dispatchEvent('click');
+        const lines = page.getByRole('region', { name: 'Lançamentos' });
+        const pharmacy = lines.getByRole('row').filter({ hasText: 'Farmácia' });
+        await expect(pharmacy).toContainText('R$ 150,00');
+
+        // O clique na linha abre o mesmo diálogo de edição de Transações.
+        await pharmacy.dispatchEvent('click');
+        const editor = page.getByRole('dialog', { name: 'Editar Farmácia' });
+        await expect(editor).toContainText(`Roxinho · fat.`);
+        await editor.getByLabel('Valor (BRL)').fill('180,00');
+        await editor.getByRole('button', { name: 'Salvar' }).dispatchEvent('click');
+        await expect(editor).toHaveCount(0);
+        await expect(pharmacy).toContainText('R$ 180,00');
+
+        // O "⋯" exclui, com o alerta de Transações.
+        await lines.getByRole('button', { name: 'Ações de Farmácia' }).press('Enter');
+        const remove = page.getByRole('menuitem', { name: 'Excluir…' });
+        await remove.focus();
+        await remove.press('Enter');
+        await page.getByRole('alertdialog').getByRole('button', { name: 'Excluir lançamento' }).dispatchEvent('click');
+        await expect(pharmacy).toHaveCount(0);
+    } finally {
+        await app.close();
+        removeUserData(userData);
+    }
+});

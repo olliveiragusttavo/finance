@@ -162,7 +162,7 @@ export function createCore(ports: CorePorts): Core {
 
     const recalculation = new BalanceRecalculationService(unitOfWork, accounts, statements, invoices, ledger, clock);
     const impacts = new ImpactCalculator(invoices, creditCards);
-    const consolidation = new StatementConsolidationService(unitOfWork, accounts, statements, invoices, transactions);
+    const consolidation = new StatementConsolidationService(unitOfWork, accounts, statements, invoices, transactions, profiles);
     const invoiceService = new InvoiceService(unitOfWork, creditCards, accounts, invoices, transactions, consolidation, impacts, recalculation);
     const composer = new TransactionComposer(profiles, accounts, creditCards, transactions, references, categories, tags, goals, consolidation, invoiceService);
     const recurrenceService = new RecurrenceService(unitOfWork, ids, clock, composer, transactions, recurrenceRepository, impacts, recalculation);
@@ -249,6 +249,7 @@ export function createCore(ports: CorePorts): Core {
         'recurrences.planDelete': (raw) => recurrenceController.planDelete(raw),
         'recurrences.topUp': (raw) => recurrenceController.topUp(raw),
         'statements.get': (raw) => statementController.getStatement(raw),
+        'statements.profileInvoices': (raw) => statementController.profileInvoices(raw),
         'balances.ofProfile': (raw) => statementController.profileBalances(raw),
         'balances.rebuildAccount': (raw) => statementController.rebuildAccount(raw),
         'invoices.suggest': (raw) => invoiceController.suggest(raw),

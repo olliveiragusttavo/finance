@@ -1,12 +1,20 @@
 import type { CreditCard } from '../domain/creditCard/CreditCard.ts';
 import type { Invoice } from '../domain/invoice/Invoice.ts';
-import type { AccountId, BankStatementId, CreditCardId, InvoiceId } from '../domain/shared/ids.ts';
+import type { AccountId, BankStatementId, CreditCardId, InvoiceId, ProfileId } from '../domain/shared/ids.ts';
 import type { YearMonth } from '../domain/shared/YearMonth.ts';
 
 /** Uma fatura junto do cartão dono, para quem precisa do ciclo de faturamento. */
 export interface InvoiceWithCard {
     readonly invoice: Invoice;
     readonly creditCard: CreditCard;
+}
+
+/**
+ * Fatura paga junto da conta em cujo extrato foi paga — que pode não ser a conta pagadora atual do
+ * cartão, se ela mudou depois do pagamento: a fatura pesa no extrato que a pagou.
+ */
+export interface PaidInvoiceWithAccount extends InvoiceWithCard {
+    readonly accountId: AccountId;
 }
 
 /** Acesso às faturas mensais. Toda leitura considera só faturas vivas. */
@@ -67,6 +75,29 @@ export interface InvoiceRepository {
      * cartão — o vencimento depende do ciclo de cada um.
      */
     listOpenByPayingAccount(accountId: AccountId, fromInvoicePeriod: YearMonth): readonly InvoiceWithCard[];
+
+    /**
+     * A versão por perfil de `listPaidInStatement`, numa consulta só: a lista de faturas do perfil
+     * é refeita a cada escrita de transação, e uma consulta por conta multiplicaria o custo pelo
+     * número de contas.
+     *
+     * @param profileId Perfil dono das contas.
+     * @param period Mês dos extratos.
+     * @return As faturas vivas pagas nos extratos vivos do mês das contas vivas do perfil, com o
+     * cartão e a conta do extrato.
+     */
+    listPaidInProfileStatements(profileId: ProfileId, period: YearMonth): readonly PaidInvoiceWithAccount[];
+
+    /**
+     * A versão por perfil de `listOpenByPayingAccount`, numa consulta só, pelo mesmo motivo de
+     * `listPaidInProfileStatements`.
+     *
+     * @param profileId Perfil dono das contas que quitam os cartões.
+     * @param fromInvoicePeriod Primeira competência de fatura incluída.
+     * @return As faturas vivas em aberto dos cartões vivos quitados por contas vivas do perfil,
+     * com o cartão — a conta pagadora é a do cartão.
+     */
+    listOpenByPayingProfile(profileId: ProfileId, fromInvoicePeriod: YearMonth): readonly InvoiceWithCard[];
 
     /**
      * @param accountId Conta que quita os cartões.

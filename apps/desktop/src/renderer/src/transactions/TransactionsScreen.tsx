@@ -1,5 +1,6 @@
 import {
     buildTransactionTable,
+    formatMonthAbbreviation,
     formatMonthShort,
     formatTransactionSituation,
     otherProfileAccountLabel,
@@ -9,13 +10,16 @@ import {
     useCoreMutation,
     useCreditCards,
     useInvoicesByCards,
+    useProfileInvoices,
     useRecurrences,
     useTags,
     useTransactions,
     useTransferTargets,
     type TransactionFilters,
+    type InvoiceTableRow,
     type TransactionRow,
     type TransactionTable,
+    type TransactionTableRow,
 } from '@finance/client';
 import type { AccountInPeriodResponse, CategoryBranchResponse, CoreInput, CreditCardInPeriodResponse, InvoiceResponse, TagResponse, TransactionResponse } from '@finance/core';
 import { useNavigate, useSearch } from '@tanstack/react-router';
@@ -71,6 +75,7 @@ export function TransactionsScreen(): ReactNode {
     const tags = useTags({ profileId: profile.id });
     const recurrences = useRecurrences({ profileId: profile.id });
     const invoices = useMonthInvoices(transactions.data);
+    const monthInvoices = useProfileInvoices({ profileId: profile.id, period });
     const [editor, setEditor] = useState<EditorState | null>(null);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [deleting, setDeleting] = useState<TransactionResponse | null>(null);
@@ -84,7 +89,7 @@ export function TransactionsScreen(): ReactNode {
 
     const table = useMemo(
         () =>
-            transactions.data === undefined || accounts.data === undefined || otherProfileAccounts.data === undefined || creditCards.data === undefined || categories.data === undefined
+            transactions.data === undefined || accounts.data === undefined || otherProfileAccounts.data === undefined || creditCards.data === undefined || categories.data === undefined || monthInvoices.data === undefined
                 ? null
                 : buildTransactionTable(
                       {
@@ -96,12 +101,13 @@ export function TransactionsScreen(): ReactNode {
                           categories: categories.data,
                           invoices,
                           recurrences: recurrences.data ?? [],
+                          monthInvoices: monthInvoices.data,
                       },
                       filters,
                   ),
-        [profile.id, transactions.data, accounts.data, otherProfileAccounts.data, creditCards.data, categories.data, invoices, recurrences.data, filters],
+        [profile.id, transactions.data, accounts.data, otherProfileAccounts.data, creditCards.data, categories.data, invoices, recurrences.data, monthInvoices.data, filters],
     );
-    const failed = [transactions, accounts, otherProfileAccounts, creditCards, categories].find((query) => query.error !== null)?.error ?? null;
+    const failed = [transactions, accounts, otherProfileAccounts, creditCards, categories, monthInvoices].find((query) => query.error !== null)?.error ?? null;
     // Nomes das contas do outro perfil para o alerta de exclusão de uma transferência que sai daqui.
     const namedAccounts = useMemo(
         () => [...(accounts.data?.accounts ?? []), ...(otherProfileAccounts.data ?? []).map((account) => ({ id: account.id, name: otherProfileAccountLabel(account) }))],
@@ -125,6 +131,38 @@ export function TransactionsScreen(): ReactNode {
     };
 
     /**
+     * A linha da fatura leva à fatura em Cartões, onde estão as compras, o pagamento e a reabertura
+     * (desktop-mvp-plan Fase 11.1).
+     *
+     * @param row Linha da fatura.
+     */
+    const openInvoice = (row: InvoiceTableRow): void => {
+        void navigate({ to: '/cards', search: { card: row.invoice.creditCardId, invoice: row.invoice.period } });
+    };
+
+    /**
+     * Lançamento gravado. A compra no cartão não aparece na tabela agrupada, então a tela diz em
+     * que fatura ela caiu e oferece abri-la, em vez de parecer que o lançamento sumiu.
+     *
+     * @param saved Lançamento gravado pelo formulário.
+     */
+    const onSaved = (saved: TransactionResponse): void => {
+        setSelectedId(saved.id);
+        const { container } = saved;
+        if (table?.grouped === true && container.kind === 'invoice' && saved.destinationAccountId === null) {
+            const card = creditCards.data?.creditCards.find((item) => item.id === container.creditCardId)?.name ?? 'do cartão';
+            toast.info(`Está na fatura ${card} · ${formatMonthAbbreviation(container.period)}, que aparece aqui no mês em que pesa na conta.`, {
+                action: {
+                    label: 'Ver fatura',
+                    onClick: () => {
+                        void navigate({ to: '/cards', search: { card: container.creditCardId, invoice: container.period } });
+                    },
+                },
+            });
+        }
+    };
+
+    /**
      * @param next Filtros escolhidos; substituem os da URL sem criar entrada no histórico a cada
      * tecla da busca.
      */
@@ -136,15 +174,20 @@ export function TransactionsScreen(): ReactNode {
      * Atalho `P`: marca ou desmarca o pagamento com a data de hoje.
      * Regra de negócio (Cartão, database-design §4.7): numa compra no cartão quem decide se o
      * dinheiro saiu é a fatura, não a compra; marcar a compra não mudaria a situação mostrada, e a
-     * tela diz onde pagar.
+     * tela diz onde pagar. O pagamento parcial é a exceção: é dinheiro que sai da conta no dia
+     * dele, com a situação própria. A linha da fatura também leva a Cartões, onde se paga.
      *
      * @param row Linha selecionada.
      */
-    const togglePaid = (row: TransactionRow): void => {
+    const togglePaid = (row: TransactionTableRow): void => {
+        if (row.kind === 'invoice') {
+            toast.info('Para pagar ou reabrir a fatura, abra-a em Cartões (Enter).');
+            return;
+        }
         if (blockedReadOnly(row)) {
             return;
         }
-        if (row.transaction.container.kind === 'invoice') {
+        if (row.transaction.container.kind === 'invoice' && !row.invoicePayment) {
             toast.info('A situação de uma compra no cartão é a da fatura: pague ou reabra a fatura em Cartões.');
             return;
         }
@@ -174,6 +217,9 @@ export function TransactionsScreen(): ReactNode {
                 summary={table?.summary ?? null}
                 onChange={changeFilters}
             />
+            {table?.grouped === true && table.rows.some((row) => row.kind === 'invoice') && (
+                <p className="text-12 text-muted">As compras no cartão estão na linha de cada fatura, no dia em que ela pesa na conta. Filtre por cartão, categoria, tag ou busca para vê-las uma a uma.</p>
+            )}
             <section aria-label="Lançamentos do mês" className="min-w-0 overflow-hidden rounded-10 border border-line bg-surface text-13">
                 {failed !== null ? (
                     <div className="p-4">
@@ -200,13 +246,17 @@ export function TransactionsScreen(): ReactNode {
                         onSelect={setSelectedId}
                         onEdit={(row) => {
                             setSelectedId(row.id);
-                            if (!blockedReadOnly(row)) {
+                            if (row.kind === 'invoice') {
+                                openInvoice(row);
+                            } else if (!blockedReadOnly(row)) {
                                 setEditor({ mode: 'edit', transaction: row.transaction });
                             }
                         }}
                         onTogglePaid={togglePaid}
                         onDelete={(row) => {
-                            if (!blockedReadOnly(row)) {
+                            if (row.kind === 'invoice') {
+                                toast.info('A fatura não se exclui: abra-a (Enter) para editar ou excluir as compras dela.');
+                            } else if (!blockedReadOnly(row)) {
                                 setDeleting(row.transaction);
                             }
                         }}
@@ -223,9 +273,7 @@ export function TransactionsScreen(): ReactNode {
                     onClose={() => {
                         setEditor(null);
                     }}
-                    onSaved={(saved) => {
-                        setSelectedId(saved.id);
-                    }}
+                    onSaved={onSaved}
                     onDelete={(transaction) => {
                         setDeleting(transaction);
                     }}

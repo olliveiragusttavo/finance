@@ -78,7 +78,7 @@ test('o menu leva a todas as telas e o mês de referência acompanha a navegaç�
         // Relatórios abrem os subitens; "Por sócio" só no perfil empresarial.
         await openMenuItem(page, 'Relatórios');
         const menu = page.getByRole('navigation', { name: 'Navegação principal' });
-        await expect(page.getByRole('heading', { level: 1 })).toHaveText('Relatório por categoria');
+        await expect(page.getByRole('heading', { level: 1 })).toHaveText('Por categoria');
         await expect(menu.getByRole('link', { name: 'Por categoria' })).toHaveAttribute('aria-current', 'page');
         await expect(menu.getByRole('link', { name: 'Fluxo por conta' })).toBeVisible();
         await expect(menu.getByRole('link', { name: 'Por sócio' })).toHaveCount(0);

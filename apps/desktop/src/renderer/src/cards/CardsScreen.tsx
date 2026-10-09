@@ -6,6 +6,7 @@ import {
     formatInvoiceAmount,
     formatInvoiceSituation,
     formatMoney,
+    formatMonthAbbreviation,
     formatMonthLong,
     formatMonthShort,
     useAccounts,
@@ -13,9 +14,10 @@ import {
     useCreditCards,
     useInvoice,
     useInvoicesByCard,
+    useRecurrences,
     type InvoiceLine,
 } from '@finance/client';
-import type { AccountInPeriodResponse, CreditCardInPeriodResponse, CreditCardListResponse, InvoiceCycleResponse } from '@finance/core';
+import type { AccountInPeriodResponse, CreditCardInPeriodResponse, CreditCardListResponse, InvoiceCycleResponse, TransactionResponse } from '@finance/core';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { EmptyState, QueryState, Skeleton } from '@/components/states';
@@ -29,6 +31,8 @@ import { StatusTag } from '@/registry/registryUi';
 import { useActiveProfile } from '@/shell/activeProfile';
 import { currentDate } from '@/shell/referenceMonth';
 import { useReferenceMonth } from '@/shell/useReferenceMonth';
+import { DeleteTransactionDialog } from '@/transactions/DeleteTransactionDialog';
+import { TransactionDialog } from '@/transactions/TransactionDialog';
 import { openCreditCard, openInvoicePeriod, parseCardsSearch, shouldDropInvoice, type CardsLocation } from './cardsSearch.ts';
 import { PartialPaymentDialog, PayInvoiceDialog, ReopenInvoiceDialog, type InvoiceActionTarget } from './InvoiceDialogs.tsx';
 
@@ -488,16 +492,24 @@ function FigureCard({ label, children }: { readonly label: string; readonly chil
 
 /**
  * Lançamentos da fatura (mockup): data, lançamento, categoria e valor, com o total. Sem fatura
- * no mês não há o que consultar, e a tabela diz isso.
+ * no mês não há o que consultar, e a tabela diz isso. É aqui que se editam e excluem as compras
+ * do cartão: em Transações, sem filtro, elas ficam agrupadas na linha da fatura
+ * (desktop-mvp-plan Fase 11.1). Editar e excluir usam os mesmos diálogos de Transações, com o
+ * escopo das séries.
  *
  * @param props.cycle Competência aberta.
- * @param props.accounts Contas do perfil, para a origem dos pagamentos parciais.
+ * @param props.accounts Contas do perfil, para a origem dos pagamentos parciais e o alerta de exclusão.
  * @return A tabela.
  */
 function InvoiceLines({ cycle, accounts }: { readonly cycle: InvoiceCycleResponse; readonly accounts: readonly AccountInPeriodResponse[] }): ReactNode {
     const { profile } = useActiveProfile();
+    const { period } = useReferenceMonth();
     const detail = useInvoice(cycle.invoice === null ? null : { invoiceId: cycle.invoice.id });
     const categories = useCategoryTree({ profileId: profile.id });
+    const creditCards = useCreditCards({ profileId: profile.id, period });
+    const recurrences = useRecurrences({ profileId: profile.id });
+    const [editing, setEditing] = useState<TransactionResponse | null>(null);
+    const [deleting, setDeleting] = useState<TransactionResponse | null>(null);
     if (cycle.invoice === null) {
         return (
             <section aria-label="Lançamentos" className="rounded-10 border border-line bg-surface px-4 py-6 text-center text-13 text-muted">
@@ -506,55 +518,122 @@ function InvoiceLines({ cycle, accounts }: { readonly cycle: InvoiceCycleRespons
         );
     }
     return (
-        <QueryState query={detail} loading={<Skeleton className="h-60" />}>
-            {(invoice) => (
-                <QueryState query={categories} loading={<Skeleton className="h-60" />}>
-                    {(tree) => {
-                        const table = buildInvoiceTable({ invoice, accounts, categories: tree });
-                        return (
-                            <section aria-label="Lançamentos" className="overflow-hidden rounded-10 border border-line bg-surface">
-                                <Table className="text-13">
-                                    <TableHeader className="bg-surface2">
-                                        <TableRow className="border-line hover:bg-transparent">
-                                            <TableHead className="w-16 pl-4 text-12 font-normal text-muted">Data</TableHead>
-                                            <TableHead className="text-12 font-normal text-muted">Lançamento</TableHead>
-                                            <TableHead className="text-12 font-normal text-muted">Categoria › Sub</TableHead>
-                                            <TableHead className="pr-4 text-right text-12 font-normal text-muted">Valor</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {table.lines.map((line) => (
-                                            <InvoiceLineRow key={line.key} line={line} />
-                                        ))}
-                                    </TableBody>
-                                    <TableFooter className="bg-surface2">
-                                        <TableRow className="border-line hover:bg-transparent">
-                                            <TableCell />
-                                            <TableCell className="font-semibold">Total</TableCell>
-                                            <TableCell />
-                                            <TableCell className="pr-4 text-right font-semibold tabular-nums">{table.totalText}</TableCell>
-                                        </TableRow>
-                                    </TableFooter>
-                                </Table>
-                            </section>
-                        );
+        <>
+            <QueryState query={detail} loading={<Skeleton className="h-60" />}>
+                {(invoice) => (
+                    <QueryState query={categories} loading={<Skeleton className="h-60" />}>
+                        {(tree) => {
+                            const table = buildInvoiceTable({ invoice, accounts, categories: tree });
+                            /**
+                             * @param line Linha da fatura.
+                             * @return O lançamento inteiro da linha, para os diálogos; `null` se
+                             * a fatura recarregou sem ele.
+                             */
+                            const transactionOf = (line: InvoiceLine): TransactionResponse | null => invoice.transactions.find((item) => item.id === line.transactionId) ?? null;
+                            return (
+                                <section aria-label="Lançamentos" className="overflow-hidden rounded-10 border border-line bg-surface">
+                                    <Table className="text-13">
+                                        <TableHeader className="bg-surface2">
+                                            <TableRow className="border-line hover:bg-transparent">
+                                                <TableHead className="w-16 pl-4 text-12 font-normal text-muted">Data</TableHead>
+                                                <TableHead className="text-12 font-normal text-muted">Lançamento</TableHead>
+                                                <TableHead className="text-12 font-normal text-muted">Categoria › Sub</TableHead>
+                                                <TableHead className="text-right text-12 font-normal text-muted">Valor</TableHead>
+                                                <TableHead className="w-12 pr-4">
+                                                    <span className="sr-only">Ações</span>
+                                                </TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {table.lines.map((line) => (
+                                                <InvoiceLineRow
+                                                    key={line.key}
+                                                    line={line}
+                                                    onEdit={() => {
+                                                        setEditing(transactionOf(line));
+                                                    }}
+                                                    onDelete={() => {
+                                                        setDeleting(transactionOf(line));
+                                                    }}
+                                                />
+                                            ))}
+                                        </TableBody>
+                                        <TableFooter className="bg-surface2">
+                                            <TableRow className="border-line hover:bg-transparent">
+                                                <TableCell />
+                                                <TableCell className="font-semibold">Total</TableCell>
+                                                <TableCell />
+                                                <TableCell className="text-right font-semibold tabular-nums">{table.totalText}</TableCell>
+                                                <TableCell />
+                                            </TableRow>
+                                        </TableFooter>
+                                    </Table>
+                                </section>
+                            );
+                        }}
+                    </QueryState>
+                )}
+            </QueryState>
+            {editing !== null && (
+                <TransactionDialog
+                    key={editing.id}
+                    transaction={editing}
+                    container={`${detail.data?.creditCardName ?? ''} · fat. ${formatMonthAbbreviation(cycle.period)}`}
+                    recurrence={recurrences.data?.find((recurrence) => recurrence.id === editing.recurrenceId) ?? null}
+                    onClose={() => {
+                        setEditing(null);
                     }}
-                </QueryState>
+                    onDelete={(transaction) => {
+                        setDeleting(transaction);
+                    }}
+                />
             )}
-        </QueryState>
+            {deleting !== null && (
+                <DeleteTransactionDialog
+                    transaction={deleting}
+                    accounts={accounts}
+                    creditCards={creditCards.data?.creditCards ?? []}
+                    onClose={() => {
+                        setDeleting(null);
+                    }}
+                    onDeleted={() => {
+                        setEditing((current) => (current?.id === deleting.id ? null : current));
+                    }}
+                />
+            )}
+        </>
     );
 }
 
 /**
  * Uma linha da fatura. O estorno e o pagamento parcial se leem pela etiqueta, pelo sinal e pelo
- * `⇄`, não só pela cor (decisão de interface 7).
+ * `⇄`, não só pela cor (decisão de interface 7). O clique e o `Enter` editam e o `Del` exclui,
+ * como na tabela de Transações; o "⋯" tem as duas ações para quem não usa o teclado.
  *
  * @param props.line Linha montada pelo view-model.
+ * @param props.onEdit Abre a edição do lançamento.
+ * @param props.onDelete Abre a confirmação de excluir o lançamento.
  * @return A linha da tabela.
  */
-function InvoiceLineRow({ line }: { readonly line: InvoiceLine }): ReactNode {
+function InvoiceLineRow({ line, onEdit, onDelete }: { readonly line: InvoiceLine; readonly onEdit: () => void; readonly onDelete: () => void }): ReactNode {
     return (
-        <TableRow className="border-line2">
+        <TableRow
+            tabIndex={0}
+            className="cursor-pointer border-line2 outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset"
+            onClick={onEdit}
+            onKeyDown={(event) => {
+                if (event.target !== event.currentTarget || event.ctrlKey || event.altKey || event.metaKey) {
+                    return;
+                }
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    onEdit();
+                } else if (event.key === 'Delete') {
+                    event.preventDefault();
+                    onDelete();
+                }
+            }}
+        >
             <TableCell className="pl-4 tabular-nums">{line.date}</TableCell>
             <TableCell className="whitespace-normal">
                 <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
@@ -565,7 +644,29 @@ function InvoiceLineRow({ line }: { readonly line: InvoiceLine }): ReactNode {
                 </span>
             </TableCell>
             <TableCell className="whitespace-normal text-ink2">{line.category}</TableCell>
-            <TableCell className={cn('pr-4 text-right font-semibold tabular-nums', line.kind !== 'purchase' && 'text-in')}>{line.amountText}</TableCell>
+            <TableCell className={cn('text-right font-semibold tabular-nums', line.kind !== 'purchase' && 'text-in')}>{line.amountText}</TableCell>
+            <TableCell
+                className="pr-4 text-right"
+                onClick={(event) => {
+                    // O menu não abre a edição da linha por baixo dele.
+                    event.stopPropagation();
+                }}
+            >
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" aria-label={`Ações de ${line.name}`}>
+                            ⋯
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem onSelect={onEdit}>Editar</DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem variant="destructive" onSelect={onDelete}>
+                            Excluir…
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </TableCell>
         </TableRow>
     );
 }

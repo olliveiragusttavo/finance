@@ -21,7 +21,7 @@ import type { CategoryReportResponse } from '../dto/reports/CategoryReportRespon
 import type { CategoryTransactionsResponse } from '../dto/reports/CategoryTransactionsResponse.ts';
 import type { MonthSummaryResponse } from '../dto/reports/MonthSummaryResponse.ts';
 import type { NoteResponse } from '../dto/notes/NoteResponse.ts';
-import type { StatementResponse } from '../dto/statements/StatementResponse.ts';
+import type { ProfileInvoiceResponse, StatementResponse } from '../dto/statements/StatementResponse.ts';
 import type { TagResponse, TagUsageResponse } from '../dto/tags/TagResponse.ts';
 import type { GoalContributionResponse, GoalOptionResponse, GoalProgressResponse, GoalResponse } from '../dto/goals/GoalResponse.ts';
 import type { OccurrencePreviewResponse, RecurrenceResponse } from '../dto/recurrences/RecurrenceResponse.ts';
@@ -61,7 +61,7 @@ import type {
     recurrenceIdRequest,
     topUpRecurrencesRequest,
 } from '../requests/recurrenceRequests.ts';
-import type { getStatementRequest } from '../requests/statementRequests.ts';
+import type { getStatementRequest, profileInvoicesRequest } from '../requests/statementRequests.ts';
 import type { createTagRequest, listTagsRequest, renameTagRequest, tagIdRequest } from '../requests/tagRequests.ts';
 import type { createGoalRequest, goalIdRequest, goalOptionsRequest, listGoalsRequest, updateGoalRequest } from '../requests/goalRequests.ts';
 import type {
@@ -135,6 +135,7 @@ export interface CoreRoutes {
     'recurrences.planDelete': { input: z.input<typeof planDeleteRequest>; output: SeriesPlanResponse };
     'recurrences.topUp': { input: z.input<typeof topUpRecurrencesRequest>; output: TopUpResponse };
     'statements.get': { input: z.input<typeof getStatementRequest>; output: StatementResponse };
+    'statements.profileInvoices': { input: z.input<typeof profileInvoicesRequest>; output: readonly ProfileInvoiceResponse[] };
     'balances.ofProfile': { input: z.input<typeof profileBalancesRequest>; output: ProfileBalancesResponse };
     'balances.rebuildAccount': { input: z.input<typeof rebuildAccountRequest>; output: AccountBalanceResponse };
     'invoices.suggest': { input: z.input<typeof suggestInvoiceRequest>; output: InvoiceSuggestionResponse };

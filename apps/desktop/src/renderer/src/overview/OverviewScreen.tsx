@@ -23,6 +23,7 @@ import { useState, type ReactNode } from 'react';
 import { EmptyState, QueryState, Skeleton } from '@/components/states';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ViewToggle } from '@/components/ViewToggle';
 import { cn } from '@/lib/cn';
 import { StatusTag } from '@/registry/registryUi';
 import { useActiveProfile } from '@/shell/activeProfile';
@@ -187,31 +188,6 @@ function BalanceEvolution({ profileId, period, currency }: MonthScope & { readon
                 }}
             </QueryState>
         </section>
-    );
-}
-
-/**
- * Botão da alternância Gráfico/Tabela. `aria-pressed`, e não abas, porque as duas opções
- * mostram o mesmo conteúdo de dois jeitos.
- *
- * @param props.pressed Se é a opção escolhida.
- * @param props.onClick Escolhe a opção.
- * @param props.children Rótulo.
- * @return O botão.
- */
-function ViewToggle({ pressed, onClick, children }: { readonly pressed: boolean; readonly onClick: () => void; readonly children: string }): ReactNode {
-    return (
-        <button
-            type="button"
-            aria-pressed={pressed}
-            onClick={onClick}
-            className={cn(
-                'rounded-6 border px-2.5 py-1.25 text-13 outline-none focus-visible:ring-[3px] focus-visible:ring-accent/50',
-                pressed ? 'border-accent bg-soft text-soft-ink' : 'border-line bg-surface text-ink hover:bg-surface2',
-            )}
-        >
-            {children}
-        </button>
     );
 }
 
