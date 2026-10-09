@@ -5,3 +5,6 @@ coverage/
 *.tsbuildinfo
 .devcontainer/.env
 .env
+.claude/code-review
+# Saída padrão do graphify, caso ele rode sem o GRAPHIFY_OUT do devcontainer.
+graphify-out/
