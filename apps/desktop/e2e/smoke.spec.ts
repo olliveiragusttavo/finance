@@ -23,7 +23,7 @@ test('abre, cria perfil, lança uma despesa e vê no extrato; os dados sobrevive
         const period = currentPeriod(new Date());
         const page = first.window;
         await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('link', { name: 'Transações', exact: true }).dispatchEvent('click');
-        await page.getByRole('button', { name: '+ Lançamento' }).dispatchEvent('click');
+        await page.getByRole('banner').getByRole('button', { name: '+ Lançamento' }).dispatchEvent('click');
         const column = page.getByRole('dialog', { name: 'Novo lançamento' });
         await column.getByLabel('Valor (BRL)').fill('123,45');
         await column.getByLabel('Nome').fill('Mercado');

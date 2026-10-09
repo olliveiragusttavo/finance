@@ -1,6 +1,6 @@
 # Plano do MVP Desktop — CRUD e primeiros relatórios
 
-**Status:** Em andamento — Fases 0 a 9.3 concluídas (ficaram pendentes só o `Ctrl K` da Fase 4 e a pendência da Fase 9.2 que depende da sincronização). Primeira entrega com tela do projeto: o app desktop
+**Status:** Em andamento — Fases 0 a 10 concluídas (ficaram pendentes só o `Ctrl K` da Fase 4 e a pendência da Fase 9.2 que depende da sincronização). Primeira entrega com tela do projeto: o app desktop
 (Electron) com os cadastros e lançamentos básicos e os dois primeiros relatórios
 personalizados, que são a motivação original do projeto ([README](../../README.md#motivação)).
 O mobile fica inteiro para depois.
@@ -474,10 +474,11 @@ decisões tomadas antes do código foram:
 
 ### Fase 10 — Visão geral
 
-- [ ] KPIs: consolidado, previsto, receitas, despesas (com variação), faturas em aberto
-- [ ] Evolução do saldo (6 meses, consolidado × previsto) com alternância Gráfico/Tabela
-- [ ] Maiores categorias do mês (de `reports.byCategory`) com link para o relatório
-- [ ] Resumo de contas e de cartões com navegação para os detalhes
+- [x] KPIs: consolidado, previsto, receitas, despesas (com variação), faturas em aberto — view-model `overviewView.ts` no `client`. **Decisões:** consolidado e previsto vêm do total do `accounts.list`, o mesmo número do rodapé de Contas, e a contagem do subtítulo conta só as contas que entram no total; despesas sem base no mês anterior dizem "Sem despesas no mês anterior" em vez de "novo" (R6); com mais de uma fatura vencendo no mês, o subtítulo diz "a primeira vence dd/mm"
+- [x] Evolução do saldo (6 meses, consolidado × previsto) com alternância Gráfico/Tabela — primeiro uso do `Chart`: barras do consolidado cheias e do previsto tracejadas, na mesma cor, como no mockup. **Decisão:** o eixo mostra o mês abreviado (`mai` … `out`), com o de referência em destaque, no lugar dos "−5 … mês ref." do mockup; sem eixo de valores, que ficam na dica e na tabela. A escolha Gráfico/Tabela não é guardada
+- [x] Maiores categorias do mês (de `reports.byCategory`) com link para o relatório — as 4 maiores, na ordem do núcleo, com a barra relativa à maior; categoria zerada ou negativa por estornos fica fora (R2)
+- [x] Resumo de contas e de cartões com navegação para os detalhes — cada linha leva à conta (`/accounts?account=`) ou ao cartão (`/cards?card=`); conta fora do total apagada e só com o consolidado, desativadas com etiqueta, perfil sem cartão com o estado vazio
+- [x] Testes: `client` (`test/overviewView.test.ts`) e ponta a ponta (`e2e/overview.spec.ts`: indicadores, gráfico e tabela, maiores categorias, resumos, navegação e troca de mês)
 
 ### Fase 11 — Relatório por categoria
 
