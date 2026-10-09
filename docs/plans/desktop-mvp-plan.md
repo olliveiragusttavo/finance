@@ -1,6 +1,6 @@
 # Plano do MVP Desktop — CRUD e primeiros relatórios
 
-**Status:** Em andamento — Fases 0 a 10 concluídas (ficaram pendentes só o `Ctrl K` da Fase 4 e a pendência da Fase 9.2 que depende da sincronização). Primeira entrega com tela do projeto: o app desktop
+**Status:** Em andamento — Fases 0 a 11.1 concluídas (ficaram pendentes só o `Ctrl K` da Fase 4, a pendência da Fase 9.2 que depende da sincronização e a decisão da Fase 11.1 sobre a data dos lançamentos de conta em Transações). Primeira entrega com tela do projeto: o app desktop
 (Electron) com os cadastros e lançamentos básicos e os dois primeiros relatórios
 personalizados, que são a motivação original do projeto ([README](../../README.md#motivação)).
 O mobile fica inteiro para depois.
@@ -482,12 +482,45 @@ decisões tomadas antes do código foram:
 
 ### Fase 11 — Relatório por categoria
 
-- [ ] Seletor de comparação (mês anterior, mesmo mês do ano anterior, média dos 3 meses)
-- [ ] Trilha de navegação (Todas › Categoria › Subcategoria)
-- [ ] Tabela expansível categoria → subcategoria com período, comparação, variação (▲▼= e sinal, não só cor) e %; total de despesas
-- [ ] Gráfico de barras agrupadas (período × comparação) da categoria aberta, com tooltip, clique para descer um nível e alternância para tabela equivalente
-- [ ] Lista de lançamentos da subcategoria selecionada, com "Abrir em Transações →" levando os filtros
-- [ ] Estados: mês sem despesas; categoria sem lançamentos no período mas com na comparação
+- [x] Seletor de comparação (mês anterior, mesmo mês do ano anterior, média dos 3 meses) — no *search param* `comparison` (`reports/categoryReportSearch.ts`), validado pela lista do domínio (`COMPARISON_MODES`, agora exportada pelo núcleo); a padrão fica fora da URL. Trocar a comparação não fecha o nível aberto
+- [x] Trilha de navegação (Todas › Categoria › Subcategoria) — o nível aberto fica na URL (`category` ou `subCategory`), e cada nível é uma entrada no histórico: "Voltar" sobe um nível. O id que sumiu do relatório (mês novo sem gasto nem na comparação) volta à raiz (`resolveCategorySelection` no `client`)
+- [x] Tabela expansível categoria → subcategoria com período, comparação, variação (▲▼= e sinal, não só cor) e %; total de despesas. **Decisão:** o ▸/▾ só abre e fecha as subcategorias, e o nome é o link que desce no drill-down — duas ações, dois controles, para que abrir a lista não troque o gráfico nem os lançamentos; abrir uma categoria pelo drill-down também a expande
+- [x] Gráfico de barras agrupadas (período × comparação) da categoria aberta, com tooltip, clique para descer um nível e alternância para tabela equivalente — barras horizontais como no mockup (período cheio, comparação tracejada, na mesma cor). **Decisões:** na raiz, o gráfico mostra as categorias (o clique abre a categoria); na subcategoria, mostra as irmãs com a selecionada em destaque, porque o último nível não tem para onde descer. O clique vale para a linha inteira, não só para a barra (que pode ter largura zero); a tabela equivalente tem os nomes como links, o caminho pelo teclado. Subcategoria só com estorno desenha a barra negativa. O `ViewToggle` da Visão geral foi para `components/ViewToggle.tsx`
+- [x] Lista de lançamentos da subcategoria selecionada, com "Abrir em Transações →" levando os filtros — da rota `reports.categoryTransactions` (mês do pagamento), com Data, Nome, Conta / fatura, Tags e Valor e o total do núcleo (`buildCategoryTransactionList`, que reaproveita a linha da tabela de Transações). **Decisões:** a lista também aparece com a categoria inteira aberta, com a coluna Subcategoria; a data é o vencimento, a mesma da tela de Transações. O link leva o mês e a categoria ou subcategoria como filtro; com o filtro, Transações mostra as compras no cartão uma a uma (Fase 11.1). Continua uma diferença: a lista filtrada de Transações é pelo vencimento (`transactions.listByPeriod`), então a compra de um mês anterior numa fatura paga neste mês aparece no relatório deste mês e, em Transações, no mês da compra
+- [x] Estados: mês sem despesas; categoria sem lançamentos no período mas com na comparação — sem gasto no período nem na comparação, o estado vazio com o link para Transações; sem gasto só no período, a tabela com as linhas da comparação e um aviso acima dela; a categoria ou subcategoria aberta sem lançamentos no mês explica que a linha aparece pelo gasto da comparação
+- [x] Testes: `client` (`test/categoryReport.test.ts`: árvore, seleção, trilha, gráfico por nível, estados e a lista contra o núcleo real — a compra de agosto na fatura paga em outubro, estorno e tags), desktop (`test/categoryReport.test.ts`: URL do relatório) e ponta a ponta (`e2e/categoryReport.spec.ts`: estado vazio, valores e variação, drill-down pela tabela, pelo gráfico e pela trilha, abrir e fechar subcategorias, "Abrir em Transações", "Voltar" subindo um nível, troca da comparação e o mês sem gasto)
+
+### Fase 11.1 — Transações agrupadas por fatura
+
+Entrou depois da Fase 11, a pedido: listadas uma a uma, as compras no cartão poluem a lista do
+mês de Transações. Diverge do mockup `DesktopTransacoes`, que lista as compras com "Roxinho · fat.
+nov" — o mockup é referência, e a divergência foi aprovada. Decisões tomadas antes do código:
+
+- **Sem nenhum filtro**, as compras e os estornos do cartão saem da lista e cada fatura que pesa no
+  mês vira uma linha ("Fatura Roxinho · out", categoria "Fatura do cartão", a conta que paga);
+  clicar nela, ou `Enter`, abre a fatura em Cartões. **Com qualquer filtro** (busca, conta ou
+  cartão, categoria, tag, situação), quem filtra procura um item, e as compras voltam uma a uma —
+  o painel de Tags e o "Abrir em Transações" do relatório continuam achando as compras no cartão.
+- **Data da linha:** a do pagamento, quando a fatura foi paga; senão, a do vencimento — a mesma
+  regra do extrato e dos relatórios. **Valor:** o que falta pagar (`balance`), líquido dos
+  pagamentos parciais, como no extrato.
+- **Pagamento parcial** continua como linha própria, porque saiu da conta noutro dia; com a
+  situação dele (Pago/Pendente), e não a da fatura. Na lista agrupada ele conta no resultado, pelo
+  efeito na conta pagadora, já que a fatura vem líquida dele; na lista filtrada, não, porque as
+  compras já contam.
+- **Editar e excluir** compras no cartão passaram a existir também na fatura em Cartões (clique ou
+  `Enter` editam, `Del` e o "⋯" excluem), com os mesmos diálogos de Transações.
+
+**Núcleo**
+- [x] Rota `statements.profileInvoices` (perfil, mês): as faturas que pesam no mês em todas as contas do perfil, com a conta pagadora e a data de caixa. Sai da mesma consulta do extrato (`StatementConsolidationService.monthInvoices`), para que Transações e extrato concordem por construção
+- [x] Testes: `test/services/profileInvoices.test.ts` (paga com atraso conta no mês do pagamento, em aberto no vencimento, parcial abatendo o valor, concordância com os extratos, perfil inexistente)
+
+**Client e desktop**
+- [x] Rota no mapa de invalidação (`MONEY`) e hook `useProfileInvoices`
+- [x] `buildTransactionTable` agrupa sem filtro (`TransactionTableRow` = lançamento ou fatura; `grouped` na tabela); a linha da fatura abre a fatura, `P` e `Del` nela explicam onde agir; a tela avisa acima da tabela que as compras estão nas faturas, e o lançamento novo no cartão avisa em que fatura caiu, com "Ver fatura"
+- [x] Lançamentos da fatura em Cartões com editar e excluir
+- [x] Testes: `client` (`test/transactionGrouping.test.ts`: agrupado, parcial, filtros e o resultado), ponta a ponta (`e2e/transactions.spec.ts`: a linha da fatura e o link; a compra nova avisa a fatura e aparece pelo filtro; `e2e/recurrences.spec.ts`: parcelas pela busca; `e2e/cards.spec.ts`: editar e excluir pela fatura)
+- [ ] **A decidir:** os lançamentos de conta continuam listados pelo **vencimento** (`transactions.listByPeriod`), e não pela data do pagamento como a linha da fatura — a despesa que vence em 28/10 e é paga em 02/11 aparece em outubro em Transações e em novembro no extrato
 
 ### Fase 12 — Impacto do cartão
 

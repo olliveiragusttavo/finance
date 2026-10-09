@@ -1,5 +1,5 @@
-import { Currency, Money } from '@finance/core';
-import type { AccountResponse, CategoryBranchResponse, CreditCardResponse, InvoiceResponse, MoneyResponse, RecurrenceResponse, TransactionResponse } from '@finance/core';
+import { Currency, Money, YearMonth } from '@finance/core';
+import type { AccountResponse, CategoryBranchResponse, CreditCardResponse, InvoiceResponse, MoneyResponse, ProfileInvoiceResponse, RecurrenceResponse, TransactionResponse } from '@finance/core';
 import { formatDayMonth, formatMonthAbbreviation } from '../format/dates.ts';
 import { formatMoney } from '../format/money.ts';
 import { matchesAllTerms, normalizeForSearch } from '../format/searchText.ts';
@@ -22,8 +22,11 @@ const SITUATION_LABELS: Readonly<Record<TransactionSituation, string>> = {
     invoicePaid: 'Fat. paga',
 };
 
-/** Como o valor da linha se lê, sem depender só da cor (decisão de interface 7). */
-export type TransactionDirection = 'in' | 'out' | 'transfer';
+/**
+ * Como o valor da linha se lê, sem depender só da cor (decisão de interface 7). `none` é o valor
+ * zero, que nem entra nem sai — a fatura zerada por um estorno não pode aparecer como entrada.
+ */
+export type TransactionDirection = 'in' | 'out' | 'transfer' | 'none';
 
 /** Os dados que a tela de Transações já tem em cache, juntados numa linha legível. */
 export interface TransactionTableSource {
@@ -35,7 +38,11 @@ export interface TransactionTableSource {
     readonly transactions: readonly TransactionResponse[];
     /** Todas as contas do perfil, desativadas incluídas: o histórico continua mostrando o nome. */
     readonly accounts: readonly Pick<AccountResponse, 'id' | 'name'>[];
-    readonly creditCards: readonly Pick<CreditCardResponse, 'id' | 'name'>[];
+    /**
+     * Cartões do perfil. A conta pagadora diz se a fatura do cartão pode ter linha própria na
+     * tabela agrupada: só a fatura de uma conta listada em `accounts` é listada pelo núcleo.
+     */
+    readonly creditCards: readonly Pick<CreditCardResponse, 'id' | 'name' | 'accountId'>[];
     readonly categories: readonly CategoryBranchResponse[];
     /**
      * Faturas conhecidas, para a situação das compras no cartão. Uma compra cuja fatura não
@@ -51,10 +58,17 @@ export interface TransactionTableSource {
      * aparecem como internas e sem o nome do outro lado.
      */
     readonly otherProfileAccounts?: readonly OtherProfileAccount[];
+    /**
+     * Faturas que pesam no mês (`statements.profileInvoices`). Com elas e sem nenhum filtro, a
+     * tabela agrupa as compras do cartão na linha da fatura; ausentes, as compras aparecem uma
+     * a uma, como num filtro.
+     */
+    readonly monthInvoices?: readonly ProfileInvoiceResponse[];
 }
 
-/** Uma linha da tabela, com os textos prontos e os valores crus para ordenar e filtrar. */
+/** Uma linha de lançamento da tabela, com os textos prontos e os valores crus para ordenar e filtrar. */
 export interface TransactionRow {
+    readonly kind: 'transaction';
     readonly id: string;
     readonly transaction: TransactionResponse;
     /** Vencimento `YYYY-MM-DD`, para ordenar; a lista do mês vem pelo vencimento. */
@@ -85,7 +99,47 @@ export interface TransactionRow {
      * origem, dono da linha (database-design §4.13, uma transferência é uma linha só).
      */
     readonly readOnly: boolean;
+    /**
+     * Pagamento parcial de fatura: transferência que sai de uma fatura para a conta pagadora. Na
+     * tabela agrupada, é parte do que o cartão tirou da conta: aparece com o sinal do efeito na
+     * conta pagadora (`⇄ −R$ 50,00`) e conta no resultado, porque a linha da fatura já vem
+     * líquida dele.
+     */
+    readonly invoicePayment: boolean;
 }
+
+/**
+ * Linha de uma fatura na tabela agrupada, no lugar das compras do cartão: o valor que pesa na
+ * conta pagadora, no dia em que pesa. Abre a fatura em Cartões em vez da edição.
+ */
+export interface InvoiceTableRow {
+    readonly kind: 'invoice';
+    /** `invoice:<id>`: nunca colide com o id de uma transação. */
+    readonly id: string;
+    readonly invoice: { readonly id: string; readonly creditCardId: string; readonly period: string };
+    /** Data de caixa `YYYY-MM-DD`, para ordenar; a paga sem dia gravado usa o último dia do mês. */
+    readonly dueDate: string;
+    /** `10/10`, ou `—` na paga sem dia gravado. */
+    readonly date: string;
+    /** `Fatura Roxinho · out`. */
+    readonly name: string;
+    /** `Fatura do cartão`, como no extrato. */
+    readonly category: string;
+    /** Conta que paga a fatura. */
+    readonly container: string;
+    /** O que falta pagar, com o sinal do efeito na conta; já líquido dos pagamentos parciais. */
+    readonly amount: MoneyResponse;
+    readonly amountText: string;
+    readonly direction: TransactionDirection;
+    /** `onInvoice` na em aberto e `invoicePaid` na paga, para ordenar junto das compras. */
+    readonly situation: TransactionSituation;
+    /** `Em aberto` ou `Paga`, os rótulos da fatura. */
+    readonly situationText: string;
+    readonly recurrenceTag: null;
+}
+
+/** Uma linha da tabela de Transações: um lançamento ou, na tabela agrupada, uma fatura. */
+export type TransactionTableRow = TransactionRow | InvoiceTableRow;
 
 /** Filtros da tela de Transações; `null` e texto vazio significam "Todos/Todas". */
 export interface TransactionFilters {
@@ -122,7 +176,7 @@ export type TransactionSortKey = 'date' | 'name' | 'category' | 'container' | 'a
  * @param key Coluna da ordenação.
  * @return A função de comparação de duas linhas.
  */
-export function compareTransactionRows(key: TransactionSortKey): (a: TransactionRow, b: TransactionRow) => number {
+export function compareTransactionRows(key: TransactionSortKey): (a: TransactionTableRow, b: TransactionTableRow) => number {
     const primary = SORT_COMPARATORS[key];
     return (a, b) => primary(a, b) || compareText(a.dueDate, b.dueDate) || compareNames(a.name, b.name);
 }
@@ -132,7 +186,7 @@ export function compareTransactionRows(key: TransactionSortKey): (a: Transaction
  * entre "Aluguel" e "Bar", e não depois do "Z"); o valor compara o efeito com sinal, então
  * crescente põe as maiores saídas primeiro; a situação segue `TRANSACTION_SITUATIONS`.
  */
-const SORT_COMPARATORS: Readonly<Record<TransactionSortKey, (a: TransactionRow, b: TransactionRow) => number>> = {
+const SORT_COMPARATORS: Readonly<Record<TransactionSortKey, (a: TransactionTableRow, b: TransactionTableRow) => number>> = {
     date: (a, b) => compareText(a.dueDate, b.dueDate),
     name: (a, b) => compareNames(a.name, b.name),
     category: (a, b) => compareNames(a.category, b.category),
@@ -143,10 +197,15 @@ const SORT_COMPARATORS: Readonly<Record<TransactionSortKey, (a: TransactionRow, 
 
 /** A tabela filtrada e a linha-resumo. */
 export interface TransactionTable {
-    readonly rows: readonly TransactionRow[];
+    readonly rows: readonly TransactionTableRow[];
+    /** As compras do cartão estão agrupadas nas linhas das faturas: a tela explica como vê-las. */
+    readonly grouped: boolean;
     /** Resultado das linhas visíveis sem transferências e investimentos; `null` sem linhas. */
     readonly result: MoneyResponse | null;
-    /** `7 lançamentos · resultado +R$ 6.280,68`, ou `Nenhum lançamento`. */
+    /**
+     * `7 lançamentos · resultado +R$ 6.280,68`, `5 lançamentos · 2 faturas · resultado …` na
+     * tabela agrupada, ou `Nenhum lançamento`.
+     */
     readonly summary: string;
 }
 
@@ -161,18 +220,125 @@ export interface TransactionTable {
  * transferência entre perfis entra, como nos relatórios: para este perfil, o dinheiro de fato
  * saiu ou chegou.
  *
- * @param source Transações do mês e os cadastros para os nomes.
+ * Regra de negócio (Transações, desktop-mvp-plan Fase 11.1): sem nenhum filtro, as compras e os
+ * estornos do cartão não aparecem um a um — poluiriam a lista do mês — e cada fatura que pesa no
+ * mês vira uma linha só, no dia do pagamento ou, em aberto, no do vencimento, com o valor que
+ * falta pagar, como no extrato da conta. O pagamento parcial continua como linha própria, porque
+ * saiu da conta noutro dia, e conta no resultado com o sinal da saída na conta pagadora, já que a
+ * linha da fatura vem líquida dele. A compra de um cartão cuja conta pagadora não está entre as
+ * contas do perfil continua uma a uma: o núcleo não lista a fatura dela, e escondê-la tiraria o
+ * gasto da lista e do resultado. Com qualquer filtro, quem filtra procura um item, e as compras
+ * voltam uma a uma.
+ *
+ * @param source Transações do mês, as faturas do mês e os cadastros para os nomes.
  * @param filters Filtros escolhidos na tela.
- * @return As linhas filtradas, ordenadas por vencimento e nome, e o resumo.
+ * @return As linhas filtradas, ordenadas por data e nome, e o resumo.
  */
 export function buildTransactionTable(source: TransactionTableSource, filters: TransactionFilters): TransactionTable {
     const lookup = createLookup(source);
-    const rows = source.transactions
+    const grouped = source.monthInvoices !== undefined && hasNoFilter(filters);
+    const transactions = source.transactions
         .map((transaction) => toRow(transaction, lookup))
-        .filter((row) => matches(row, filters))
-        .sort(compareTransactionRows('date'));
+        .filter((row) => matches(row, filters) && !(grouped && isGroupedCardPurchase(row.transaction, lookup)))
+        .map((row) => (grouped && row.invoicePayment ? asPaymentFromAccount(row) : row));
+    const invoices = grouped ? (source.monthInvoices ?? []).map((invoice) => invoiceRow(invoice, lookup)) : [];
+    const rows = [...transactions, ...invoices].sort(compareTransactionRows('date'));
     const result = sumResult(rows);
-    return { rows, result, summary: summaryOf(rows.length, result) };
+    return { rows, grouped, result, summary: summaryOf(transactions.length, invoices.length, result) };
+}
+
+/**
+ * Agrupar só sem filtro porque o filtro é a forma de achar uma compra no cartão: com a busca,
+ * a tag ou a categoria escolhida, quem procura quer o item, e a fatura inteira o esconderia.
+ * Regra de negócio (Transações, desktop-mvp-plan Fase 11.1): qualquer filtro desfaz o
+ * agrupamento.
+ *
+ * @param filters Filtros da tela.
+ * @return `true` quando nenhum filtro está escolhido — só então a tabela agrupa as faturas.
+ */
+function hasNoFilter(filters: TransactionFilters): boolean {
+    return filters.container === null && filters.category === null && filters.tagId === null && filters.situation === null && filters.search.trim() === '';
+}
+
+/**
+ * Decide quais lançamentos a linha da fatura representa na tabela agrupada. O pagamento parcial
+ * fica de fora porque saiu da conta pagadora noutro dia e tem linha própria; a compra de um cartão
+ * cuja conta pagadora não está entre as contas do perfil (excluída, por exemplo) também, porque o
+ * núcleo só lista as faturas dessas contas e escondê-la sumiria com o gasto sem nenhuma linha que o
+ * represente.
+ *
+ * @param transaction Transação do mês.
+ * @param lookup Índices dos cadastros, com os cartões cuja fatura tem linha na tabela agrupada.
+ * @return `true` na compra, no estorno e em qualquer lançamento que fica dentro da fatura de um
+ * cartão pago por conta do perfil.
+ */
+function isGroupedCardPurchase(transaction: TransactionResponse, lookup: Lookup): boolean {
+    return transaction.container.kind === 'invoice'
+        && transaction.destinationAccountId === null
+        && lookup.groupedCreditCards.has(transaction.container.creditCardId);
+}
+
+/**
+ * Mostra o pagamento parcial pelo efeito na conta pagadora. Na tabela agrupada ele conta no
+ * resultado, porque a linha da fatura vem líquida dele; em módulo e neutro, como transferência
+ * interna, a soma das linhas visíveis não bateria com o resumo.
+ * Regra de negócio (Transações, desktop-mvp-plan Fase 11.1): na lista agrupada, o parcial conta no
+ * resultado pelo efeito na conta pagadora.
+ *
+ * @param row Linha do pagamento parcial, montada como transferência saindo da fatura.
+ * @return Uma nova linha com o valor, o texto e o sentido da saída na conta pagadora.
+ */
+function asPaymentFromAccount(row: TransactionRow): TransactionRow {
+    const effect = row.transaction.destinationEffect ?? row.amount;
+    const amount = formatSignedTransfer(effect);
+    return { ...row, amount: effect, amountText: amount.text, direction: amount.direction };
+}
+
+/** Rótulos da situação da linha da fatura, os mesmos do extrato. */
+const INVOICE_SITUATION_LABELS = { onInvoice: 'Em aberto', invoicePaid: 'Paga' } as const;
+
+/**
+ * Linha que substitui as compras do cartão na tabela agrupada, com o valor que pesa na conta
+ * pagadora. O sentido segue o sinal do saldo, e a fatura zerada (compra e estorno iguais) fica
+ * neutra: zero não é entrada nem saída.
+ *
+ * @param invoice Fatura que pesa no mês.
+ * @param lookup Índices dos cadastros, para o nome do cartão.
+ * @return A linha da fatura na tabela agrupada.
+ */
+function invoiceRow(invoice: ProfileInvoiceResponse, lookup: Lookup): InvoiceTableRow {
+    const situation = invoice.status === 'paid' ? 'invoicePaid' : 'onInvoice';
+    // A paga sem dia gravado ordena no fim do mês do extrato em que foi paga.
+    const sortDate = invoice.cashDate ?? lastDayOf(invoice.paidInPeriod ?? invoice.period);
+    return {
+        kind: 'invoice',
+        id: `invoice:${invoice.id}`,
+        invoice: { id: invoice.id, creditCardId: invoice.creditCardId, period: invoice.period },
+        dueDate: sortDate,
+        date: invoice.cashDate === null ? '—' : formatDayMonth(invoice.cashDate),
+        name: `Fatura ${lookup.creditCards.get(invoice.creditCardId) ?? invoice.creditCardName} · ${formatMonthAbbreviation(invoice.period)}`,
+        category: 'Fatura do cartão',
+        container: lookup.accounts.get(invoice.accountId) ?? invoice.accountName,
+        amount: invoice.balance,
+        amountText: formatMoney(invoice.balance, 'always'),
+        direction: directionOf(invoice.balance),
+        situation,
+        situationText: INVOICE_SITUATION_LABELS[situation],
+        recurrenceTag: null,
+    };
+}
+
+/**
+ * Dá à fatura paga sem dia gravado (pagas antes de existir `payment_date`) um lugar na ordem por
+ * data: o fim do mês do extrato, depois de tudo que tem dia, em vez de uma data inventada no meio
+ * do mês.
+ *
+ * @param period Competência `YYYY-MM` do extrato em que a fatura foi paga.
+ * @return O último dia do mês, `YYYY-MM-DD`.
+ */
+function lastDayOf(period: string): string {
+    const month = YearMonth.parse(period);
+    return `${period}-${String(month.lengthInDays()).padStart(2, '0')}`;
 }
 
 /** Índices por id dos cadastros, montados uma vez por tabela. */
@@ -185,6 +351,8 @@ interface Lookup {
     readonly subCategories: ReadonlyMap<string, { readonly categoryId: string; readonly label: string }>;
     readonly paidInvoices: ReadonlySet<string>;
     readonly recurrences: ReadonlyMap<string, RecurrenceResponse>;
+    /** Cartões pagos por uma conta do perfil: só a fatura deles tem linha na tabela agrupada. */
+    readonly groupedCreditCards: ReadonlySet<string>;
 }
 
 /**
@@ -192,6 +360,7 @@ interface Lookup {
  * @return Os índices; evita uma busca linear por linha numa tabela de centenas de linhas.
  */
 function createLookup(source: TransactionTableSource): Lookup {
+    const accountIds = new Set(source.accounts.map((account) => account.id));
     return {
         profileId: source.profileId,
         accounts: new Map(source.accounts.map((account) => [account.id, account.name])),
@@ -203,6 +372,7 @@ function createLookup(source: TransactionTableSource): Lookup {
         ]))),
         paidInvoices: new Set(source.invoices.filter((invoice) => invoice.status === 'paid').map((invoice) => invoice.id)),
         recurrences: new Map((source.recurrences ?? []).map((recurrence) => [recurrence.id, recurrence])),
+        groupedCreditCards: new Set(source.creditCards.filter((creditCard) => accountIds.has(creditCard.accountId)).map((creditCard) => creditCard.id)),
     };
 }
 
@@ -215,9 +385,10 @@ function toRow(transaction: TransactionResponse, lookup: Lookup): TransactionRow
     const subCategory = lookup.subCategories.get(transaction.subCategoryId);
     const side = crossProfileSide(transaction, lookup);
     const effect = side === 'incoming' ? (transaction.destinationEffect ?? transaction.originEffect) : transaction.originEffect;
-    const amount = side === null ? formatTransactionAmount(transaction.type, effect) : formatCrossProfileAmount(effect);
+    const amount = side === null ? formatTransactionAmount(transaction.type, effect) : formatSignedTransfer(effect);
     const situation = situationOf(transaction, lookup);
     return {
+        kind: 'transaction',
         id: transaction.id,
         transaction,
         dueDate: transaction.dueDate,
@@ -236,6 +407,7 @@ function toRow(transaction: TransactionResponse, lookup: Lookup): TransactionRow
         recurring: transaction.recurrenceId !== null,
         recurrenceTag: formatRecurrenceTag(transaction, transaction.recurrenceId === null ? undefined : lookup.recurrences.get(transaction.recurrenceId)),
         readOnly: side === 'incoming',
+        invoicePayment: transaction.container.kind === 'invoice' && transaction.destinationAccountId !== null,
     };
 }
 
@@ -257,15 +429,26 @@ function crossProfileSide(transaction: TransactionResponse, lookup: Lookup): 'in
 }
 
 /**
- * Valor da transferência entre perfis: `⇄` diz que é transferência e o sinal diz se o dinheiro
- * saiu ou chegou — para este perfil é entrada ou saída de verdade, e por isso conta no
- * resultado (decisão de interface 7: sem depender só da cor).
+ * Valor de uma transferência que conta no resultado — a entre perfis e, na tabela agrupada, o
+ * pagamento parcial de fatura: `⇄` diz que é transferência e o sinal diz se o dinheiro saiu ou
+ * chegou, porque para a conta é entrada ou saída de verdade (decisão de interface 7: sem
+ * depender só da cor).
  *
- * @param effect Efeito no saldo deste perfil: o da origem na saída, o do destino na entrada.
+ * @param effect Efeito no saldo da conta deste perfil: o da origem na saída, o do destino na
+ * entrada.
  * @return O texto (`⇄ +R$ 500,00`) e o sentido.
  */
-function formatCrossProfileAmount(effect: MoneyResponse): { readonly text: string; readonly direction: TransactionDirection } {
-    return { text: `⇄ ${formatMoney(effect, 'always')}`, direction: effect.amount < 0 ? 'out' : 'in' };
+function formatSignedTransfer(effect: MoneyResponse): { readonly text: string; readonly direction: TransactionDirection } {
+    return { text: `⇄ ${formatMoney(effect, 'always')}`, direction: directionOf(effect) };
+}
+
+/**
+ * @param effect Efeito no saldo.
+ * @return `out` no negativo, `in` no positivo e `none` no zero, que não pode se passar por
+ * entrada só por não ser negativo.
+ */
+function directionOf(effect: MoneyResponse): TransactionDirection {
+    return effect.amount < 0 ? 'out' : effect.amount > 0 ? 'in' : 'none';
 }
 
 /**
@@ -286,12 +469,15 @@ export function formatTransactionAmount(type: TransactionResponse['type'], effec
 }
 
 /**
+ * O pagamento parcial sai da fatura mas é dinheiro que deixou a conta pagadora no dia dele: a
+ * situação é a do próprio pagamento, e não a da fatura, que pode continuar em aberto.
+ *
  * @param transaction Transação do núcleo.
  * @param lookup Índices dos cadastros, com as faturas pagas.
  * @return A situação mostrada na coluna "Situação".
  */
 function situationOf(transaction: TransactionResponse, lookup: Lookup): TransactionSituation {
-    if (transaction.container.kind === 'invoice') {
+    if (transaction.container.kind === 'invoice' && transaction.destinationAccountId === null) {
         return lookup.paidInvoices.has(transaction.container.invoiceId) ? 'invoicePaid' : 'onInvoice';
     }
     return transaction.paid ? 'paid' : 'pending';
@@ -372,12 +558,16 @@ function matchesSearch(transaction: TransactionResponse, search: string): boolea
 
 /**
  * Soma com `Money` e arredonda uma vez no fim (database-design §3.7), para que o resultado
- * bata com a soma dos centavos exibidos.
+ * bata com a soma dos centavos exibidos. Só as linhas neutras (`⇄` em módulo) ficam de fora: o
+ * que conta no resultado é exatamente o que a tabela mostra com sinal — inclusive o pagamento
+ * parcial da tabela agrupada, que `asPaymentFromAccount` já mostra como saída. Sem agrupar, o
+ * parcial continua neutro, porque as compras já contam e somá-lo contaria o mesmo dinheiro duas
+ * vezes.
  *
  * @param rows Linhas visíveis.
  * @return O resultado sem transferências; `null` quando não há linhas.
  */
-function sumResult(rows: readonly TransactionRow[]): MoneyResponse | null {
+function sumResult(rows: readonly TransactionTableRow[]): MoneyResponse | null {
     const first = rows[0];
     if (first === undefined) {
         return null;
@@ -391,15 +581,23 @@ function sumResult(rows: readonly TransactionRow[]): MoneyResponse | null {
 }
 
 /**
- * @param count Linhas visíveis.
- * @param result Resultado das linhas.
- * @return A linha-resumo do mockup.
+ * Conta faturas e lançamentos separados porque a linha da fatura representa várias compras: somá-las
+ * como lançamentos faria a contagem mudar ao filtrar sem nenhum lançamento novo.
+ *
+ * @param transactions Lançamentos visíveis.
+ * @param invoices Linhas de fatura visíveis (só na tabela agrupada).
+ * @param result Resultado das linhas; `null` quando não há nenhuma.
+ * @return A linha-resumo do mockup, com as faturas à parte quando houver.
  */
-function summaryOf(count: number, result: MoneyResponse | null): string {
+function summaryOf(transactions: number, invoices: number, result: MoneyResponse | null): string {
     if (result === null) {
         return 'Nenhum lançamento';
     }
-    return `${String(count)} ${count === 1 ? 'lançamento' : 'lançamentos'} · resultado ${formatMoney(result, 'always')}`;
+    const counts = [
+        transactions > 0 || invoices === 0 ? `${String(transactions)} ${transactions === 1 ? 'lançamento' : 'lançamentos'}` : null,
+        invoices > 0 ? `${String(invoices)} ${invoices === 1 ? 'fatura' : 'faturas'}` : null,
+    ].filter((part) => part !== null);
+    return `${counts.join(' · ')} · resultado ${formatMoney(result, 'always')}`;
 }
 
 /**

@@ -1,5 +1,5 @@
 import type { InvoiceWithCard } from '../../repositories/InvoiceRepository.ts';
-import type { StatementView } from '../../services/statement/StatementView.ts';
+import type { ProfileInvoiceView, StatementView } from '../../services/statement/StatementView.ts';
 import { toInvoiceResponse, type InvoiceResponse } from '../invoices/InvoiceResponse.ts';
 import { toBalancePairResponse, type BalancePairResponse } from '../shared/BalancePairResponse.ts';
 import { toMoneyResponse } from '../shared/MoneyResponse.ts';
@@ -13,6 +13,15 @@ export interface StatementInvoiceResponse extends InvoiceResponse {
 /** Fatura em aberto que vence no mês: pesa no previsto na data do vencimento. */
 export interface StatementOpenInvoiceResponse extends StatementInvoiceResponse {
     readonly dueDate: string;
+}
+
+/** Fatura que pesa no mês, vista do perfil (rota `statements.profileInvoices`). */
+export interface ProfileInvoiceResponse extends StatementInvoiceResponse {
+    /** Conta que quita o cartão. */
+    readonly accountId: string;
+    readonly accountName: string;
+    /** Dia do pagamento na paga; do vencimento na em aberto; `null` na paga sem dia gravado. */
+    readonly cashDate: string | null;
 }
 
 /** Extrato consolidado de uma conta no mês, com tudo que afeta o saldo dela. */
@@ -71,4 +80,22 @@ export function toStatementResponse(view: StatementView): StatementResponse {
  */
 function toStatementInvoiceResponse({ invoice, creditCard }: InvoiceWithCard): StatementInvoiceResponse {
     return { ...toInvoiceResponse(invoice), creditCardName: creditCard.name };
+}
+
+/**
+ * Leva junto os nomes do cartão e da conta e a data de caixa já resolvida, para que a linha da
+ * fatura em Transações não precise cruzar cadastros nem refazer a regra do dia (pagamento ou
+ * vencimento) no `client`, onde ela poderia divergir do extrato.
+ *
+ * @param view Fatura do mês com a conta que a quita e a data de caixa.
+ * @return A fatura serializável, com o nome do cartão e da conta para a linha da tabela; `cashDate`
+ * é `null` na paga sem dia gravado.
+ */
+export function toProfileInvoiceResponse(view: ProfileInvoiceView): ProfileInvoiceResponse {
+    return {
+        ...toStatementInvoiceResponse(view),
+        accountId: view.account.id,
+        accountName: view.account.name,
+        cashDate: view.cashDate?.toString() ?? null,
+    };
 }

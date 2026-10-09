@@ -199,6 +199,18 @@ export function useStatement(input: CoreInput<'statements.get'> | null): Query<'
 }
 
 /**
+ * Faturas do perfil numa rota só, em vez de um `useStatement` por conta: a tabela agrupada de
+ * Transações precisa das faturas de todas as contas, e a rota está no grupo `MONEY` de
+ * invalidação, para que a linha da fatura acompanhe cada compra gravada no cartão.
+ *
+ * @param input Perfil e mês; `null` deixa a consulta parada.
+ * @return As faturas que pesam no mês nas contas do perfil — a linha da fatura em Transações.
+ */
+export function useProfileInvoices(input: CoreInput<'statements.profileInvoices'> | null): Query<'statements.profileInvoices'> {
+    return useCoreQuery('statements.profileInvoices', input);
+}
+
+/**
  * @param input Perfil; `null` deixa a consulta parada.
  * @return Os saldos atuais de todas as contas e o total.
  */

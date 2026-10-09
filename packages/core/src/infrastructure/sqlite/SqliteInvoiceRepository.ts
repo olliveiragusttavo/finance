@@ -1,12 +1,12 @@
 import { Invoice } from '../../domain/invoice/Invoice.ts';
 import { Currency } from '../../domain/shared/Currency.ts';
-import { BankStatementId, CreditCardId, InvoiceId, type AccountId } from '../../domain/shared/ids.ts';
+import { AccountId, BankStatementId, CreditCardId, InvoiceId, type ProfileId } from '../../domain/shared/ids.ts';
 import { LocalDate } from '../../domain/shared/LocalDate.ts';
 import { Money } from '../../domain/shared/Money.ts';
 import { YearMonth } from '../../domain/shared/YearMonth.ts';
 import type { Clock } from '../../ports/Clock.ts';
 import type { Database, SqlRow } from '../../ports/Database.ts';
-import type { InvoiceRepository, InvoiceWithCard } from '../../repositories/InvoiceRepository.ts';
+import type { InvoiceRepository, InvoiceWithCard, PaidInvoiceWithAccount } from '../../repositories/InvoiceRepository.ts';
 import { SELECT_CREDIT_CARD_COLUMNS, toCreditCard } from './SqliteCreditCardRepository.ts';
 import { periodKey } from './periodSql.ts';
 import { RowReader } from './RowReader.ts';
@@ -16,7 +16,7 @@ import { RowReader } from './RowReader.ts';
 // listas (nem paga, nem em aberto). O `payment_date` só vale junto desse vínculo.
 const SELECT_INVOICE = `
     SELECT i.id, i.credit_card_id, i.year, i.month, i.balance, i.payment_date,
-        ps.id AS paid_statement_id, ps.year AS paid_year, ps.month AS paid_month,
+        ps.id AS paid_statement_id, ps.year AS paid_year, ps.month AS paid_month, ps.account_id AS paid_account_id,
         ${SELECT_CREDIT_CARD_COLUMNS}, p.currency AS profile_currency
     FROM invoices i
     JOIN credit_cards c ON c.id = i.credit_card_id
@@ -140,6 +140,47 @@ export class SqliteInvoiceRepository implements InvoiceRepository {
                     AND ps.id IS NULL AND (i.year * 100 + i.month) >= :from
                 ORDER BY i.year, i.month, c.name COLLATE NOCASE`,
                 { accountId, from: periodKey(fromInvoicePeriod) },
+            )
+            .map((row) => this.toInvoiceWithCard(row));
+    }
+
+    /**
+     * Mesmo critério de `listPaidInStatement`, com o extrato restrito às contas vivas do perfil
+     * no mês em vez de a um extrato só.
+     *
+     * @param profileId Perfil dono das contas.
+     * @param period Mês dos extratos.
+     * @return As faturas pagas no mês nas contas do perfil, com o cartão e a conta do extrato.
+     */
+    public listPaidInProfileStatements(profileId: ProfileId, period: YearMonth): readonly PaidInvoiceWithAccount[] {
+        return this.database
+            .all(
+                `${SELECT_INVOICE}
+                JOIN accounts a ON a.id = ps.account_id AND a.deleted_at IS NULL
+                WHERE a.profile_id = :profileId AND ps.year = :year AND ps.month = :month AND i.deleted_at IS NULL
+                ORDER BY c.name COLLATE NOCASE, i.year, i.month`,
+                { profileId, year: period.year, month: period.month },
+            )
+            .map((row) => ({ ...this.toInvoiceWithCard(row), accountId: AccountId(new RowReader('invoices', row).text('paid_account_id')) }));
+    }
+
+    /**
+     * Mesmo critério de `listOpenByPayingAccount`, com a conta pagadora restrita às contas vivas do
+     * perfil em vez de a uma conta só.
+     *
+     * @param profileId Perfil dono das contas que quitam os cartões.
+     * @param fromInvoicePeriod Primeira competência de fatura incluída.
+     * @return As faturas em aberto dos cartões vivos pagos por contas do perfil, com o cartão.
+     */
+    public listOpenByPayingProfile(profileId: ProfileId, fromInvoicePeriod: YearMonth): readonly InvoiceWithCard[] {
+        return this.database
+            .all(
+                `${SELECT_INVOICE}
+                JOIN accounts a ON a.id = c.account_id AND a.deleted_at IS NULL
+                WHERE a.profile_id = :profileId AND c.deleted_at IS NULL AND i.deleted_at IS NULL
+                    AND ps.id IS NULL AND (i.year * 100 + i.month) >= :from
+                ORDER BY i.year, i.month, c.name COLLATE NOCASE`,
+                { profileId, from: periodKey(fromInvoicePeriod) },
             )
             .map((row) => this.toInvoiceWithCard(row));
     }

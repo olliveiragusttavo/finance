@@ -1,20 +1,29 @@
-import type { CardImpactResponse, CategoryReportResponse, CreditCardResponse, MoneyResponse } from '@finance/core';
+import type { CardImpactResponse, CreditCardResponse, MoneyResponse } from '@finance/core';
 import { describe, expect, it } from 'vitest';
 import {
     buildCardImpactGrid,
-    buildCategoryReport,
     buildStatementTable,
     buildTransactionTable,
-    categoryBreadcrumb,
     compareTransactionRows,
-    categoryChartBars,
-    comparisonOptions,
     NO_TRANSACTION_FILTERS,
     type StatementTableSource,
+    type TransactionRow,
     type TransactionSortKey,
+    type TransactionTable,
     type TransactionTableSource,
 } from '../src/index.ts';
 import { ClientWorld, type Scenario } from './support/ClientWorld.ts';
+
+/**
+ * As linhas de lançamento da tabela. Sem as faturas do mês na fonte, a tabela nunca agrupa, e
+ * toda linha é um lançamento; o filtro só estreita o tipo para os campos próprios dele.
+ *
+ * @param table Tabela montada.
+ * @return As linhas que são lançamentos.
+ */
+function transactionRowsOf(table: TransactionTable): readonly TransactionRow[] {
+    return table.rows.flatMap((row) => (row.kind === 'transaction' ? [row] : []));
+}
 
 /**
  * @param amount Valor.
@@ -65,7 +74,7 @@ describe('tabela de Transações', () => {
             ['09/10', 'Estorno Uber', 'Alimentação › Restaurantes', 'Roxinho · fat. nov', '+R$ 23,90', 'Na fatura'],
             ['10/10', 'Aporte', 'Alimentação › Mercado', 'Nubank → Tesouro', '⇄ R$ 500,00', 'Pendente'],
         ]);
-        expect(table.rows.find((row) => row.name === 'Estorno Uber')?.refund).toBe(true);
+        expect(transactionRowsOf(table).find((row) => row.name === 'Estorno Uber')?.refund).toBe(true);
         expect(table.summary).toBe('5 lançamentos · resultado +R$ 6.736,58');
     });
 
@@ -85,7 +94,7 @@ describe('tabela de Transações', () => {
             { ...(await transactionSource(world, s)), otherProfileAccounts: await world.ok('accounts.transferTargets', { profileId: s.profileId }) },
             NO_TRANSACTION_FILTERS,
         );
-        const sent = personal.rows.find((row) => row.name === 'Pró-labore');
+        const sent = transactionRowsOf(personal).find((row) => row.name === 'Pró-labore');
         expect([sent?.container, sent?.amountText, sent?.direction, sent?.readOnly]).toEqual(['Nubank → Itaú (Empresa)', '⇄ −R$ 508,00', 'out', false]);
         // 9.500 − 2.300 − 487,32 do cenário, menos os 508 que saíram do perfil.
         expect(personal.summary).toBe('5 lançamentos · resultado +R$ 6.204,68');
@@ -99,7 +108,7 @@ describe('tabela de Transações', () => {
             { profileId: business.id, transactions, accounts: accounts.accounts, otherProfileAccounts, creditCards: [], categories: [], invoices: [] },
             NO_TRANSACTION_FILTERS,
         );
-        expect(received.rows.map((row) => [row.category, row.container, row.amountText, row.direction, row.readOnly])).toEqual([
+        expect(transactionRowsOf(received).map((row) => [row.category, row.container, row.amountText, row.direction, row.readOnly])).toEqual([
             ['Transferência recebida', 'Nubank (Pessoal) → Itaú', '⇄ +R$ 500,00', 'in', true],
         ]);
         expect(received.summary).toBe('1 lançamento · resultado +R$ 500,00');
@@ -160,31 +169,6 @@ describe('tabela de Transações', () => {
             .toBe('1 lançamento · resultado −R$ 2.300,00');
     });
 });
-
-/** Linha do relatório por categoria. */
-const line = (amount: number, comparison: number, ratio: number | null): CategoryReportResponse['total'] => ({
-    amount: brl(amount),
-    comparison: brl(comparison),
-    variation: { absolute: brl(amount - comparison), change: ratio === null ? { kind: 'new' } : { kind: 'ratio', ratio } },
-});
-
-const CATEGORY_REPORT: CategoryReportResponse = {
-    period: '2026-10',
-    comparison: { mode: 'lastThreeMonthsAverage', periods: ['2026-09', '2026-08', '2026-07'] },
-    categories: [
-        {
-            categoryId: 'food',
-            name: 'Alimentação',
-            ...line(1142.5, 980.1, 0.1657),
-            subCategories: [
-                { subCategoryId: 'market', name: 'Mercado', ...line(487.32, 610, -0.2011) },
-                { subCategoryId: 'delivery', name: 'Delivery', ...line(143, 0, null) },
-            ],
-        },
-        { categoryId: 'home', name: 'Moradia', ...line(2300, 2300, 0), subCategories: [] },
-    ],
-    total: line(3442.5, 3280.1, 0.0495),
-};
 
 /**
  * Lê do núcleo de verdade o extrato de outubro e os cadastros que dão nome às linhas.
@@ -265,48 +249,6 @@ describe('extrato da conta', () => {
         const statement = { ...source.statement, paidInvoices: source.statement.paidInvoices.map((invoice) => ({ ...invoice, paymentDate: null })) };
         const rows = buildStatementTable({ ...source, statement }).rows;
         expect(rows.at(-1)).toEqual(expect.objectContaining({ date: '—', name: 'Fatura Roxinho · set' }));
-    });
-});
-
-describe('relatório por categoria', () => {
-    it('achata a árvore mostrando só as subcategorias das categorias abertas', () => {
-        const view = buildCategoryReport(CATEGORY_REPORT, new Set(['food']));
-        expect(view.periodLabel).toBe('out/2026');
-        expect(view.comparisonLabel).toBe('média jul–set/2026');
-        expect(view.rows.map((row) => [row.kind, row.name, row.amount, row.variation.arrow, row.variation.absolute, row.variation.percent])).toEqual([
-            ['category', 'Alimentação', 'R$ 1.142,50', '▲', '+R$ 162,40', '+16,6%'],
-            ['subCategory', 'Mercado', 'R$ 487,32', '▼', '−R$ 122,68', '−20,1%'],
-            ['subCategory', 'Delivery', 'R$ 143,00', '▲', '+R$ 143,00', 'novo'],
-            ['category', 'Moradia', 'R$ 2.300,00', '=', 'R$ 0,00', '0%'],
-        ]);
-        expect(buildCategoryReport(CATEGORY_REPORT, new Set()).rows).toHaveLength(2);
-        expect(view.total.variation.percent).toBe('+5,0%');
-    });
-
-    it('a média que atravessa a virada do ano mostra o ano de cada ponta', () => {
-        const report: CategoryReportResponse = { ...CATEGORY_REPORT, period: '2026-02', comparison: { mode: 'lastThreeMonthsAverage', periods: ['2026-01', '2025-12', '2025-11'] } };
-        expect(buildCategoryReport(report, new Set()).comparisonLabel).toBe('média nov/2025–jan/2026');
-    });
-
-    it('rotula o seletor de comparação como o mockup', () => {
-        expect(comparisonOptions('2026-01').map((option) => option.label)).toEqual([
-            'Mês anterior (dez/2025)', 'Mesmo mês do ano anterior', 'Média dos últimos 3 meses',
-        ]);
-    });
-
-    it('dimensiona as barras do gráfico pela maior entre período e comparação', () => {
-        const food = CATEGORY_REPORT.categories[0];
-        expect(food).toBeDefined();
-        const [market, delivery] = food === undefined ? [] : categoryChartBars(food);
-        expect(market?.comparisonShare).toBe(1);
-        expect(market?.amountShare).toBeCloseTo(487.32 / 610);
-        expect(delivery?.comparisonShare).toBe(0);
-    });
-
-    it('monta a trilha até a subcategoria e encurta quando o id sumiu do relatório', () => {
-        expect(categoryBreadcrumb(CATEGORY_REPORT, { kind: 'subCategory', subCategoryId: 'market' }).map((item) => item.label))
-            .toEqual(['Todas as categorias', 'Alimentação', 'Mercado']);
-        expect(categoryBreadcrumb(CATEGORY_REPORT, { kind: 'category', categoryId: 'sumiu' })).toHaveLength(1);
     });
 });
 

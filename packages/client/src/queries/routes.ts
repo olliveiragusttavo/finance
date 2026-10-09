@@ -60,6 +60,7 @@ const ROUTE_KINDS = {
     'recurrences.planDelete': 'read',
     'recurrences.topUp': 'write',
     'statements.get': 'read',
+    'statements.profileInvoices': 'read',
     'balances.ofProfile': 'read',
     'balances.rebuildAccount': 'write',
     'invoices.suggest': 'read',

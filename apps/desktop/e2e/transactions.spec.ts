@@ -222,6 +222,11 @@ test('compra no cartão: fatura sugerida, aviso ao escolher a fatura paga, e est
         await expect(column.getByText(/já está paga/)).toHaveCount(0);
 
         await column.getByRole('button', { name: 'Salvar' }).dispatchEvent('click');
+        // Regra de negócio (Transações): sem filtro, a compra no cartão fica na linha da fatura; a
+        // tela diz em qual ela caiu. Filtrando pelo cartão, as compras voltam uma a uma.
+        await expect(page.getByText(`Está na fatura Roxinho · ${formatMonthAbbreviation(next)}`)).toBeVisible();
+        await expect(rowOf(page, 'Estorno Uber')).toHaveCount(0);
+        await chooseOption(page, page.getByRole('search', { name: 'Filtros' }).getByLabel('Conta ou cartão'), 'Roxinho');
         await expect(rowOf(page, 'Estorno Uber')).toContainText(`Roxinho · fat. ${formatMonthAbbreviation(next)}`);
         await expect(rowOf(page, 'Estorno Uber')).toContainText('+R$ 23,90');
         await expect(rowOf(page, 'Estorno Uber')).toContainText('estorno');
@@ -244,7 +249,21 @@ test('filtros ficam na URL, ordenação por coluna, menu de contexto e a tag abe
         await seed(page, true);
         await openTransactions(page);
         const filters = page.getByRole('search', { name: 'Filtros' });
-        await expect(filters).toContainText('4 lançamentos · resultado +R$ 6.800,00');
+        // Regra de negócio (Transações): sem filtro, o Notebook no cartão fica na fatura do mês
+        // seguinte, e a Farmácia do mês anterior aparece como a fatura paga no dia 2.
+        await expect(filters).toContainText('3 lançamentos · 1 fatura · resultado +R$ 7.050,00');
+        await expect(rowOf(page, 'Notebook')).toHaveCount(0);
+        const paidInvoice = rowOf(page, 'Fatura Roxinho');
+        await expect(paidInvoice).toContainText(`02/${currentPeriod(new Date()).slice(5)}`);
+        await expect(paidInvoice).toContainText('Fatura do cartão');
+        await expect(paidInvoice).toContainText('−R$ 150,00');
+        await expect(paidInvoice).toContainText('Paga');
+        await expect(page.getByText(/As compras no cartão estão na linha de cada fatura/)).toBeVisible();
+        await paidInvoice.dispatchEvent('click');
+        // A Farmácia de dia 10 do mês anterior caiu na fatura deste mês (fecha dia 3).
+        await expect(page).toHaveURL(new RegExp(`#/cards\\?.*invoice=${currentPeriod(new Date())}`));
+        await page.goBack();
+        await expect(page.getByRole('heading', { name: 'Transações', level: 1 })).toBeVisible();
         await expect(rowOf(page, 'Aporte')).toContainText('Nubank → Tesouro');
         await expect(rowOf(page, 'Aporte')).toContainText('⇄ R$ 500,00');
 
@@ -257,7 +276,7 @@ test('filtros ficam na URL, ordenação por coluna, menu de contexto e a tag abe
         await page.getByRole('searchbox').fill('zzz');
         await expect(grid(page)).toContainText('Nenhum lançamento com esses filtros.');
         await grid(page).getByRole('button', { name: 'Limpar filtros' }).dispatchEvent('click');
-        await expect(page.getByRole('search', { name: 'Filtros' })).toContainText('4 lançamentos');
+        await expect(page.getByRole('search', { name: 'Filtros' })).toContainText('3 lançamentos · 1 fatura');
         await expect(page).not.toHaveURL(/situation=/);
 
         // Ordenar pelo valor: crescente põe as maiores saídas primeiro.
