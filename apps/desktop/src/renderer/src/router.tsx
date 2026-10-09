@@ -7,6 +7,7 @@ import { parseAccountsSearch, type AccountsSearch } from './accounts/accountsSea
 import { CardsScreen } from './cards/CardsScreen.tsx';
 import { parseCardsSearch, type CardsSearch } from './cards/cardsSearch.ts';
 import { GoalsScreen } from './goals/GoalsScreen.tsx';
+import { OverviewScreen } from './overview/OverviewScreen.tsx';
 import { parseGoalsSearch, type GoalsSearch } from './goals/goalsSearch.ts';
 import { RegistryScreen } from './registry/RegistryScreen.tsx';
 import { parseRegistrySearch, type RegistrySearch } from './registry/registryKinds.ts';
@@ -55,7 +56,7 @@ const shellRoute = createRoute({
 const routeTree = rootRoute.addChildren([
     shellRoute.addChildren([
         // Telas do MVP, cada uma substituída na sua fase (desktop-mvp-plan §6).
-        createRoute({ getParentRoute: () => shellRoute, path: '/' satisfies AppPath, component: blankScreen('Visão geral', false) }),
+        createRoute({ getParentRoute: () => shellRoute, path: '/' satisfies AppPath, component: OverviewScreen }),
         createRoute({
             getParentRoute: () => shellRoute,
             path: '/transactions' satisfies AppPath,
