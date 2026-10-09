@@ -91,7 +91,7 @@ Decisões de implementação:
 |---|---|---|
 | C1 | "Faturas de out" é qual fatura? | As **pagas em out** mais as **em aberto que vencem em out** |
 | C2 | Total de uma fatura | **Despesas líquidas de estornos, com encargos, sem descontar pagamentos parciais**: o pagamento parcial já saiu da conta, então ainda é peso do cartão |
-| C3 | Peso nas entradas | Total das faturas do mês ÷ **receitas** do perfil no mesmo critério de período (transferências internas fora, porque somam zero no perfil) |
+| C3 | Peso nas entradas | Total das faturas do mês ÷ **receitas** do perfil no mesmo critério de período (transferências internas fora, porque somam zero no perfil; a transferência recebida de outro perfil entra como receita — database-design §4.13, "Transferência entre perfis") |
 | C4 | Situação de cada célula | Paga (com o mês do extrato de pagamento), Em aberto (com o vencimento) ou Futura |
 | C5 | Janela | Mês de referência, os **3 anteriores** (para a média) e o **seguinte** |
 

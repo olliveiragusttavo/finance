@@ -2,6 +2,7 @@ import {
     buildTransactionTable,
     formatMonthShort,
     formatTransactionSituation,
+    otherProfileAccountLabel,
     TRANSACTION_SITUATIONS,
     useAccounts,
     useCategoryTree,
@@ -11,6 +12,7 @@ import {
     useRecurrences,
     useTags,
     useTransactions,
+    useTransferTargets,
     type TransactionFilters,
     type TransactionRow,
     type TransactionTable,
@@ -63,6 +65,7 @@ export function TransactionsScreen(): ReactNode {
     const filters = useMemo(() => filtersFromSearch(search), [search]);
     const transactions = useTransactions({ profileId: profile.id, period });
     const accounts = useAccounts({ profileId: profile.id, period });
+    const otherProfileAccounts = useTransferTargets({ profileId: profile.id });
     const creditCards = useCreditCards({ profileId: profile.id, period });
     const categories = useCategoryTree({ profileId: profile.id });
     const tags = useTags({ profileId: profile.id });
@@ -81,12 +84,14 @@ export function TransactionsScreen(): ReactNode {
 
     const table = useMemo(
         () =>
-            transactions.data === undefined || accounts.data === undefined || creditCards.data === undefined || categories.data === undefined
+            transactions.data === undefined || accounts.data === undefined || otherProfileAccounts.data === undefined || creditCards.data === undefined || categories.data === undefined
                 ? null
                 : buildTransactionTable(
                       {
+                          profileId: profile.id,
                           transactions: transactions.data,
                           accounts: accounts.data.accounts,
+                          otherProfileAccounts: otherProfileAccounts.data,
                           creditCards: creditCards.data.creditCards,
                           categories: categories.data,
                           invoices,
@@ -94,9 +99,30 @@ export function TransactionsScreen(): ReactNode {
                       },
                       filters,
                   ),
-        [transactions.data, accounts.data, creditCards.data, categories.data, invoices, recurrences.data, filters],
+        [profile.id, transactions.data, accounts.data, otherProfileAccounts.data, creditCards.data, categories.data, invoices, recurrences.data, filters],
     );
-    const failed = [transactions, accounts, creditCards, categories].find((query) => query.error !== null)?.error ?? null;
+    const failed = [transactions, accounts, otherProfileAccounts, creditCards, categories].find((query) => query.error !== null)?.error ?? null;
+    // Nomes das contas do outro perfil para o alerta de exclusão de uma transferência que sai daqui.
+    const namedAccounts = useMemo(
+        () => [...(accounts.data?.accounts ?? []), ...(otherProfileAccounts.data ?? []).map((account) => ({ id: account.id, name: otherProfileAccountLabel(account) }))],
+        [accounts.data, otherProfileAccounts.data],
+    );
+
+    /**
+     * Regra de negócio (Transferência entre perfis): a transferência recebida de outro perfil é
+     * uma linha só, do perfil de origem (database-design §4.13); editar, pagar ou excluir daqui
+     * mexeria no extrato de um perfil que não está aberto. A tela avisa onde fazer a alteração
+     * em vez de abrir um formulário com a subcategoria e as tags do outro perfil.
+     *
+     * @param row Linha em que o usuário agiu.
+     * @return `true` quando a linha é só para leitura e a ação foi barrada.
+     */
+    const blockedReadOnly = (row: TransactionRow): boolean => {
+        if (row.readOnly) {
+            toast.info('Esta transferência veio de outro perfil. Para alterá-la, abra o perfil de origem.');
+        }
+        return row.readOnly;
+    };
 
     /**
      * @param next Filtros escolhidos; substituem os da URL sem criar entrada no histórico a cada
@@ -115,6 +141,9 @@ export function TransactionsScreen(): ReactNode {
      * @param row Linha selecionada.
      */
     const togglePaid = (row: TransactionRow): void => {
+        if (blockedReadOnly(row)) {
+            return;
+        }
         if (row.transaction.container.kind === 'invoice') {
             toast.info('A situação de uma compra no cartão é a da fatura: pague ou reabra a fatura em Cartões.');
             return;
@@ -171,11 +200,15 @@ export function TransactionsScreen(): ReactNode {
                         onSelect={setSelectedId}
                         onEdit={(row) => {
                             setSelectedId(row.id);
-                            setEditor({ mode: 'edit', transaction: row.transaction });
+                            if (!blockedReadOnly(row)) {
+                                setEditor({ mode: 'edit', transaction: row.transaction });
+                            }
                         }}
                         onTogglePaid={togglePaid}
                         onDelete={(row) => {
-                            setDeleting(row.transaction);
+                            if (!blockedReadOnly(row)) {
+                                setDeleting(row.transaction);
+                            }
                         }}
                     />
                 )}
@@ -201,7 +234,7 @@ export function TransactionsScreen(): ReactNode {
             {deleting !== null && (
                 <DeleteTransactionDialog
                     transaction={deleting}
-                    accounts={accounts.data?.accounts ?? []}
+                    accounts={namedAccounts}
                     creditCards={creditCards.data?.creditCards ?? []}
                     onClose={() => {
                         setDeleting(null);

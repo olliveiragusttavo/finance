@@ -8,6 +8,7 @@ import {
     useCategoryTree,
     useCreditCards,
     useStatement,
+    useTransferTargets,
     type StatementRow,
     type StatementTable,
 } from '@finance/client';
@@ -210,7 +211,7 @@ function AccountLink({ account, current }: { readonly account: AccountInPeriodRe
  *
  * @param props.account Conta aberta.
  * @param props.accounts Todas as contas do perfil, desativadas incluídas: nomeiam a origem e o
- * destino das transferências.
+ * destino das transferências; as de outros perfis vêm de `accounts.transferTargets`.
  * @param props.period Mês de referência.
  * @param props.onEdit Abre "Editar conta".
  * @param props.onToggle Desativa ou reativa a conta.
@@ -236,6 +237,8 @@ function AccountStatement({
     const statement = useStatement({ accountId: account.id, period });
     const creditCards = useCreditCards({ profileId: profile.id, period });
     const categories = useCategoryTree({ profileId: profile.id });
+    // Só nomeiam o outro lado das transferências entre perfis; sem elas o extrato ainda se monta.
+    const otherProfileAccounts = useTransferTargets({ profileId: profile.id });
 
     return (
         <>
@@ -273,7 +276,7 @@ function AccountStatement({
                         <QueryState query={creditCards} loading={<Skeleton className="h-60" />}>
                             {(cards) => (
                                 <QueryState query={categories} loading={<Skeleton className="h-60" />}>
-                                    {(tree) => <StatementMovements statement={data} table={buildStatementTable({ statement: data, accounts, creditCards: cards.creditCards, categories: tree })} />}
+                                    {(tree) => <StatementMovements statement={data} table={buildStatementTable({ statement: data, accounts, creditCards: cards.creditCards, categories: tree, otherProfileAccounts: otherProfileAccounts.data ?? [] })} />}
                                 </QueryState>
                             )}
                         </QueryState>

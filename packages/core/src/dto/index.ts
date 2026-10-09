@@ -24,6 +24,7 @@ export * from './invoices/InvoiceCycleResponse.ts';
 export * from './profiles/ProfileResponse.ts';
 export * from './accounts/AccountResponse.ts';
 export * from './accounts/AccountListResponse.ts';
+export * from './accounts/TransferTargetResponse.ts';
 export * from './deletion/DeletionImpactResponse.ts';
 export * from './creditCards/CreditCardResponse.ts';
 export * from './creditCards/CreditCardListResponse.ts';

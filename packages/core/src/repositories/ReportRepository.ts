@@ -20,7 +20,9 @@ export interface ReportRepository {
      * @param periods Meses de pagamento pedidos.
      * @param currency Moeda do perfil, em que as somas estão denominadas.
      * @return Somas de receitas e de despesas por mês de pagamento; meses sem lançamento
-     * não têm linha. Transferências e investimentos ficam fora: no perfil, somam zero.
+     * não têm linha. Transferências e investimentos dentro do perfil ficam fora, porque
+     * somam zero; a transferência entre perfis entra como despesa na origem e receita no
+     * destino, porque o dinheiro de fato saiu de um perfil e entrou no outro.
      */
     cashFlowTotals(profileId: ProfileId, periods: readonly YearMonth[], currency: Currency): readonly CashFlowTotals[];
 

@@ -3,6 +3,7 @@ import type { AccountResponse, CategoryBranchResponse, CreditCardResponse, Invoi
 import { formatMonthShort } from '../format/dates.ts';
 import { formatMoney } from '../format/money.ts';
 import { matchesAllTerms } from '../format/searchText.ts';
+import { otherProfileAccountLabel, type OtherProfileAccount } from './otherProfileAccounts.ts';
 import { formatTransactionAmount, type TransactionDirection } from './transactionTable.ts';
 
 /*
@@ -75,21 +76,37 @@ export function transactionSourceOptions(params: {
  * Contas oferecidas como destino de transferência ou investimento, com a mesma regra da origem
  * para as desativadas. A conta de origem fica de fora: o núcleo recusa a transferência para a
  * própria conta, que não moveria dinheiro nenhum.
+ * Regra de negócio (Transferência entre perfis): as contas de outros perfis entram depois das
+ * do perfil, com o perfil no nome, só numa transferência que sai de uma conta — investimento
+ * fica no perfil, e a transferência que sai de um cartão (pagamento parcial) não pode cruzar
+ * perfis (`TransactionComposer.requireDestination`). Oferecer o que o núcleo recusaria só
+ * trocaria a escolha por um erro ao salvar.
  *
  * @param params.accounts Contas do perfil, desativadas incluídas.
  * @param params.originAccountId Conta de origem escolhida; `null` quando a origem é um cartão
  * ou ainda não foi escolhida.
  * @param params.currentDestinationId Destino do lançamento editado; `null` num novo.
- * @return As contas oferecidas.
+ * @param params.type Tipo do lançamento; só a transferência alcança outros perfis.
+ * @param params.otherProfileAccounts Contas de outros perfis com a mesma moeda, desativadas
+ * incluídas; ausente, só as do perfil são oferecidas.
+ * @return As contas oferecidas: as do perfil e, quando cabe, as dos outros perfis.
  */
 export function destinationAccountOptions(params: {
     readonly accounts: readonly Pick<AccountResponse, 'id' | 'name' | 'disabled'>[];
     readonly originAccountId: string | null;
     readonly currentDestinationId: string | null;
+    readonly type?: TransactionResponse['type'];
+    readonly otherProfileAccounts?: readonly (OtherProfileAccount & { readonly disabled: boolean })[];
 }): readonly SourceOption[] {
-    return selectable(params.accounts, params.currentDestinationId)
+    const own = selectable(params.accounts, params.currentDestinationId)
         .filter((account) => account.id !== params.originAccountId)
-        .map((account) => ({ kind: 'account', id: account.id, name: account.name, disabled: account.disabled }));
+        .map((account): SourceOption => ({ kind: 'account', id: account.id, name: account.name, disabled: account.disabled }));
+    if (params.type !== 'transference' || params.originAccountId === null) {
+        return own;
+    }
+    const others = selectable(params.otherProfileAccounts ?? [], params.currentDestinationId)
+        .map((account): SourceOption => ({ kind: 'account', id: account.id, name: otherProfileAccountLabel(account), disabled: account.disabled }));
+    return [...own, ...others];
 }
 
 /**

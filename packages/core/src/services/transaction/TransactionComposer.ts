@@ -1,7 +1,8 @@
+import type { Account } from '../../domain/account/Account.ts';
 import type { Profile } from '../../domain/profile/Profile.ts';
 import { Currency } from '../../domain/shared/Currency.ts';
 import { BusinessRuleViolation, NotFoundError } from '../../domain/shared/errors.ts';
-import type { CreditCardId, ProfileId, TransactionId } from '../../domain/shared/ids.ts';
+import type { AccountId, CreditCardId, ProfileId, TransactionId } from '../../domain/shared/ids.ts';
 import type { LocalDate } from '../../domain/shared/LocalDate.ts';
 import { Money } from '../../domain/shared/Money.ts';
 import type { YearMonth } from '../../domain/shared/YearMonth.ts';
@@ -71,15 +72,17 @@ export class TransactionComposer {
     /**
      * Verifica que toda referência existe e pertence ao perfil. A chave estrangeira só
      * garante a existência; perfis pessoal e empresarial precisam ficar estritamente
-     * separados (database-design §3.8).
+     * separados (database-design §3.8) — a única exceção é a conta de destino de uma
+     * transferência (`requireDestination`).
      *
      * @param profile Perfil dono da transação.
      * @param input Referências a verificar.
      * @param current Estado atual numa edição; `null` num lançamento novo.
      * @return void
      * @throws {NotFoundError} Quando uma referência não existe.
-     * @throws {BusinessRuleViolation} Quando pertence a outro perfil, há sócio num perfil
-     * pessoal ou a conta de destino escolhida está desativada.
+     * @throws {BusinessRuleViolation} Quando pertence a outro perfil (fora a transferência entre
+     * perfis aceita por `requireDestination`), há sócio num perfil pessoal ou a conta de destino
+     * escolhida está desativada.
      */
     public assertReferences(profile: Profile, input: TransactionInput, current: Transaction | null): void {
         this.assertOwnedBy(profile, 'subCategoryId', input.subCategoryId, this.categories.findSubCategory(input.subCategoryId)?.profileId ?? null);
@@ -98,9 +101,50 @@ export class TransactionComposer {
             this.assertOwnedBy(profile, 'tagIds', tagId, this.tags.findById(tagId)?.profileId ?? null);
         }
         if (input.destinationAccountId !== null) {
-            const destination = this.requireOwned(profile, 'destinationAccountId', input.destinationAccountId, this.accounts.findById(input.destinationAccountId));
+            const destination = this.requireDestination(profile, input, input.destinationAccountId);
             this.assertSelectable(destination, 'destinationAccountId', current?.destinationAccountId === destination.id);
         }
+    }
+
+    /**
+     * Carrega a conta de destino e confere se ela pode receber o dinheiro deste lançamento.
+     * Regra de negócio (Transferência entre perfis): a transferência é a única referência que
+     * atravessa a separação entre perfis (database-design §3.8), porque mover dinheiro da
+     * conta pessoal para a da empresa é um fato real que os dois lados precisam registrar.
+     * O resto continua preso ao perfil: um investimento só leva dinheiro a outra conta do
+     * mesmo perfil. A origem precisa ser uma conta, porque o pagamento parcial de fatura
+     * (a transferência que sai de um cartão) não tem mês de caixa próprio no perfil de
+     * destino. Os dois perfis precisam ter a mesma moeda, porque a transação grava um único
+     * `value` e o extrato do destino o soma como está (database-design §4.13) — com moedas
+     * diferentes o saldo de lá mudaria de unidade sem conversão.
+     *
+     * @param profile Perfil dono da transação, o da origem.
+     * @param input Tipo e origem do lançamento, que decidem se o destino pode ser de outro perfil.
+     * @param id Conta de destino escolhida.
+     * @return A conta de destino, já verificada.
+     * @throws {NotFoundError} Quando a conta ou o perfil dela não existe.
+     * @throws {BusinessRuleViolation} Quando a conta é de outro perfil e o lançamento não é uma
+     * transferência que sai de uma conta, ou quando os perfis têm moedas diferentes.
+     */
+    private requireDestination(profile: Profile, input: TransactionInput, id: AccountId): Account {
+        const destination = this.accounts.findById(id);
+        if (destination === null) {
+            throw new NotFoundError('destinationAccountId', id);
+        }
+        if (destination.profileId === profile.id) {
+            return destination;
+        }
+        if (input.type !== 'transference') {
+            throw new BusinessRuleViolation('reference-outside-profile', 'destinationAccountId pertence a outro perfil', { field: 'destinationAccountId' });
+        }
+        if (input.source.kind !== 'account') {
+            throw new BusinessRuleViolation('cross-profile-transfer-requires-account', 'transferência para outro perfil precisa sair de uma conta', { field: 'destinationAccountId' });
+        }
+        const destinationProfile = this.requireProfile(destination.profileId);
+        if (!destinationProfile.currency.equals(profile.currency)) {
+            throw new BusinessRuleViolation('cross-profile-transfer-currency-mismatch', 'os perfis da transferência têm moedas diferentes', { field: 'destinationAccountId' });
+        }
+        return destination;
     }
 
     /**

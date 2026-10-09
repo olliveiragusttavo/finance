@@ -6,7 +6,8 @@ import { originEffect } from '../transaction/TransactionType.ts';
 
 /**
  * Somas de receitas ou despesas de um mês de pagamento. O período já é o do critério de
- * caixa (reports-design §2): quem agrega é o SQL, o núcleo só aplica a regra de sinal.
+ * caixa (reports-design §2): quem agrega é o SQL, o núcleo só aplica a regra de sinal. As
+ * transferências entre perfis chegam aqui já como receita (no destino) ou despesa (na origem).
  */
 export interface CashFlowTotals {
     readonly period: YearMonth;

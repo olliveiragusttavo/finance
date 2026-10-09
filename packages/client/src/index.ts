@@ -18,6 +18,7 @@ export { summarizeNote, type NoteSummary } from './format/note.ts';
 export { formatVariation, type VariationDirection, type VariationView } from './format/variation.ts';
 export { matchesAllTerms, normalizeForSearch } from './format/searchText.ts';
 export { parseMoneyInput, type MoneyInputRejection, type MoneyInputResult } from './format/parseMoneyInput.ts';
+export * from './viewModels/otherProfileAccounts.ts';
 export * from './viewModels/transactionTable.ts';
 export * from './viewModels/transactionEditor.ts';
 export * from './viewModels/recurrenceView.ts';

@@ -200,6 +200,7 @@ export function createCore(ports: CorePorts): Core {
         'profiles.update': (raw) => profileController.update(raw),
         'onboarding.start': (raw) => profileController.startOnboarding(raw),
         'accounts.list': (raw) => accountController.list(raw),
+        'accounts.transferTargets': (raw) => accountController.transferTargets(raw),
         'accounts.create': (raw) => accountController.create(raw),
         'accounts.update': (raw) => accountController.update(raw),
         'accounts.disable': (raw) => accountController.disable(raw),

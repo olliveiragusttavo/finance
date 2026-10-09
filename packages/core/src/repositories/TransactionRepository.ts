@@ -85,10 +85,11 @@ export interface TransactionRepository {
     listIncoming(accountId: AccountId, period: YearMonth): readonly Transaction[];
 
     /**
-     * @param profileId Perfil dono.
+     * @param profileId Perfil consultado.
      * @param from Primeira data incluída.
      * @param to Última data incluída.
-     * @return As transações vivas do perfil com `due_date` no intervalo, por data.
+     * @return As transações vivas do perfil com `due_date` no intervalo, por data, mais as
+     * transferências de outros perfis que chegam a uma conta dele (com o `profileId` da origem).
      */
     listByProfileBetween(profileId: ProfileId, from: LocalDate, to: LocalDate): readonly Transaction[];
 

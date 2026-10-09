@@ -41,6 +41,7 @@ function probes(s: SeriesScenario): readonly Probe[] {
             { route: 'reports.categoryTransactions', input: { profileId: s.profileId, period, subCategoryId: s.subCategoryId } },
             { route: 'reports.cardImpact', input: { profileId: s.profileId, period } },
         ]),
+        { route: 'accounts.transferTargets', input: { profileId: s.profileId } },
         { route: 'accounts.deletionImpact', input: { id: s.savingsId } },
         { route: 'creditCards.deletionImpact', input: { id: s.creditCardId } },
         { route: 'categories.tree', input: { profileId: s.profileId } },

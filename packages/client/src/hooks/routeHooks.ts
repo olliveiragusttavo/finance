@@ -32,6 +32,15 @@ export function useAccounts(input: CoreInput<'accounts.list'> | null): Query<'ac
 }
 
 /**
+ * @param input Perfil de onde a transferência sai; `null` deixa a consulta parada.
+ * @return As contas de outros perfis com a mesma moeda, destinos possíveis de uma transferência
+ * e nomes das contas do outro lado nas transferências entre perfis.
+ */
+export function useTransferTargets(input: CoreInput<'accounts.transferTargets'> | null): Query<'accounts.transferTargets'> {
+    return useCoreQuery('accounts.transferTargets', input);
+}
+
+/**
  * @param input Conta a excluir; `null` enquanto o alerta está fechado.
  * @return O que a exclusão apaga junto e as outras contas cujo saldo muda.
  */

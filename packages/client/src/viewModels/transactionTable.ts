@@ -3,6 +3,7 @@ import type { AccountResponse, CategoryBranchResponse, CreditCardResponse, Invoi
 import { formatDayMonth, formatMonthAbbreviation } from '../format/dates.ts';
 import { formatMoney } from '../format/money.ts';
 import { matchesAllTerms, normalizeForSearch } from '../format/searchText.ts';
+import { otherProfileAccountNames, type OtherProfileAccount } from './otherProfileAccounts.ts';
 import { formatRecurrenceTag } from './recurrenceView.ts';
 
 /**
@@ -26,6 +27,11 @@ export type TransactionDirection = 'in' | 'out' | 'transfer';
 
 /** Os dados que a tela de Transações já tem em cache, juntados numa linha legível. */
 export interface TransactionTableSource {
+    /**
+     * Perfil da tela. Uma transação com outro `profileId` é uma transferência que chega de
+     * outro perfil: aparece como entrada e só para leitura.
+     */
+    readonly profileId: string;
     readonly transactions: readonly TransactionResponse[];
     /** Todas as contas do perfil, desativadas incluídas: o histórico continua mostrando o nome. */
     readonly accounts: readonly Pick<AccountResponse, 'id' | 'name'>[];
@@ -39,6 +45,12 @@ export interface TransactionTableSource {
     readonly invoices: readonly Pick<InvoiceResponse, 'id' | 'status'>[];
     /** Séries do perfil, para a coluna "Rec."; ausente, a coluna mostra só que há uma série. */
     readonly recurrences?: readonly RecurrenceResponse[];
+    /**
+     * Contas de outros perfis (`accounts.transferTargets`): nomeiam o outro lado das
+     * transferências entre perfis e dizem quais saem do perfil; ausente, essas transferências
+     * aparecem como internas e sem o nome do outro lado.
+     */
+    readonly otherProfileAccounts?: readonly OtherProfileAccount[];
 }
 
 /** Uma linha da tabela, com os textos prontos e os valores crus para ordenar e filtrar. */
@@ -68,6 +80,11 @@ export interface TransactionRow {
     readonly recurring: boolean;
     /** A coluna "Rec." do mockup: "3/12", "Fixa"; `null` num lançamento avulso. */
     readonly recurrenceTag: string | null;
+    /**
+     * Transferência recebida de outro perfil: quem edita, paga ou exclui é o perfil de
+     * origem, dono da linha (database-design §4.13, uma transferência é uma linha só).
+     */
+    readonly readOnly: boolean;
 }
 
 /** Filtros da tela de Transações; `null` e texto vazio significam "Todos/Todas". */
@@ -139,8 +156,10 @@ export interface TransactionTable {
  * centenas de linhas e filtrar no núcleo só acrescentaria rotas (desktop-mvp-plan §2).
  *
  * Regra de negócio (Transações): o "resultado" é o efeito no saldo das entradas e saídas
- * visíveis; transferências e investimentos ficam de fora porque só movem dinheiro entre
- * contas do próprio perfil — somá-los mostraria uma saída que não é gasto.
+ * visíveis; transferências e investimentos dentro do perfil ficam de fora porque só movem
+ * dinheiro entre contas do próprio perfil — somá-los mostraria uma saída que não é gasto. A
+ * transferência entre perfis entra, como nos relatórios: para este perfil, o dinheiro de fato
+ * saiu ou chegou.
  *
  * @param source Transações do mês e os cadastros para os nomes.
  * @param filters Filtros escolhidos na tela.
@@ -158,7 +177,10 @@ export function buildTransactionTable(source: TransactionTableSource, filters: T
 
 /** Índices por id dos cadastros, montados uma vez por tabela. */
 interface Lookup {
+    readonly profileId: string;
     readonly accounts: ReadonlyMap<string, string>;
+    /** Rótulos das contas de outros perfis, "Nubank (Empresa)". */
+    readonly otherProfileAccounts: ReadonlyMap<string, string>;
     readonly creditCards: ReadonlyMap<string, string>;
     readonly subCategories: ReadonlyMap<string, { readonly categoryId: string; readonly label: string }>;
     readonly paidInvoices: ReadonlySet<string>;
@@ -171,7 +193,9 @@ interface Lookup {
  */
 function createLookup(source: TransactionTableSource): Lookup {
     return {
+        profileId: source.profileId,
         accounts: new Map(source.accounts.map((account) => [account.id, account.name])),
+        otherProfileAccounts: otherProfileAccountNames(source.otherProfileAccounts),
         creditCards: new Map(source.creditCards.map((creditCard) => [creditCard.id, creditCard.name])),
         subCategories: new Map(source.categories.flatMap((category) => category.subCategories.map((sub) => [
             sub.id,
@@ -189,7 +213,9 @@ function createLookup(source: TransactionTableSource): Lookup {
  */
 function toRow(transaction: TransactionResponse, lookup: Lookup): TransactionRow {
     const subCategory = lookup.subCategories.get(transaction.subCategoryId);
-    const amount = formatTransactionAmount(transaction.type, transaction.originEffect);
+    const side = crossProfileSide(transaction, lookup);
+    const effect = side === 'incoming' ? (transaction.destinationEffect ?? transaction.originEffect) : transaction.originEffect;
+    const amount = side === null ? formatTransactionAmount(transaction.type, effect) : formatCrossProfileAmount(effect);
     const situation = situationOf(transaction, lookup);
     return {
         id: transaction.id,
@@ -199,16 +225,47 @@ function toRow(transaction: TransactionResponse, lookup: Lookup): TransactionRow
         name: transaction.name,
         refund: transaction.type === 'expense' && transaction.value.amount < 0,
         categoryId: subCategory?.categoryId ?? null,
-        category: subCategory?.label ?? '',
+        // A subcategoria da transferência recebida é do perfil de origem e não está no lookup.
+        category: side === 'incoming' ? 'Transferência recebida' : (subCategory?.label ?? ''),
         container: containerLabel(transaction, lookup),
-        amount: transaction.originEffect,
+        amount: effect,
         amountText: amount.text,
         direction: amount.direction,
         situation,
         situationText: SITUATION_LABELS[situation],
         recurring: transaction.recurrenceId !== null,
         recurrenceTag: formatRecurrenceTag(transaction, transaction.recurrenceId === null ? undefined : lookup.recurrences.get(transaction.recurrenceId)),
+        readOnly: side === 'incoming',
     };
+}
+
+/**
+ * Lado de uma transferência entre perfis visto deste perfil. A saída se reconhece pela conta
+ * de destino, que é de outro perfil; a entrada, pelo dono da linha, que é outro perfil — o
+ * núcleo só lista transação alheia quando ela chega a uma conta daqui.
+ *
+ * @param transaction Transação da linha.
+ * @param lookup Índices com o perfil da tela e as contas de outros perfis.
+ * @return `incoming`, `outgoing`, ou `null` quando a transação não cruza perfis.
+ */
+function crossProfileSide(transaction: TransactionResponse, lookup: Lookup): 'incoming' | 'outgoing' | null {
+    if (transaction.profileId !== lookup.profileId) {
+        return 'incoming';
+    }
+    const destination = transaction.destinationAccountId;
+    return destination !== null && lookup.otherProfileAccounts.has(destination) ? 'outgoing' : null;
+}
+
+/**
+ * Valor da transferência entre perfis: `⇄` diz que é transferência e o sinal diz se o dinheiro
+ * saiu ou chegou — para este perfil é entrada ou saída de verdade, e por isso conta no
+ * resultado (decisão de interface 7: sem depender só da cor).
+ *
+ * @param effect Efeito no saldo deste perfil: o da origem na saída, o do destino na entrada.
+ * @return O texto (`⇄ +R$ 500,00`) e o sentido.
+ */
+function formatCrossProfileAmount(effect: MoneyResponse): { readonly text: string; readonly direction: TransactionDirection } {
+    return { text: `⇄ ${formatMoney(effect, 'always')}`, direction: effect.amount < 0 ? 'out' : 'in' };
 }
 
 /**
@@ -243,16 +300,18 @@ function situationOf(transaction: TransactionResponse, lookup: Lookup): Transact
 /**
  * @param transaction Transação do núcleo.
  * @param lookup Índices dos cadastros.
- * @return `Nubank`, `Roxinho · fat. nov`, ou origem `→` destino nas transferências.
+ * @return `Nubank`, `Roxinho · fat. nov`, ou origem `→` destino nas transferências; a conta do
+ * outro perfil vem com o perfil, `Nubank → Itaú (Empresa)`.
  */
 function containerLabel(transaction: TransactionResponse, lookup: Lookup): string {
     const { container } = transaction;
+    const accountName = (id: string): string => lookup.accounts.get(id) ?? lookup.otherProfileAccounts.get(id) ?? '';
     const origin = container.kind === 'statement'
-        ? lookup.accounts.get(container.accountId) ?? ''
+        ? accountName(container.accountId)
         : `${lookup.creditCards.get(container.creditCardId) ?? ''} · fat. ${formatMonthAbbreviation(container.period)}`;
     return transaction.destinationAccountId === null
         ? origin
-        : `${origin} → ${lookup.accounts.get(transaction.destinationAccountId) ?? ''}`;
+        : `${origin} → ${accountName(transaction.destinationAccountId)}`;
 }
 
 /**

@@ -1,6 +1,7 @@
 import type { AccountResponse, CategoryBranchResponse, CreditCardResponse, MoneyResponse, StatementInvoiceResponse, StatementResponse, TransactionResponse } from '@finance/core';
 import { formatDayMonth, formatMonthAbbreviation } from '../format/dates.ts';
 import { formatMoney } from '../format/money.ts';
+import { otherProfileAccountNames, type OtherProfileAccount } from './otherProfileAccounts.ts';
 
 /**
  * De onde vem a linha do extrato. Os quatro tipos são as quatro fontes do movimento do mês
@@ -41,6 +42,12 @@ export interface StatementTableSource {
     readonly accounts: readonly Pick<AccountResponse, 'id' | 'name'>[];
     readonly creditCards: readonly Pick<CreditCardResponse, 'id' | 'name'>[];
     readonly categories: readonly CategoryBranchResponse[];
+    /**
+     * Contas de outros perfis (`accounts.transferTargets`), para nomear a origem da
+     * transferência que chega de outro perfil e o destino da que vai para ele; ausente, o
+     * outro lado fica sem nome.
+     */
+    readonly otherProfileAccounts?: readonly OtherProfileAccount[];
 }
 
 /** Uma linha da tabela de movimentos, com os textos prontos. */
@@ -123,12 +130,16 @@ interface Lookup {
 }
 
 /**
+ * As contas de outros perfis entram no mesmo índice das do perfil, com o perfil no rótulo,
+ * porque a transferência entre perfis aparece no extrato como qualquer outra: só o nome do
+ * outro lado muda.
+ *
  * @param source Cadastros da tela.
  * @return Os índices, para não buscar linearmente a cada linha.
  */
 function createLookup(source: StatementTableSource): Lookup {
     return {
-        accounts: new Map(source.accounts.map((account) => [account.id, account.name])),
+        accounts: new Map([...otherProfileAccountNames(source.otherProfileAccounts), ...source.accounts.map((account): [string, string] => [account.id, account.name])]),
         creditCards: new Map(source.creditCards.map((creditCard) => [creditCard.id, creditCard.name])),
         subCategories: new Map(source.categories.flatMap((category) => category.subCategories.map((sub) => [sub.id, `${category.name} › ${sub.name}`]))),
     };

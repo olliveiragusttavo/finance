@@ -200,7 +200,8 @@ export class TransactionService {
     }
 
     /**
-     * Transações do perfil num mês, pelo `due_date` — a lista "Transações do mês" (brief M5).
+     * Transações do perfil num mês, pelo `due_date` — a lista "Transações do mês" (brief M5) —,
+     * com as transferências recebidas de outros perfis, que o perfil vê mas não edita.
      *
      * @param profileId Perfil consultado.
      * @param period Mês consultado.

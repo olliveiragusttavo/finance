@@ -53,6 +53,18 @@ describe('origem e destino do lançamento (desktop-mvp-plan §5.1)', () => {
         expect(ids(null, null)).toEqual(['nubank', 'tesouro']);
         expect(ids('nubank', 'old')).toEqual(['old', 'tesouro']);
     });
+
+    it('Regra de negócio (Transferência entre perfis): contas de outros perfis só numa transferência que sai de uma conta', () => {
+        const ITAU = { id: 'itau', name: 'Itaú', disabled: false, profileName: 'Empresa' };
+        const CLOSED = { id: 'closed', name: 'Conta fechada', disabled: true, profileName: 'Empresa' };
+        const names = (type: 'transference' | 'investment', originAccountId: string | null, currentDestinationId: string | null = null): readonly string[] =>
+            destinationAccountOptions({ accounts: [NUBANK, TESOURO], originAccountId, currentDestinationId, type, otherProfileAccounts: [ITAU, CLOSED] }).map((option) => option.name);
+        expect(names('transference', 'nubank')).toEqual(['Tesouro', 'Itaú (Empresa)']);
+        expect(names('transference', 'nubank', 'closed')).toEqual(['Tesouro', 'Itaú (Empresa)', 'Conta fechada (Empresa)']);
+        expect(names('investment', 'nubank')).toEqual(['Tesouro']);
+        // Origem em cartão (ou ainda não escolhida): a transferência não pode cruzar perfis.
+        expect(names('transference', null)).toEqual(['Nubank', 'Tesouro']);
+    });
 });
 
 describe('tipo do lançamento', () => {

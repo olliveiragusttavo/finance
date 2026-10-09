@@ -63,10 +63,12 @@ export class SqliteProfileRepository implements ProfileRepository {
 
     /**
      * Segue o mesmo caminho de posse do `SqliteTransactionRepository` — a transação não tem
-     * `profile_id`, o perfil vem do contêiner vivo.
+     * `profile_id`, o perfil vem do contêiner vivo. Conta também a transferência que **chega**
+     * de outro perfil: o valor dela está gravado na moeda comum aos dois perfis, e trocar a
+     * moeda deste mudaria a unidade do que ela somou ao saldo daqui.
      *
      * @param id Perfil consultado.
-     * @return `true` quando há ao menos uma transação viva do perfil.
+     * @return `true` quando há ao menos uma transação viva do perfil, ou que chega a uma conta dele.
      */
     public hasTransactions(id: ProfileId): boolean {
         const row = this.database.get(
@@ -75,7 +77,8 @@ export class SqliteProfileRepository implements ProfileRepository {
             LEFT JOIN accounts a ON a.id = bs.account_id
             LEFT JOIN invoices i ON i.id = t.invoice_id AND i.deleted_at IS NULL
             LEFT JOIN credit_cards c ON c.id = i.credit_card_id
-            WHERE t.deleted_at IS NULL AND COALESCE(a.profile_id, c.profile_id) = :id
+            LEFT JOIN accounts da ON da.id = t.destination_account_id AND da.deleted_at IS NULL
+            WHERE t.deleted_at IS NULL AND (COALESCE(a.profile_id, c.profile_id) = :id OR da.profile_id = :id)
             LIMIT 1`,
             { id },
         );

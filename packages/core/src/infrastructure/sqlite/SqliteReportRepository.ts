@@ -12,7 +12,7 @@ import { YearMonth } from '../../domain/shared/YearMonth.ts';
 import type { Database } from '../../ports/Database.ts';
 import type { ReportRepository } from '../../repositories/ReportRepository.ts';
 import { TRANSACTION_TYPE_CODE } from './enumCodes.ts';
-import { periodFromKey, periodKey, periodListSql, REPORT_SOURCES_CTE } from './periodSql.ts';
+import { CROSS_PROFILE_TRANSFERS_CTE, periodFromKey, periodKey, periodListSql, REPORT_SOURCES_CTE } from './periodSql.ts';
 import { RowReader } from './RowReader.ts';
 
 /**
@@ -27,21 +27,39 @@ export class SqliteReportRepository implements ReportRepository {
     public constructor(private readonly database: Database) {}
 
     /**
+     * Receitas e despesas somam junto com as transferências entre perfis
+     * (`CROSS_PROFILE_TRANSFERS_CTE`) num `UNION ALL` antes do agrupamento, para que a Visão
+     * geral e o peso nas entradas (C3) as contem sem uma segunda consulta por relatório.
+     *
      * @param profileId Perfil consultado.
      * @param periods Meses de pagamento pedidos.
      * @param currency Moeda do perfil.
-     * @return Somas de receitas e despesas por mês de pagamento.
+     * @return Somas de receitas e despesas por mês de pagamento, com as transferências entre
+     * perfis no sentido que têm para este perfil.
      */
     public cashFlowTotals(profileId: ProfileId, periods: readonly YearMonth[], currency: Currency): readonly CashFlowTotals[] {
         const list = periodListSql(periods);
         return this.database
             .all(
-                `WITH ${REPORT_SOURCES_CTE}
-                SELECT rt.payment_key, rt.type, SUM(rt.value) AS value, SUM(rt.charges) AS charges, COUNT(*) AS count
-                FROM report_transactions rt
-                WHERE rt.type IN (:income, :expense) AND rt.payment_key IN (${list.sql})
-                GROUP BY rt.payment_key, rt.type`,
-                { profileId, income: TRANSACTION_TYPE_CODE.income, expense: TRANSACTION_TYPE_CODE.expense, ...list.params },
+                `WITH ${REPORT_SOURCES_CTE}, ${CROSS_PROFILE_TRANSFERS_CTE}
+                SELECT flows.payment_key, flows.type, SUM(flows.value) AS value, SUM(flows.charges) AS charges, COUNT(*) AS count
+                FROM (
+                    SELECT rt.payment_key, rt.type, rt.value, rt.charges
+                    FROM report_transactions rt
+                    WHERE rt.type IN (:income, :expense)
+                    UNION ALL
+                    SELECT cpt.payment_key, cpt.type, cpt.value, cpt.charges
+                    FROM cross_profile_transfers cpt
+                ) flows
+                WHERE flows.payment_key IN (${list.sql})
+                GROUP BY flows.payment_key, flows.type`,
+                {
+                    profileId,
+                    income: TRANSACTION_TYPE_CODE.income,
+                    expense: TRANSACTION_TYPE_CODE.expense,
+                    transference: TRANSACTION_TYPE_CODE.transference,
+                    ...list.params,
+                },
             )
             .map((row) => {
                 const reader = new RowReader('transactions', row);

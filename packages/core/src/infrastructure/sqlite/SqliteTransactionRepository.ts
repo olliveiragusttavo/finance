@@ -248,15 +248,24 @@ export class SqliteTransactionRepository implements TransactionRepository {
     }
 
     /**
-     * @param profileId Perfil dono.
+     * Regra de negócio (Transferência entre perfis): a transferência é uma linha só, do perfil
+     * de origem, mas o perfil de destino também precisa vê-la na lista do mês — é dinheiro
+     * que entrou nele. Ela vem com o `profileId` da origem, que é como a UI a reconhece e a
+     * mostra só para leitura.
+     *
+     * @param profileId Perfil consultado.
      * @param from Primeira data incluída.
      * @param to Última data incluída.
-     * @return As transações vivas do perfil no intervalo.
+     * @return As transações vivas do perfil no intervalo, mais as transferências de outros
+     * perfis que chegam a uma conta dele.
      */
     public listByProfileBetween(profileId: ProfileId, from: LocalDate, to: LocalDate): readonly Transaction[] {
         return this.list(
-            `WHERE p.id = :profileId AND t.deleted_at IS NULL AND t.due_date BETWEEN :from AND :to ${ORDER}`,
-            { profileId, from: from.toString(), to: to.toString() },
+            `WHERE t.deleted_at IS NULL AND t.due_date BETWEEN :from AND :to
+                AND (p.id = :profileId OR (t.type = :transference AND t.destination_account_id IN (
+                    SELECT da.id FROM accounts da WHERE da.profile_id = :profileId AND da.deleted_at IS NULL
+                ))) ${ORDER}`,
+            { profileId, from: from.toString(), to: to.toString(), transference: TRANSACTION_TYPE_CODE.transference },
         );
     }
 

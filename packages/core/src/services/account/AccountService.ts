@@ -14,7 +14,7 @@ import { BEGINNING_OF_TIME, type BalanceRecalculationService } from '../balance/
 import type { ProfileService } from '../profile/ProfileService.ts';
 import type { UnitOfWork } from '../UnitOfWork.ts';
 import type { AccountInput, CreateAccountCommand, UpdateAccountCommand } from './AccountCommands.ts';
-import type { AccountListView } from './AccountViews.ts';
+import type { AccountListView, TransferTarget } from './AccountViews.ts';
 
 /**
  * Cadastro de contas: listar com saldos do mês, criar, editar, desativar e reativar. A
@@ -67,6 +67,30 @@ export class AccountService {
                 .reduce((sum, { balances }) => sum.add(balances), BalancePair.zero(profile.currency))
                 .rounded();
             return { profile, period, accounts, total };
+        });
+    }
+
+    /**
+     * Contas de outros perfis oferecidas como destino de uma transferência.
+     * Regra de negócio (Transferência entre perfis): só perfis com a mesma moeda, pelo mesmo
+     * motivo que o `TransactionComposer` recusa os outros — a transação grava um único valor.
+     * Filtrar aqui, e não só na escrita, evita oferecer no formulário uma conta que o núcleo
+     * recusaria ao salvar. As desativadas vêm junto, para que a edição de uma transferência
+     * antiga ainda mostre o nome do destino; quem esconde as desativadas é a UI, como nas
+     * contas do próprio perfil.
+     *
+     * @param profileId Perfil de onde a transferência sai.
+     * @return As contas vivas dos outros perfis com a mesma moeda, por perfil e nome; vazio
+     * quando não há outro perfil compatível.
+     * @throws {NotFoundError} Quando o perfil não existe.
+     */
+    public transferTargets(profileId: ProfileId): readonly TransferTarget[] {
+        return this.unitOfWork.run(() => {
+            const origin = this.profiles.require(profileId);
+            return this.profiles
+                .list()
+                .filter((profile) => profile.id !== origin.id && profile.currency.equals(origin.currency))
+                .flatMap((profile) => this.accounts.listByProfile(profile.id).map((account) => ({ account, profile })));
         });
     }
 

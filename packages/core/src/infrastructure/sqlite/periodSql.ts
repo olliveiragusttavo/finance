@@ -104,7 +104,7 @@ export const REPORT_SOURCES_CTE = `
         WHERE i.deleted_at IS NULL AND c.profile_id = :profileId
     ),
     report_transactions AS (
-        SELECT t.id, t.type, t.value, t.charges, t.sub_category_id, t.invoice_id,
+        SELECT t.id, t.type, t.value, t.charges, t.sub_category_id, t.invoice_id, t.destination_account_id,
             CASE
                 WHEN t.invoice_id IS NOT NULL THEN ri.payment_key
                 ELSE bs.year * 100 + bs.month
@@ -115,6 +115,43 @@ export const REPORT_SOURCES_CTE = `
         LEFT JOIN report_invoices ri ON ri.id = t.invoice_id
         WHERE t.deleted_at IS NULL
             AND ((a.id IS NOT NULL AND t.invoice_id IS NULL) OR (ri.id IS NOT NULL AND t.bank_statement_id IS NULL))
+    )
+`;
+
+/**
+ * Transferências que atravessam a fronteira do perfil (`:profileId`), já com o sentido que
+ * têm para ele: `type` é `:income` na que chega de outro perfil e `:expense` na que sai para
+ * outro perfil.
+ * Regra de negócio (Relatórios — transferência entre perfis): dentro do perfil a
+ * transferência soma zero e fica fora (reports-design R2/C3), mas entre perfis o dinheiro de
+ * fato sai de um e entra no outro, então cada perfil a vê como saída ou entrada. Os
+ * encargos são custo da origem (database-design §4.13, Encargos): a saída leva valor e
+ * encargos; a entrada, só o valor.
+ *
+ * A saída vem de `report_transactions`, que já recortou a origem pelo perfil. A entrada não
+ * pode vir de lá — a origem dela é de outro perfil —, então repete o recorte do lado do
+ * destino: extrato e as duas contas vivos. As duas pernas usam o mês do extrato de origem,
+ * que é o da data de caixa (`Transaction.cashDate`), o mesmo em que a transferência entra no
+ * destino; a transferência entre perfis sempre sai de uma conta
+ * (`TransactionComposer.requireDestination`).
+ *
+ * Uso: `WITH ${REPORT_SOURCES_CTE}, ${CROSS_PROFILE_TRANSFERS_CTE} SELECT ... FROM
+ * cross_profile_transfers cpt ...`, com `:transference`, `:income` e `:expense` nos parâmetros.
+ */
+export const CROSS_PROFILE_TRANSFERS_CTE = `
+    cross_profile_transfers AS (
+        SELECT rt.payment_key, :expense AS type, rt.value, rt.charges
+        FROM report_transactions rt
+        JOIN accounts da ON da.id = rt.destination_account_id AND da.deleted_at IS NULL
+        WHERE rt.type = :transference AND rt.invoice_id IS NULL AND da.profile_id <> :profileId
+        UNION ALL
+        SELECT bs.year * 100 + bs.month AS payment_key, :income AS type, t.value, 0 AS charges
+        FROM transactions t
+        JOIN bank_statements bs ON bs.id = t.bank_statement_id AND bs.deleted_at IS NULL
+        JOIN accounts oa ON oa.id = bs.account_id AND oa.deleted_at IS NULL
+        JOIN accounts da ON da.id = t.destination_account_id AND da.deleted_at IS NULL
+        WHERE t.deleted_at IS NULL AND t.type = :transference AND t.invoice_id IS NULL
+            AND da.profile_id = :profileId AND oa.profile_id <> :profileId
     )
 `;
 

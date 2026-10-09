@@ -2,6 +2,7 @@ import type { z } from 'zod';
 import type { AccountBalanceResponse } from '../dto/accounts/AccountBalanceResponse.ts';
 import type { AccountListResponse } from '../dto/accounts/AccountListResponse.ts';
 import type { AccountResponse } from '../dto/accounts/AccountResponse.ts';
+import type { TransferTargetResponse } from '../dto/accounts/TransferTargetResponse.ts';
 import type { CategoryBranchResponse, CategoryResponse, SubCategoryResponse } from '../dto/categories/CategoryResponse.ts';
 import type { CreditCardListResponse } from '../dto/creditCards/CreditCardListResponse.ts';
 import type { CreditCardResponse } from '../dto/creditCards/CreditCardResponse.ts';
@@ -27,7 +28,7 @@ import type { OccurrencePreviewResponse, RecurrenceResponse } from '../dto/recur
 import type { SeriesPlanResponse } from '../dto/recurrences/SeriesPlanResponse.ts';
 import type { TopUpResponse } from '../dto/recurrences/TopUpResponse.ts';
 import type { TransactionResponse } from '../dto/transactions/TransactionResponse.ts';
-import type { accountIdRequest, createAccountRequest, listAccountsRequest, updateAccountRequest } from '../requests/accountRequests.ts';
+import type { accountIdRequest, createAccountRequest, listAccountsRequest, transferTargetsRequest, updateAccountRequest } from '../requests/accountRequests.ts';
 import type { profileBalancesRequest, rebuildAccountRequest } from '../requests/balanceRequests.ts';
 import type {
     categoryTreeRequest,
@@ -85,6 +86,7 @@ export interface CoreRoutes {
     'profiles.update': { input: z.input<typeof updateProfileRequest>; output: ProfileResponse };
     'onboarding.start': { input: z.input<typeof startOnboardingRequest>; output: OnboardingResponse };
     'accounts.list': { input: z.input<typeof listAccountsRequest>; output: AccountListResponse };
+    'accounts.transferTargets': { input: z.input<typeof transferTargetsRequest>; output: readonly TransferTargetResponse[] };
     'accounts.create': { input: z.input<typeof createAccountRequest>; output: AccountResponse };
     'accounts.update': { input: z.input<typeof updateAccountRequest>; output: AccountResponse };
     'accounts.disable': { input: z.input<typeof accountIdRequest>; output: AccountResponse };

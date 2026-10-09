@@ -342,7 +342,9 @@ exclui todos os registros associados a ele. O app é local-first e de usuário �
 a mesma pessoa precisa manter finanças pessoais e empresariais estritamente separadas;
 fazer do perfil a raiz dá essa separação sem multi-tenancy de verdade. Categorias, metas
 e tags, portanto, **não** são um vocabulário global compartilhado — um perfil pessoal e
-um empresarial mantêm cada um o seu.
+um empresarial mantêm cada um o seu. A única referência que atravessa essa fronteira é a
+conta de destino de uma **transferência**
+([§4.13](#413-transactions), "Transferência entre perfis").
 
 Nem toda chave estrangeira cascateia, porém. A ação `ON DELETE` é escolhida pelo que o
 relacionamento *significa*, e é registrada por chave na [§4](#4-tabelas):
@@ -1395,6 +1397,30 @@ transações mais as que chegam por `destination_account_id`
 ([§4.6](#46-bank_statements)). O pagamento parcial de fatura é uma transferência com a
 fatura como origem ([§4.7](#47-invoices)). Os relatórios precisam evitar contagem dupla: uma transferência não é
 receita nem despesa líquida no nível do perfil, apenas no nível da conta.
+
+#### Transferência entre perfis
+
+Regra de negócio (Transferência entre perfis): a conta de destino de uma **transferência**
+pode ser de outro perfil — mover dinheiro da conta pessoal para a da empresa é um fato
+real que os dois lados precisam registrar. É a única referência que atravessa a fronteira
+do perfil ([§3.8](#38-o-perfil-é-a-raiz-do-tenant-e-as-chaves-estrangeiras-seguem-o-relacionamento));
+as condições são verificadas no `TransactionComposer`:
+
+- só `transference` — o investimento continua com destino no próprio perfil
+  (`reference-outside-profile`);
+- a origem é uma **conta** — a transferência que sai de uma fatura (pagamento parcial) não
+  cruza perfis (`cross-profile-transfer-requires-account`);
+- os dois perfis têm a **mesma moeda** — a linha grava um único `value`, somado como está no
+  extrato do destino (`cross-profile-transfer-currency-mismatch`). Pela mesma razão, um
+  perfil que recebe transferências de outro tem a moeda travada (`profile-currency-locked`).
+
+A linha continua única e pertence ao perfil de **origem**: subcategoria, tags e meta são
+dele. O perfil de destino a vê na lista de transações do mês e no extrato da conta, só para
+leitura — editar, pagar ou excluir é no perfil de origem. Nos relatórios ela conta como
+despesa na origem (valor + encargos) e receita no destino (só o valor), porque para cada
+perfil o dinheiro de fato saiu ou entrou ([reports-design.md](reports-design.md), R2 e C3).
+Excluir a conta de destino apaga a transferência junto, como numa transferência interna, e
+recalcula a conta de origem no outro perfil.
 
 #### O tipo é fixo desde a criação
 

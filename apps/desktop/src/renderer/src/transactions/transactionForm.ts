@@ -99,6 +99,19 @@ export function sourceKey(option: Pick<SourceOption, 'kind' | 'id'>): string {
     return `${option.kind}:${option.id}`;
 }
 
+/**
+ * Valor de uma opção no campo "Conta de destino". Diferente da origem, o campo guarda o id puro
+ * da conta: é o que o lançamento editado traz (`transactionFormFrom`) e o que a rota recebe em
+ * `destinationAccountId`. Usar a `sourceKey` aqui mandava `account:<id>` ao núcleo, que o recusa
+ * como id inválido, e nenhuma transferência ou investimento pelo formulário era gravado.
+ *
+ * @param option Conta oferecida como destino.
+ * @return O id da conta.
+ */
+export function destinationKey(option: Pick<SourceOption, 'id'>): string {
+    return option.id;
+}
+
 /** Origem lida do campo "Conta ou cartão". */
 export type ParsedSource = { readonly kind: 'account'; readonly accountId: string } | { readonly kind: 'creditCard'; readonly creditCardId: string };
 

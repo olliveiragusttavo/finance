@@ -3,6 +3,7 @@ import type { RecurrenceResponse, TransactionResponse } from '@finance/core';
 import { describe, expect, it } from 'vitest';
 import {
     cashPeriodOf,
+    destinationKey,
     newTransactionForm,
     parseSourceKey,
     readTransactionForm,
@@ -169,6 +170,15 @@ describe('formulário de lançamento (desktop-mvp-plan Fase 9)', () => {
         expect(transfer.ok && transfer.submission.input.destinationAccountId).toBe(TESOURO);
         const expense = readTransactionForm(filled({ type: 'expense', destinationAccountId: TESOURO }), CREATE);
         expect(expense.ok && expense.submission.input.destinationAccountId).toBeNull();
+    });
+
+    it('a opção escolhida na "Conta de destino" grava o id puro, que o núcleo aceita', () => {
+        // A opção do destino não usa a chave da origem (`account:<id>`), que o núcleo recusava.
+        const chosen = destinationKey({ id: TESOURO });
+        const transfer = readTransactionForm(filled({ type: 'transference', destinationAccountId: chosen }), CREATE);
+        expect(transfer.ok && transfer.submission.input.destinationAccountId).toBe(TESOURO);
+        const withSourceKey = readTransactionForm(filled({ type: 'transference', destinationAccountId: sourceKey({ kind: 'account', id: TESOURO }) }), CREATE);
+        expect(withSourceKey.ok).toBe(false);
     });
 
     it('Regra de negócio (Metas): a meta vai só em receita e transferência; trocar para outro tipo a descarta', () => {

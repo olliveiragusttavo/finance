@@ -81,6 +81,8 @@ export class NotFoundError extends DomainError {
 export type BusinessRule =
     | 'account-disabled'
     | 'credit-card-disabled'
+    | 'cross-profile-transfer-currency-mismatch'
+    | 'cross-profile-transfer-requires-account'
     | 'destination-equals-origin'
     | 'destination-not-allowed'
     | 'destination-required'

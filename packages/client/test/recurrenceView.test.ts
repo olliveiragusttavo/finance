@@ -35,7 +35,7 @@ describe('séries na tabela e no painel (desktop-mvp-plan Fase 9.1)', () => {
             world.ok('categories.tree', { profileId: s.profileId }),
             world.ok('recurrences.list', { profileId: s.profileId }),
         ]);
-        const table = buildTransactionTable({ transactions, accounts: accounts.accounts, creditCards: creditCards.creditCards, categories, invoices: [], recurrences }, NO_TRANSACTION_FILTERS);
+        const table = buildTransactionTable({ profileId: s.profileId, transactions, accounts: accounts.accounts, creditCards: creditCards.creditCards, categories, invoices: [], recurrences }, NO_TRANSACTION_FILTERS);
         const tags = Object.fromEntries(table.rows.map((row) => [row.name, row.recurrenceTag]));
         expect(tags).toMatchObject({ Notebook: '3/12', Netflix: 'Fixa', Aluguel: null });
 

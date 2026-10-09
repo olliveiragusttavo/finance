@@ -10,6 +10,15 @@ export interface AccountInPeriod {
 }
 
 /**
+ * Uma conta de outro perfil que pode receber uma transferência, com o perfil dono para a UI
+ * dizer de quem é a conta — o nome sozinho é ambíguo ("Nubank" no pessoal e na empresa).
+ */
+export interface TransferTarget {
+    readonly account: Account;
+    readonly profile: Profile;
+}
+
+/**
  * A lista de contas de um mês, como a tela de Contas mostra. Fica fora do arquivo do
  * `AccountService` para que a camada DTO dependa só do contrato de saída.
  */

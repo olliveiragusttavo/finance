@@ -38,6 +38,8 @@ export function toAccountInput(data: z.output<z.ZodObject<typeof accountContentS
 
 export const listAccountsRequest = z.strictObject({ profileId: parsedText(ProfileId), period: yearMonthField });
 
+export const transferTargetsRequest = z.strictObject({ profileId: parsedText(ProfileId) });
+
 export const createAccountRequest = z
     .strictObject({ profileId: parsedText(ProfileId), ...accountContentShape })
     .transform((data): CreateAccountCommand => ({ ...toAccountInput(data), profileId: data.profileId }));

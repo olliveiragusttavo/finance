@@ -18,6 +18,8 @@ export interface ErrorDescription {
 const RULE_MESSAGES: Readonly<Record<BusinessRule, string>> = {
     'account-disabled': 'Esta conta está desativada e não aceita lançamentos novos. Reative-a em Cadastros para usá-la.',
     'credit-card-disabled': 'Este cartão está desativado e não aceita lançamentos novos. Reative-o em Cadastros para usá-lo.',
+    'cross-profile-transfer-currency-mismatch': 'Só dá para transferir para um perfil com a mesma moeda deste.',
+    'cross-profile-transfer-requires-account': 'A transferência para outro perfil precisa sair de uma conta, não de um cartão.',
     'destination-equals-origin': 'A conta de destino precisa ser diferente da conta de origem.',
     'destination-not-allowed': 'Só transferências e investimentos têm conta de destino.',
     'destination-required': 'Escolha a conta de destino da transferência ou do investimento.',

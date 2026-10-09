@@ -1,7 +1,8 @@
 import { toAccountListResponse, type AccountListResponse } from '../dto/accounts/AccountListResponse.ts';
 import { toAccountResponse, type AccountResponse } from '../dto/accounts/AccountResponse.ts';
 import { toAccountDeletionImpactResponse, type AccountDeletionImpactResponse } from '../dto/deletion/DeletionImpactResponse.ts';
-import { accountIdRequest, createAccountRequest, listAccountsRequest, updateAccountRequest } from '../requests/accountRequests.ts';
+import { toTransferTargetResponse, type TransferTargetResponse } from '../dto/accounts/TransferTargetResponse.ts';
+import { accountIdRequest, createAccountRequest, listAccountsRequest, transferTargetsRequest, updateAccountRequest } from '../requests/accountRequests.ts';
 import type { AccountService } from '../services/account/AccountService.ts';
 import type { CascadeDeletionService } from '../services/deletion/CascadeDeletionService.ts';
 import { handle, type CoreResult, type UnexpectedErrorListener } from './CoreResult.ts';
@@ -25,6 +26,14 @@ export class AccountController {
      */
     public list(raw: unknown): Promise<CoreResult<AccountListResponse>> {
         return handle(listAccountsRequest, raw, ({ profileId, period }) => toAccountListResponse(this.accounts.list(profileId, period)), this.onUnexpected);
+    }
+
+    /**
+     * @param raw Entrada com o perfil de onde a transferência sai.
+     * @return As contas de outros perfis com a mesma moeda, que podem receber a transferência.
+     */
+    public transferTargets(raw: unknown): Promise<CoreResult<readonly TransferTargetResponse[]>> {
+        return handle(transferTargetsRequest, raw, ({ profileId }) => this.accounts.transferTargets(profileId).map(toTransferTargetResponse), this.onUnexpected);
     }
 
     /**

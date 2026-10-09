@@ -40,6 +40,7 @@ async function transactionSource(world: ClientWorld, s: Scenario): Promise<Trans
         world.ok('invoices.listByCard', { creditCardId: s.creditCardId, from: '2026-08' }),
     ]);
     return {
+        profileId: s.profileId,
         transactions,
         accounts: accounts.accounts,
         creditCards: creditCards.creditCards,
@@ -66,6 +67,42 @@ describe('tabela de Transações', () => {
         ]);
         expect(table.rows.find((row) => row.name === 'Estorno Uber')?.refund).toBe(true);
         expect(table.summary).toBe('5 lançamentos · resultado +R$ 6.736,58');
+    });
+
+    it('Regra de negócio (Transferência entre perfis): conta no resultado dos dois perfis e é só leitura no destino', async () => {
+        const world = new ClientWorld();
+        const s = await world.seed();
+        const { profile: business, account: itau } = await world.ok('onboarding.start', {
+            profile: { name: 'Empresa', type: 'business', currency: 'BRL' },
+            account: { name: 'Itaú', type: 'checking', openingBalance: 0 },
+            suggestedCategories: false,
+        });
+        await world.ok('transactions.create', {
+            profileId: s.profileId, subCategoryId: s.subCategoryId, type: 'transference', source: { kind: 'account', accountId: s.checkingId }, destinationAccountId: itau.id, name: 'Pró-labore', value: 500, charges: 8, dueDate: '2026-10-12',
+        });
+
+        const personal = buildTransactionTable(
+            { ...(await transactionSource(world, s)), otherProfileAccounts: await world.ok('accounts.transferTargets', { profileId: s.profileId }) },
+            NO_TRANSACTION_FILTERS,
+        );
+        const sent = personal.rows.find((row) => row.name === 'Pró-labore');
+        expect([sent?.container, sent?.amountText, sent?.direction, sent?.readOnly]).toEqual(['Nubank → Itaú (Empresa)', '⇄ −R$ 508,00', 'out', false]);
+        // 9.500 − 2.300 − 487,32 do cenário, menos os 508 que saíram do perfil.
+        expect(personal.summary).toBe('5 lançamentos · resultado +R$ 6.204,68');
+
+        const [transactions, accounts, otherProfileAccounts] = await Promise.all([
+            world.ok('transactions.listByPeriod', { profileId: business.id, period: '2026-10' }),
+            world.ok('accounts.list', { profileId: business.id, period: '2026-10' }),
+            world.ok('accounts.transferTargets', { profileId: business.id }),
+        ]);
+        const received = buildTransactionTable(
+            { profileId: business.id, transactions, accounts: accounts.accounts, otherProfileAccounts, creditCards: [], categories: [], invoices: [] },
+            NO_TRANSACTION_FILTERS,
+        );
+        expect(received.rows.map((row) => [row.category, row.container, row.amountText, row.direction, row.readOnly])).toEqual([
+            ['Transferência recebida', 'Nubank (Pessoal) → Itaú', '⇄ +R$ 500,00', 'in', true],
+        ]);
+        expect(received.summary).toBe('1 lançamento · resultado +R$ 500,00');
     });
 
     it('marca a compra de fatura paga como "Fat. paga"', async () => {

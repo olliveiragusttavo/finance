@@ -11,6 +11,7 @@ const ROUTE_KINDS = {
     'profiles.update': 'write',
     'onboarding.start': 'write',
     'accounts.list': 'read',
+    'accounts.transferTargets': 'read',
     'accounts.create': 'write',
     'accounts.update': 'write',
     'accounts.disable': 'write',

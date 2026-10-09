@@ -25,8 +25,9 @@ export interface ProfileRepository {
 
     /**
      * @param id Perfil consultado.
-     * @return `true` quando o perfil tem ao menos uma transação viva; é o que torna a troca
-     * de moeda insegura, porque os valores lançados ficariam com a unidade errada.
+     * @return `true` quando o perfil tem ao menos uma transação viva, ou recebe uma
+     * transferência de outro perfil; é o que torna a troca de moeda insegura, porque os
+     * valores lançados ficariam com a unidade errada.
      */
     hasTransactions(id: ProfileId): boolean;
 }

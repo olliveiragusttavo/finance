@@ -19,6 +19,7 @@ import {
     useInvoiceSuggestion,
     useRecurrences,
     useTags,
+    useTransferTargets,
     type EditScope,
     type SourceOption,
 } from '@finance/client';
@@ -32,6 +33,7 @@ import {
     type RecurrenceResponse,
     type TagResponse,
     type TransactionResponse,
+    type TransferTargetResponse,
 } from '@finance/core';
 import { useId, useState, type ReactNode } from 'react';
 import { Controller, useForm, type Resolver } from 'react-hook-form';
@@ -56,6 +58,7 @@ import { SeriesReviewDialog } from './SeriesReviewDialog.tsx';
 import {
     cashPeriodOf,
     changesSeries,
+    destinationKey,
     formChangesSeries,
     newTransactionForm,
     parseSourceKey,
@@ -129,6 +132,7 @@ export function TransactionForm(props: TransactionFormProps): ReactNode {
     const { profile } = useActiveProfile();
     const { period } = useReferenceMonth();
     const accounts = useAccounts({ profileId: profile.id, period });
+    const otherProfileAccounts = useTransferTargets({ profileId: profile.id });
     const creditCards = useCreditCards({ profileId: profile.id, period });
     const categories = useCategoryTree({ profileId: profile.id });
     const tags = useTags({ profileId: profile.id });
@@ -137,7 +141,7 @@ export function TransactionForm(props: TransactionFormProps): ReactNode {
     // A série só é esperada na edição de uma ocorrência: ela preenche "Repetir" e decide se o
     // salvar pergunta o escopo.
     const recurrences = useRecurrences(recurring ? { profileId: profile.id } : null);
-    if (accounts.data === undefined || creditCards.data === undefined || categories.data === undefined || tags.data === undefined || goals.data === undefined || (recurring && recurrences.data === undefined)) {
+    if (accounts.data === undefined || otherProfileAccounts.data === undefined || creditCards.data === undefined || categories.data === undefined || tags.data === undefined || goals.data === undefined || (recurring && recurrences.data === undefined)) {
         return (
             <div role="status" aria-busy="true" aria-label="Carregando o formulário" className="flex flex-col gap-3">
                 <Skeleton className="h-9" />
@@ -154,6 +158,7 @@ export function TransactionForm(props: TransactionFormProps): ReactNode {
             profileId={profile.id}
             currency={profile.currency}
             accounts={accounts.data.accounts}
+            otherProfileAccounts={otherProfileAccounts.data}
             creditCards={creditCards.data.creditCards}
             categories={categories.data}
             tags={tags.data}
@@ -169,6 +174,8 @@ interface FormRegistries {
     /** Moeda do perfil: a de todo valor digitado (database-design §4.13). */
     readonly currency: string;
     readonly accounts: readonly AccountInPeriodResponse[];
+    /** Contas de outros perfis com a mesma moeda: destinos possíveis de uma transferência. */
+    readonly otherProfileAccounts: readonly TransferTargetResponse[];
     readonly creditCards: readonly CreditCardInPeriodResponse[];
     readonly categories: readonly CategoryBranchResponse[];
     readonly tags: readonly TagResponse[];
@@ -188,7 +195,7 @@ interface FormRegistries {
  * @param props O formulário e os cadastros.
  * @return O formulário.
  */
-function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, onDelete, profileId, currency, accounts, creditCards, categories, tags, goals, recurrence }: TransactionFormProps & FormRegistries): ReactNode {
+function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, onDelete, profileId, currency, accounts, otherProfileAccounts, creditCards, categories, tags, goals, recurrence }: TransactionFormProps & FormRegistries): ReactNode {
     const id = useId();
     const today = currentDate(new Date());
     const target: TransactionFormTarget = transaction === null ? { mode: 'create', profileId, currency } : { mode: 'update', transaction, recurrence };
@@ -376,8 +383,10 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
                                         accounts,
                                         originAccountId: source?.kind === 'account' ? source.accountId : null,
                                         currentDestinationId: transaction?.destinationAccountId ?? null,
+                                        type: values.type,
+                                        otherProfileAccounts,
                                     }).map((option) => (
-                                        <SourceItem key={option.id} option={option} />
+                                        <SourceItem key={option.id} option={option} value={destinationKey(option)} />
                                     ))}
                                 </SelectContent>
                             </Select>
@@ -664,10 +673,12 @@ function SourceGroup({ label, options }: { readonly label: string; readonly opti
 
 /**
  * @param props.option Conta ou cartão; o desativado (oferecido só na edição) leva a marca.
+ * @param props.value Valor gravado no campo; padrão `sourceKey`, a chave do campo "Conta ou
+ * cartão". O campo "Conta de destino" passa `destinationKey`, porque guarda o id puro.
  * @return A opção.
  */
-function SourceItem({ option }: { readonly option: SourceOption }): ReactNode {
-    return <SelectItem value={sourceKey(option)}>{option.disabled ? `${option.name} (desativado)` : option.name}</SelectItem>;
+function SourceItem({ option, value = sourceKey(option) }: { readonly option: SourceOption; readonly value?: string }): ReactNode {
+    return <SelectItem value={value}>{option.disabled ? `${option.name} (desativado)` : option.name}</SelectItem>;
 }
 
 /** A fatura da compra no cartão: a sugerida, as opções da troca e os avisos. */

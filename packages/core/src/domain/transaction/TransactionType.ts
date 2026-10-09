@@ -7,8 +7,9 @@ export const TRANSACTION_TYPES: readonly TransactionType[] = ['income', 'expense
 
 /**
  * Regra de negócio (Transferência): só transferências e investimentos têm conta de
- * destino — são os tipos que movem dinheiro entre duas contas do perfil
- * (database-design §4.13).
+ * destino — são os tipos que movem dinheiro entre duas contas (database-design §4.13). O
+ * investimento fica no perfil; a transferência pode chegar a uma conta de outro perfil
+ * (`TransactionComposer.requireDestination`).
  *
  * @param type Tipo da transação.
  * @return `true` quando o tipo leva dinheiro a uma conta de destino.

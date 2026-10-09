@@ -55,6 +55,8 @@ export function isRehearsalRoute(route: ReadRoute): route is RehearsalRoute {
  */
 const MONEY: readonly ReadRoute[] = [
     'accounts.list',
+    // As contas de outros perfis mudam com o cadastro de contas (criar, renomear, desativar).
+    'accounts.transferTargets',
     'accounts.deletionImpact',
     'creditCards.list',
     'creditCards.deletionImpact',
