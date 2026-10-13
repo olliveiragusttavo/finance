@@ -10,6 +10,7 @@ import { GoalsScreen } from './goals/GoalsScreen.tsx';
 import { OverviewScreen } from './overview/OverviewScreen.tsx';
 import { parseGoalsSearch, type GoalsSearch } from './goals/goalsSearch.ts';
 import { RegistryScreen } from './registry/RegistryScreen.tsx';
+import { CardImpactScreen } from './reports/CardImpactScreen.tsx';
 import { CategoryReportScreen } from './reports/CategoryReportScreen.tsx';
 import { parseCategoryReportSearch, type CategoryReportSearch } from './reports/categoryReportSearch.ts';
 import { parseRegistrySearch, type RegistrySearch } from './registry/registryKinds.ts';
@@ -83,7 +84,7 @@ const routeTree = rootRoute.addChildren([
             component: CategoryReportScreen,
             validateSearch: (search: Record<string, unknown>): CategoryReportSearch => parseCategoryReportSearch(search),
         }),
-        createRoute({ getParentRoute: () => shellRoute, path: '/reports/card-impact' satisfies AppPath, component: blankScreen('Impacto do cartão', false) }),
+        createRoute({ getParentRoute: () => shellRoute, path: '/reports/card-impact' satisfies AppPath, component: CardImpactScreen }),
         createRoute({
             getParentRoute: () => shellRoute,
             path: '/registry' satisfies AppPath,

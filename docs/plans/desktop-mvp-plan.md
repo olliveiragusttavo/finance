@@ -1,6 +1,6 @@
 # Plano do MVP Desktop — CRUD e primeiros relatórios
 
-**Status:** Em andamento — Fases 0 a 11.1 concluídas (ficaram pendentes só o `Ctrl K` da Fase 4, a pendência da Fase 9.2 que depende da sincronização e a decisão da Fase 11.1 sobre a data dos lançamentos de conta em Transações). Primeira entrega com tela do projeto: o app desktop
+**Status:** Em andamento — Fases 0 a 12 concluídas (ficaram pendentes só o `Ctrl K` da Fase 4, a pendência da Fase 9.2 que depende da sincronização e a decisão da Fase 11.1 sobre a data dos lançamentos de conta em Transações). Primeira entrega com tela do projeto: o app desktop
 (Electron) com os cadastros e lançamentos básicos e os dois primeiros relatórios
 personalizados, que são a motivação original do projeto ([README](../../README.md#motivação)).
 O mobile fica inteiro para depois.
@@ -116,7 +116,7 @@ critério do relatório.
 | C1 | "Faturas de out" é qual fatura? | Pela regra-mestra: as faturas **pagas em out** mais as **em aberto que vencem em out** |
 | C2 | Total de uma fatura | **Despesas líquidas de estornos, sem descontar pagamentos parciais**: o pagamento parcial é dinheiro que já saiu da conta, então ainda é peso do cartão |
 | C3 | Peso nas entradas | Total das faturas do mês ÷ **receitas** do perfil no mesmo critério de período (transferências internas fora, porque somam zero no perfil) |
-| C4 | Situação de cada célula | Paga (e o extrato onde foi paga), Em aberto (com vencimento) ou Futura |
+| C4 | Situação de cada célula | Paga (e o extrato onde foi paga), Em aberto (com vencimento), Aberta (recebendo compras) ou Futura |
 | C5 | Janela | Mês de referência, os **3 anteriores** (para a média) e o **seguinte** (futura) |
 
 ---
@@ -524,12 +524,13 @@ nov" — o mockup é referência, e a divergência foi aprovada. Decisões tomad
 
 ### Fase 12 — Impacto do cartão
 
-- [ ] KPIs: faturas do mês (cartões, quantas em aberto), peso nas entradas, média dos 3 meses anteriores
-- [ ] Grade mês × cartão com valor, situação ("paga no extrato de jul", "Em aberto · vence 10/10", "Futura"), total e peso
-- [ ] Decidir com o mockup duas diferenças achadas no view-model da Fase 3.2: o mockup mostra "Paga em 07/10" (data) no mês de referência, e o `reports.cardImpact` só traz o mês do extrato — o dia existe desde a Fase 7 (`invoices.payment_date`), falta levá-lo ao relatório; e distingue "Aberta" (ciclo recebendo compras) de "Futura", que o núcleo junta em `future` (reports-design §4) — a distinção já existe no `client` desde a Fase 8 (`invoiceStage`)
-- [ ] Linha do mês de referência destacada; links de cada célula para a fatura
-- [ ] Nota explicando que a fatura em aberto pesa no previsto no vencimento e, paga, no extrato do pagamento
-- [ ] Estados: perfil sem cartão; mês sem receitas (peso "—")
+- [x] KPIs: faturas do mês (cartões, quantas em aberto), peso nas entradas, média dos 3 meses anteriores — os do `cardImpactGrid` do `client`; "em aberto" conta toda fatura do mês ainda não paga
+- [x] Grade mês × cartão com valor, situação ("paga no extrato de jul", "Em aberto · vence 10/10", "Aberta", "Futura"), total e peso — tabela com o cartão desativado marcado no cabeçalho
+- [x] Decidido com o mockup (as duas a favor do mockup, resolvidas no núcleo): **(1)** o `reports.cardImpact` passou a trazer o dia do pagamento (`invoices.payment_date`) na situação paga, e o mês de referência mostra "Paga em 07/10"; os anteriores continuam "paga no extrato de jul", e a fatura paga antes da migration `0003`, sem o dia, mostra "Paga no extrato de out" também no de referência. **(2)** A situação C4 ganhou `receiving` ("Aberta": recebe as compras de hoje) ao lado de `future` ("Futura": ainda não começou a recebê-las), decidida no domínio pelo `Clock` e pelo ciclo do cartão, com a mesma regra do `invoiceStage` da tela Cartões (reports-design §4)
+- [x] Linha do mês de referência destacada; links de cada célula para a fatura — o link fica em cada situação, e não na célula inteira, porque uma célula pode ter duas faturas (a do mês anterior paga com atraso e a do mês); leva a `/cards?card=&invoice=` com a competência da fatura, que pode não ser o mês da linha
+- [x] Nota explicando que a fatura em aberto pesa no previsto no vencimento e, paga, no extrato do pagamento
+- [x] Estados: perfil sem cartão (estado vazio com o link para Cartões); mês sem receitas (peso "—")
+- [x] Testes: núcleo (`test/services/reports.cardImpact.test.ts`: dia do pagamento, fatura sem o dia, aberta × futura), `client` (`test/viewModels.test.ts`: textos de cada situação, competência do link, fatura sem o dia) e ponta a ponta (`e2e/cardImpact.spec.ts`: estado vazio, indicadores, situações, peso sem receita e o link para a fatura)
 
 ### Fase 13 — Ajustes
 

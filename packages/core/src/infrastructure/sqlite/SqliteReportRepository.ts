@@ -7,6 +7,7 @@ import type {
 } from '../../domain/report/ReportTotals.ts';
 import type { Currency } from '../../domain/shared/Currency.ts';
 import { AccountId, CategoryId, CreditCardId, InvoiceId, SubCategoryId, type ProfileId } from '../../domain/shared/ids.ts';
+import { LocalDate } from '../../domain/shared/LocalDate.ts';
 import { Money } from '../../domain/shared/Money.ts';
 import { YearMonth } from '../../domain/shared/YearMonth.ts';
 import type { Database } from '../../ports/Database.ts';
@@ -117,7 +118,9 @@ export class SqliteReportRepository implements ReportRepository {
     /**
      * As somas de despesa vêm por `SUM(CASE ...)` sobre todas as transações da fatura, e não
      * filtrando o tipo no `WHERE`, porque uma fatura só com pagamento parcial ainda precisa
-     * aparecer (com total zero) para a situação dela não sumir da grade.
+     * aparecer (com total zero) para a situação dela não sumir da grade. O dia do pagamento sai
+     * de `invoices.payment_date` só quando a CTE a considera paga: com o extrato de pagamento
+     * excluído a fatura volta a contar como em aberto, e um dia gravado ali contradiria isso.
      *
      * @param profileId Perfil consultado.
      * @param periods Meses de pagamento pedidos.
@@ -130,9 +133,11 @@ export class SqliteReportRepository implements ReportRepository {
             .all(
                 `WITH ${REPORT_SOURCES_CTE}
                 SELECT ri.id, ri.credit_card_id, ri.year, ri.month, ri.balance, ri.paid, ri.payment_key,
+                    CASE WHEN ri.paid THEN i.payment_date END AS payment_date,
                     SUM(CASE WHEN rt.type = :expense THEN rt.value ELSE 0 END) AS expense_value,
                     SUM(CASE WHEN rt.type = :expense THEN rt.charges ELSE 0 END) AS expense_charges
                 FROM report_invoices ri
+                JOIN invoices i ON i.id = ri.id
                 JOIN report_transactions rt ON rt.invoice_id = ri.id
                 WHERE ri.payment_key IN (${list.sql})
                 GROUP BY ri.id`,
@@ -140,12 +145,14 @@ export class SqliteReportRepository implements ReportRepository {
             )
             .map((row) => {
                 const reader = new RowReader('invoices', row);
+                const paymentDate = reader.nullableText('payment_date');
                 return {
                     invoiceId: InvoiceId(reader.text('id')),
                     creditCardId: CreditCardId(reader.text('credit_card_id')),
                     invoicePeriod: YearMonth.of(reader.number('year'), reader.number('month')),
                     paymentPeriod: periodFromKey(reader.number('payment_key')),
                     paid: reader.boolean('paid'),
+                    paymentDate: paymentDate === null ? null : LocalDate.parse(paymentDate),
                     balance: Money.of(reader.number('balance'), currency),
                     expenseValue: Money.of(reader.number('expense_value'), currency),
                     expenseCharges: Money.of(reader.number('expense_charges'), currency),
