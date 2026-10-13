@@ -94,27 +94,69 @@ describe('Impacto do cartão — mês das faturas (C1, C4, C5)', () => {
         const [october] = cell(result, '2026-10', scene.roxinho);
         expect(october?.invoicePeriod).toBe('2026-09');
         expect(october?.total).toEqualMoney('2449.75');
-        expect(october?.situation).toEqual({ kind: 'paid', paidIn: '2026-10' });
+        expect(october?.situation).toEqual({ kind: 'paid', paidIn: '2026-10', paymentDate: '2026-10-08' });
     });
 
-    it('em aberto, a fatura pesa no mês do vencimento; ainda recebendo compras, é futura', async () => {
+    it('fatura paga antes da migration 0003, sem o dia gravado, traz só o mês do extrato', async () => {
+        const scene = scenario();
+        await purchase(scene, scene.roxinho, 300, '2026-09-05');
+        await scene.world.payInvoice(scene.roxinho, '2026-09', '2026-10-08');
+        scene.world.database.run('UPDATE invoices SET payment_date = NULL WHERE id = :invoiceId', { invoiceId: scene.world.invoiceId(scene.roxinho, '2026-09') });
+
+        expect(cell(await impact(scene), '2026-10', scene.roxinho)[0]?.situation).toEqual({ kind: 'paid', paidIn: '2026-10', paymentDate: null });
+    });
+
+    it('em aberto, a fatura pesa no mês do vencimento; recebendo as compras de hoje, é aberta', async () => {
         const scene = scenario();
         await purchase(scene, scene.roxinho, 2449.75, '2026-09-05');
         await purchase(scene, scene.roxinho, 863.42, '2026-10-02');
 
         const result = await impact(scene);
         expect(cell(result, '2026-10', scene.roxinho)[0]?.situation).toEqual({ kind: 'open', dueDate: '2026-10-10' });
-        // Fatura de outubro: fecha em 28/10 (depois de hoje) e vence em 10/11.
+        // Fatura de outubro: fechou a anterior em 28/09, fecha em 28/10 (depois de hoje) e vence em 10/11.
         const [november] = cell(result, '2026-11', scene.roxinho);
         expect(november?.total).toEqualMoney('863.42');
-        expect(november?.situation).toEqual({ kind: 'future', dueDate: '2026-11-10' });
+        expect(november?.situation).toEqual({ kind: 'receiving', dueDate: '2026-11-10' });
+    });
+
+    it('fatura que ainda não começou a receber compras é futura', async () => {
+        const scene = scenario();
+        // Fecha no dia 5 e vence no dia 25: hoje (03/10) a de outubro recebe as compras, e a de
+        // novembro só começa a recebê-las em 05/10 — a compra posta nela à mão a deixa futura.
+        const creditCardId = scene.world.creditCard(scene.profileId, scene.accountId, 5, 25);
+        await purchase(scene, creditCardId, 100, '2026-10-02');
+        await purchase(scene, creditCardId, 55.9, '2026-10-03', { source: { kind: 'creditCard', creditCardId, invoicePeriod: '2026-11' } });
+
+        const result = await impact(scene);
+        expect(cell(result, '2026-10', creditCardId)[0]?.situation).toEqual({ kind: 'receiving', dueDate: '2026-10-25' });
+        expect(cell(result, '2026-11', creditCardId)[0]?.situation).toEqual({ kind: 'future', dueDate: '2026-11-25' });
+        expect(result.reference.unpaid).toBe(1);
+    });
+
+    it('no dia do fechamento a fatura já fechou e a seguinte já recebe as compras', async () => {
+        const scene = scenario();
+        // Fecha no dia 3 (hoje) e vence no dia 13: a de outubro fecha hoje e a de novembro,
+        // cujo fechamento anterior é hoje, recebe a compra de hoje (database-design §4.5) — a
+        // mesma fronteira do `invoiceStage` da tela Cartões.
+        const creditCardId = scene.world.creditCard(scene.profileId, scene.accountId, 3, 13);
+        await purchase(scene, creditCardId, 100, '2026-10-02');
+        await purchase(scene, creditCardId, 55.9, '2026-10-03');
+
+        const result = await impact(scene);
+        const [october] = cell(result, '2026-10', creditCardId);
+        expect(october?.invoicePeriod).toBe('2026-10');
+        expect(october?.situation).toEqual({ kind: 'open', dueDate: '2026-10-13' });
+        const [november] = cell(result, '2026-11', creditCardId);
+        expect(november?.invoicePeriod).toBe('2026-11');
+        expect(november?.total).toEqualMoney('55.90');
+        expect(november?.situation).toEqual({ kind: 'receiving', dueDate: '2026-11-13' });
     });
 
     it('reabrir uma fatura paga com atraso a devolve para o mês do vencimento', async () => {
         const scene = scenario();
         await purchase(scene, scene.roxinho, 500, '2026-08-05');
         await scene.world.payInvoice(scene.roxinho, '2026-08', '2026-10-01');
-        expect(cell(await impact(scene), '2026-10', scene.roxinho)[0]?.situation).toEqual({ kind: 'paid', paidIn: '2026-10' });
+        expect(cell(await impact(scene), '2026-10', scene.roxinho)[0]?.situation).toEqual({ kind: 'paid', paidIn: '2026-10', paymentDate: '2026-10-01' });
 
         await scene.world.ok('invoices.reopen', { invoiceId: scene.world.invoiceId(scene.roxinho, '2026-08') });
 

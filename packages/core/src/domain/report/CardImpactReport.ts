@@ -11,12 +11,17 @@ import { shareOf } from './Variation.ts';
 const PREVIOUS_MONTHS = 3;
 
 /**
- * Situação de uma fatura na grade (C4). "Em aberto" e "Futura" carregam o vencimento
- * porque é ele que decide o mês em que a fatura pesa enquanto não é paga.
+ * Situação de uma fatura na grade (C4). As não pagas carregam o vencimento porque é ele que
+ * decide o mês em que a fatura pesa enquanto não é paga. A paga carrega o mês do extrato, que
+ * decide onde ela pesa, e o dia do pagamento, que a tela mostra no mês de referência
+ * ("Paga em 07/10") — `null` nas faturas pagas antes da migration `0003`, sem o dia gravado.
+ * As não pagas se dividem como na tela Cartões: `open` já fechou e espera o pagamento,
+ * `receiving` recebe as compras de hoje ("Aberta") e `future` ainda não começou a recebê-las.
  */
 export type CardImpactSituation =
-    | { readonly kind: 'paid'; readonly paidIn: YearMonth }
+    | { readonly kind: 'paid'; readonly paidIn: YearMonth; readonly paymentDate: LocalDate | null }
     | { readonly kind: 'open'; readonly dueDate: LocalDate }
+    | { readonly kind: 'receiving'; readonly dueDate: LocalDate }
     | { readonly kind: 'future'; readonly dueDate: LocalDate };
 
 /** Uma fatura numa célula da grade. */
@@ -58,7 +63,7 @@ export interface CardImpactReport {
     readonly referenceMonth: CardImpactMonth;
     /** Cartões com ao menos uma fatura no mês de referência. */
     readonly creditCardsInReference: number;
-    /** Faturas do mês de referência ainda não pagas (em aberto ou futuras). */
+    /** Faturas do mês de referência ainda não pagas (em aberto, recebendo compras ou futuras). */
     readonly unpaidInReference: number;
     /** Média dos totais dos 3 meses anteriores, mês sem fatura contando zero. */
     readonly previousAverage: Money;
@@ -74,7 +79,7 @@ export interface CardImpactSources {
     readonly invoices: readonly InvoiceExpenseTotals[];
     /** Receitas de cada mês da janela pelo mesmo critério de caixa, por `YYYY-MM`. */
     readonly incomeByPeriod: ReadonlyMap<string, Money>;
-    /** "Hoje", que separa a fatura ainda aberta para compras (futura) da já fechada. */
+    /** "Hoje", que separa a fatura já fechada da que recebe compras e da futura. */
     readonly today: LocalDate;
     readonly zero: Money;
 }
@@ -145,10 +150,13 @@ export function buildCardImpactReport(sources: CardImpactSources): CardImpactRep
 }
 
 /**
- * Regra de negócio (Relatórios, C4): paga mostra o extrato onde foi paga; sem pagamento,
- * a fatura é **futura** enquanto ainda recebe compras (hoje antes do fechamento) e **em
- * aberto** depois de fechada — no dia do fechamento ela já fechou, porque a compra desse
- * dia vai para a fatura seguinte (database-design §4.5).
+ * Regra de negócio (Relatórios, C4): paga mostra o extrato onde foi paga e o dia do
+ * pagamento; sem pagamento, a fatura está **em aberto** depois de fechada, **recebendo
+ * compras** ("Aberta") entre o fechamento anterior e o próprio, e **futura** antes disso — só
+ * tem parcelas ou compras postas nela à mão. No dia do fechamento ela já fechou, porque a
+ * compra desse dia vai para a fatura seguinte (database-design §4.5); pelo mesmo motivo, no
+ * dia do fechamento anterior ela já recebe compras. O fechamento anterior vem do ciclo do
+ * cartão, e não da fatura anterior, que pode nem existir.
  *
  * @param invoice Somas da fatura lidas do banco.
  * @param creditCard Cartão dono, cujo ciclo dá o fechamento e o vencimento.
@@ -157,10 +165,15 @@ export function buildCardImpactReport(sources: CardImpactSources): CardImpactRep
  */
 function toImpactInvoice(invoice: InvoiceExpenseTotals, creditCard: CreditCard, today: LocalDate): CardImpactInvoice {
     const total = expenseOutflow(invoice.expenseValue, invoice.expenseCharges);
+    const base = { invoiceId: invoice.invoiceId, invoicePeriod: invoice.invoicePeriod, total };
     if (invoice.paid) {
-        return { invoiceId: invoice.invoiceId, invoicePeriod: invoice.invoicePeriod, total, situation: { kind: 'paid', paidIn: invoice.paymentPeriod } };
+        return { ...base, situation: { kind: 'paid', paidIn: invoice.paymentPeriod, paymentDate: invoice.paymentDate } };
     }
-    const dueDate = creditCard.billingCycle.dueDateOf(invoice.invoicePeriod);
-    const closed = !today.isBefore(creditCard.billingCycle.closingDateOf(invoice.invoicePeriod));
-    return { invoiceId: invoice.invoiceId, invoicePeriod: invoice.invoicePeriod, total, situation: closed ? { kind: 'open', dueDate } : { kind: 'future', dueDate } };
+    const cycle = creditCard.billingCycle;
+    const dueDate = cycle.dueDateOf(invoice.invoicePeriod);
+    if (!today.isBefore(cycle.closingDateOf(invoice.invoicePeriod))) {
+        return { ...base, situation: { kind: 'open', dueDate } };
+    }
+    const receiving = !today.isBefore(cycle.closingDateOf(invoice.invoicePeriod.previous()));
+    return { ...base, situation: { kind: receiving ? 'receiving' : 'future', dueDate } };
 }

@@ -9,7 +9,11 @@ export type SituationTone = 'muted' | 'warn' | 'ok' | 'neutral';
 /** Situação de uma fatura dentro de uma célula. */
 export interface CardImpactNote {
     readonly invoiceId: string;
-    /** `paga no extrato de jul`, `Em aberto · vence 10/10` ou `Futura`. */
+    /** Competência `YYYY-MM` da fatura, para abri-la em Cartões — pode não ser o mês da linha. */
+    readonly invoicePeriod: string;
+    /** `fatura de set/2026`, que nomeia o link para quem não vê a grade. */
+    readonly invoiceLabel: string;
+    /** `paga no extrato de jul`, `Paga em 07/10`, `Em aberto · vence 10/10`, `Aberta` ou `Futura`. */
     readonly text: string;
     readonly tone: SituationTone;
 }
@@ -48,8 +52,11 @@ export interface CardImpactKpi {
 
 /** O impacto do cartão pronto para a tela. */
 export interface CardImpactGrid {
-    /** Colunas: `Nubank Roxinho · paga com Nubank`. */
-    readonly columns: readonly { readonly creditCardId: string; readonly title: string; readonly disabled: boolean }[];
+    /**
+     * Colunas: `title` é o cabeçalho (`Nubank Roxinho · paga com Nubank`) e `name`, o cartão
+     * sozinho, para nomear o link de cada fatura sem repetir a conta pagadora.
+     */
+    readonly columns: readonly { readonly creditCardId: string; readonly name: string; readonly title: string; readonly disabled: boolean }[];
     readonly rows: readonly CardImpactRow[];
     readonly kpis: { readonly invoices: CardImpactKpi; readonly weight: CardImpactKpi; readonly average: CardImpactKpi };
     /** Perfil sem cartão: a tela mostra o estado vazio em vez de uma grade sem colunas. */
@@ -76,6 +83,7 @@ export function buildCardImpactGrid(report: CardImpactResponse, accounts: readon
     return {
         columns: report.creditCards.map((creditCard) => ({
             creditCardId: creditCard.id,
+            name: creditCard.name,
             title: `${creditCard.name} · paga com ${accountNames.get(creditCard.accountId) ?? ''}`,
             disabled: creditCard.disabled,
         })),
@@ -102,20 +110,37 @@ export function buildCardImpactGrid(report: CardImpactResponse, accounts: readon
 }
 
 /**
+ * Regra de negócio (Relatórios, C4): a paga mostra onde pesou — no mês de referência, o dia do
+ * pagamento ("Paga em 07/10", como na tela Cartões); nos outros, o mês do extrato. Sem o dia
+ * gravado (faturas pagas antes da migration `0003`), o mês do extrato também no de referência,
+ * porque inventar um dia mostraria uma data que não aconteceu. As não pagas seguem as fases da
+ * tela Cartões: em aberto com o vencimento, "Aberta" a que recebe as compras de hoje e
+ * "Futura" a que ainda não começou a recebê-las.
+ *
  * @param invoice Fatura da célula.
  * @param isReference Se a linha é a do mês de referência; ali a fatura paga ganha destaque
  * de situação concluída, nos meses anteriores ela é só uma nota discreta.
  * @return A nota da fatura.
  */
 function noteOf(invoice: CardImpactInvoiceResponse, isReference: boolean): CardImpactNote {
+    const base = { invoiceId: invoice.invoiceId, invoicePeriod: invoice.invoicePeriod, invoiceLabel: `fatura de ${formatMonthShort(invoice.invoicePeriod)}` };
     const { situation } = invoice;
     switch (situation.kind) {
         case 'paid':
-            return { invoiceId: invoice.invoiceId, text: `paga no extrato de ${formatMonthAbbreviation(situation.paidIn)}`, tone: isReference ? 'ok' : 'muted' };
+            if (!isReference) {
+                return { ...base, text: `paga no extrato de ${formatMonthAbbreviation(situation.paidIn)}`, tone: 'muted' };
+            }
+            return {
+                ...base,
+                text: situation.paymentDate === null ? `Paga no extrato de ${formatMonthAbbreviation(situation.paidIn)}` : `Paga em ${formatDayMonth(situation.paymentDate)}`,
+                tone: 'ok',
+            };
         case 'open':
-            return { invoiceId: invoice.invoiceId, text: `Em aberto · vence ${formatDayMonth(situation.dueDate)}`, tone: 'warn' };
+            return { ...base, text: `Em aberto · vence ${formatDayMonth(situation.dueDate)}`, tone: 'warn' };
+        case 'receiving':
+            return { ...base, text: 'Aberta', tone: 'neutral' };
         case 'future':
-            return { invoiceId: invoice.invoiceId, text: 'Futura', tone: 'neutral' };
+            return { ...base, text: 'Futura', tone: 'neutral' };
     }
 }
 

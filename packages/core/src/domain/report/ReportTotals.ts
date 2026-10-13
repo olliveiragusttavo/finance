@@ -1,5 +1,6 @@
 import type { BalancePair } from '../balance/BalancePair.ts';
 import type { AccountId, CategoryId, CreditCardId, InvoiceId, SubCategoryId } from '../shared/ids.ts';
+import type { LocalDate } from '../shared/LocalDate.ts';
 import type { Money } from '../shared/Money.ts';
 import type { YearMonth } from '../shared/YearMonth.ts';
 import { originEffect } from '../transaction/TransactionType.ts';
@@ -37,6 +38,11 @@ export interface InvoiceExpenseTotals {
     /** Mês do extrato em que foi paga, ou o do vencimento quando está em aberto. */
     readonly paymentPeriod: YearMonth;
     readonly paid: boolean;
+    /**
+     * Dia em que a fatura paga foi paga; `null` em aberto e nas faturas pagas antes da migration
+     * `0003`, que não gravavam o dia — aí só o mês do extrato é conhecido.
+     */
+    readonly paymentDate: LocalDate | null;
     /** Cache do total com o sinal do efeito na conta, já líquido dos pagamentos parciais. */
     readonly balance: Money;
     readonly expenseValue: Money;

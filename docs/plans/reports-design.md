@@ -92,15 +92,23 @@ Decisões de implementação:
 | C1 | "Faturas de out" é qual fatura? | As **pagas em out** mais as **em aberto que vencem em out** |
 | C2 | Total de uma fatura | **Despesas líquidas de estornos, com encargos, sem descontar pagamentos parciais**: o pagamento parcial já saiu da conta, então ainda é peso do cartão |
 | C3 | Peso nas entradas | Total das faturas do mês ÷ **receitas** do perfil no mesmo critério de período (transferências internas fora, porque somam zero no perfil; a transferência recebida de outro perfil entra como receita — database-design §4.13, "Transferência entre perfis") |
-| C4 | Situação de cada célula | Paga (com o mês do extrato de pagamento), Em aberto (com o vencimento) ou Futura |
+| C4 | Situação de cada célula | Paga (com o mês do extrato de pagamento e o dia do pagamento), Em aberto (com o vencimento), Aberta ou Futura |
 | C5 | Janela | Mês de referência, os **3 anteriores** (para a média) e o **seguinte** |
 
 Decisões de implementação:
 
-- **Futura × Em aberto:** sem pagamento, a fatura é **futura** enquanto ainda recebe
-  compras — hoje (`Clock`) antes do fechamento — e **em aberto** depois de fechada. No dia
-  do fechamento ela já fechou, porque a compra desse dia vai para a fatura seguinte
-  (database-design §4.5).
+- **Em aberto × Aberta × Futura:** sem pagamento, a fatura está **em aberto** (`open`)
+  depois de fechada, **aberta** (`receiving`) enquanto recebe as compras de hoje — hoje
+  (`Clock`) entre o fechamento anterior, inclusive, e o próprio — e **futura** (`future`)
+  antes de começar a recebê-las (só parcelas ou compras postas nela à mão). No dia do
+  fechamento ela já fechou, porque a compra desse dia vai para a fatura seguinte
+  (database-design §4.5). O fechamento anterior vem do ciclo do cartão, e não da fatura
+  anterior, que pode nem existir; é a mesma regra das fases da tela Cartões
+  (`invoiceStage` no `client`). Até a Fase 12 do MVP, aberta e futura eram uma só.
+- **Dia do pagamento:** a paga traz, além do mês do extrato, o dia (`invoices.payment_date`),
+  que a tela mostra no mês de referência ("Paga em 07/10"). É `null` nas faturas pagas antes
+  da migration `0003`, que não gravavam o dia, e só existe quando a fatura conta como paga —
+  com o extrato de pagamento excluído ela volta a ser em aberto.
 - **Uma célula pode ter mais de uma fatura:** a de setembro paga com atraso em outubro e a
   de outubro que vence em outubro pesam as duas em outubro. A célula soma as duas.
 - **Fatura sem nenhuma transação viva** não aparece (sobra de lançamentos excluídos).

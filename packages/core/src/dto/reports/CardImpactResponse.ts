@@ -2,10 +2,14 @@ import type { CardImpactMonth, CardImpactReport, CardImpactSituation } from '../
 import { toCreditCardResponse, type CreditCardResponse } from '../creditCards/CreditCardResponse.ts';
 import { toMoneyResponse, type MoneyResponse } from '../shared/MoneyResponse.ts';
 
-/** Situação de uma fatura na grade (C4), com datas e meses como texto ISO. */
+/**
+ * Situação de uma fatura na grade (C4), com datas e meses como texto ISO. `paymentDate` é
+ * `null` na fatura paga antes da migration `0003`, que não gravava o dia.
+ */
 export type CardImpactSituationResponse =
-    | { readonly kind: 'paid'; readonly paidIn: string }
+    | { readonly kind: 'paid'; readonly paidIn: string; readonly paymentDate: string | null }
     | { readonly kind: 'open'; readonly dueDate: string }
+    | { readonly kind: 'receiving'; readonly dueDate: string }
     | { readonly kind: 'future'; readonly dueDate: string };
 
 /** Uma fatura numa célula. */
@@ -50,11 +54,11 @@ export interface CardImpactResponse {
 function toSituationResponse(situation: CardImpactSituation): CardImpactSituationResponse {
     switch (situation.kind) {
         case 'paid':
-            return { kind: 'paid', paidIn: situation.paidIn.toString() };
+            return { kind: 'paid', paidIn: situation.paidIn.toString(), paymentDate: situation.paymentDate?.toString() ?? null };
         case 'open':
-            return { kind: 'open', dueDate: situation.dueDate.toString() };
+        case 'receiving':
         case 'future':
-            return { kind: 'future', dueDate: situation.dueDate.toString() };
+            return { kind: situation.kind, dueDate: situation.dueDate.toString() };
     }
 }
 
