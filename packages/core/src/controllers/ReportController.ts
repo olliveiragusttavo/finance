@@ -1,19 +1,24 @@
+import { toAccountFlowResponse, type AccountFlowResponse } from '../dto/reports/AccountFlowResponse.ts';
 import { toBalanceEvolutionResponse, type BalanceEvolutionResponse } from '../dto/reports/BalanceEvolutionResponse.ts';
 import { toCardImpactResponse, type CardImpactResponse } from '../dto/reports/CardImpactResponse.ts';
 import { toCategoryReportResponse, type CategoryReportResponse } from '../dto/reports/CategoryReportResponse.ts';
 import { toCategoryTransactionsResponse, type CategoryTransactionsResponse } from '../dto/reports/CategoryTransactionsResponse.ts';
 import { toMonthSummaryResponse, type MonthSummaryResponse } from '../dto/reports/MonthSummaryResponse.ts';
+import { toTagReportResponse, toTagTransactionsResponse, type TagReportResponse, type TagTransactionsResponse } from '../dto/reports/TagReportResponse.ts';
 import {
+    accountFlowRequest,
     balanceEvolutionRequest,
     cardImpactRequest,
     categoryReportRequest,
     categoryTransactionsRequest,
     monthSummaryRequest,
+    tagReportRequest,
+    tagTransactionsRequest,
 } from '../requests/reportRequests.ts';
 import type { ReportService } from '../services/report/ReportService.ts';
 import { handle, type CoreResult, type UnexpectedErrorListener } from './CoreResult.ts';
 
-/** Rotas dos relatórios: Visão geral, por categoria e impacto do cartão. Só leitura. */
+/** Rotas dos relatórios: Visão geral, por categoria, impacto do cartão, fluxo por conta e por tag. Só leitura. */
 export class ReportController {
     /**
      * @param reports Casos de uso dos relatórios.
@@ -74,5 +79,39 @@ export class ReportController {
      */
     public cardImpact(raw: unknown): Promise<CoreResult<CardImpactResponse>> {
         return handle(cardImpactRequest, raw, ({ profileId, period }) => toCardImpactResponse(this.reports.cardImpact(profileId, period)), this.onUnexpected);
+    }
+
+    /**
+     * @param raw Entrada com o perfil, o mês de referência e a conta; sem a conta, as do total.
+     * @return Os extratos encadeados dos cinco meses da janela.
+     */
+    public accountFlow(raw: unknown): Promise<CoreResult<AccountFlowResponse>> {
+        return handle(
+            accountFlowRequest,
+            raw,
+            ({ profileId, period, accountId }) => toAccountFlowResponse(this.reports.accountFlow(profileId, period, accountId ?? null)),
+            this.onUnexpected,
+        );
+    }
+
+    /**
+     * @param raw Entrada com o perfil, o mês de referência e o período.
+     * @return As tags com lançamento no período, pelo total líquido.
+     */
+    public byTag(raw: unknown): Promise<CoreResult<TagReportResponse>> {
+        return handle(tagReportRequest, raw, ({ profileId, period, range }) => toTagReportResponse(this.reports.byTag(profileId, period, range)), this.onUnexpected);
+    }
+
+    /**
+     * @param raw Entrada com o perfil, o mês de referência, o período e a tag aberta.
+     * @return Os lançamentos da tag e o total líquido.
+     */
+    public tagTransactions(raw: unknown): Promise<CoreResult<TagTransactionsResponse>> {
+        return handle(
+            tagTransactionsRequest,
+            raw,
+            ({ profileId, period, range, tagId }) => toTagTransactionsResponse(this.reports.tagTransactions(profileId, period, range, tagId)),
+            this.onUnexpected,
+        );
     }
 }

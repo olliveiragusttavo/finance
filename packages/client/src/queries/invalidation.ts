@@ -3,7 +3,7 @@ import type { ReadRoute, WriteRoute } from './routes.ts';
 /**
  * Leituras que mostram nomes de categoria e subcategoria.
  */
-const CATEGORY_NAMES: readonly ReadRoute[] = ['categories.tree', 'reports.byCategory', 'reports.categoryTransactions'];
+const CATEGORY_NAMES: readonly ReadRoute[] = ['categories.tree', 'reports.byCategory', 'reports.categoryTransactions', 'reports.byTag'];
 
 /**
  * Leituras que carregam transações inteiras (com a subcategoria e as tags de cada uma);
@@ -16,6 +16,7 @@ const TRANSACTION_CONTENT: readonly ReadRoute[] = [
     'statements.get',
     'invoices.get',
     'reports.categoryTransactions',
+    'reports.tagTransactions',
     'recurrences.occurrences',
     'goals.contributions',
 ];
@@ -76,6 +77,9 @@ const MONEY: readonly ReadRoute[] = [
     'reports.byCategory',
     'reports.categoryTransactions',
     'reports.cardImpact',
+    'reports.accountFlow',
+    'reports.byTag',
+    'reports.tagTransactions',
     // O uso de cada tag (contagem, total, último uso) sai dos lançamentos.
     'tags.list',
     // O progresso de cada meta é a soma das transações vinculadas pagas (database-design §4.11):
@@ -122,9 +126,10 @@ const INVALIDATIONS: Readonly<Record<WriteRoute, readonly ReadRoute[]>> = {
     'subCategories.update': CATEGORY_NAMES,
     'subCategories.delete': [...CATEGORY_NAMES, ...TRANSACTION_CONTENT],
     'tags.create': ['tags.list'],
-    'tags.update': ['tags.list'],
-    // Excluir a tag a tira dos lançamentos, que continuam existindo.
-    'tags.delete': ['tags.list', ...TRANSACTION_CONTENT],
+    // O relatório por tag mostra o nome de cada tag.
+    'tags.update': ['tags.list', 'reports.byTag'],
+    // Excluir a tag a tira dos lançamentos, que continuam existindo, e do relatório por tag.
+    'tags.delete': ['tags.list', 'reports.byTag', ...TRANSACTION_CONTENT],
     // Anotação é uma lista à parte: não toca em dinheiro nem em cadastro.
     'notes.create': ['notes.list'],
     'notes.update': ['notes.list'],

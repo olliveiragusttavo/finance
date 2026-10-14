@@ -1,6 +1,6 @@
 # Plano do MVP Desktop — CRUD e primeiros relatórios
 
-**Status:** Em andamento — Fases 0 a 12 concluídas (ficaram pendentes só o `Ctrl K` da Fase 4, a pendência da Fase 9.2 que depende da sincronização e a decisão da Fase 11.1 sobre a data dos lançamentos de conta em Transações). Primeira entrega com tela do projeto: o app desktop
+**Status:** Em andamento — Fases 0 a 12.2 concluídas (ficaram pendentes só o `Ctrl K` da Fase 4, a pendência da Fase 9.2 que depende da sincronização e a decisão da Fase 11.1 sobre a data dos lançamentos de conta em Transações). Primeira entrega com tela do projeto: o app desktop
 (Electron) com os cadastros e lançamentos básicos e os dois primeiros relatórios
 personalizados, que são a motivação original do projeto ([README](../../README.md#motivação)).
 O mobile fica inteiro para depois.
@@ -37,6 +37,8 @@ categoria/subcategoria** e **quanto as faturas do cartão pesam no saldo do mês
 | Visão geral | `Main` | KPIs, evolução do saldo, maiores categorias, contas e cartões |
 | **Relatório por categoria** | `DesktopRelCategoria` | Drill-down categoria → subcategoria → lançamentos, comparação com outro período, gráfico + tabela |
 | **Impacto do cartão** | `DesktopRelCartao` | Faturas por mês e cartão, extrato onde foram pagas, peso nas entradas |
+| Fluxo por conta (Fase 12.1) | `DesktopRelFluxo` | Extratos encadeados de uma conta, ou das contas do total somadas, nos 3 meses antes e 1 depois do de referência |
+| Por tag (Fase 12.2) | `DesktopRelTag` | Total líquido por tag no mês ou em todo o período, divisão por categoria e lançamentos da tag |
 | Ajustes | `DesktopAjustes` | Tema, perfil atual, exportar cópia do banco, local do arquivo, atalhos |
 
 ### Fora do escopo (próximas entregas)
@@ -44,9 +46,8 @@ categoria/subcategoria** e **quanto as faturas do cartão pesam no saldo do mês
 - **Mobile inteiro** (React Native / Expo).
 - **Sincronização e Dispositivos** (`DesktopDispositivos`): o indicador da barra lateral
   mostra só "Dados só neste aparelho".
-- Sócios, anexos e os relatórios D5 (fluxo por conta), D7 (sócio) e D8 (tag). Tags e
-  anotações entraram em Cadastros (Fase 6), e Metas, na Fase 9.3; o relatório por tag continua
-  fora.
+- Sócios, anexos e o relatório D7 (sócio). Tags e anotações entraram em Cadastros (Fase 6),
+  Metas, na Fase 9.3, e os relatórios D5 (fluxo por conta) e D8 (tag), nas Fases 12.1 e 12.2.
 - Importação do histórico do app atual.
 - Instaladores de Windows e macOS (o MVP empacota para Linux).
 
@@ -119,6 +120,31 @@ critério do relatório.
 | C4 | Situação de cada célula | Paga (e o extrato onde foi paga), Em aberto (com vencimento), Aberta (recebendo compras) ou Futura |
 | C5 | Janela | Mês de referência, os **3 anteriores** (para a média) e o **seguinte** (futura) |
 
+### 3.4 Fluxo por conta
+
+Decididas antes da Fase 12.1, que trouxe o relatório para dentro do MVP.
+
+| # | Pergunta | Regra |
+|---|---|---|
+| F1 | Janela | A mesma da C5: os **3 meses anteriores**, o de referência e o **seguinte** |
+| F2 | De onde vêm os números? | Do **extrato** de cada conta (o mesmo de Contas): inicial + entradas + saídas + faturas = final, no consolidado e no previsto. O relatório não tem consulta própria de saldo, então nunca discorda da tela Contas |
+| F3 | O que é "Faturas"? | As faturas pagas no extrato, as em aberto que vencem no mês (só no previsto) e os pagamentos parciais de fatura que saem da conta. Entradas e saídas são os outros movimentos, pelo sinal do efeito — a mesma regra do extrato |
+| F4 | "Todas as contas do total" | **Soma simples dos extratos** das contas com "considerar no saldo" ligado, desativadas incluídas. Transferência entre duas delas aparece em entradas e em saídas; os saldos não mudam |
+| F5 | Consolidado × previsto nas linhas | As linhas de movimento mostram o previsto (tudo que pesa no mês) e, quando parte ainda não aconteceu, quanto está em aberto. O saldo inicial mostra o consolidado, com o previsto quando difere. Nos meses depois do mês corrente o consolidado final é "—": ainda não há o que consolidar |
+| F6 | Conta fora do total | Pode ser escolhida e mostra o próprio extrato; aparece apagada, com "fora do total", e não entra na soma |
+
+### 3.5 Por tag
+
+Decididas antes da Fase 12.2, que trouxe o relatório para dentro do MVP.
+
+| # | Pergunta | Regra |
+|---|---|---|
+| T1 | Período | Regra-mestra da [§3.1](#31-regra-mestra-o-período-é-o-do-pagamento). "Só o mês de referência" ou **"Todo o período"**, que inclui o futuro — parcelas e lançamentos em aberto, cada um no mês em que vai pesar: o custo total de uma tag como "viagem" inclui as parcelas que ainda vão vencer |
+| T2 | Quais tipos entram? | **Despesas menos receitas** — o "total líquido" da tag: o reembolso marcado com "reembolsável" abate o gasto. Estorno abate (R2); encargos pelo efeito no saldo (R3); transferência e investimento ficam fora, inclusive a transferência entre perfis |
+| T3 | Lista de tags | Só as com ao menos um lançamento no período, pelo total líquido (maior primeiro, desempate pelo nome), com o número de lançamentos e de categorias |
+| T4 | Por categoria | Total líquido de cada categoria da tag. A participação é sobre a soma das categorias com gasto líquido; a categoria em que as receitas superam as despesas mostra o valor como entrada (+) e não tem participação |
+| T5 | Lançamentos | Os da tag no período, com a mesma fonte e o mesmo critério do total: a lista soma o total líquido. Contas e cartões desativados entram |
+
 ---
 
 ## 4. Arquitetura da entrega
@@ -148,7 +174,7 @@ Nenhuma decisão de produto está aberta. Ficaram decididas:
 | Decisão | Regra |
 |---|---|
 | Período dos relatórios | Mês do pagamento ([§3.1](#31-regra-mestra-o-período-é-o-do-pagamento)) |
-| Itens do menu sem tela no MVP (Dispositivos, Fluxo por conta, Por sócio, Por tag) | Aparecem no menu normalmente e levam a uma **tela em branco**, já com a rota e o mês de referência; "Por sócio" continua só no perfil empresarial |
+| Itens do menu sem tela no MVP (Dispositivos, Por sócio) | Aparecem no menu normalmente e levam a uma **tela em branco**, já com a rota e o mês de referência; "Por sócio" continua só no perfil empresarial. Fluxo por conta e Por tag saíram da lista nas Fases 12.1 e 12.2 |
 | Excluir conta ou cartão | Ver [§5.1](#51-desativar-e-excluir-conta-ou-cartão) |
 | Trocar a moeda do perfil | Só enquanto o perfil não tem lançamentos: a moeda é a unidade de todo valor gravado e a troca não converte nada (database-design §4.1). Renomear continua livre |
 | Limite usado do cartão | Valor a pagar somado de **todas** as faturas em aberto do cartão, futuras de parcelas incluídas; fatura credora conta zero |
@@ -532,6 +558,42 @@ nov" — o mockup é referência, e a divergência foi aprovada. Decisões tomad
 - [x] Estados: perfil sem cartão (estado vazio com o link para Cartões); mês sem receitas (peso "—")
 - [x] Testes: núcleo (`test/services/reports.cardImpact.test.ts`: dia do pagamento, fatura sem o dia, aberta × futura), `client` (`test/viewModels.test.ts`: textos de cada situação, competência do link, fatura sem o dia) e ponta a ponta (`e2e/cardImpact.spec.ts`: estado vazio, indicadores, situações, peso sem receita e o link para a fatura)
 
+### Fase 12.1 — Fluxo por conta
+
+Entrou depois da Fase 12, a pedido: D5 estava fora do escopo (§1). Regras na [§3.4](#34-fluxo-por-conta).
+**Decisões:** sem o botão "Exportar tabela" do mockup; o cabeçalho marca o mês de referência em
+destaque, o mês corrente com "atual" e os meses depois dele com "previsto" — o mockup junta
+"atual" e referência porque desenha o mês corrente; a linha "Faturas pagas" do mockup virou
+"Faturas", porque também leva as em aberto que vencem no mês (só no previsto).
+
+**Núcleo**
+- [x] Domínio `AccountFlowReport`: janela (F1), separação de um extrato em entradas, saídas e faturas (F3) e soma das contas do total (F4), funções puras
+- [x] Rota `reports.accountFlow` (perfil, mês, conta opcional — sem ela, as contas do total) montada sobre o extrato de cada conta (`StatementConsolidationService.getStatement`, F2), com a situação de cada mês (passado, corrente, futuro) pelo `Clock`
+- [x] Testes de mesa (`test/services/reports.accountFlow.test.ts`): cadeia inicial → final nos cinco meses; concordância com `statements.get`; fatura paga, em aberto (só no previsto) e pagamento parcial na linha das faturas; lançamento em aberto só no previsto; soma das contas do total com transferência interna nos dois lados e a conta fora do total fora da soma; conta desativada dentro; conta de outro perfil recusada
+
+**Client e desktop**
+- [x] Rota no mapa de invalidação (`MONEY`) e hook `useAccountFlow`. O domínio do extrato ganhou `statementMovements`, a lista única de movimentos que o extrato e o fluxo leem
+- [x] View-model `accountFlowTable.ts`: colunas com o rótulo de cada mês, linhas com o previsto e a nota do que está em aberto, consolidado "—" no futuro (F5)
+- [x] Tela `AccountFlowScreen.tsx` no lugar da tela em branco: lista de contas à esquerda (fora do total apagada, desativada com etiqueta) mais "Todas as contas do total"; a escolha fica no *search param* `account` (`reports/accountFlowSearch.ts`), e a conta que sumiu volta à primeira
+- [x] Testes: `client` (`test/accountFlowTable.test.ts`), desktop (`test/reportSearch.test.ts`) e ponta a ponta (`e2e/accountFlow.spec.ts`)
+
+### Fase 12.2 — Por tag
+
+Entrou depois da Fase 12, a pedido: D8 estava fora do escopo (§1). Regras na [§3.5](#35-por-tag).
+
+**Núcleo**
+- [x] Domínio `TagReport`: total líquido por tag e por categoria, participação e ordem (T2–T4), funções puras
+- [x] Rota `reports.byTag` (perfil, mês, período `month` ou `all`): as tags com total líquido, despesas, receitas, lançamentos, primeiro e último mês e a divisão por categoria — agregada no SQL sobre a `REPORT_SOURCES_CTE`
+- [x] Rota `reports.tagTransactions` (perfil, mês, período, tag): os lançamentos da tag e o total, pelo mesmo critério (T5); tag de outro perfil recusada com `NOT_FOUND`
+- [x] Testes de mesa (`test/services/reports.tag.test.ts`): compra no cartão pelo mês do pagamento da fatura; parcelas futuras só em "todo o período"; receita abatendo; estorno; encargos; transferência fora; categoria com receita maior sem participação; lista soma o total; tag sem lançamento no período fora; ordem
+
+**Client e desktop**
+- [x] Rotas no mapa de invalidação (`MONEY`; `reports.byTag` também com os nomes de categoria e com renomear e excluir tag) e hooks `useTagReport`, `useTagTransactions`
+- [x] View-model `tagReport.ts`: itens da lista, indicadores ("em 2 contas e 1 cartão", categorias envolvidas, intervalo dos meses), tabela por categoria e a lista de lançamentos (reaproveitando a linha de Transações, como o relatório por categoria)
+- [x] Tela `TagReportScreen.tsx` no lugar da tela em branco: lista de tags com o seletor de período, indicadores, tabela por categoria com alternância para gráfico (`ViewToggle`) e lançamentos com "Abrir em Transações →" (tag como filtro); tag e período nos *search params* `tag` e `range` (`reports/tagReportSearch.ts`). **Decisões:** a divisão por categoria abre na tabela, como no mockup, e o "Ver como gráfico" virou a alternância Tabela/Gráfico dos outros relatórios; em "Todo o período" a data dos lançamentos leva o ano; o "Abrir em Transações" leva a tag e o mês de referência, porque Transações é mensal; sem receita o indicador é "Total gasto", como no mockup, e com receita vira "Total líquido" com as duas partes
+- [x] Estados: perfil sem tag (link para Cadastros › Tags); nenhuma tag com lançamento no período
+- [x] Testes: `client` (`test/tagReport.test.ts`), desktop (`test/reportSearch.test.ts`) e ponta a ponta (`e2e/tagReport.spec.ts`)
+
 ### Fase 13 — Ajustes
 
 - [ ] Tema (seguir o sistema, claro, escuro)
@@ -566,4 +628,4 @@ nov" — o mockup é referência, e a divergência foi aprovada. Decisões tomad
 | Regra de período mudar no refinamento dos relatórios | O mês de pagamento é uma expressão SQL única (Fase 2.1); os testes de mesa documentam a regra atual |
 | Exclusão em cadeia apagar mais (ou menos) do que o alerta mostrou | `deletionImpact` e a exclusão usam as mesmas consultas; teste confere que o que foi apagado é exatamente o que foi contado |
 | Invalidação incompleta deixar saldo velho na tela | Mapa de invalidação centralizado e testado (Fase 3.2), não `invalidateQueries` espalhado |
-| Escopo crescer com recorrências e tags | Recorrências entraram numa fase própria (9.1), com as regras fechadas antes do código (database-design §4.12). Tags entraram só como cadastro e marcação; o relatório por tag continua fora |
+| Escopo crescer com recorrências e tags | Recorrências entraram numa fase própria (9.1), com as regras fechadas antes do código (database-design §4.12). Tags entraram como cadastro e marcação; o relatório por tag entrou depois, numa fase própria (12.2), também com as regras fechadas antes do código ([§3.5](#35-por-tag)) |

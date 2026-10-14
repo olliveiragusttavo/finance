@@ -7,8 +7,7 @@ import type { AccountId, BankStatementId, ProfileId } from '../../domain/shared/
 import { Money } from '../../domain/shared/Money.ts';
 import type { YearMonth } from '../../domain/shared/YearMonth.ts';
 import { BankStatement } from '../../domain/statement/BankStatement.ts';
-import { statementFlows } from '../../domain/statement/StatementFlows.ts';
-import { destinationEffect } from '../../domain/transaction/TransactionType.ts';
+import { statementFlows, statementMovements } from '../../domain/statement/StatementFlows.ts';
 import type { AccountRepository } from '../../repositories/AccountRepository.ts';
 import type { BankStatementRepository } from '../../repositories/BankStatementRepository.ts';
 import type { InvoiceRepository, InvoiceWithCard } from '../../repositories/InvoiceRepository.ts';
@@ -103,12 +102,15 @@ export class StatementConsolidationService {
             const transactions = statement === null ? [] : this.transactions.listByStatement(statement.id);
             const incomingTransfers = this.transactions.listIncoming(accountId, period);
             const { paidInvoices, openInvoicesDue } = this.monthInvoices(accountId, statement?.id ?? null, period);
-            const flows = statementFlows(opening.consolidated.currency, [
-                ...transactions.map((transaction) => ({ effect: transaction.originEffect(), settled: transaction.isPaid() })),
-                ...incomingTransfers.map((transaction) => ({ effect: destinationEffect(transaction.value), settled: transaction.isPaid() })),
-                ...paidInvoices.map(({ invoice }) => ({ effect: invoice.balance, settled: true })),
-                ...openInvoicesDue.map(({ invoice }) => ({ effect: invoice.balance, settled: false })),
-            ]);
+            const flows = statementFlows(
+                opening.consolidated.currency,
+                statementMovements({
+                    transactions,
+                    incomingTransfers,
+                    paidInvoices: paidInvoices.map(({ invoice }) => invoice),
+                    openInvoicesDue: openInvoicesDue.map(({ invoice }) => invoice),
+                }),
+            );
             return {
                 account,
                 period,

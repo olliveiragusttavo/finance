@@ -1,5 +1,5 @@
 import type { CategoryScope } from '../domain/report/CategoryScope.ts';
-import type { AccountId, BankStatementId, GoalId, InvoiceId, ProfileId, RecurrenceId, TransactionId } from '../domain/shared/ids.ts';
+import type { AccountId, BankStatementId, GoalId, InvoiceId, ProfileId, RecurrenceId, TagId, TransactionId } from '../domain/shared/ids.ts';
 import type { LocalDate } from '../domain/shared/LocalDate.ts';
 import type { YearMonth } from '../domain/shared/YearMonth.ts';
 import type { Transaction } from '../domain/transaction/Transaction.ts';
@@ -104,4 +104,16 @@ export interface TransactionRepository {
      * @return As despesas vivas do escopo que pesam no mês, por data.
      */
     listExpensesByPaymentPeriod(profileId: ProfileId, period: YearMonth, scope: CategoryScope): readonly Transaction[];
+
+    /**
+     * Lista de lançamentos do relatório por tag, com o mesmo mês de pagamento e os mesmos tipos
+     * das somas da tag (`ReportRepository.tagTotalsByCategory`), para que a lista some o total
+     * (desktop-mvp-plan §3.5, T5).
+     *
+     * @param profileId Perfil dono.
+     * @param tagId Tag consultada.
+     * @param period Mês de pagamento; `null` para todos, futuros incluídos.
+     * @return As receitas e despesas vivas com a tag, por data.
+     */
+    listIncomeAndExpensesByTag(profileId: ProfileId, tagId: TagId, period: YearMonth | null): readonly Transaction[];
 }

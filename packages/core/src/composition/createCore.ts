@@ -178,7 +178,7 @@ export function createCore(ports: CorePorts): Core {
     const cascadeDeletion = new CascadeDeletionService(unitOfWork, deletions, accounts, creditCards, invoices, transactions, recalculation);
     const balances = new AccountBalanceService(unitOfWork, profiles, accounts, recalculation);
     const integrity = new BalanceIntegrityService(unitOfWork, accounts, statements, invoices, recalculation, clock);
-    const reportService = new ReportService(unitOfWork, profileService, reportRepository, transactions, creditCards, categories, clock);
+    const reportService = new ReportService(unitOfWork, profileService, reportRepository, transactions, creditCards, categories, accounts, tags, consolidation, clock);
 
     const transactionController = new TransactionController(transactionService, onUnexpected);
     const recurrenceController = new RecurrenceController(recurrenceService, new SeriesPlanner(unitOfWork, transactionService, composer, transactions, recurrenceRepository), onUnexpected);
@@ -263,6 +263,9 @@ export function createCore(ports: CorePorts): Core {
         'reports.byCategory': (raw) => reportController.byCategory(raw),
         'reports.categoryTransactions': (raw) => reportController.categoryTransactions(raw),
         'reports.cardImpact': (raw) => reportController.cardImpact(raw),
+        'reports.accountFlow': (raw) => reportController.accountFlow(raw),
+        'reports.byTag': (raw) => reportController.byTag(raw),
+        'reports.tagTransactions': (raw) => reportController.tagTransactions(raw),
     };
 
     return {

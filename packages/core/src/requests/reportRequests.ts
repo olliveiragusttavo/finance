@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import type { CategoryScope } from '../domain/report/CategoryScope.ts';
 import { COMPARISON_MODES, type ComparisonMode } from '../domain/report/Comparison.ts';
-import { CategoryId, ProfileId, SubCategoryId } from '../domain/shared/ids.ts';
+import { TAG_REPORT_RANGES } from '../domain/report/TagReport.ts';
+import { AccountId, CategoryId, ProfileId, SubCategoryId, TagId } from '../domain/shared/ids.ts';
 import { parsedText, yearMonthField } from './fields.ts';
 
 /** Meses da evolução do saldo quando a tela não pede: os 6 do mockup da Visão geral. */
@@ -58,3 +59,22 @@ export const categoryTransactionsRequest = z
     });
 
 export const cardImpactRequest = z.strictObject({ profileId: parsedText(ProfileId), period: yearMonthField });
+
+/** Sem a conta, o relatório soma as contas do total (desktop-mvp-plan §3.4, F4). */
+export const accountFlowRequest = z.strictObject({
+    profileId: parsedText(ProfileId),
+    period: yearMonthField,
+    accountId: parsedText(AccountId).optional(),
+});
+
+/** Sem o período, "Todo o período" — o padrão do mockup `DesktopRelTag`. */
+const tagRangeField = z.enum(TAG_REPORT_RANGES).default('all');
+
+export const tagReportRequest = z.strictObject({ profileId: parsedText(ProfileId), period: yearMonthField, range: tagRangeField });
+
+export const tagTransactionsRequest = z.strictObject({
+    profileId: parsedText(ProfileId),
+    period: yearMonthField,
+    range: tagRangeField,
+    tagId: parsedText(TagId),
+});

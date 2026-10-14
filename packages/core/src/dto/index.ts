@@ -36,6 +36,8 @@ export * from './reports/BalanceEvolutionResponse.ts';
 export * from './reports/CategoryReportResponse.ts';
 export * from './reports/CategoryTransactionsResponse.ts';
 export * from './reports/CardImpactResponse.ts';
+export * from './reports/AccountFlowResponse.ts';
+export * from './reports/TagReportResponse.ts';
 export * from './tags/TagResponse.ts';
 export * from './notes/NoteResponse.ts';
 export * from './recurrences/RecurrenceResponse.ts';

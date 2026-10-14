@@ -310,3 +310,27 @@ export function useCategoryTransactions(input: CoreInput<'reports.categoryTransa
 export function useCardImpact(input: CoreInput<'reports.cardImpact'> | null): Query<'reports.cardImpact'> {
     return useCoreQuery('reports.cardImpact', input);
 }
+
+/**
+ * @param input Perfil, mês e conta (sem ela, as contas do total); `null` deixa a consulta parada.
+ * @return Os extratos encadeados dos cinco meses do fluxo por conta.
+ */
+export function useAccountFlow(input: CoreInput<'reports.accountFlow'> | null): Query<'reports.accountFlow'> {
+    return useCoreQuery('reports.accountFlow', input);
+}
+
+/**
+ * @param input Perfil, mês e período; `null` deixa a consulta parada.
+ * @return As tags com lançamento no período, com o total líquido e a divisão por categoria.
+ */
+export function useTagReport(input: CoreInput<'reports.byTag'> | null): Query<'reports.byTag'> {
+    return useCoreQuery('reports.byTag', input);
+}
+
+/**
+ * @param input Perfil, mês, período e a tag aberta; `null` enquanto nenhuma tag está aberta.
+ * @return Os lançamentos da tag e o total líquido.
+ */
+export function useTagTransactions(input: CoreInput<'reports.tagTransactions'> | null): Query<'reports.tagTransactions'> {
+    return useCoreQuery('reports.tagTransactions', input);
+}

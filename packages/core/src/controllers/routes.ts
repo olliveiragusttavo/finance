@@ -15,11 +15,13 @@ import type { InvoiceSuggestionResponse } from '../dto/invoices/InvoiceSuggestio
 import type { OnboardingResponse } from '../dto/onboarding/OnboardingResponse.ts';
 import type { ProfileBalancesResponse } from '../dto/profiles/ProfileBalancesResponse.ts';
 import type { ProfileResponse } from '../dto/profiles/ProfileResponse.ts';
+import type { AccountFlowResponse } from '../dto/reports/AccountFlowResponse.ts';
 import type { BalanceEvolutionResponse } from '../dto/reports/BalanceEvolutionResponse.ts';
 import type { CardImpactResponse } from '../dto/reports/CardImpactResponse.ts';
 import type { CategoryReportResponse } from '../dto/reports/CategoryReportResponse.ts';
 import type { CategoryTransactionsResponse } from '../dto/reports/CategoryTransactionsResponse.ts';
 import type { MonthSummaryResponse } from '../dto/reports/MonthSummaryResponse.ts';
+import type { TagReportResponse, TagTransactionsResponse } from '../dto/reports/TagReportResponse.ts';
 import type { NoteResponse } from '../dto/notes/NoteResponse.ts';
 import type { ProfileInvoiceResponse, StatementResponse } from '../dto/statements/StatementResponse.ts';
 import type { TagResponse, TagUsageResponse } from '../dto/tags/TagResponse.ts';
@@ -45,11 +47,14 @@ import type { invoiceIdRequest, listInvoicesByCardRequest, payInvoiceRequest, su
 import type { startOnboardingRequest } from '../requests/onboardingRequests.ts';
 import type { createProfileRequest, listProfilesRequest, updateProfileRequest } from '../requests/profileRequests.ts';
 import type {
+    accountFlowRequest,
     balanceEvolutionRequest,
     cardImpactRequest,
     categoryReportRequest,
     categoryTransactionsRequest,
     monthSummaryRequest,
+    tagReportRequest,
+    tagTransactionsRequest,
 } from '../requests/reportRequests.ts';
 import type { createNoteRequest, listNotesRequest, noteIdRequest, rewriteNoteRequest } from '../requests/noteRequests.ts';
 import type {
@@ -149,6 +154,9 @@ export interface CoreRoutes {
     'reports.byCategory': { input: z.input<typeof categoryReportRequest>; output: CategoryReportResponse };
     'reports.categoryTransactions': { input: z.input<typeof categoryTransactionsRequest>; output: CategoryTransactionsResponse };
     'reports.cardImpact': { input: z.input<typeof cardImpactRequest>; output: CardImpactResponse };
+    'reports.accountFlow': { input: z.input<typeof accountFlowRequest>; output: AccountFlowResponse };
+    'reports.byTag': { input: z.input<typeof tagReportRequest>; output: TagReportResponse };
+    'reports.tagTransactions': { input: z.input<typeof tagTransactionsRequest>; output: TagTransactionsResponse };
 }
 
 export type CoreRoute = keyof CoreRoutes;

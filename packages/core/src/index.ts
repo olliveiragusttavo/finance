@@ -20,6 +20,8 @@ export { MONEY_MAX_AMOUNT, Money, roundHalfAwayFromZero } from './domain/shared/
 // Modos de comparação dos relatórios: a tela valida o modo vindo da URL pela mesma lista que a
 // Request usa, sem manter uma cópia própria.
 export { COMPARISON_MODES, type ComparisonMode } from './domain/report/Comparison.ts';
+export { TAG_REPORT_RANGES, type TagReportRange } from './domain/report/TagReport.ts';
+export type { FlowMonthTiming } from './domain/report/AccountFlowReport.ts';
 // Regras puras do tipo da transação: o formulário de lançamento mostra o sinal do efeito e pede
 // a conta de destino e a meta pela mesma regra que o núcleo aplica, sem reimplementá-la na UI.
 export { feedsGoal, movesToDestination, originEffect, TRANSACTION_TYPES, type TransactionType } from './domain/transaction/TransactionType.ts';

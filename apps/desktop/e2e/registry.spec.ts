@@ -336,6 +336,51 @@ test('tags: criar com nome repetido apontado no campo, uso do lançamento na lis
     }
 });
 
+test('tags: o atalho do painel abre o relatório na tag aberta, e não na de maior total', async () => {
+    const { app, window: page, userData } = await launchApp();
+    try {
+        await completeFirstUse(page, { profileName: 'Gustavo', accountName: 'Nubank' });
+        const profileId = await activeProfileId(page);
+        await openRegistry(page, 'Tags');
+
+        // Duas tags com lançamento, a "presente" com o menor total: sem a tag no link, o
+        // relatório abriria a "viagem", que vem primeiro pelo total líquido (T3).
+        await page.evaluate(
+            async ({ profileId, period }) => {
+                const { core } = window.finance;
+                const [accounts, tree] = await Promise.all([
+                    core.call('accounts.list', { profileId, period }),
+                    core.call('categories.tree', { profileId }),
+                ]);
+                const account = accounts.ok ? accounts.data.accounts[0] : undefined;
+                const subCategory = tree.ok ? tree.data[0]?.subCategories[0] : undefined;
+                const trip = await core.call('tags.create', { profileId, name: 'viagem' });
+                const gift = await core.call('tags.create', { profileId, name: 'presente' });
+                if (account === undefined || subCategory === undefined || !trip.ok || !gift.ok) {
+                    throw new Error('cenário incompleto');
+                }
+                const base = { profileId, subCategoryId: subCategory.id, type: 'expense', source: { kind: 'account', accountId: account.id }, dueDate: `${period}-05` } as const;
+                await core.call('transactions.create', { ...base, name: 'Hotel', value: 3000, tagIds: [trip.data.id] });
+                await core.call('transactions.create', { ...base, name: 'Livro', value: 200, tagIds: [gift.data.id] });
+            },
+            { profileId, period: currentPeriod(new Date()) },
+        );
+        // A escrita pela ponte não passa pelo mapa de invalidação das telas; recarregar relê.
+        await page.reload();
+        await expect(page.getByRole('heading', { name: 'Tags', level: 2 })).toBeVisible();
+
+        await page.getByRole('button', { name: 'Editar a tag presente' }).dispatchEvent('click');
+        const panel = page.getByRole('complementary', { name: 'Editar tag' });
+        await panel.getByRole('link', { name: 'Abrir relatório por tag →' }).dispatchEvent('click');
+        await expect(page.getByRole('heading', { name: 'Por tag', level: 1 })).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'presente', level: 2 })).toBeVisible();
+        await expect(page.getByRole('list', { name: 'Tags' }).getByRole('link', { name: /presente/ })).toHaveAttribute('aria-current', 'page');
+    } finally {
+        await app.close();
+        removeUserData(userData);
+    }
+});
+
 test('anotações: criar, buscar, salvar sincroniza o editor, sair com alteração não salva pede salvar ou descartar, excluir com confirmação e recusa', async () => {
     const { app, window: page, userData } = await launchApp();
     try {

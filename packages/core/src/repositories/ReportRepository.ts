@@ -3,6 +3,7 @@ import type {
     CashFlowTotals,
     InvoiceExpenseTotals,
     SubCategoryExpenseTotals,
+    TagCategoryTotals,
 } from '../domain/report/ReportTotals.ts';
 import type { Currency } from '../domain/shared/Currency.ts';
 import type { ProfileId } from '../domain/shared/ids.ts';
@@ -53,4 +54,15 @@ export interface ReportRepository {
      * extrato anterior a `from` para os meses sem movimento no começo da série.
      */
     closingHistories(profileId: ProfileId, from: YearMonth, to: YearMonth, currency: Currency): readonly AccountClosingHistory[];
+
+    /**
+     * @param profileId Perfil consultado.
+     * @param period Mês de pagamento pedido; `null` soma todos os meses, inclusive os futuros
+     * (desktop-mvp-plan §3.5, T1).
+     * @param currency Moeda do perfil.
+     * @return Somas das receitas e das despesas de cada tag viva, por categoria e tipo, com o
+     * primeiro e o último mês de pagamento; tag sem lançamento no período não tem linha.
+     * Transferências e investimentos ficam fora (T2).
+     */
+    tagTotalsByCategory(profileId: ProfileId, period: YearMonth | null, currency: Currency): readonly TagCategoryTotals[];
 }

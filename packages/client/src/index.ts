@@ -24,6 +24,8 @@ export * from './viewModels/transactionEditor.ts';
 export * from './viewModels/recurrenceView.ts';
 export * from './viewModels/categoryReport.ts';
 export * from './viewModels/cardImpactGrid.ts';
+export * from './viewModels/accountFlowTable.ts';
+export * from './viewModels/tagReport.ts';
 export * from './viewModels/deletionImpact.ts';
 export * from './viewModels/statementTable.ts';
 export * from './viewModels/invoiceView.ts';

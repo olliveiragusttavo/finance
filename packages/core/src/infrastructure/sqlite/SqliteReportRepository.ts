@@ -4,9 +4,10 @@ import type {
     CashFlowTotals,
     InvoiceExpenseTotals,
     SubCategoryExpenseTotals,
+    TagCategoryTotals,
 } from '../../domain/report/ReportTotals.ts';
 import type { Currency } from '../../domain/shared/Currency.ts';
-import { AccountId, CategoryId, CreditCardId, InvoiceId, SubCategoryId, type ProfileId } from '../../domain/shared/ids.ts';
+import { AccountId, CategoryId, CreditCardId, InvoiceId, SubCategoryId, TagId, type ProfileId } from '../../domain/shared/ids.ts';
 import { LocalDate } from '../../domain/shared/LocalDate.ts';
 import { Money } from '../../domain/shared/Money.ts';
 import { YearMonth } from '../../domain/shared/YearMonth.ts';
@@ -199,5 +200,54 @@ export class SqliteReportRepository implements ReportRepository {
             histories.set(accountId, history);
         }
         return [...histories.entries()].map(([accountId, history]) => ({ accountId, ...history }));
+    }
+
+    /**
+     * Uma linha por tag, categoria e tipo. O vínculo com a tag e a própria tag precisam estar
+     * vivos — excluir a tag a tira dos lançamentos —, mas os nomes de categoria são só rótulos,
+     * lidos sem filtrar `deleted_at` pelo mesmo motivo do relatório por categoria. Sem mês, o
+     * filtro some e a soma cobre todo o histórico da tag, futuro incluído (T1).
+     *
+     * @param profileId Perfil consultado.
+     * @param period Mês de pagamento pedido, ou `null` para todos.
+     * @param currency Moeda do perfil.
+     * @return As somas por tag, categoria e tipo.
+     */
+    public tagTotalsByCategory(profileId: ProfileId, period: YearMonth | null, currency: Currency): readonly TagCategoryTotals[] {
+        return this.database
+            .all(
+                `WITH ${REPORT_SOURCES_CTE}
+                SELECT tg.id AS tag_id, tg.name AS tag_name, tc.id AS category_id, tc.name AS category_name, rt.type,
+                    SUM(rt.value) AS value, SUM(rt.charges) AS charges, COUNT(*) AS count,
+                    MIN(rt.payment_key) AS first_key, MAX(rt.payment_key) AS last_key
+                FROM report_transactions rt
+                JOIN transactions_tags tt ON tt.transaction_id = rt.id AND tt.deleted_at IS NULL
+                JOIN tags tg ON tg.id = tt.tag_id AND tg.deleted_at IS NULL AND tg.profile_id = :profileId
+                JOIN transaction_sub_categories sc ON sc.id = rt.sub_category_id
+                JOIN transaction_categories tc ON tc.id = sc.category_id
+                WHERE rt.type IN (:income, :expense) AND (:period IS NULL OR rt.payment_key = :period)
+                GROUP BY tg.id, tc.id, rt.type`,
+                {
+                    profileId,
+                    income: TRANSACTION_TYPE_CODE.income,
+                    expense: TRANSACTION_TYPE_CODE.expense,
+                    period: period === null ? null : periodKey(period),
+                },
+            )
+            .map((row) => {
+                const reader = new RowReader('transactions', row);
+                return {
+                    tagId: TagId(reader.text('tag_id')),
+                    tagName: reader.text('tag_name'),
+                    categoryId: CategoryId(reader.text('category_id')),
+                    categoryName: reader.text('category_name'),
+                    type: reader.number('type') === TRANSACTION_TYPE_CODE.income ? 'income' : 'expense',
+                    value: Money.of(reader.number('value'), currency),
+                    charges: Money.of(reader.number('charges'), currency),
+                    count: reader.number('count'),
+                    firstPeriod: periodFromKey(reader.number('first_key')),
+                    lastPeriod: periodFromKey(reader.number('last_key')),
+                };
+            });
     }
 }

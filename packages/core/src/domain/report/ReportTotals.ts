@@ -1,5 +1,5 @@
 import type { BalancePair } from '../balance/BalancePair.ts';
-import type { AccountId, CategoryId, CreditCardId, InvoiceId, SubCategoryId } from '../shared/ids.ts';
+import type { AccountId, CategoryId, CreditCardId, InvoiceId, SubCategoryId, TagId } from '../shared/ids.ts';
 import type { LocalDate } from '../shared/LocalDate.ts';
 import type { Money } from '../shared/Money.ts';
 import type { YearMonth } from '../shared/YearMonth.ts';
@@ -28,6 +28,25 @@ export interface SubCategoryExpenseTotals {
     readonly value: Money;
     readonly charges: Money;
     readonly count: number;
+}
+
+/**
+ * Somas de receitas ou despesas de uma tag numa categoria, no período pedido do relatório por
+ * tag. Por categoria, e não só por tag, para que a divisão da tela e o total saiam da mesma
+ * consulta e nunca discordem.
+ */
+export interface TagCategoryTotals {
+    readonly tagId: TagId;
+    readonly tagName: string;
+    readonly categoryId: CategoryId;
+    readonly categoryName: string;
+    readonly type: 'income' | 'expense';
+    readonly value: Money;
+    readonly charges: Money;
+    readonly count: number;
+    /** Primeiro e último mês de pagamento dos lançamentos somados. */
+    readonly firstPeriod: YearMonth;
+    readonly lastPeriod: YearMonth;
 }
 
 /** Uma fatura com o mês em que pesa no caixa e as somas das suas despesas. */

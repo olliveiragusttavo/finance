@@ -83,7 +83,7 @@ test('o menu leva a todas as telas e o mês de referência acompanha a navegaç�
         await expect(menu.getByRole('link', { name: 'Fluxo por conta' })).toBeVisible();
         await expect(menu.getByRole('link', { name: 'Por sócio' })).toHaveCount(0);
         await openMenuItem(page, 'Por tag');
-        await expect(page.getByRole('heading', { level: 1 })).toHaveText('Relatório por tag');
+        await expect(page.getByRole('heading', { level: 1 })).toHaveText('Por tag');
         await expect(month).toHaveText(formatMonthLong(today));
     } finally {
         await app.close();

@@ -311,18 +311,20 @@ export interface CategoryTransactionList {
 
 /**
  * Lista de lançamentos do drill-down (mockup DesktopRelCategoria, "Lançamentos em
- * Restaurantes"). Reaproveita a linha da tabela de Transações para que a data, a coluna
- * "Conta / fatura" e o valor saiam iguais nas duas telas.
+ * Restaurantes"), também usada pela lista do relatório por tag (`buildTagTransactionList`).
+ * Reaproveita a linha da tabela de Transações para que a data, a coluna "Conta / fatura" e o
+ * valor saiam iguais nas telas.
  * Regra de negócio (Relatórios, R1): a lista vem da rota `reports.categoryTransactions`, pelo
  * mês do pagamento, e não do `transactions.listByPeriod` — a compra de setembro numa fatura paga
  * em outubro está aqui em outubro (desktop-mvp-plan §3.1). O total é o do núcleo, o mesmo valor
  * da linha do relatório, e não uma soma refeita na tela.
  *
- * @param response Lançamentos e total do drill-down.
+ * @param response Lançamentos e total do relatório — o gasto em positivo; um total negativo
+ * (receitas maiores, no relatório por tag) sai como entrada.
  * @param source Cadastros para os nomes de conta, cartão, subcategoria e tag.
  * @return As linhas ordenadas por data e nome, e o total.
  */
-export function buildCategoryTransactionList(response: CategoryTransactionsResponse, source: CategoryTransactionsSource): CategoryTransactionList {
+export function buildCategoryTransactionList(response: Pick<CategoryTransactionsResponse, 'transactions' | 'total'>, source: CategoryTransactionsSource): CategoryTransactionList {
     // A situação não aparece nesta lista, então as faturas não são necessárias.
     const table = buildTransactionTable({ ...source, transactions: response.transactions, invoices: [] }, NO_TRANSACTION_FILTERS);
     const tagNames = new Map(source.tags.map((tag) => [tag.id, tag.name]));

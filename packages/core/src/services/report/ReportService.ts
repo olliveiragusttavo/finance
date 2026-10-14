@@ -1,3 +1,5 @@
+import type { Account } from '../../domain/account/Account.ts';
+import { accountFlowWindow, flowLineOf, flowMonthTiming, sumFlowLines, type AccountFlowLine, type AccountFlowReport, type AccountFlowScope } from '../../domain/report/AccountFlowReport.ts';
 import { buildBalanceEvolution, evolutionWindow } from '../../domain/report/BalanceEvolution.ts';
 import { buildCardImpactReport, cardImpactWindow, type CardImpactReport } from '../../domain/report/CardImpactReport.ts';
 import { buildCategoryReport, type CategoryReport } from '../../domain/report/CategoryReport.ts';
@@ -5,23 +7,28 @@ import type { CategoryScope } from '../../domain/report/CategoryScope.ts';
 import { ComparisonBasis, sumMoney, type ComparisonMode } from '../../domain/report/Comparison.ts';
 import { buildMonthSummary, type MonthSummary } from '../../domain/report/MonthSummary.ts';
 import { incomeInflow } from '../../domain/report/ReportTotals.ts';
+import { buildTagReport, type TagReport, type TagReportRange } from '../../domain/report/TagReport.ts';
 import type { Profile } from '../../domain/profile/Profile.ts';
 import { NotFoundError } from '../../domain/shared/errors.ts';
-import type { ProfileId } from '../../domain/shared/ids.ts';
+import type { AccountId, ProfileId, TagId } from '../../domain/shared/ids.ts';
 import { Money } from '../../domain/shared/Money.ts';
 import type { YearMonth } from '../../domain/shared/YearMonth.ts';
+import { statementMovements } from '../../domain/statement/StatementFlows.ts';
 import type { Clock } from '../../ports/Clock.ts';
+import type { AccountRepository } from '../../repositories/AccountRepository.ts';
 import type { CategoryRepository } from '../../repositories/CategoryRepository.ts';
 import type { CreditCardRepository } from '../../repositories/CreditCardRepository.ts';
 import type { ReportRepository } from '../../repositories/ReportRepository.ts';
+import type { TagRepository } from '../../repositories/TagRepository.ts';
 import type { TransactionRepository } from '../../repositories/TransactionRepository.ts';
 import type { ProfileService } from '../profile/ProfileService.ts';
+import type { StatementConsolidationService } from '../statement/StatementConsolidationService.ts';
 import type { UnitOfWork } from '../UnitOfWork.ts';
-import type { BalanceEvolutionView, CategoryTransactionsView } from './ReportViews.ts';
+import type { BalanceEvolutionView, CategoryTransactionsView, TagTransactionsView } from './ReportViews.ts';
 
 /**
- * Relatórios do perfil: Visão geral, relatório por categoria e impacto do cartão
- * (desktop-mvp-plan §6, Fase 2). Só lê: a agregação roda no SQL do `ReportRepository`, com
+ * Relatórios do perfil: Visão geral, relatório por categoria, impacto do cartão, fluxo por
+ * conta e por tag (desktop-mvp-plan §6, Fases 2, 12.1 e 12.2). Só lê: a agregação roda no SQL do `ReportRepository`, com
  * o mês de pagamento da fonte única (reports-design §2), e as regras de comparação, variação
  * e peso ficam nos montadores puros de `domain/report`. Cada caso de uso lê numa unidade de
  * trabalho para que as consultas de um mesmo relatório vejam o mesmo estado do banco.
@@ -34,7 +41,10 @@ export class ReportService {
      * @param transactions Lançamentos do drill-down.
      * @param creditCards Colunas do impacto do cartão.
      * @param categories Posse da categoria do drill-down.
-     * @param clock "Hoje", que separa fatura futura de fatura em aberto.
+     * @param accounts Contas do fluxo por conta e a posse da conta pedida.
+     * @param tags Posse da tag da lista de lançamentos.
+     * @param statements Extrato de cada conta, a fonte do fluxo por conta (F2).
+     * @param clock "Hoje", que separa fatura futura de fatura em aberto e mês futuro de passado.
      */
     public constructor(
         private readonly unitOfWork: UnitOfWork,
@@ -43,6 +53,9 @@ export class ReportService {
         private readonly transactions: TransactionRepository,
         private readonly creditCards: CreditCardRepository,
         private readonly categories: CategoryRepository,
+        private readonly accounts: AccountRepository,
+        private readonly tags: TagRepository,
+        private readonly statements: StatementConsolidationService,
         private readonly clock: Clock,
     ) {}
 
@@ -169,6 +182,120 @@ export class ReportService {
                 zero,
             });
         });
+    }
+
+    /**
+     * Fluxo por conta: os extratos encadeados de uma conta, ou das contas do total somadas, na
+     * janela do mês de referência.
+     * Regra de negócio (Relatórios, F2): os números vêm do extrato de cada conta
+     * (`getStatement`), o mesmo da tela Contas, para que o relatório nunca discorde dela; o
+     * relatório só separa as faturas (F3) e soma as contas (F4) (desktop-mvp-plan §3.4).
+     *
+     * @param profileId Perfil consultado.
+     * @param reference Mês de referência.
+     * @param accountId Conta pedida; `null` soma as contas com "considerar no saldo" ligado,
+     * desativadas incluídas.
+     * @return O fluxo dos cinco meses.
+     * @throws {NotFoundError} Quando o perfil não existe, ou a conta não existe ou é de outro
+     * perfil.
+     */
+    public accountFlow(profileId: ProfileId, reference: YearMonth, accountId: AccountId | null): AccountFlowReport {
+        return this.unitOfWork.run(() => {
+            const profile = this.profiles.require(profileId);
+            const scope = this.flowScope(profile, accountId);
+            const accounts = scope.kind === 'account' ? [scope.account] : scope.accounts;
+            const today = this.clock.today();
+            const months = accountFlowWindow(reference).map((period) => ({
+                period,
+                timing: flowMonthTiming(period, today),
+                ...sumFlowLines(accounts.map((account) => this.flowLine(account, period, profile)), profile.currency),
+            }));
+            return { reference, scope, months };
+        });
+    }
+
+    /**
+     * Relatório por tag: cada tag com lançamento no período, com o total líquido e a divisão por
+     * categoria (desktop-mvp-plan §3.5, T1–T4).
+     *
+     * @param profileId Perfil consultado.
+     * @param reference Mês de referência.
+     * @param range Só o mês de referência ou todo o período.
+     * @return As tags pelo total líquido.
+     * @throws {NotFoundError} Quando o perfil não existe.
+     */
+    public byTag(profileId: ProfileId, reference: YearMonth, range: TagReportRange): TagReport {
+        return this.unitOfWork.run(() => {
+            const profile = this.profiles.require(profileId);
+            const rows = this.reports.tagTotalsByCategory(profileId, range === 'month' ? reference : null, profile.currency);
+            return buildTagReport(reference, range, rows, Money.zero(profile.currency));
+        });
+    }
+
+    /**
+     * Lançamentos de uma tag no período, com o mesmo critério das somas da tag, para que a lista
+     * some o total líquido da linha (T5).
+     *
+     * @param profileId Perfil consultado.
+     * @param reference Mês de referência.
+     * @param range Só o mês de referência ou todo o período.
+     * @param tagId Tag aberta.
+     * @return As receitas e despesas da tag e o total líquido (despesas − receitas).
+     * @throws {NotFoundError} Quando o perfil não existe, ou a tag não existe ou é de outro perfil.
+     */
+    public tagTransactions(profileId: ProfileId, reference: YearMonth, range: TagReportRange, tagId: TagId): TagTransactionsView {
+        return this.unitOfWork.run(() => {
+            const profile = this.profiles.require(profileId);
+            // Sem a conferência, a tag de outro perfil devolveria uma lista vazia e a tela diria
+            // "sem lançamentos" em vez de acusar o erro, como no drill-down por categoria.
+            if (this.tags.findById(tagId)?.profileId !== profile.id) {
+                throw new NotFoundError('Tag', tagId);
+            }
+            const transactions = this.transactions.listIncomeAndExpensesByTag(profileId, tagId, range === 'month' ? reference : null);
+            return {
+                period: reference,
+                range,
+                tagId,
+                transactions,
+                // O líquido é o negativo do efeito somado: despesa tira, receita põe (T2).
+                total: sumMoney(transactions.map((transaction) => transaction.originEffect()), Money.zero(profile.currency)).negate(),
+            };
+        });
+    }
+
+    /**
+     * @param profile Perfil consultado.
+     * @param accountId Conta pedida, ou `null` para as contas do total.
+     * @return A conta pedida, ou as contas com "considerar no saldo" ligado, desativadas
+     * incluídas, porque o histórico delas não muda (desktop-mvp-plan §3.4, F4).
+     * @throws {NotFoundError} Quando a conta não existe ou é de outro perfil.
+     */
+    private flowScope(profile: Profile, accountId: AccountId | null): AccountFlowScope {
+        if (accountId === null) {
+            return { kind: 'total', accounts: this.accounts.listByProfile(profile.id).filter((account) => account.considerBalance) };
+        }
+        const account = this.accounts.findById(accountId);
+        if (account?.profileId !== profile.id) {
+            throw new NotFoundError('Account', accountId);
+        }
+        return { kind: 'account', account };
+    }
+
+    /**
+     * @param account Conta somada.
+     * @param period Mês da coluna.
+     * @param profile Perfil dono, para a moeda do zero.
+     * @return As linhas da conta no mês, lidas do extrato.
+     */
+    private flowLine(account: Account, period: YearMonth, profile: Profile): AccountFlowLine {
+        const view = this.statements.getStatement(account.id, period);
+        const movements = statementMovements({
+            transactions: view.transactions,
+            incomingTransfers: view.incomingTransfers,
+            paidInvoices: view.paidInvoices.map(({ invoice }) => invoice),
+            openInvoicesDue: view.openInvoicesDue.map(({ invoice }) => invoice),
+        });
+        return flowLineOf({ opening: view.opening, closing: view.closing, movements }, profile.currency);
     }
 
     /**

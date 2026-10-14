@@ -293,6 +293,35 @@ export class SqliteTransactionRepository implements TransactionRepository {
     }
 
     /**
+     * Mesmo recorte das somas da tag: vínculo e tag vivos, só receitas e despesas, mês da
+     * `REPORT_SOURCES_CTE` — sem mês, todos.
+     *
+     * @param profileId Perfil dono.
+     * @param tagId Tag consultada.
+     * @param period Mês de pagamento, ou `null` para todos.
+     * @return As receitas e despesas com a tag, por data.
+     */
+    public listIncomeAndExpensesByTag(profileId: ProfileId, tagId: TagId, period: YearMonth | null): readonly Transaction[] {
+        return this.database
+            .all(
+                `WITH ${REPORT_SOURCES_CTE}
+                ${SELECT_TRANSACTION}
+                JOIN report_transactions rt ON rt.id = t.id
+                JOIN transactions_tags tt ON tt.transaction_id = t.id AND tt.deleted_at IS NULL AND tt.tag_id = :tagId
+                JOIN tags tg ON tg.id = tt.tag_id AND tg.deleted_at IS NULL AND tg.profile_id = :profileId
+                WHERE rt.type IN (:income, :expense) AND (:period IS NULL OR rt.payment_key = :period) ${ORDER}`,
+                {
+                    profileId,
+                    tagId,
+                    income: TRANSACTION_TYPE_CODE.income,
+                    expense: TRANSACTION_TYPE_CODE.expense,
+                    period: period === null ? null : periodKey(period),
+                },
+            )
+            .map((row) => this.toTransaction(row));
+    }
+
+    /**
      * @param clause `WHERE` e `ORDER BY` aplicados sobre `SELECT_TRANSACTION`.
      * @param params Parâmetros nomeados.
      * @return As transações de domínio.

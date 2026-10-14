@@ -1,5 +1,7 @@
 import type { BalanceEvolutionPoint } from '../../domain/report/BalanceEvolution.ts';
 import type { CategoryScope } from '../../domain/report/CategoryScope.ts';
+import type { TagReportRange } from '../../domain/report/TagReport.ts';
+import type { TagId } from '../../domain/shared/ids.ts';
 import type { Money } from '../../domain/shared/Money.ts';
 import type { YearMonth } from '../../domain/shared/YearMonth.ts';
 import type { Transaction } from '../../domain/transaction/Transaction.ts';
@@ -20,4 +22,14 @@ export interface CategoryTransactionsView {
 export interface BalanceEvolutionView {
     readonly reference: YearMonth;
     readonly points: readonly BalanceEvolutionPoint[];
+}
+
+/** Os lançamentos de uma tag no período, para a lista do relatório por tag. */
+export interface TagTransactionsView {
+    readonly period: YearMonth;
+    readonly range: TagReportRange;
+    readonly tagId: TagId;
+    readonly transactions: readonly Transaction[];
+    /** Despesas − receitas, pela mesma regra do total da tag, para a tela conferir com a lista. */
+    readonly total: Money;
 }
