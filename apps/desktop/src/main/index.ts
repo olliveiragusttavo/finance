@@ -1,13 +1,14 @@
-import { app, BrowserWindow, ipcMain, nativeTheme, shell, webContents } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell, webContents, type SaveDialogOptions } from 'electron';
 import { appendFileSync, mkdirSync } from 'node:fs';
 import { homedir, release } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { colorTokens } from '@finance/tokens';
-import { IPC_CHANNELS, type FatalFailure, type ReportResult, type RestoreResult } from '../shared/bridge.ts';
+import { IPC_CHANNELS, type AppInfo, type DatabaseExportResult, type FatalFailure, type ReportResult, type RestoreResult } from '../shared/bridge.ts';
 import { databaseFiles, type DatabaseFiles } from '../utility/databaseFiles.ts';
 import { errorReplacer } from '../utility/FileLog.ts';
 import { CoreProcess } from './CoreProcess.ts';
+import { defaultExportFileName } from './databaseExport.ts';
 import { DevicePreferencesStore } from './DevicePreferencesStore.ts';
 import { buildReportUrl, problemReportSchema, readLogTail, reportChannelSchema } from './problemReport.ts';
 import { restoreBackup } from './restoreBackup.ts';
@@ -16,7 +17,8 @@ import { installSecurityGuards } from './security.ts';
 /*
  * Processo principal: cria a janela e o processo do núcleo, costura o canal entre eles e
  * atende as poucas operações que só ele pode fazer (preferências do aparelho, restaurar
- * backup). Não executa rota alguma (desktop-shell-design §5.2).
+ * backup, diálogo de salvar da cópia exportada). Não executa rota alguma
+ * (desktop-shell-design §5.2).
  */
 
 // Pasta de dados alternativa para os testes de ponta a ponta, que não podem tocar no banco
@@ -133,6 +135,9 @@ function registerIpc(core: CoreProcess, preferences: DevicePreferencesStore): vo
     // recebe o resultado do primeiro, em vez de tirar do lugar o banco que acabou de ser
     // restaurado. Só as falhas que não mexeram em nada liberam uma nova tentativa.
     let restoring: Promise<RestoreResult> | null = null;
+    // Uma exportação por vez, pelo mesmo motivo: um segundo clique em "Exportar…" abriria um
+    // segundo diálogo de salvar por cima do primeiro.
+    let exporting: Promise<DatabaseExportResult> | null = null;
     ipcMain.handle(IPC_CHANNELS.preferencesGet, () => preferences.read());
     ipcMain.handle(IPC_CHANNELS.preferencesUpdate, (_event, patch: unknown) => {
         const next = preferences.update(patch);
@@ -148,6 +153,24 @@ function registerIpc(core: CoreProcess, preferences: DevicePreferencesStore): vo
             return result;
         });
         return restoring;
+    });
+    ipcMain.handle(IPC_CHANNELS.aboutInfo, async (): Promise<AppInfo> => {
+        const status = await core.status();
+        return {
+            appVersion: app.getVersion(),
+            schemaVersion: status.kind === 'ready' ? status.schemaVersion : null,
+            databasePath: files.databasePath,
+            lastExportAt: preferences.lastExportAt(),
+        };
+    });
+    ipcMain.handle(IPC_CHANNELS.databaseExport, (event): Promise<DatabaseExportResult> => {
+        exporting ??= runExport(core, preferences, BrowserWindow.fromWebContents(event.sender)).finally(() => {
+            exporting = null;
+        });
+        return exporting;
+    });
+    ipcMain.handle(IPC_CHANNELS.databaseShowInFolder, () => {
+        shell.showItemInFolder(files.databasePath);
     });
     ipcMain.handle(IPC_CHANNELS.reportLogTail, () => readLogTail(logFiles, homedir()));
     ipcMain.handle(IPC_CHANNELS.reportSend, async (_event, rawChannel: unknown, rawReport: unknown): Promise<ReportResult> => {
@@ -171,6 +194,45 @@ function registerIpc(core: CoreProcess, preferences: DevicePreferencesStore): vo
         log('report.opened', { channel: channel.data, logTruncated });
         return { ok: true, logTruncated };
     });
+}
+
+/**
+ * Exporta a cópia do banco (desktop-mvp-plan Fase 13): pergunta o destino no diálogo de salvar
+ * do sistema, pede a cópia ao processo do núcleo, que é o dono da conexão, e só então registra
+ * a data da última cópia — registrar antes diria que há uma cópia que o disco recusou. O destino
+ * nasce aqui, e nunca vem do renderer, que é entrada não confiável. Toda falha vira resultado,
+ * para que a tela sempre saiba o que dizer.
+ *
+ * @param core Processo do núcleo, que grava a cópia.
+ * @param preferences Arquivo do aparelho, onde fica a data da última cópia.
+ * @param window Janela que pediu, dona do diálogo; `null` se ela fechou no meio do pedido.
+ * @return Onde a cópia ficou e quando, ou por que não foi gravada.
+ */
+async function runExport(core: CoreProcess, preferences: DevicePreferencesStore, window: BrowserWindow | null): Promise<DatabaseExportResult> {
+    const options: SaveDialogOptions = {
+        title: 'Exportar cópia do banco',
+        buttonLabel: 'Exportar',
+        defaultPath: join(app.getPath('documents'), defaultExportFileName(new Date())),
+        filters: [{ name: 'Banco SQLite', extensions: ['sqlite'] }],
+        properties: ['createDirectory', 'showOverwriteConfirmation'],
+    };
+    const choice = window === null ? await dialog.showSaveDialog(options) : await dialog.showSaveDialog(window, options);
+    if (choice.canceled || choice.filePath === '') {
+        return { ok: false, reason: 'canceled' };
+    }
+    const outcome = await core.exportDatabase(choice.filePath);
+    if (!outcome.ok) {
+        log('database.export-failed', { reason: outcome.reason });
+        return outcome;
+    }
+    const exportedAt = new Date().toISOString();
+    try {
+        preferences.recordExport(exportedAt);
+    } catch (error) {
+        // A cópia existe; perder só a data não justifica dizer ao usuário que a exportação falhou.
+        log('database.export-record-failed', { error });
+    }
+    return { ok: true, file: choice.filePath, exportedAt };
 }
 
 /**

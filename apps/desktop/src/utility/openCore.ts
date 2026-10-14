@@ -10,6 +10,7 @@ import {
     type Clock,
     type Core,
     type IdGenerator,
+    type MigrationReport,
     type OpenDatabaseOptions,
 } from '@finance/core';
 import { BetterSqliteDatabase, NodeBackupDirectory } from '@finance/sqlite-better';
@@ -21,6 +22,7 @@ import {
     writeMigrationFailureMarker,
     type MigrationFailureMarker,
 } from './databaseFiles.ts';
+import { exportDatabaseFile, type DatabaseExportOutcome } from './exportDatabase.ts';
 import type { Log } from './FileLog.ts';
 
 /** O que a abertura precisa do processo hospedeiro. */
@@ -47,6 +49,14 @@ export interface OpenedCore {
     readonly core: Core | null;
     /** Fecha a conexão; o processo principal pede antes de restaurar um backup. */
     close(): void;
+    /**
+     * Grava a cópia exportada do banco (desktop-mvp-plan Fase 13).
+     *
+     * @param destination Arquivo escolhido no diálogo de salvar do processo principal.
+     * @return `ok`, ou o motivo da recusa; `unavailable` em qualquer estado de bloqueio, em que
+     * não há conexão aberta para copiar.
+     */
+    exportCopy(destination: string): DatabaseExportOutcome;
 }
 
 /**
@@ -89,6 +99,7 @@ export async function openCore(options: OpenCoreOptions): Promise<OpenedCore> {
         return blocked({ kind: 'restoreIncomplete', failedCopy: pendingRestore.failedCopy }, () => undefined);
     }
     let database: BetterSqliteDatabase;
+    let report: MigrationReport;
     try {
         database = BetterSqliteDatabase.open(options.databasePath);
     } catch (error) {
@@ -105,7 +116,7 @@ export async function openCore(options: OpenCoreOptions): Promise<OpenedCore> {
     const kept = failure?.backupFile ?? null;
     const rotation = kept !== null && before.has(kept) ? new KeepingBackupDirectory(backups, kept) : backups;
     try {
-        const report = openDatabase(database, { backups: rotation, clock: options.clock, ...(options.migrations === undefined ? {} : { migrations: options.migrations }) });
+        report = openDatabase(database, { backups: rotation, clock: options.clock, ...(options.migrations === undefined ? {} : { migrations: options.migrations }) });
         log.write('info', 'database.opened', { ...report });
     } catch (error) {
         close();
@@ -154,7 +165,16 @@ export async function openCore(options: OpenCoreOptions): Promise<OpenedCore> {
         } else {
             log.write('info', 'recurrences.topped-up', { emitted: topUp.data.emitted });
         }
-        return { status: { kind: 'ready' }, core, close };
+        return {
+            status: { kind: 'ready', schemaVersion: report.toVersion },
+            core,
+            close,
+            exportCopy: (destination) => {
+                const outcome = exportDatabaseFile(database, options.databasePath, destination);
+                log.write(outcome.ok ? 'info' : 'warn', 'database.exported', { ...outcome });
+                return outcome;
+            },
+        };
     } catch (error) {
         close();
         log.write('error', 'core.start-failed', { error });
@@ -273,8 +293,8 @@ function numberDetail(error: SchemaNewerThanAppError, key: string): number {
 /**
  * @param status Estado de bloqueio.
  * @param close O que fechar; a conexão já foi fechada em quase todos os casos.
- * @return O resultado sem núcleo.
+ * @return O resultado sem núcleo, que recusa exportar: não há conexão para copiar.
  */
 function blocked(status: StartupStatus, close: () => void): OpenedCore {
-    return { status, core: null, close };
+    return { status, core: null, close, exportCopy: () => ({ ok: false, reason: 'unavailable' }) };
 }

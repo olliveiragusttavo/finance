@@ -12,14 +12,29 @@ const fields = {
     lastPeriod: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).nullable(),
 };
 
-/** O arquivo inteiro; campo inválido ou ausente cai no padrão, campo desconhecido é descartado. */
+/**
+ * O arquivo inteiro; campo inválido ou ausente cai no padrão, campo desconhecido é descartado.
+ * Além das preferências, guarda o instante da última cópia exportada (desktop-mvp-plan Fase 13),
+ * que é do aparelho pelo mesmo motivo: a cópia é do arquivo deste aparelho.
+ */
 const fileSchema = z.object({
     theme: fields.theme.catch(DEFAULT_PREFERENCES.theme),
     lastProfileId: fields.lastProfileId.catch(DEFAULT_PREFERENCES.lastProfileId),
     lastPeriod: fields.lastPeriod.catch(DEFAULT_PREFERENCES.lastPeriod),
+    lastExportAt: z.iso.datetime().nullable().catch(null),
 });
 
-/** O que o renderer pode pedir para mudar: entrada não confiável, recusada se inválida. */
+/** O que fica gravado no arquivo. */
+type StoredFile = z.output<typeof fileSchema>;
+
+/** O arquivo de um aparelho que acabou de instalar o app. */
+const DEFAULT_FILE: StoredFile = { ...DEFAULT_PREFERENCES, lastExportAt: null };
+
+/**
+ * O que o renderer pode pedir para mudar: entrada não confiável, recusada se inválida. A data
+ * da última cópia fica de fora — só o processo principal a grava, depois de a cópia existir —,
+ * para que o renderer não possa dizer que há uma cópia que não há.
+ */
 const patchSchema = z.strictObject(fields).partial();
 
 /**
@@ -40,32 +55,64 @@ export class DevicePreferencesStore {
      * @return As preferências gravadas; as padrão quando o arquivo falta ou não é JSON.
      */
     public read(): DevicePreferences {
-        let raw: unknown;
-        try {
-            raw = JSON.parse(readFileSync(this.path, 'utf8'));
-        } catch {
-            return DEFAULT_PREFERENCES;
-        }
-        const parsed = fileSchema.safeParse(raw);
-        return parsed.success ? parsed.data : DEFAULT_PREFERENCES;
+        const { theme, lastProfileId, lastPeriod } = this.readFile();
+        return { theme, lastProfileId, lastPeriod };
     }
 
     /**
-     * Grava num arquivo temporário e renomeia, para que uma queda no meio da escrita não
-     * deixe um JSON truncado no lugar das preferências.
+     * @return Instante (ISO 8601) da última cópia exportada; `null` antes da primeira ou quando
+     * o valor gravado não é um instante.
+     */
+    public lastExportAt(): string | null {
+        return this.readFile().lastExportAt;
+    }
+
+    /**
+     * Registra a cópia que acabou de ser gravada, para Ajustes mostrar há quanto tempo o
+     * usuário não exporta — sem backup em nuvem, é a única cópia fora deste aparelho.
      *
+     * @param at Instante da cópia, ISO 8601.
+     */
+    public recordExport(at: string): void {
+        this.write({ ...this.readFile(), lastExportAt: z.iso.datetime().parse(at) });
+    }
+
+    /**
      * @param patch Campos a mudar, como vieram do renderer.
      * @return As preferências como ficaram gravadas.
      * @throws {z.ZodError} Quando o pedido tem campo desconhecido ou valor inválido.
      */
     public update(patch: unknown): DevicePreferences {
         const changes = patchSchema.parse(patch);
-        const next: DevicePreferences = { ...this.read(), ...stripUndefined(changes) };
+        this.write({ ...this.readFile(), ...stripUndefined(changes) });
+        return this.read();
+    }
+
+    /**
+     * @return O arquivo inteiro; o padrão quando ele falta ou não é JSON.
+     */
+    private readFile(): StoredFile {
+        let raw: unknown;
+        try {
+            raw = JSON.parse(readFileSync(this.path, 'utf8'));
+        } catch {
+            return DEFAULT_FILE;
+        }
+        const parsed = fileSchema.safeParse(raw);
+        return parsed.success ? parsed.data : DEFAULT_FILE;
+    }
+
+    /**
+     * Grava num arquivo temporário e renomeia, para que uma queda no meio da escrita não deixe
+     * um JSON truncado no lugar das preferências.
+     *
+     * @param file O arquivo inteiro, já validado.
+     */
+    private write(file: StoredFile): void {
         mkdirSync(dirname(this.path), { recursive: true });
         const temporary = `${this.path}.tmp`;
-        writeFileSync(temporary, `${JSON.stringify(next, null, 4)}\n`);
+        writeFileSync(temporary, `${JSON.stringify(file, null, 4)}\n`);
         renameSync(temporary, this.path);
-        return next;
     }
 }
 

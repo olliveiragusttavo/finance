@@ -4,10 +4,10 @@ import { EmptyState } from '@/components/states';
 import { useActiveProfile } from '@/shell/activeProfile';
 
 /**
- * Tela em branco dentro do shell, com título. Serve a dois casos: os itens do menu sem tela no
- * MVP (Dispositivos e Por sócio — desktop-mvp-plan §5), que
- * existem para que a navegação já esteja pronta, e as telas do MVP que ainda não chegaram,
- * cada uma substituída na sua fase.
+ * Tela em branco dentro do shell, com título, para os itens do menu sem tela no MVP
+ * (Dispositivos e Por sócio — desktop-mvp-plan §5), que existem para que a navegação já esteja
+ * pronta quando as telas chegarem. As telas do MVP também começaram assim, cada uma substituída
+ * na sua fase; Ajustes foi a última (Fase 13).
  *
  * @param props.title Título da tela, o mesmo do item do menu.
  * @param props.description Por que a tela está vazia.
@@ -25,20 +25,15 @@ export function BlankScreen({ title, description }: { readonly title: string; re
 /** Explicação das telas que ficam fora do MVP. */
 const OUTSIDE_MVP = 'Esta tela chega numa próxima versão do app.';
 
-/** Explicação das telas do MVP que ainda estão em construção. */
-const UNDER_CONSTRUCTION = 'Esta tela está em construção.';
-
 /**
  * Cria a tela em branco de uma rota, no formato que o roteador pede (componente sem props).
  *
  * @param title Título da tela.
- * @param outsideMvp Se a tela fica fora do MVP, e não só ainda não feita; muda a explicação.
- * @return O componente da rota.
+ * @return O componente da rota, que explica que a tela chega numa próxima versão.
  */
-export function blankScreen(title: string, outsideMvp: boolean): () => ReactNode {
-    const description = outsideMvp ? OUTSIDE_MVP : UNDER_CONSTRUCTION;
+export function blankScreen(title: string): () => ReactNode {
     return function RouteBlankScreen(): ReactNode {
-        return <BlankScreen title={title} description={description} />;
+        return <BlankScreen title={title} description={OUTSIDE_MVP} />;
     };
 }
 

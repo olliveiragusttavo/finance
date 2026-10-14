@@ -68,7 +68,29 @@ describe('preferências do aparelho', () => {
         expect(store.update({ lastPeriod: '2026-11' })).toEqual({ ...DEFAULT_PREFERENCES, theme: 'dark', lastPeriod: '2026-11' });
         expect(() => store.update({ theme: 'roxo' })).toThrow();
         expect(() => store.update({ caminho: '/etc' })).toThrow();
-        expect(JSON.parse(readFileSync(path, 'utf8'))).toEqual({ theme: 'dark', lastProfileId: null, lastPeriod: '2026-11' });
+        expect(JSON.parse(readFileSync(path, 'utf8'))).toEqual({ theme: 'dark', lastProfileId: null, lastPeriod: '2026-11', lastExportAt: null });
+    });
+
+    it('a data da última cópia é gravada só pelo processo principal e sobrevive às mudanças do renderer', () => {
+        const path = join(temporaryFolder(), 'preferences.json');
+        const store = new DevicePreferencesStore(path);
+        expect(store.lastExportAt()).toBeNull();
+
+        store.recordExport('2026-10-14T18:32:00.000Z');
+        store.update({ theme: 'dark' });
+
+        expect(store.lastExportAt()).toBe('2026-10-14T18:32:00.000Z');
+        expect(store.read()).toEqual({ ...DEFAULT_PREFERENCES, theme: 'dark' });
+        expect(() => store.update({ lastExportAt: '2030-01-01T00:00:00.000Z' })).toThrow();
+        expect(store.lastExportAt()).toBe('2026-10-14T18:32:00.000Z');
+    });
+
+    it('data da última cópia ilegível no arquivo volta a "nenhuma cópia" sem perder as preferências', () => {
+        const folder = temporaryFolder();
+        writeFileSync(join(folder, 'preferences.json'), JSON.stringify({ theme: 'dark', lastExportAt: 'ontem' }));
+        const store = new DevicePreferencesStore(join(folder, 'preferences.json'));
+        expect(store.lastExportAt()).toBeNull();
+        expect(store.read().theme).toBe('dark');
     });
 });
 

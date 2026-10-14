@@ -19,6 +19,7 @@ import { TagReportScreen } from './reports/TagReportScreen.tsx';
 import { parseTagReportSearch, type TagReportSearch } from './reports/tagReportSearch.ts';
 import { parseRegistrySearch, type RegistrySearch } from './registry/registryKinds.ts';
 import { blankScreen, PartnerReportScreen } from './screens/BlankScreen.tsx';
+import { SettingsScreen } from './settings/SettingsScreen.tsx';
 import { AppShell } from './shell/AppShell.tsx';
 import { TransactionsScreen } from './transactions/TransactionsScreen.tsx';
 import { parseTransactionsSearch, type TransactionsSearch } from './transactions/transactionsSearch.ts';
@@ -62,7 +63,7 @@ const shellRoute = createRoute({
  */
 const routeTree = rootRoute.addChildren([
     shellRoute.addChildren([
-        // Telas do MVP, cada uma substituída na sua fase (desktop-mvp-plan §6).
+        // Telas do MVP (desktop-mvp-plan §6).
         createRoute({ getParentRoute: () => shellRoute, path: '/' satisfies AppPath, component: OverviewScreen }),
         createRoute({
             getParentRoute: () => shellRoute,
@@ -107,7 +108,7 @@ const routeTree = rootRoute.addChildren([
             component: RegistryScreen,
             validateSearch: (search: Record<string, unknown>): RegistrySearch => parseRegistrySearch(search),
         }),
-        createRoute({ getParentRoute: () => shellRoute, path: '/settings' satisfies AppPath, component: blankScreen('Ajustes', false) }),
+        createRoute({ getParentRoute: () => shellRoute, path: '/settings' satisfies AppPath, component: SettingsScreen }),
         createRoute({
             getParentRoute: () => shellRoute,
             path: '/goals' satisfies AppPath,
@@ -116,7 +117,7 @@ const routeTree = rootRoute.addChildren([
         }),
         // Fora do MVP: tela em branco, com a rota e o mês já prontos (desktop-mvp-plan §5).
         createRoute({ getParentRoute: () => shellRoute, path: '/reports/partner' satisfies AppPath, component: PartnerReportScreen }),
-        createRoute({ getParentRoute: () => shellRoute, path: '/devices' satisfies AppPath, component: blankScreen('Dispositivos', true) }),
+        createRoute({ getParentRoute: () => shellRoute, path: '/devices' satisfies AppPath, component: blankScreen('Dispositivos') }),
     ]),
 ]);
 

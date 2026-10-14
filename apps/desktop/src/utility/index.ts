@@ -58,6 +58,9 @@ parentPort.on('message', (event: { readonly data: MainToUtilityMessage; readonly
         opened.close();
         post({ kind: 'database-closed' });
     }
+    if (event.data.kind === 'export-database') {
+        post({ kind: 'database-exported', requestId: event.data.requestId, outcome: opened.exportCopy(event.data.destination) });
+    }
 });
 
 post({ kind: 'startup', status: opened.status });
