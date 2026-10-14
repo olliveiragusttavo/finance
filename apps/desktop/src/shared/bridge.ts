@@ -21,7 +21,8 @@ export interface DevicePreferences {
  * número errado ou gravaria num banco pela metade.
  */
 export type StartupStatus =
-    | { readonly kind: 'ready' }
+    /** `schemaVersion`: o `user_version` do banco depois de migrar, mostrado em Ajustes. */
+    | { readonly kind: 'ready'; readonly schemaVersion: number }
     /** O banco é de uma versão mais nova do app (backend-design §4.8). */
     | { readonly kind: 'schemaNewerThanApp'; readonly databaseVersion: number; readonly appVersion: number }
     /** Uma migration falhou e foi desfeita; `backupFile` é a cópia de antes, quando há uma. */
@@ -84,10 +85,36 @@ export type ReportResult =
     | { readonly ok: true; readonly logTruncated: boolean }
     | { readonly ok: false };
 
+/** O que Ajustes mostra sobre o app e o arquivo do banco (desktop-mvp-plan Fase 13). */
+export interface AppInfo {
+    /** Versão do app, a do `package.json`. */
+    readonly appVersion: string;
+    /** `user_version` do banco aberto; `null` quando a abertura bloqueou. */
+    readonly schemaVersion: number | null;
+    /** Caminho do `finance.sqlite`, só para leitura: o renderer nunca escolhe caminho. */
+    readonly databasePath: string;
+    /** Instante (ISO 8601, UTC) da última cópia exportada neste aparelho; `null` antes da primeira. */
+    readonly lastExportAt: string | null;
+}
+
+/** Resultado de exportar uma cópia do banco. */
+export type DatabaseExportResult =
+    /** `file`: onde a cópia foi gravada; `exportedAt`: o instante registrado como última cópia. */
+    | { readonly ok: true; readonly file: string; readonly exportedAt: string }
+    /**
+     * `canceled`: o usuário fechou o diálogo de salvar. `same-as-database`: o destino escolhido é
+     * o próprio banco, que a cópia substituiria. `write-failed`: o disco recusou a gravação.
+     * `unavailable`: o núcleo não está com o banco aberto (caiu ou bloqueou).
+     */
+    | { readonly ok: false; readonly reason: DatabaseExportFailure };
+
+/** Por que uma exportação não gravou a cópia. */
+export type DatabaseExportFailure = 'canceled' | 'same-as-database' | 'write-failed' | 'unavailable';
+
 /**
  * Tudo o que o preload expõe ao renderer (desktop-shell-design §3.6): o `CoreClient`, as
  * preferências do aparelho, o estado da abertura com a única ação que ele pede, o aviso de
- * falha fatal e o relato de problema. Nenhuma função genérica de IPC, `fs` ou `shell` — o
+ * falha fatal, o relato de problema e as ações de Ajustes sobre o arquivo do banco. Nenhuma função genérica de IPC, `fs` ou `shell` — o
  * renderer é tratado como entrada não confiável, e por isso o relato não recebe endereço
  * algum dele, só texto.
  */
@@ -120,6 +147,22 @@ export interface FinanceBridge {
          */
         onFatal(listener: (failure: FatalFailure) => void): () => void;
     };
+    readonly about: {
+        /** @return As versões, o caminho do banco e a data da última cópia exportada. */
+        info(): Promise<AppInfo>;
+    };
+    readonly database: {
+        /**
+         * Pergunta o destino no diálogo de salvar do sistema e grava ali uma cópia do banco. O
+         * caminho é escolhido no processo principal, e não recebido do renderer, pelo mesmo
+         * motivo do relato: o renderer não pode mandar gravar em lugar nenhum.
+         *
+         * @return Onde a cópia ficou e quando, ou por que não foi gravada.
+         */
+        exportCopy(): Promise<DatabaseExportResult>;
+        /** Abre a pasta do banco no gerenciador de arquivos, com o arquivo selecionado. */
+        showInFolder(): Promise<void>;
+    };
     readonly report: {
         /** @return O fim dos logs como entraria no relato, para o usuário ver antes de enviar. */
         logTail(): Promise<string>;
@@ -149,4 +192,7 @@ export const IPC_CHANNELS = {
     mainFailed: 'main:failed',
     reportLogTail: 'report:log-tail',
     reportSend: 'report:send',
+    aboutInfo: 'about:info',
+    databaseExport: 'database:export',
+    databaseShowInFolder: 'database:show-in-folder',
 } as const;

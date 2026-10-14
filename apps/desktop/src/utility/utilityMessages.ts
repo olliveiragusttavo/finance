@@ -1,16 +1,23 @@
 import type { StartupStatus } from '../shared/bridge.ts';
+import type { DatabaseExportOutcome } from './exportDatabase.ts';
 
 /** Mensagens do processo principal ao processo do núcleo. */
 export type MainToUtilityMessage =
     /** Acompanha uma ponta de `MessageChannelMain` ligada a uma janela recém-carregada. */
     | { readonly kind: 'connect' }
     /** Fecha a conexão com o banco antes de o principal restaurar um backup sobre o arquivo. */
-    | { readonly kind: 'close-database' };
+    | { readonly kind: 'close-database' }
+    /**
+     * Grava a cópia exportada no destino escolhido no diálogo de salvar. `requestId` casa a
+     * resposta com o pedido: o processo do núcleo responde pela mesma porta das outras mensagens.
+     */
+    | { readonly kind: 'export-database'; readonly requestId: number; readonly destination: string };
 
 /** Mensagens do processo do núcleo ao processo principal. */
 export type UtilityToMainMessage =
     | { readonly kind: 'startup'; readonly status: StartupStatus }
-    | { readonly kind: 'database-closed' };
+    | { readonly kind: 'database-closed' }
+    | { readonly kind: 'database-exported'; readonly requestId: number; readonly outcome: DatabaseExportOutcome };
 
 /** Argumento de linha de comando com a pasta de dados do app. */
 const USER_DATA_FLAG = '--user-data=';

@@ -1,6 +1,6 @@
 # Plano do MVP Desktop — CRUD e primeiros relatórios
 
-**Status:** Em andamento — Fases 0 a 12.2 concluídas (ficaram pendentes só o `Ctrl K` da Fase 4, a pendência da Fase 9.2 que depende da sincronização e a decisão da Fase 11.1 sobre a data dos lançamentos de conta em Transações). Primeira entrega com tela do projeto: o app desktop
+**Status:** Em andamento — Fases 0 a 13 concluídas (ficaram pendentes só o `Ctrl K` da Fase 4, a pendência da Fase 9.2 que depende da sincronização e a decisão da Fase 11.1 sobre a data dos lançamentos de conta em Transações). Primeira entrega com tela do projeto: o app desktop
 (Electron) com os cadastros e lançamentos básicos e os dois primeiros relatórios
 personalizados, que são a motivação original do projeto ([README](../../README.md#motivação)).
 O mobile fica inteiro para depois.
@@ -39,7 +39,7 @@ categoria/subcategoria** e **quanto as faturas do cartão pesam no saldo do mês
 | **Impacto do cartão** | `DesktopRelCartao` | Faturas por mês e cartão, extrato onde foram pagas, peso nas entradas |
 | Fluxo por conta (Fase 12.1) | `DesktopRelFluxo` | Extratos encadeados de uma conta, ou das contas do total somadas, nos 3 meses antes e 1 depois do de referência |
 | Por tag (Fase 12.2) | `DesktopRelTag` | Total líquido por tag no mês ou em todo o período, divisão por categoria e lançamentos da tag |
-| Ajustes | `DesktopAjustes` | Tema, perfil atual, exportar cópia do banco, local do arquivo, atalhos |
+| Ajustes | `DesktopAjustes` | Tema, exportar cópia do banco, local do arquivo, atalhos, versões |
 
 ### Fora do escopo (próximas entregas)
 
@@ -64,7 +64,7 @@ categoria/subcategoria** e **quanto as faturas do cartão pesam no saldo do mês
 | Dados na UI | **TanStack Query** dentro de `packages/client` | Já decidido ([desktop-shell §4.2](desktop-shell-design.md#42-o-que-é-compartilhado-é-a-camada-headless)) |
 | Formulários | **react-hook-form** + os schemas Zod da camada Request do núcleo | Validação de conforto com a mesma regra do `utilityProcess` ([desktop-shell §5.4](desktop-shell-design.md#54-validação-na-fronteira)) |
 | Gráficos | **Recharts**, pelo componente *Chart* do shadcn/ui | Fecha o pendente da [desktop-shell §6](desktop-shell-design.md#6-próximos-passos): o volume dos relatórios é de dezenas de pontos (SVG sobra), o *Chart* do shadcn lê as cores das variáveis CSS (tema claro/escuro sem código), e todo gráfico já vem acompanhado da tabela equivalente exigida |
-| Onde ficam preferências do aparelho | Arquivo JSON em `userData` (tema, último perfil, último mês aberto) | São do **aparelho**, não do perfil: no banco, seriam replicadas pela sincronização |
+| Onde ficam preferências do aparelho | Arquivo JSON em `userData` (tema, último perfil, último mês aberto e, desde a Fase 13, a data da última cópia exportada) | São do **aparelho**, não do perfil: no banco, seriam replicadas pela sincronização |
 | Filtros da tela de Transações | No `client` (view-model), sobre a lista do mês | Um mês tem centenas de linhas; filtrar no SQL só acrescentaria rotas sem ganho |
 | Agregação dos relatórios | **No SQL**, num Repository de relatórios | Regra do projeto ([backend-design §3.2](backend-design.md#32-o-cálculo-não-é-pesado-o-risco-é-exatidão)) |
 
@@ -596,12 +596,20 @@ Entrou depois da Fase 12, a pedido: D8 estava fora do escopo (§1). Regras na [�
 
 ### Fase 13 — Ajustes
 
-- [ ] Tema (seguir o sistema, claro, escuro)
-- [ ] Perfil atual: nome, tipo, moeda
-- [ ] Exportar cópia do banco (`VACUUM INTO` no `utilityProcess`, diálogo de salvar do main), registrando a data da última cópia
-- [ ] Local do arquivo SQLite (só leitura, com "mostrar na pasta")
-- [ ] Lista de atalhos de teclado
-- [ ] Versão do app e do schema
+Tela `settings/SettingsScreen.tsx` no lugar da tela em branco, sem a barra do mês (Fase 4).
+**Decisões** (divergências do mockup `DesktopAjustes`, aprovadas antes do código): sem a seção
+"Perfil atual" — o perfil se edita só em Cadastros › Perfis, num lugar só —, e sem o "Lembrete
+de exportação", que fica fora do MVP.
+
+- [x] Tema (seguir o sistema, claro, escuro) — grupo de opções que grava a mesma preferência do menu da barra superior
+- [x] ~~Perfil atual: nome, tipo, moeda~~ — fora, pela decisão acima
+- [x] Exportar cópia do banco (`VACUUM INTO` no `utilityProcess`, diálogo de salvar do main), registrando a data da última cópia — a operação é do núcleo (`copyDatabaseTo`), para o mobile exportar pela mesma regra (mobile-shell-design §6.2). O main pergunta o destino (nome sugerido `financas-AAAA-MM-DD.sqlite` em Documentos) e pede a cópia ao `utilityProcess` (`export-database`), que grava num temporário ao lado e renomeia: o `VACUUM INTO` recusa arquivo existente, e a substituição confirmada no diálogo fica atômica. O próprio banco (ou o `-wal`/`-shm`), por qualquer caminho, é recusado como destino. A data (`lastExportAt`) fica no `preferences.json` do aparelho, gravada só pelo main depois de a cópia existir — o pedido de preferências do renderer não a aceita. Cada falha diz o que fazer, na própria linha; cancelar o diálogo não avisa nada
+- [x] Local do arquivo SQLite (só leitura, com "mostrar na pasta") — o caminho e o `showItemInFolder` são do main; o renderer não manda caminho algum
+- [x] Lista de atalhos de teclado — os globais (`N`, `[` `]`), os da tabela de Transações (↑ ↓, `Enter`, `P`, `Del`) e os da fatura em Cartões (`Enter`, `Del`), de uma lista só (`settingsView.ts`) que o teste confere contra o `shortcutFor`. O `Ctrl K` do mockup fica de fora enquanto a busca estiver pendente (Fase 4)
+- [x] Versão do app e do schema — o app pelo `app.getVersion()`; o schema pelo `user_version` depois de migrar, que o estado `ready` da abertura passou a levar (`schemaVersion`)
+- [x] Ponte: `about.info()` (versões, caminho do banco, última cópia), `database.exportCopy()` e `database.showInFolder()`, uma exportação por vez no main
+- [x] Testes: núcleo (`test/infrastructure/databaseCopy.test.ts`), desktop (`test/settings.test.ts`: cópia substituindo a anterior, recusa do próprio banco por link simbólico e `..`, falha sem deixar temporário, banco bloqueado, textos e atalhos; `test/main.test.ts`: data da última cópia só pelo main) e ponta a ponta (`e2e/settings.spec.ts`, com o diálogo de salvar e o "mostrar na pasta" trocados no processo principal)
+- [ ] **Fora do MVP:** lembrete de exportação (mensal, semanal, desligado) do mockup — falta decidir como e quando o app avisa
 
 ### Fase 14 — Empacotamento e validação
 
@@ -618,7 +626,7 @@ Entrou depois da Fase 12, a pedido: D8 estava fora do escopo (§1). Regras na [�
 - Os dois relatórios conferem, centavo a centavo, com um mês real conferido à mão.
 - Tema claro e escuro em todas as telas; nenhuma cor literal fora de `packages/tokens`.
 - `pnpm check` verde, com os testes de mesa dos relatórios e o teste de fumaça do Electron.
-- Renderer sem acesso a Node: o preload expõe só o `CoreClient`, as preferências e o estado da abertura.
+- Renderer sem acesso a Node: o preload expõe só o `CoreClient`, as preferências, o estado da abertura, o relato de problema e as ações de Ajustes sobre o arquivo do banco — nenhuma recebe caminho do renderer.
 
 ## 8. Riscos
 

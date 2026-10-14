@@ -1,6 +1,7 @@
 import { MessageChannelMain, utilityProcess, type UtilityProcess, type WebContents } from 'electron';
 import type { StartupStatus } from '../shared/bridge.ts';
 import { IPC_CHANNELS } from '../shared/bridge.ts';
+import type { DatabaseExportOutcome } from '../utility/exportDatabase.ts';
 import { utilityArguments, type MainToUtilityMessage, type UtilityToMainMessage } from '../utility/utilityMessages.ts';
 import { CloseHandshake } from './CloseHandshake.ts';
 
@@ -18,6 +19,11 @@ export class CoreProcess {
     private readonly startup: Promise<StartupStatus>;
     private readonly windows = new Set<WebContents>();
     private readonly closing = new CloseHandshake(CLOSE_TIMEOUT_MS);
+    /** Exportações esperando a resposta do processo do núcleo, pelo `requestId`. */
+    private readonly exports = new Map<number, (outcome: DatabaseExportOutcome) => void>();
+    private nextExportId = 1;
+    /** Depois da saída, um pedido postado nunca teria resposta. */
+    private exited = false;
 
     /**
      * @param modulePath Caminho do bundle do processo do núcleo.
@@ -35,6 +41,10 @@ export class CoreProcess {
                 if (message.kind === 'database-closed') {
                     this.closing.confirm();
                 }
+                if (message.kind === 'database-exported') {
+                    this.exports.get(message.requestId)?.(message.outcome);
+                    this.exports.delete(message.requestId);
+                }
             });
             // Se o processo cair antes de responder, a janela precisa sair do "abrindo".
             this.child.once('exit', () => {
@@ -43,6 +53,11 @@ export class CoreProcess {
         });
         this.child.on('exit', (code) => {
             this.closing.processExited();
+            this.exited = true;
+            for (const settle of this.exports.values()) {
+                settle({ ok: false, reason: 'unavailable' });
+            }
+            this.exports.clear();
             for (const contents of this.windows) {
                 if (!contents.isDestroyed()) {
                     contents.send(IPC_CHANNELS.coreClosed);
@@ -82,6 +97,28 @@ export class CoreProcess {
     public closeDatabase(): Promise<void> {
         return this.closing.request(() => {
             const message: MainToUtilityMessage = { kind: 'close-database' };
+            this.child.postMessage(message);
+        });
+    }
+
+    /**
+     * Pede ao processo do núcleo, dono da única conexão, a cópia exportada do banco
+     * (desktop-mvp-plan Fase 13). Sem prazo, ao contrário do fechamento: o `VACUUM INTO` de um
+     * banco grande num disco lento pode demorar, e desistir no meio deixaria a cópia sendo
+     * gravada sem ninguém para avisar quando termina.
+     *
+     * @param destination Arquivo escolhido no diálogo de salvar.
+     * @return Promessa com o resultado; `unavailable` quando o processo do núcleo termina antes
+     * de responder.
+     */
+    public exportDatabase(destination: string): Promise<DatabaseExportOutcome> {
+        if (this.exited) {
+            return Promise.resolve({ ok: false, reason: 'unavailable' });
+        }
+        const requestId = this.nextExportId++;
+        return new Promise((resolve) => {
+            this.exports.set(requestId, resolve);
+            const message: MainToUtilityMessage = { kind: 'export-database', requestId, destination };
             this.child.postMessage(message);
         });
     }

@@ -2,6 +2,8 @@ import { contextBridge, ipcRenderer } from 'electron';
 import {
     BRIDGE_KEY,
     IPC_CHANNELS,
+    type AppInfo,
+    type DatabaseExportResult,
     type DevicePreferences,
     type FatalFailure,
     type FinanceBridge,
@@ -83,6 +85,13 @@ const bridge: FinanceBridge = {
                 fatalListeners.delete(listener);
             };
         },
+    },
+    about: {
+        info: (): Promise<AppInfo> => invoke(IPC_CHANNELS.aboutInfo),
+    },
+    database: {
+        exportCopy: (): Promise<DatabaseExportResult> => invoke(IPC_CHANNELS.databaseExport),
+        showInFolder: (): Promise<void> => invoke(IPC_CHANNELS.databaseShowInFolder),
     },
     report: {
         logTail: (): Promise<string> => invoke(IPC_CHANNELS.reportLogTail),

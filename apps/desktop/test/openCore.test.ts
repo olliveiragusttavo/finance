@@ -59,10 +59,13 @@ describe('abertura do banco no processo do núcleo (backend-design §4.5)', () =
     it('banco novo: migra sem backup, monta o núcleo, registra a integridade e completa as recorrências', async () => {
         const opts = options();
         const opened = await openCore(opts);
-        expect(opened.status).toEqual({ kind: 'ready' });
         expect(opened.core).not.toBeNull();
         expect(opts.log.events()).toEqual(['database.opened', 'integrity.ok', 'recurrences.topped-up']);
         opened.close();
+        // A versão que Ajustes mostra é a gravada no arquivo depois de migrar.
+        const database = BetterSqliteDatabase.open(opts.databasePath);
+        expect(opened.status).toEqual({ kind: 'ready', schemaVersion: database.get('PRAGMA user_version')?.['user_version'] });
+        database.close();
     });
 
     it('série que falha no complemento: abre mesmo assim e registra a falha no log', async () => {
@@ -99,7 +102,7 @@ describe('abertura do banco no processo do núcleo (backend-design §4.5)', () =
         database.close();
 
         const reopened = await openCore(opts);
-        expect(reopened.status).toEqual({ kind: 'ready' });
+        expect(reopened.status).toMatchObject({ kind: 'ready' });
         expect(reopened.core).not.toBeNull();
         const partial = opts.log.lines.find((line) => line.event === 'recurrences.top-up-partial');
         expect(partial?.level).toBe('warn');
