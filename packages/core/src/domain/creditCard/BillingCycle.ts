@@ -72,4 +72,23 @@ export class BillingCycle {
         const sameMonth = LocalDate.clampedTo(invoicePeriod, this.dueDay);
         return closing.isBefore(sameMonth) ? sameMonth : LocalDate.clampedTo(invoicePeriod.next(), this.dueDay);
     }
+
+    /**
+     * Competência da fatura que vence num mês — o caminho inverso do `dueDateOf`. Existe para a
+     * importação: o arquivo diz em que fatura a compra caiu pelo vencimento dela, e a fatura
+     * escolhida é a verdade (database-design §4.7), mesmo quando a data da compra sugeriria outra.
+     * Regra de negócio (Importação): a compra vai para a fatura que vence no mês do Vencimento da
+     * linha (import-design §5.4).
+     *
+     * @param duePeriod Mês do vencimento informado.
+     * @return A competência cujo vencimento cai nesse mês: a do próprio mês quando o cartão vence
+     * depois de fechar no mesmo mês, senão a do mês anterior. No mês curto em que as duas ou
+     * nenhuma vencem ali (fechamento e vencimento ajustados para o último dia), fica a anterior,
+     * que é a regra dos meses comuns desse ciclo.
+     */
+    public invoicePeriodDueIn(duePeriod: YearMonth): YearMonth {
+        return this.dueDateOf(duePeriod).period.equals(duePeriod) && !this.dueDateOf(duePeriod.previous()).period.equals(duePeriod)
+            ? duePeriod
+            : duePeriod.previous();
+    }
 }

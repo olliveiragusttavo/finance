@@ -20,7 +20,8 @@ export type AppPath =
     | '/goals'
     | '/registry'
     | '/devices'
-    | '/settings';
+    | '/settings'
+    | '/settings/import';
 
 /** Subitem de "Relatórios". */
 export interface ReportMenuItem {
@@ -76,7 +77,29 @@ export const MENU: readonly MenuItem[] = [
  * desenham a barra do mês; a regra do README prevaleceu, por decisão registrada na Fase 4 do
  * plano. Metas continua com a barra, como no mockup.
  */
-const PATHS_WITHOUT_REFERENCE_MONTH: ReadonlySet<string> = new Set<AppPath>(['/registry', '/devices', '/settings']);
+const PATHS_WITHOUT_REFERENCE_MONTH: ReadonlySet<string> = new Set<AppPath>(['/registry', '/devices', '/settings', '/settings/import']);
+
+/** Um passo do caminho "Ajustes › Importar dados"; o último não tem link. */
+export interface TrailStep {
+    readonly label: string;
+    readonly to: AppPath | null;
+}
+
+/**
+ * Caminho mostrado na barra superior das telas que ficam dentro de outra (mockup
+ * `DesktopImportArquivo`: "Ajustes › Importar dados"), no lugar do mês de referência.
+ */
+const TRAILS: ReadonlyMap<string, readonly TrailStep[]> = new Map<AppPath, readonly TrailStep[]>([
+    ['/settings/import', [{ label: 'Ajustes', to: '/settings' }, { label: 'Importar dados', to: null }]],
+]);
+
+/**
+ * @param pathname Caminho atual do roteador.
+ * @return O caminho da tela, ou vazio nas telas de primeiro nível.
+ */
+export function trailFor(pathname: string): readonly TrailStep[] {
+    return TRAILS.get(pathname) ?? [];
+}
 
 /**
  * @param pathname Caminho atual do roteador.

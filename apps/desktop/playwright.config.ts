@@ -10,4 +10,13 @@ export default defineConfig({
     workers: 1,
     timeout: 60_000,
     reporter: [['list']],
+    /*
+     * A medição de memória e tempo de abertura fica num projeto à parte porque o número depende
+     * da máquina e não pode reprovar o `pnpm check`; separar por projeto deixa o `test` pegar
+     * todo spec novo sem precisar listá-lo no package.json.
+     */
+    projects: [
+        { name: 'e2e', testIgnore: 'measure.spec.ts' },
+        { name: 'measure', testMatch: 'measure.spec.ts' },
+    ],
 });

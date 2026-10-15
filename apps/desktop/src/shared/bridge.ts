@@ -1,4 +1,4 @@
-import type { CoreClient } from '@finance/client';
+import type { CoreClient, MappingTemplate } from '@finance/client';
 
 /** Tema escolhido no aparelho; `system` acompanha o sistema operacional. */
 export type ThemePreference = 'system' | 'light' | 'dark';
@@ -111,6 +111,23 @@ export type DatabaseExportResult =
 /** Por que uma exportação não gravou a cópia. */
 export type DatabaseExportFailure = 'canceled' | 'same-as-database' | 'write-failed' | 'unavailable';
 
+/** Arquivo escolhido para importar (desktop-mvp-plan Fase 13.1). */
+export type ImportFileResult =
+    /** `name`: só o nome-base, para a tela; o caminho fica no processo principal. */
+    | { readonly ok: true; readonly name: string; readonly size: number; readonly bytes: Uint8Array }
+    /**
+     * `canceled`: o usuário fechou o diálogo. `too-large`: passa do limite de leitura.
+     * `read-failed`: o disco recusou a leitura.
+     */
+    | { readonly ok: false; readonly reason: 'canceled' | 'too-large' | 'read-failed' };
+
+/**
+ * Tamanho máximo do nome de um modelo de mapeamento. Fica na ponte, que os dois processos usam,
+ * para que a tela limite o campo e corte o nome sugerido pelo mesmo número que o processo
+ * principal valida; com números diferentes, o nome sugerido seria recusado ao salvar.
+ */
+export const TEMPLATE_NAME_MAX_LENGTH = 60;
+
 /**
  * Tudo o que o preload expõe ao renderer (desktop-shell-design §3.6): o `CoreClient`, as
  * preferências do aparelho, o estado da abertura com a única ação que ele pede, o aviso de
@@ -163,6 +180,23 @@ export interface FinanceBridge {
         /** Abre a pasta do banco no gerenciador de arquivos, com o arquivo selecionado. */
         showInFolder(): Promise<void>;
     };
+    readonly importFile: {
+        /**
+         * Pergunta o arquivo no diálogo de abrir do sistema e devolve o conteúdo. O caminho é
+         * escolhido e lido no processo principal: o renderer recebe os bytes e o nome, nunca um
+         * caminho que pudesse mandar ler de novo.
+         *
+         * @return O arquivo, ou por que não foi lido.
+         */
+        open(): Promise<ImportFileResult>;
+        /** @return Os modelos de mapeamento salvos neste aparelho, do mais antigo ao mais novo. */
+        templates(): Promise<readonly MappingTemplate[]>;
+        /**
+         * @param template Modelo a salvar; substitui o de mesmo nome. Validado no processo principal.
+         * @return Os modelos como ficaram gravados.
+         */
+        saveTemplate(template: MappingTemplate): Promise<readonly MappingTemplate[]>;
+    };
     readonly report: {
         /** @return O fim dos logs como entraria no relato, para o usuário ver antes de enviar. */
         logTail(): Promise<string>;
@@ -195,4 +229,7 @@ export const IPC_CHANNELS = {
     aboutInfo: 'about:info',
     databaseExport: 'database:export',
     databaseShowInFolder: 'database:show-in-folder',
+    importOpenFile: 'import:open-file',
+    importTemplates: 'import:templates',
+    importSaveTemplate: 'import:save-template',
 } as const;

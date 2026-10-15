@@ -1,7 +1,9 @@
 import { formatMonthLong } from '@finance/client';
+import { Link, useLocation } from '@tanstack/react-router';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
+import { trailFor } from './navigation.ts';
 import { ThemeMenu } from './ThemeMenu.tsx';
 import { useTransactionPanel } from './TransactionPanel.tsx';
 import { useReferenceMonth } from './useReferenceMonth.ts';
@@ -11,14 +13,14 @@ import { useReferenceMonth } from './useReferenceMonth.ts';
  * esquerda, tema e "+ Lançamento" à direita.
  *
  * @param props.showMonth Se a tela depende de período; nas telas de configuração o mês some e
- * a barra mantém só as ações.
+ * a barra mantém só as ações — e, nas telas dentro de outra, o caminho até ela.
  * @return A barra, presa ao topo da área de conteúdo.
  */
 export function TopBar({ showMonth }: { readonly showMonth: boolean }): ReactNode {
     const panel = useTransactionPanel();
     return (
         <header className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-line bg-surface px-8 py-3">
-            {showMonth ? <MonthPicker /> : <div />}
+            {showMonth ? <MonthPicker /> : <Trail />}
             <div className="flex items-center gap-2.5">
                 <ThemeMenu />
                 <Button onClick={panel.openNew} aria-keyshortcuts="N">
@@ -26,6 +28,38 @@ export function TopBar({ showMonth }: { readonly showMonth: boolean }): ReactNod
                 </Button>
             </div>
         </header>
+    );
+}
+
+/**
+ * Caminho até a tela ("Ajustes › Importar dados", mockup `DesktopImportArquivo`).
+ *
+ * @return O caminho com link nos passos anteriores; vazio nas telas de primeiro nível.
+ */
+function Trail(): ReactNode {
+    const pathname = useLocation({ select: (location) => location.pathname });
+    const steps = trailFor(pathname);
+    return (
+        <nav aria-label="Caminho" className="flex items-center gap-2 text-14">
+            {steps.map((step, index) => (
+                <span key={step.label} className="flex items-center gap-2">
+                    {index > 0 && (
+                        <span aria-hidden="true" className="text-muted">
+                            ›
+                        </span>
+                    )}
+                    {step.to === null ? (
+                        <span aria-current="page" className="font-medium">
+                            {step.label}
+                        </span>
+                    ) : (
+                        <Link to={step.to} className="text-accent hover:text-soft-ink">
+                            {step.label}
+                        </Link>
+                    )}
+                </span>
+            ))}
+        </nav>
     );
 }
 

@@ -60,7 +60,7 @@ test('tema, cópia do banco, local do arquivo, atalhos e versões', async () => 
         await expect(about).toContainText(/Versão do app\s*\d+\.\d+\.\d+/);
         await expect(about).toContainText(/Versão do banco de dados.*v\d+/);
         const databasePath = join(userData, 'finance.sqlite');
-        const dataCopy = page.getByRole('region', { name: 'Cópia dos dados' });
+        const dataCopy = page.getByRole('region', { name: 'Dados' });
         await expect(dataCopy).toContainText(databasePath);
         await app.evaluate(({ shell }) => {
             const opened: string[] = [];
@@ -105,7 +105,7 @@ test('tema, cópia do banco, local do arquivo, atalhos e versões', async () => 
         // A data da última cópia é do aparelho e sobrevive a recarregar a janela.
         await page.reload();
         await openSettings(page);
-        await expect(page.getByRole('region', { name: 'Cópia dos dados' })).toContainText(/Última cópia: \d{2}\/\d{2}\/\d{4}/);
+        await expect(page.getByRole('region', { name: 'Dados' })).toContainText(/Última cópia: \d{2}\/\d{2}\/\d{4}/);
     } finally {
         await app.close();
         removeUserData(userData);

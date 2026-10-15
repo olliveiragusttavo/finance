@@ -1,6 +1,6 @@
 # Plano do MVP Desktop — CRUD e primeiros relatórios
 
-**Status:** Em andamento — Fases 0 a 13 concluídas (ficaram pendentes só o `Ctrl K` da Fase 4, a pendência da Fase 9.2 que depende da sincronização e a decisão da Fase 11.1 sobre a data dos lançamentos de conta em Transações). Primeira entrega com tela do projeto: o app desktop
+**Status:** Em andamento — Fases 0 a 13.1 concluídas (ficaram pendentes só o `Ctrl K` da Fase 4, a pendência da Fase 9.2 que depende da sincronização, o XLSX da Fase 13.1 e a decisão da Fase 11.1 sobre a data dos lançamentos de conta em Transações). Primeira entrega com tela do projeto: o app desktop
 (Electron) com os cadastros e lançamentos básicos e os dois primeiros relatórios
 personalizados, que são a motivação original do projeto ([README](../../README.md#motivação)).
 O mobile fica inteiro para depois.
@@ -9,7 +9,8 @@ fronteira IPC que este plano implementa; [backend-design.md](backend-design.md) 
 que ganha os cadastros e os relatórios; [database-design.md](database-design.md) — as
 regras de negócio de contas, faturas e transações;
 [mockups](../design/mockups/README.md) — as telas aprovadas;
-[reports-design.md](reports-design.md) — as regras dos relatórios como implementadas.
+[reports-design.md](reports-design.md) — as regras dos relatórios como implementadas;
+[import-design.md](import-design.md) — as regras da importação de transações (Fase 13.1).
 
 A [§2](#2-decisões-em-resumo) é o resumo; a [§6](#6-lista-de-tarefas) é a lista de
 tarefas, em ordem de execução.
@@ -48,7 +49,7 @@ categoria/subcategoria** e **quanto as faturas do cartão pesam no saldo do mês
   mostra só "Dados só neste aparelho".
 - Sócios, anexos e o relatório D7 (sócio). Tags e anotações entraram em Cadastros (Fase 6),
   Metas, na Fase 9.3, e os relatórios D5 (fluxo por conta) e D8 (tag), nas Fases 12.1 e 12.2.
-- Importação do histórico do app atual.
+- ~~Importação do histórico do app atual~~ — entrou na Fase 13.1, a pedido.
 - Instaladores de Windows e macOS (o MVP empacota para Linux).
 
 ---
@@ -611,6 +612,42 @@ de exportação", que fica fora do MVP.
 - [x] Testes: núcleo (`test/infrastructure/databaseCopy.test.ts`), desktop (`test/settings.test.ts`: cópia substituindo a anterior, recusa do próprio banco por link simbólico e `..`, falha sem deixar temporário, banco bloqueado, textos e atalhos; `test/main.test.ts`: data da última cópia só pelo main) e ponta a ponta (`e2e/settings.spec.ts`, com o diálogo de salvar e o "mostrar na pasta" trocados no processo principal)
 - [ ] **Fora do MVP:** lembrete de exportação (mensal, semanal, desligado) do mockup — falta decidir como e quando o app avisa
 
+### Fase 13.1 — Importação de transações
+
+Entrou depois da Fase 13, a pedido: a importação do histórico estava fora do escopo (§1).
+Regras em [import-design.md](import-design.md); telas nos mockups `DesktopImportArquivo`,
+`DesktopImportMapear` e `DesktopImportRevisar`, com entrada por Ajustes › Dados e por
+"Importar arquivo…" em Transações. **Decisões** (tomadas antes do código): a fatura com compra
+paga é paga na maior Efetivação das compras dela; só CSV nesta fase; sem registro de
+proveniência — a proteção contra importar duas vezes é a cópia do banco antes; entram o modelo
+de mapeamento, o arquivo com coluna de tipo e as `#palavras` como tags.
+
+**Núcleo**
+- [x] `BillingCycle.invoicePeriodDueIn`: a competência da fatura que vence num mês, para pôr a compra na fatura que o arquivo diz
+- [x] Domínio `domain/import/`: linhas normalizadas e `analyzeImport` — séries (chave, número da ocorrência, repetidas e fora da faixa como avulsas), fim da fixa pelo horizonte, ocorrências futuras, data da compra de cada linha de cartão, vencimento e fechamento prováveis dos cartões, categorias e `#palavras`, problemas por linha. O horizonte das fixas saiu do `RecurrenceService` para o domínio (`fixedSeriesHorizon`), para a análise e o complemento usarem a mesma regra
+- [x] `RecurrenceService.importSeries` e `InvoiceService.markPaid`: gravar uma série com as ocorrências do arquivo (número, pagamento e fatura de cada uma) e pagar a fatura devolvendo o impacto, sem recalcular. A série importada segue as regras de sempre depois da última ocorrência: o parcelamento incompleto ganha as parcelas que faltam
+- [x] Rota `imports.run` (`ImportService`): cria contas, cartões, categorias e tags, grava avulsos e séries, paga as faturas e recalcula uma vez, numa unidade de trabalho. Conta ligada de outro perfil ou desativada é recusada, e nada fica gravado
+- [x] Testes (`test/domain/importAnalysis.test.ts`, `test/services/imports.test.ts`). Conferido também com os três arquivos reais (2.265 linhas, gravadas em cerca de 150 ms, verificação de integridade sem desvio), fora do repositório porque os dados são pessoais
+
+**Client**
+- [x] `src/import/`: CSV, detecção (separador, decimal, data, tipo, cabeçalho), campos por tipo com sugestão pelo cabeçalho, interpretação das linhas, revisão (`importReview.ts`) e o modelo de mapeamento. A decodificação dos bytes ficou no renderer: o `client` não tem `TextDecoder` (sem DOM), e a importação é só do desktop
+- [x] Rota no mapa de invalidação (`EVERYTHING`) e testes (`test/importFile.test.ts`, `test/importReview.test.ts`, escrita no `test/invalidation.test.ts`)
+
+**Desktop**
+- [x] Ponte: `importFile.open()` (diálogo do main, devolve nome e bytes, sem caminho; até 20 MB), `importFile.templates()` e `importFile.saveTemplate()` (no `preferences.json`, validados no main, até 30 modelos)
+- [x] Telas `import/` (Arquivo, Colunas, Revisar e a confirmação) em `/settings/import`, sem a barra do mês e com "Ajustes › Importar dados" no lugar dela; "Importar…" em Ajustes (o cartão "Cópia dos dados" virou "Dados", como no mockup) e "Importar arquivo…" em Transações
+- [x] Testes: desktop (`test/import.test.ts`, `test/shell.test.ts`) e ponta a ponta (`e2e/import.spec.ts`, com os diálogos de abrir e de salvar trocados no processo principal)
+- [ ] **Fora desta fase:** XLSX e a escolha da aba; proveniência da importação
+
+**Decisões da implementação** (divergências ou complementos aos mockups `DesktopImport*`):
+
+- O indicador das etapas fica no topo da tela, e não na barra superior: a barra é do shell e mantém o "+ Lançamento" de toda tela; o "Cancelar" fica no rodapé da etapa Arquivo.
+- "Efetivação" e "Lançamento" ficam como **dica** na coluna, como no mockup, e não ligam sozinhos. Sem a coluna de pagamento ligada, a revisão oferece "Considerar pagas as que vencem até hoje" (o arquivo real de transferências não tem a coluna).
+- O dia de fechamento do cartão novo continua obrigatório, mas a revisão mostra o **provável** pelas datas de compra ("provável: dia 8"), quando há a coluna de data da compra.
+- A "Exportar uma cópia do banco antes de importar" usa o diálogo de salvar de Ajustes; cancelar ou falhar a cópia não importa nada.
+- Parcelamentos são separados também pelo total de parcelas e pela data da compra: o arquivo real tem 32 séries, e não as 30 do mockup (duas compras com o mesmo nome em totais diferentes).
+- O arquivo também pode ser arrastado para a etapa Arquivo; o conteúdo vem do próprio arrastar, sem caminho.
+
 ### Fase 14 — Empacotamento e validação
 
 - [ ] electron-builder: AppImage e deb, ícone, nome, versão a partir do `package.json`; `better-sqlite3` fora do `asar` (`asarUnpack`), porque o `.node` não carrega de dentro do arquivo
@@ -626,7 +663,7 @@ de exportação", que fica fora do MVP.
 - Os dois relatórios conferem, centavo a centavo, com um mês real conferido à mão.
 - Tema claro e escuro em todas as telas; nenhuma cor literal fora de `packages/tokens`.
 - `pnpm check` verde, com os testes de mesa dos relatórios e o teste de fumaça do Electron.
-- Renderer sem acesso a Node: o preload expõe só o `CoreClient`, as preferências, o estado da abertura, o relato de problema e as ações de Ajustes sobre o arquivo do banco — nenhuma recebe caminho do renderer.
+- Renderer sem acesso a Node: o preload expõe só o `CoreClient`, as preferências, o estado da abertura, o relato de problema, as ações de Ajustes sobre o arquivo do banco e a abertura do arquivo a importar com os modelos de mapeamento (Fase 13.1) — nenhuma recebe caminho do renderer.
 
 ## 8. Riscos
 

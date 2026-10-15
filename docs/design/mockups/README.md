@@ -33,7 +33,8 @@ Cada tela é um arquivo `screens/*.dc.html` (HTML de um editor de design):
 7. Entrada/saída distinguíveis **sem depender só da cor**: sinal (+/−), ⇄ para transferência, rótulos.
 8. Números com algarismos tabulares e alinhados à direita nas tabelas.
 9. Anotação é texto livre; a primeira linha é usada como título na lista.
-10. Celular: barra inferior com Início · Transações · Contas · Cartões · Mais; alvos de toque ≥ 44px; escolhas em folhas inferiores.
+10. Importação de arquivos só no desktop (ver seção Importação).
+11. Celular: barra inferior com Início · Transações · Contas · Cartões · Mais; alvos de toque ≥ 44px; escolhas em folhas inferiores.
 
 ## Tokens de cor
 
@@ -82,6 +83,36 @@ Fonte: IBM Plex Sans.
 | DesktopPrimeiroUso | Primeiro uso |
 | DesktopTags | Cadastros › Tags (lista + painel de edição) |
 | DesktopAnotacoes | Cadastros › Anotações (lista + editor) |
+| DesktopImportArquivo | Importar 1/3 · Arquivo (tipo, separadores, prévia bruta) |
+| DesktopImportMapear | Importar 2/3 · Ligar colunas aos campos (arrastar e soltar) |
+| DesktopImportRevisar | Importar 3/3 · Revisar (perfil por conta, contas, cartões, categorias, recorrências) |
+
+### Importação (desktop)
+
+Entrada por Ajustes › Dados › Importar… e pelo botão "Importar arquivo…" em Transações.
+Assistente de 3 passos, um arquivo por vez (CSV ou XLSX).
+
+- **Arquivo:** detecta tipo (Despesas, Receitas, Transferências ou vários tipos com coluna de tipo),
+  separador de colunas, separador decimal, formato de data, codificação e cabeçalho; mostra as linhas brutas.
+- **Ligar colunas:** cada coluna do arquivo (A, B, C…) recebe um campo do app arrastando o campo até ela,
+  ou clicando no campo e depois na coluna (alternativa acessível por teclado). Um campo liga a uma só coluna;
+  colunas sem campo são ignoradas. Ligação automática pelo nome do cabeçalho; dicas para colunas com
+  nomes ambíguos ("Efetivação" → Data de pagamento). Campos dependem do tipo:
+  - todos: Nome*, Valor*, Vencimento*, Observação, Tags, Data de pagamento, Recorrência, Nº da parcela, Total de parcelas;
+  - despesas/receitas: Conta*, Categoria*, Subcategoria*, Data da compra; só despesas: Cartão, Encargos;
+  - transferências: Conta de origem*, Conta de destino* (subcategoria padrão escolhida na revisão).
+  Prévia dos lançamentos interpretados; mapeamento pode ser salvo como modelo.
+- **Revisar:**
+  - **Perfil de destino por conta** (com padrão + "aplicar a todas"). O lançamento vai para o perfil da sua conta;
+    o cartão segue o perfil da conta que paga a fatura. "Ligar a" lista só contas/cartões do perfil escolhido.
+  - Contas e cartões do arquivo: criar novos ou ligar a existentes. Cartão exige **dia de fechamento**
+    (não vem no arquivo); vencimento é detectado pelas datas.
+  - Categorias por perfil: existentes × a criar (criadas em cada perfil que as usa).
+  - Recorrências: agrupar linhas da mesma série numa recorrência do app (padrão) ou importar avulsas;
+    manter ocorrências futuras do arquivo ou deixar o app gerar 12 meses à frente.
+  - "-" ou vazio em datas = sem data; sem data de pagamento = pendente. Sufixo "12/12" sai do nome quando há colunas de parcela.
+  - Opção de transformar #palavras das observações em tags; exportar cópia do banco antes de importar (marcado).
+  - Botão Importar desabilitado enquanto faltar informação obrigatória (ex.: fechamento dos cartões).
 
 **Celular** (`page: mobile`, 390×844)
 

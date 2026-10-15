@@ -44,3 +44,4 @@ export * from './recurrences/RecurrenceResponse.ts';
 export * from './recurrences/SeriesPlanResponse.ts';
 export * from './recurrences/TopUpResponse.ts';
 export * from './goals/GoalResponse.ts';
+export * from './imports/ImportResponse.ts';

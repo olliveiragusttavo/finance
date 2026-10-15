@@ -64,7 +64,7 @@ test('o renderer não tem Node e enxerga só a ponte, sob CSP restrita (desktop-
             csp: document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.getAttribute('content') ?? '',
             popup: window.open('https://example.com') === null,
         }));
-        expect(surface).toMatchObject({ require: false, process: false, bridge: ['about', 'core', 'database', 'failures', 'preferences', 'report', 'startup'], popup: true });
+        expect(surface).toMatchObject({ require: false, process: false, bridge: ['about', 'core', 'database', 'failures', 'importFile', 'preferences', 'report', 'startup'], popup: true });
         expect(surface.csp).toContain("default-src 'self'");
         expect(surface.csp).toContain("script-src 'self';");
 

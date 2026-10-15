@@ -7,6 +7,7 @@ import { InvoiceController } from '../controllers/InvoiceController.ts';
 import { NoteController } from '../controllers/NoteController.ts';
 import type { CoreResult, UnexpectedErrorListener } from '../controllers/CoreResult.ts';
 import { ProfileController } from '../controllers/ProfileController.ts';
+import { ImportController } from '../controllers/ImportController.ts';
 import { ReportController } from '../controllers/ReportController.ts';
 import type { CoreApi, CoreRoute, RouteHandlers } from '../controllers/routes.ts';
 import { StatementController } from '../controllers/StatementController.ts';
@@ -53,6 +54,7 @@ import { ProfileService } from '../services/profile/ProfileService.ts';
 import { ReportService } from '../services/report/ReportService.ts';
 import { StatementConsolidationService } from '../services/statement/StatementConsolidationService.ts';
 import { TagService } from '../services/tag/TagService.ts';
+import { ImportService } from '../services/import/ImportService.ts';
 import { RecurrenceService } from '../services/recurrence/RecurrenceService.ts';
 import { SeriesPlanner } from '../services/recurrence/SeriesPlanner.ts';
 import { TransactionComposer } from '../services/transaction/TransactionComposer.ts';
@@ -178,6 +180,10 @@ export function createCore(ports: CorePorts): Core {
     const cascadeDeletion = new CascadeDeletionService(unitOfWork, deletions, accounts, creditCards, invoices, transactions, recalculation);
     const balances = new AccountBalanceService(unitOfWork, profiles, accounts, recalculation);
     const integrity = new BalanceIntegrityService(unitOfWork, accounts, statements, invoices, recalculation, clock);
+    const importService = new ImportService(
+        unitOfWork, clock, ids, composer, transactions, accounts, creditCards, invoices, categories, tags,
+        accountService, creditCardService, categoryService, tagService, recurrenceService, invoiceService, impacts, recalculation,
+    );
     const reportService = new ReportService(unitOfWork, profileService, reportRepository, transactions, creditCards, categories, accounts, tags, consolidation, clock);
 
     const transactionController = new TransactionController(transactionService, onUnexpected);
@@ -193,6 +199,7 @@ export function createCore(ports: CorePorts): Core {
     const tagController = new TagController(tagService, onUnexpected);
     const noteController = new NoteController(noteService, onUnexpected);
     const goalController = new GoalController(goalService, onUnexpected);
+    const importController = new ImportController(importService, onUnexpected);
 
     const handlers: RouteHandlers = {
         'profiles.list': (raw) => profileController.list(raw),
@@ -266,6 +273,7 @@ export function createCore(ports: CorePorts): Core {
         'reports.accountFlow': (raw) => reportController.accountFlow(raw),
         'reports.byTag': (raw) => reportController.byTag(raw),
         'reports.tagTransactions': (raw) => reportController.tagTransactions(raw),
+        'imports.run': (raw) => importController.run(raw),
     };
 
     return {

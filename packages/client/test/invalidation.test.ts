@@ -153,6 +153,19 @@ const WRITES: readonly Write[] = [
     { route: 'invoices.reopen', input: (s) => ({ invoiceId: s.paidInvoiceId }) },
     // Com o relógio parado, o complemento não tem o que emitir: a criação já foi até o horizonte.
     { route: 'recurrences.topUp', input: () => ({}), unchanged: true },
+    {
+        route: 'imports.run',
+        input: (s) => ({
+            rows: [
+                { line: 1, type: 'expense', name: 'Padaria', value: 12, dueDate: '2026-10-05', paymentDate: '2026-10-05', account: 'Conta', category: 'Mercado', subCategory: 'Pão', description: '#café' },
+                { line: 2, type: 'expense', name: 'Livro', value: 40, dueDate: '2026-10-15', paymentDate: '2026-10-09', purchaseDate: '2026-09-20', account: 'Conta', creditCard: 'Cartão', category: 'Mercado', subCategory: 'Pão' },
+            ],
+            options: { groupSeries: true, keepFutureOccurrences: true, hashtagsAsTags: true, pastDueAsPaid: false },
+            accounts: [{ name: 'Conta', profileId: s.profileId, target: { kind: 'link', accountId: s.checkingId } }],
+            creditCards: [{ name: 'Cartão', target: { kind: 'link', creditCardId: s.creditCardId } }],
+            transferCategory: { category: 'Transferências', subCategory: 'Entre contas' },
+        }),
+    },
 ];
 
 /** O cenário do `ClientWorld` e uma série fixa para as sondas de recorrência. */

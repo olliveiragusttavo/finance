@@ -1,7 +1,9 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { z } from 'zod';
+import type { MappingTemplate } from '@finance/client';
 import type { DevicePreferences } from '../shared/bridge.ts';
+import { IMPORT_TEMPLATES_MAX, mappingTemplateSchema, withSavedTemplate } from './importFiles.ts';
 
 /** Preferências de um aparelho que acabou de instalar o app. */
 export const DEFAULT_PREFERENCES: DevicePreferences = { theme: 'system', lastProfileId: null, lastPeriod: null };
@@ -15,20 +17,23 @@ const fields = {
 /**
  * O arquivo inteiro; campo inválido ou ausente cai no padrão, campo desconhecido é descartado.
  * Além das preferências, guarda o instante da última cópia exportada (desktop-mvp-plan Fase 13),
- * que é do aparelho pelo mesmo motivo: a cópia é do arquivo deste aparelho.
+ * que é do aparelho pelo mesmo motivo: a cópia é do arquivo deste aparelho — e os modelos de
+ * mapeamento da importação (Fase 13.1), que descrevem os arquivos que este aparelho importa. Um
+ * modelo inválido derruba só a lista de modelos, não as preferências.
  */
 const fileSchema = z.object({
     theme: fields.theme.catch(DEFAULT_PREFERENCES.theme),
     lastProfileId: fields.lastProfileId.catch(DEFAULT_PREFERENCES.lastProfileId),
     lastPeriod: fields.lastPeriod.catch(DEFAULT_PREFERENCES.lastPeriod),
     lastExportAt: z.iso.datetime().nullable().catch(null),
+    importTemplates: z.array(mappingTemplateSchema).max(IMPORT_TEMPLATES_MAX).readonly().catch([]),
 });
 
 /** O que fica gravado no arquivo. */
 type StoredFile = z.output<typeof fileSchema>;
 
 /** O arquivo de um aparelho que acabou de instalar o app. */
-const DEFAULT_FILE: StoredFile = { ...DEFAULT_PREFERENCES, lastExportAt: null };
+const DEFAULT_FILE: StoredFile = { ...DEFAULT_PREFERENCES, lastExportAt: null, importTemplates: [] };
 
 /**
  * O que o renderer pode pedir para mudar: entrada não confiável, recusada se inválida. A data
@@ -75,6 +80,26 @@ export class DevicePreferencesStore {
      */
     public recordExport(at: string): void {
         this.write({ ...this.readFile(), lastExportAt: z.iso.datetime().parse(at) });
+    }
+
+    /**
+     * @return Os modelos de mapeamento da importação, do mais antigo ao mais novo; vazia quando o
+     * arquivo falta ou a lista gravada é inválida.
+     */
+    public importTemplates(): readonly MappingTemplate[] {
+        return this.readFile().importTemplates;
+    }
+
+    /**
+     * @param template Modelo como veio do renderer.
+     * @return Os modelos como ficaram gravados.
+     * @throws {z.ZodError} Quando o modelo é inválido.
+     */
+    public saveImportTemplate(template: unknown): readonly MappingTemplate[] {
+        const file = this.readFile();
+        const importTemplates = withSavedTemplate(file.importTemplates, mappingTemplateSchema.parse(template));
+        this.write({ ...file, importTemplates });
+        return importTemplates;
     }
 
     /**
