@@ -146,6 +146,8 @@ const INVALIDATIONS: Readonly<Record<WriteRoute, readonly ReadRoute[]>> = {
     'transactions.setPaid': MONEY,
     // O complemento emite ocorrências: mexe em extratos, faturas e relatórios dos meses à frente.
     'recurrences.topUp': MONEY,
+    // A importação cria cadastros, lançamentos, séries e pagamentos de fatura em qualquer perfil.
+    'imports.run': EVERYTHING,
     'balances.rebuildAccount': MONEY,
     'invoices.pay': MONEY,
     'invoices.reopen': MONEY,

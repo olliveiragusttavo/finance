@@ -26,3 +26,8 @@ export type { FlowMonthTiming } from './domain/report/AccountFlowReport.ts';
 // Regras puras do tipo da transação: o formulário de lançamento mostra o sinal do efeito e pede
 // a conta de destino e a meta pela mesma regra que o núcleo aplica, sem reimplementá-la na UI.
 export { feedsGoal, movesToDestination, originEffect, TRANSACTION_TYPES, type TransactionType } from './domain/transaction/TransactionType.ts';
+// Análise da importação: a tela de revisão mostra os números pela mesma função que o núcleo usa
+// ao gravar, para que a prévia aprovada nunca discorde do que entra no banco (import-design §2).
+export { analyzeImport, type ImportAccountUse, type ImportAnalysis, type ImportCategoryUse, type ImportCreditCardUse, type ImportIssue, type ImportIssueReason, type ImportSource, type PlannedRow, type PlannedSeries } from './domain/import/ImportAnalysis.ts';
+export { IMPORT_TRANSACTION_TYPES, type ImportOptions, type ImportRepetition, type ImportRow, type ImportTransactionType } from './domain/import/ImportRow.ts';
+export { RECURRENCE_FREQUENCIES, type RecurrenceFrequency } from './domain/recurrence/RecurrenceSchedule.ts';

@@ -7,6 +7,7 @@ import type { CategoryBranchResponse, CategoryResponse, SubCategoryResponse } fr
 import type { CreditCardListResponse } from '../dto/creditCards/CreditCardListResponse.ts';
 import type { CreditCardResponse } from '../dto/creditCards/CreditCardResponse.ts';
 import type { AccountDeletionImpactResponse, CreditCardDeletionImpactResponse } from '../dto/deletion/DeletionImpactResponse.ts';
+import type { ImportResponse } from '../dto/imports/ImportResponse.ts';
 import type { IntegrityReportResponse } from '../dto/integrity/IntegrityReportResponse.ts';
 import type { InvoiceCycleResponse } from '../dto/invoices/InvoiceCycleResponse.ts';
 import type { InvoiceDetailResponse } from '../dto/invoices/InvoiceDetailResponse.ts';
@@ -32,6 +33,7 @@ import type { TopUpResponse } from '../dto/recurrences/TopUpResponse.ts';
 import type { TransactionResponse } from '../dto/transactions/TransactionResponse.ts';
 import type { accountIdRequest, createAccountRequest, listAccountsRequest, transferTargetsRequest, updateAccountRequest } from '../requests/accountRequests.ts';
 import type { profileBalancesRequest, rebuildAccountRequest } from '../requests/balanceRequests.ts';
+import type { runImportRequest } from '../requests/importRequests.ts';
 import type {
     categoryTreeRequest,
     createCategoryRequest,
@@ -157,6 +159,7 @@ export interface CoreRoutes {
     'reports.accountFlow': { input: z.input<typeof accountFlowRequest>; output: AccountFlowResponse };
     'reports.byTag': { input: z.input<typeof tagReportRequest>; output: TagReportResponse };
     'reports.tagTransactions': { input: z.input<typeof tagTransactionsRequest>; output: TagTransactionsResponse };
+    'imports.run': { input: z.input<typeof runImportRequest>; output: ImportResponse };
 }
 
 export type CoreRoute = keyof CoreRoutes;

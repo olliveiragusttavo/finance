@@ -7,11 +7,13 @@ import {
     type DevicePreferences,
     type FatalFailure,
     type FinanceBridge,
+    type ImportFileResult,
     type ReportResult,
     type RestoreResult,
     type StartupStatus,
 } from '../shared/bridge.ts';
 import { IpcCoreClient } from '../shared/coreProtocol.ts';
+import type { MappingTemplate } from '@finance/client';
 
 /*
  * Preload (sandbox, isolamento de contexto): a única ponte entre o renderer e o resto do app
@@ -92,6 +94,11 @@ const bridge: FinanceBridge = {
     database: {
         exportCopy: (): Promise<DatabaseExportResult> => invoke(IPC_CHANNELS.databaseExport),
         showInFolder: (): Promise<void> => invoke(IPC_CHANNELS.databaseShowInFolder),
+    },
+    importFile: {
+        open: (): Promise<ImportFileResult> => invoke(IPC_CHANNELS.importOpenFile),
+        templates: (): Promise<readonly MappingTemplate[]> => invoke(IPC_CHANNELS.importTemplates),
+        saveTemplate: (template): Promise<readonly MappingTemplate[]> => invoke(IPC_CHANNELS.importSaveTemplate, template),
     },
     report: {
         logTail: (): Promise<string> => invoke(IPC_CHANNELS.reportLogTail),

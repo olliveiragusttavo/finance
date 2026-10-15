@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/states';
@@ -77,11 +78,12 @@ function AppearanceSection(): ReactNode {
 }
 
 /**
- * Exportar a cópia do banco e onde está o arquivo. A falha fica escrita na linha, e não num
- * aviso que some: ela diz o que fazer, e o usuário precisa dela enquanto escolhe outra pasta.
+ * Importar transações, exportar a cópia do banco e onde está o arquivo (mockup `DesktopAjustes`,
+ * cartão "Dados"). A falha da exportação fica escrita na linha, e não num aviso que some: ela diz
+ * o que fazer, e o usuário precisa dela enquanto escolhe outra pasta.
  *
  * @param props.info Informações do app; `undefined` enquanto carregam.
- * @return A seção "Cópia dos dados".
+ * @return A seção "Dados".
  */
 function DataCopySection({ info }: { readonly info: AppInfo | undefined }): ReactNode {
     const queryClient = useQueryClient();
@@ -105,7 +107,12 @@ function DataCopySection({ info }: { readonly info: AppInfo | undefined }): Reac
     });
 
     return (
-        <SettingsCard title="Cópia dos dados">
+        <SettingsCard title="Dados">
+            <SettingRow label="Importar transações" description="De um arquivo CSV de outro app ou planilha">
+                <Button variant="outline" className="border-line text-13 font-normal" asChild>
+                    <Link to="/settings/import">Importar…</Link>
+                </Button>
+            </SettingRow>
             <SettingRow
                 label="Exportar cópia do banco"
                 description={info === undefined ? <Skeleton className="h-4 w-64" /> : lastExportText(info.lastExportAt)}

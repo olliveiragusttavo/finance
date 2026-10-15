@@ -129,17 +129,32 @@ export class InvoiceService {
             if (invoice.isPaid()) {
                 throw new BusinessRuleViolation('invoice-already-paid', 'a fatura já está paga; reabra antes de pagar de novo', { invoiceId });
             }
-            const creditCard = this.requireCard(invoice.creditCardId);
-            const account = this.accounts.findById(creditCard.accountId);
-            if (account === null) {
-                throw new NotFoundError('Account', creditCard.accountId);
-            }
-            const statement = this.consolidation.ensureStatement(account, paymentDate.period);
-            const paid = invoice.pay({ statementId: statement.id, period: statement.period, date: paymentDate });
-            this.invoices.savePayment(paid);
-            this.recalculation.apply(this.impacts.ofInvoice(invoice, creditCard).merge(this.impacts.ofInvoice(paid, creditCard)));
+            this.recalculation.apply(this.markPaid(invoice, this.requireCard(invoice.creditCardId), paymentDate));
             return this.requireInvoice(invoiceId);
         });
+    }
+
+    /**
+     * Paga a fatura sem recalcular, devolvendo o impacto para quem compõe um caso de uso maior.
+     * Existe para a importação, que paga centenas de faturas do histórico (import-design §5.4) e
+     * recalcula tudo uma vez só, no fim — um recálculo por fatura refaria a cadeia de extratos da
+     * conta pagadora a cada uma.
+     *
+     * @param invoice Fatura em aberto a pagar.
+     * @param creditCard Cartão dono da fatura.
+     * @param paymentDate Data do pagamento; decide o extrato que absorve a fatura.
+     * @return O impacto do pagamento (mês do vencimento e mês do pagamento).
+     * @throws {NotFoundError} Quando a conta pagadora não existe.
+     */
+    public markPaid(invoice: Invoice, creditCard: CreditCard, paymentDate: LocalDate): BalanceImpact {
+        const account = this.accounts.findById(creditCard.accountId);
+        if (account === null) {
+            throw new NotFoundError('Account', creditCard.accountId);
+        }
+        const statement = this.consolidation.ensureStatement(account, paymentDate.period);
+        const paid = invoice.pay({ statementId: statement.id, period: statement.period, date: paymentDate });
+        this.invoices.savePayment(paid);
+        return this.impacts.ofInvoice(invoice, creditCard).merge(this.impacts.ofInvoice(paid, creditCard));
     }
 
     /**

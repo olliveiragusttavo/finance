@@ -1,11 +1,11 @@
 import type { Profile } from '../../domain/profile/Profile.ts';
 import { Recurrence, seriesHasOccurrence, seriesValueOf, type RecurrenceSource, type RecurrenceTemplate, type RecurrenceTerms } from '../../domain/recurrence/Recurrence.ts';
-import { moveToAnchor, RecurrenceSchedule } from '../../domain/recurrence/RecurrenceSchedule.ts';
+import { fixedSeriesHorizon, moveToAnchor, RecurrenceSchedule } from '../../domain/recurrence/RecurrenceSchedule.ts';
 import { Currency } from '../../domain/shared/Currency.ts';
 import { occurrenceIdFor } from '../../domain/shared/DeterministicIds.ts';
-import { BusinessRuleViolation, NotFoundError } from '../../domain/shared/errors.ts';
+import { BusinessRuleViolation, InvalidValueError, NotFoundError } from '../../domain/shared/errors.ts';
 import { RecurrenceId, type CreditCardId, type ProfileId, type TagId, type TransactionId } from '../../domain/shared/ids.ts';
-import { LocalDate } from '../../domain/shared/LocalDate.ts';
+import type { LocalDate } from '../../domain/shared/LocalDate.ts';
 import { Money } from '../../domain/shared/Money.ts';
 import type { YearMonth } from '../../domain/shared/YearMonth.ts';
 import { Transaction } from '../../domain/transaction/Transaction.ts';
@@ -19,9 +19,6 @@ import type { ImpactCalculator } from '../balance/ImpactCalculator.ts';
 import type { CreateTransactionCommand, EditScope, RepeatInput, TransactionInput, TransactionSource, UpdateTransactionCommand } from '../transaction/TransactionCommands.ts';
 import type { SelectionPolicy, TransactionComposer } from '../transaction/TransactionComposer.ts';
 import type { UnitOfWork } from '../UnitOfWork.ts';
-
-/** Meses à frente que uma série fixa mantém gravados (database-design §4.12). */
-const HORIZON_MONTHS = 12;
 
 /** Uma ocorrência prevista, sem gravar nada — a prévia das parcelas do formulário. */
 export interface OccurrencePreview {
@@ -58,6 +55,18 @@ export interface TopUpFailure {
 export interface TopUpOutcome {
     readonly emitted: number;
     readonly failures: readonly TopUpFailure[];
+}
+
+/**
+ * Série vinda de uma importação (import-design §5.5): a forma e o calendário já decididos pela
+ * análise, o modelo (a última ocorrência do arquivo) e cada ocorrência com o seu número.
+ */
+export interface ImportedSeries {
+    readonly terms: RecurrenceTerms;
+    readonly schedule: RecurrenceSchedule;
+    /** Lançamento que vira o modelo da regra; num cartão, a fatura dele dá o deslocamento. */
+    readonly template: TransactionInput;
+    readonly occurrences: readonly { readonly occurrence: number; readonly input: TransactionInput }[];
 }
 
 /** O que uma emissão em sequência gravou. */
@@ -127,6 +136,60 @@ export class RecurrenceService {
             this.recurrences.update(recurrence.revise({ materializedCount: rest.last ?? 1 }));
             this.recalculation.apply(first.impact.merge(rest.impact));
             return this.composer.requireTransaction(first.transaction.id);
+        });
+    }
+
+    /**
+     * Grava uma série que já existia em outro app, com as ocorrências do arquivo: cada uma com o
+     * próprio número, conteúdo, pagamento e fatura (import-design §5.5). Não recalcula: devolve o
+     * impacto para a importação recalcular tudo uma vez só, no fim.
+     * Regra de negócio (Recorrências): a marca d'água é o maior número importado — um número que
+     * falta no arquivo é uma ocorrência excluída, e o complemento não a recria. Depois dele a
+     * série emite pelas regras de sempre: o resto de um parcelamento, e uma fixa sem fim até o
+     * horizonte (database-design §4.12).
+     *
+     * @param profile Perfil dono das ocorrências.
+     * @param series Forma, calendário, modelo e ocorrências da série.
+     * @return Os saldos que as ocorrências gravadas mexem.
+     * @throws {NotFoundError} Quando alguma referência não existe.
+     * @throws {BusinessRuleViolation} Quando uma ocorrência viola uma regra do lançamento.
+     * @throws {InvalidValueError} Quando a série não tem ocorrência.
+     */
+    public importSeries(profile: Profile, series: ImportedSeries): BalanceImpact {
+        return this.unitOfWork.run(() => {
+            const last = series.occurrences.reduce((max, item) => Math.max(max, item.occurrence), 0);
+            if (last === 0) {
+                throw new InvalidValueError('occurrences', 'a série importada não tem ocorrência');
+            }
+            this.composer.assertReferences(profile, series.template, null);
+            const recurrence = Recurrence.create({
+                id: RecurrenceId(this.ids.random()),
+                profileId: profile.id,
+                terms: series.terms,
+                schedule: series.schedule,
+                materializedCount: last,
+                template: this.templateOf(profile, series.template),
+            });
+            this.recurrences.insert(recurrence);
+            let impact = BalanceImpact.none();
+            for (const { occurrence, input } of series.occurrences) {
+                this.composer.assertReferences(profile, input, null);
+                const resolved = this.composer.resolveContainer(profile, input, null);
+                const transaction = Transaction.create({
+                    ...this.composer.toContent(profile, input, resolved.container),
+                    id: occurrenceIdFor(recurrence.id, occurrence),
+                    profileId: profile.id,
+                    recurrenceId: recurrence.id,
+                    occurrence,
+                });
+                this.transactions.insert(transaction);
+                impact = impact.merge(resolved.impact).merge(this.impacts.ofTransaction(transaction));
+            }
+            const rest = this.emitFrom(profile, recurrence, last + 1);
+            if (rest.last !== null) {
+                this.recurrences.update(recurrence.revise({ materializedCount: rest.last }));
+            }
+            return impact.merge(rest.impact);
         });
     }
 
@@ -551,8 +614,7 @@ export class RecurrenceService {
      * @return O último dia que uma série fixa grava agora — 12 meses depois de hoje.
      */
     private horizon(): LocalDate {
-        const today = this.clock.today();
-        return LocalDate.clampedTo(today.period.plusMonths(HORIZON_MONTHS), today.day);
+        return fixedSeriesHorizon(this.clock.today());
     }
 
     /**

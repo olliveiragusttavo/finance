@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Importar dados — revisar</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+.light{--bg:#F4F5F2;--surface:#FFFFFF;--surface2:#FAFAF8;--line:#DDE1DC;--line2:#EEF0EC;--ink:#1B1F1D;--ink2:#3D4541;--muted:#5A625E;--accent:#1F5F8B;--on-accent:#FFFFFF;--soft:#E6EEF4;--soft-ink:#163F5C;--warn-bg:#FFF1D6;--warn-ink:#5C3D00;--ok-bg:#E2F1E8;--ok-ink:#1E5A3F;--track:#EEF0EC;--danger:#9B2C1F;--dot:#2E7D5B;--p2:#A04A12}
+.dark{--bg:#111413;--surface:#1A1E1C;--surface2:#151917;--line:#2E3431;--line2:#242926;--ink:#E7EAE7;--ink2:#C3C9C5;--muted:#9AA29E;--accent:#6AAAD8;--on-accent:#0B1A24;--soft:#1D3040;--soft-ink:#B5D7F0;--warn-bg:#3A2C10;--warn-ink:#F2D38F;--ok-bg:#16302A;--ok-ink:#8FD9B4;--track:#2A302D;--danger:#F08A7A;--dot:#5BC08F;--p2:#E89A63}
+a{color:var(--accent);text-decoration:none}a:hover{color:var(--soft-ink)}
+.n{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+button,input,select{font:inherit;color:inherit}button{cursor:pointer}
+.app{min-height:100vh;display:flex;font-family:'IBM Plex Sans',system-ui,sans-serif;color:var(--ink);background:var(--bg)}
+.side{width:232px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:20px 14px;gap:20px;box-sizing:border-box}
+.brand{font-weight:600;font-size:17px;padding:0 8px}
+.prof{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-size:14px;text-align:left}
+.nav{display:flex;flex-direction:column;gap:2px;font-size:14px}
+.nav a{padding:9px 12px;border-radius:6px;color:var(--ink)}
+.nav a.on{background:var(--soft);color:var(--soft-ink);font-weight:500}
+.sync{margin-top:auto;padding:12px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.dotl{display:flex;align-items:center;gap:6px;color:var(--ink)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--dot);flex-shrink:0}
+.col{flex-grow:1;min-width:0;display:flex;flex-direction:column}
+.top{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 32px;background:var(--surface);border-bottom:1px solid var(--line)}
+.row{display:flex;align-items:center;gap:10px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 12px;font-size:13px;display:inline-flex;align-items:center;gap:6px;color:var(--ink)}
+.btn-p{border:0;border-radius:8px;background:var(--accent);color:var(--on-accent);padding:10px 18px;font-size:14px;font-weight:500}
+.btn-p[aria-disabled="true"]{opacity:.5;cursor:not-allowed}
+.steps{display:flex;align-items:center;gap:8px;margin:0;padding:0;list-style:none;font-size:13px;color:var(--muted)}
+.steps li{display:flex;align-items:center;gap:6px}
+.steps .b{width:22px;height:22px;border-radius:50%;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:12px}
+.steps .done .b{background:var(--ok-bg);color:var(--ok-ink);border-color:transparent}
+.steps .cur{color:var(--ink);font-weight:600}
+.steps .cur .b{background:var(--accent);color:var(--on-accent);border-color:transparent}
+.steps .sep{width:24px;height:1px;background:var(--line)}
+main{padding:24px 32px;display:flex;flex-direction:column;gap:18px;min-width:0;flex-grow:1}
+h1{margin:0;font-size:24px;font-weight:600}
+h2{margin:0;font-size:16px;font-weight:600}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.clip{overflow:hidden}
+.kpi{padding:16px;display:flex;flex-direction:column;gap:4px}
+.lbl{font-size:13px;color:var(--muted)}
+.big{font-size:22px;font-weight:600}
+.sm{font-size:12px;color:var(--muted)}
+.muted{color:var(--muted)}
+.stack{display:flex;flex-direction:column}
+.hd{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.t{display:grid;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line2);font-size:13px;align-items:center}
+.t:last-child{border-bottom:0}
+.th{color:var(--muted);font-size:12px;background:var(--surface2);border-bottom:1px solid var(--line)}
+.r{text-align:right}
+.inp{border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:var(--bg);font-size:13px;width:100%;box-sizing:border-box}
+.inp.need{border-color:var(--danger);border-style:dashed}
+.pill{font-size:12px;border-radius:999px;padding:2px 8px;white-space:nowrap;background:var(--track);color:var(--ink2)}
+.ok{background:var(--ok-bg);color:var(--ok-ink)}.new{background:var(--soft);color:var(--soft-ink)}
+.warnb{background:var(--warn-bg);color:var(--warn-ink);border-radius:8px;padding:10px 12px;font-size:13px}
+.opt{display:flex;align-items:flex-start;gap:10px;font-size:14px;padding:10px 0}
+.opt input{margin-top:3px}
+.tagl{display:flex;flex-wrap:wrap;gap:6px}
+.pb{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500}
+.pb i{width:8px;height:8px;border-radius:2px;display:inline-block}
+.pb.p1 i{background:var(--accent)}.pb.p2 i{background:var(--p2)}
+.bar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--track)}
+.bar .s1{background:var(--accent)}.bar .s2{background:var(--p2)}
+.vr{width:1px;align-self:stretch;background:var(--line2)}
+</style>
+</helmet>
+<div class="app {{themeClass}}">
+<nav aria-label="Navegação principal" class="side">
+<div class="brand">Finanças</div>
+<button type="button" class="prof"><span class="stack" style="gap: 2px"><span style="font-weight: 500">Gustavo</span><span class="sm">Pessoal · BRL</span></span><span aria-hidden="true">▾</span></button>
+<div class="nav">
+<a href="Main.dc.html">Visão geral</a>
+<a href="DesktopTransacoes.dc.html">Transações</a>
+<a href="DesktopContas.dc.html">Contas</a>
+<a href="DesktopCartoes.dc.html">Cartões</a>
+<a href="DesktopRelCategoria.dc.html">Relatórios</a>
+<a href="DesktopMetas.dc.html">Metas</a>
+<a href="DesktopCadastros.dc.html">Cadastros</a>
+<a href="DesktopDispositivos.dc.html">Dispositivos</a>
+<a href="DesktopAjustes.dc.html" class="on" aria-current="page">Ajustes</a>
+</div>
+<div class="sync"><span class="dotl"><span class="dot" aria-hidden="true"></span>Sincronizado com iPhone de Gustavo · agora</span><span>Dados só neste aparelho e nos seus dispositivos pareados</span></div>
+</nav>
+<div class="col">
+<div class="top">
+<nav aria-label="Caminho" class="row" style="font-size: 14px; gap: 6px"><a href="DesktopAjustes.dc.html">Ajustes</a><span class="muted" aria-hidden="true">›</span><span style="font-weight: 600">Importar dados</span></nav>
+<ol class="steps" aria-label="Etapas">
+<li class="done"><span class="b" aria-hidden="true">✓</span><a href="DesktopImportArquivo.dc.html">Arquivo</a></li><li class="sep" aria-hidden="true"></li>
+<li class="done"><span class="b" aria-hidden="true">✓</span><a href="DesktopImportMapear.dc.html">Colunas</a></li><li class="sep" aria-hidden="true"></li>
+<li class="cur" aria-current="step"><span class="b">3</span>Revisar</li>
+</ol>
+<div class="row"><button type="button" class="btn" onClick="{{toggleTheme}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/></svg>{{themeLabel}}</button><a href="DesktopAjustes.dc.html" class="btn">Cancelar</a></div>
+</div>
+<main>
+<div class="stack" style="gap: 4px"><h1>Revisar antes de importar</h1><span class="sm">Despesas.csv · 1.890 linhas. Escolha o perfil de cada conta e confira o que será criado.</span></div>
+
+<section class="card" style="padding: 16px; display: flex; gap: 20px; align-items: stretch; flex-wrap: wrap">
+<div class="stack" style="gap: 8px; min-width: 300px">
+<h2>Perfil de destino</h2>
+<span class="sm">Os lançamentos vão para o perfil da conta (ou da conta que paga o cartão). Categorias e tags são criadas nesse perfil.</span>
+<div class="row" style="gap: 8px">
+<label class="row" style="gap: 8px; font-size: 13px"><span class="sm">Padrão</span><select class="inp" style="width: 210px" value="{{defProf}}" onChange="{{setDef}}"><option value="pes">Gustavo · Pessoal</option><option value="emp">Estúdio GO · Empresarial</option></select></label>
+<button type="button" class="btn" onClick="{{applyAll}}">Aplicar a todas as contas</button>
+</div>
+</div>
+<div class="vr" aria-hidden="true"></div>
+<div class="stack" style="gap: 10px; flex-grow: 1; min-width: 320px">
+<span class="sm">Divisão das linhas</span>
+<div class="bar" role="img" aria-label="{{barAria}}"><div class="s1" style="width: {{pesPct}}%"></div><div class="s2" style="width: {{empPct}}%"></div></div>
+<div class="row" style="gap: 24px; flex-wrap: wrap">
+<span class="stack" style="gap: 2px"><span class="pb p1"><i></i>Gustavo · Pessoal</span><span class="n" style="font-size: 18px; font-weight: 600">{{pesRows}} linhas</span><span class="sm n">{{pesAccs}}</span></span>
+<span class="stack" style="gap: 2px"><span class="pb p2"><i></i>Estúdio GO · Empresarial</span><span class="n" style="font-size: 18px; font-weight: 600">{{empRows}} linhas</span><span class="sm n">{{empAccs}}</span></span>
+</div>
+</div>
+</section>
+
+<section style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px">
+<div class="card kpi"><span class="lbl">Lançamentos avulsos</span><span class="big n">729</span><span class="sm">linhas com recorrência “Nenhuma”</span></div>
+<div class="card kpi"><span class="lbl">Recorrências fixas</span><span class="big n">24</span><span class="sm n">a partir de 999 linhas</span></div>
+<div class="card kpi"><span class="lbl">Parcelamentos</span><span class="big n">30</span><span class="sm n">a partir de 162 parcelas</span></div>
+<div class="card kpi"><span class="lbl">Situação</span><span class="big n">1.156 pagas</span><span class="sm n">734 pendentes (sem efetivação)</span></div>
+</section>
+
+<section class="card clip">
+<div class="hd"><h2>Contas</h2><span class="sm">4 no arquivo · nenhuma existe ainda</span></div>
+<div class="t th" style="grid-template-columns: 1.4fr 80px 1.6fr 1.8fr 1.1fr 0.9fr"><span>No arquivo</span><span class="r">Linhas</span><span>Perfil</span><span>Ligar a</span><span>Tipo</span><span>No saldo total</span></div>
+<sc-for list="{{accs}}" as="a" hint-placeholder-count="4">
+<div class="t n" style="grid-template-columns: 1.4fr 80px 1.6fr 1.8fr 1.1fr 0.9fr">
+<span style="font-weight: 600">{{a.name}}</span>
+<span class="r">{{a.n}}</span>
+<span class="row" style="gap: 8px"><span class="pb {{a.pcls}}" aria-hidden="true"><i></i></span><select class="inp" value="{{a.prof}}" onChange="{{a.setProf}}" aria-label="{{a.profAria}}"><option value="pes">Gustavo · Pessoal</option><option value="emp">Estúdio GO · Empresarial</option></select></span>
+<select class="inp" aria-label="{{a.linkAria}}"><option>+ Criar “{{a.name}}” em {{a.profShort}}</option><sc-for list="{{a.existing}}" as="e" hint-placeholder-count="3"><option>{{e}} ({{a.profShort}})</option></sc-for></select>
+<select class="inp" aria-label="{{a.typeAria}}"><option>Corrente</option><option>Investimentos</option></select>
+<label class="row" style="gap: 6px"><input type="checkbox" checked>Sim</label>
+</div>
+</sc-for>
+<div class="sm" style="padding: 10px 16px; background: var(--surface2); border-top: 1px solid var(--line)">“Ligar a” mostra só as contas do perfil escolhido. Saldo inicial das contas novas: R$ 0,00.</div>
+</section>
+
+<section class="card clip">
+<div class="hd"><h2>Cartões de crédito</h2><span class="sm">O cartão fica no perfil da conta que paga a fatura</span></div>
+<div class="t th" style="grid-template-columns: 0.9fr 64px 1.5fr 1.4fr 1.6fr 0.8fr 0.8fr 0.9fr"><span>No arquivo</span><span class="r">Linhas</span><span>Paga com</span><span>Perfil</span><span>Ligar a</span><span>Vencimento</span><span>Fechamento *</span><span>Limite</span></div>
+<sc-for list="{{cards}}" as="c" hint-placeholder-count="2">
+<div class="t n" style="grid-template-columns: 0.9fr 64px 1.5fr 1.4fr 1.6fr 0.8fr 0.8fr 0.9fr">
+<span style="font-weight: 600">{{c.name}}</span>
+<span class="r">{{c.n}}</span>
+<select class="inp" aria-label="{{c.payAria}}"><option>Banco Inter (nova)</option></select>
+<span class="stack"><span class="pb {{c.pcls}}"><i></i>{{c.profLabel}}</span><span class="sm">segue a conta pagadora</span></span>
+<select class="inp" aria-label="{{c.linkAria}}"><option>+ Criar cartão “{{c.name}}”</option><sc-for list="{{c.existing}}" as="e" hint-placeholder-count="2"><option>{{e}}</option></sc-for></select>
+<span class="stack"><span>{{c.due}}</span><span class="sm">{{c.dueNote}}</span></span>
+<input class="inp need" type="text" inputmode="numeric" placeholder="dia" aria-label="{{c.closeAria}}">
+<input class="inp" type="text" placeholder="R$ opcional" aria-label="{{c.limitAria}}">
+</div>
+</sc-for>
+<div style="padding: 12px 16px; border-top: 1px solid var(--line)"><div class="warnb">Informe o <b>dia de fechamento</b> dos 2 cartões. O arquivo não traz essa informação, e ela decide em qual fatura cada compra cai.</div></div>
+</section>
+
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start">
+<section class="card clip">
+<div class="hd"><h2>Categorias por perfil</h2><button type="button" class="btn">Ligar a outras categorias…</button></div>
+<div style="padding: 14px 16px; display: flex; flex-direction: column; gap: 16px; font-size: 13px">
+<sc-for list="{{catGroups}}" as="g" hint-placeholder-count="2">
+<div class="stack" style="gap: 8px">
+<span class="pb {{g.pcls}}"><i></i>{{g.label}}</span>
+<sc-if value="{{g.hasExisting}}" hint-placeholder-val="{{ true }}"><div class="stack" style="gap: 6px"><span class="sm">Já existem ({{g.existingCount}})</span><div class="tagl"><sc-for list="{{g.existing}}" as="x" hint-placeholder-count="3"><span class="pill ok">{{x}}</span></sc-for></div></div></sc-if>
+<sc-if value="{{g.hasNew}}" hint-placeholder-val="{{ true }}"><div class="stack" style="gap: 6px"><span class="sm">Serão criadas ({{g.newCount}})</span><div class="tagl"><sc-for list="{{g.created}}" as="x" hint-placeholder-count="5"><span class="pill new">{{x}}</span></sc-for></div></div></sc-if>
+<sc-if value="{{g.none}}" hint-placeholder-val="{{ false }}"><span class="sm">Nenhuma conta foi para este perfil.</span></sc-if>
+</div>
+</sc-for>
+<span class="sm">A mesma categoria usada em contas de perfis diferentes é criada em cada perfil.</span>
+</div>
+</section>
+
+<section class="card clip">
+<div class="hd"><h2>Recorrências e detalhes</h2></div>
+<div style="padding: 6px 16px 12px" role="radiogroup" aria-label="Recorrências fixas">
+<span class="sm">Linhas da mesma série (mesmo nome, conta e recorrência)</span>
+<label class="opt"><input type="radio" name="rec" checked><span class="stack"><span>Agrupar numa recorrência do app</span><span class="sm">24 fixas e 30 parcelamentos. Editar depois pergunta o escopo, como num lançamento feito no app.</span></span></label>
+<label class="opt"><input type="radio" name="rec"><span class="stack"><span>Importar cada linha como lançamento avulso</span><span class="sm">1.890 lançamentos independentes</span></span></label>
+<div style="height: 1px; background: var(--line2); margin: 4px 0"></div>
+<label class="opt"><input type="checkbox" checked><span class="stack"><span>Manter as ocorrências futuras do arquivo</span><span class="sm">As séries fixas vão até dez/2030 no arquivo. Desmarcado: o app gera 12 meses à frente.</span></span></label>
+<label class="opt"><input type="checkbox" checked><span class="stack"><span>Transformar #palavras das observações em tags</span><span class="sm">1 linha: #TiaDarci, #Madrinha</span></span></label>
+</div>
+</section>
+</div>
+
+<section class="card" style="padding: 14px 16px">
+<label class="opt" style="padding: 0"><input type="checkbox" checked><span class="stack"><span>Exportar uma cópia do banco antes de importar</span><span class="sm">Não há backup em nuvem. Com a cópia, dá para voltar ao estado de antes.</span></span></label>
+</section>
+
+<div class="row" style="justify-content: space-between">
+<a href="DesktopImportMapear.dc.html" class="btn">‹ Voltar às colunas</a>
+<div class="row"><span class="sm">Falta: fechamento de 2 cartões</span><button type="button" class="btn-p" aria-disabled="true">Importar 1.890 linhas</button></div>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":true},"$preview":{"width":1440,"height":1700}}'>
+class Component extends DCLogic {
+renderVals() {
+const s = this.state || {};
+const dark = s.dark ?? (this.props.dark ?? true);
+const P = {pes:{label:'Gustavo · Pessoal',short:'Pessoal',cls:'p1',accounts:['Nubank','Itaú','Tesouro Direto','Wise (USD)'],cards:['Nubank Roxinho','Itaú Click'],cats:['Alimentação','Compras','Moradia']},
+emp:{label:'Estúdio GO · Empresarial',short:'Empresarial',cls:'p2',accounts:['[contas do perfil]'],cards:['[cartões do perfil]'],cats:[]}};
+const ACC = [
+{name:'Banco Inter',n:1599,cats:['Carro','Serviços','Alimentação','Moradia','Compras','Outros','Pessoal','Empresa','Família','Viagem']},
+{name:'OlliveiraGusttavo',n:223,cats:['Empresa','Outros']},
+{name:'Base1',n:63,cats:['Base1']},
+{name:'Carteira',n:5,cats:['Outros','Carro','Alimentação','Pessoal','Viagem']}];
+const def = s.def || 'pes';
+const prof = Object.assign({'Banco Inter':'pes','OlliveiraGusttavo':'emp','Base1':'emp','Carteira':'pes'}, s.prof || {});
+const fmt = (n) => n.toLocaleString('pt-BR');
+const setProf = (name, v) => this.setState({ prof: Object.assign({}, prof, { [name]: v }) });
+const accs = ACC.map(a => {
+const p = prof[a.name];
+return {name:a.name, n:fmt(a.n), prof:p, pcls:P[p].cls, profShort:P[p].short, existing:P[p].accounts,
+setProf:(e) => setProf(a.name, e.target.value),
+profAria:'Perfil de ' + a.name, linkAria:'Ligar ' + a.name + ' a', typeAria:'Tipo de ' + a.name};
+});
+const payer = prof['Banco Inter'];
+const cards = [{name:'Inter',n:'738',due:'dia 15',dueNote:'detectado'},{name:'NuBank',n:'96',due:'dia 16',dueNote:'mais comum (69 de 96)'}].map(c => Object.assign(c, {
+pcls:P[payer].cls, profLabel:P[payer].short, existing:P[payer].cards,
+payAria:'Conta que paga ' + c.name, linkAria:'Ligar ' + c.name + ' a', closeAria:'Dia de fechamento do ' + c.name, limitAria:'Limite do ' + c.name}));
+const rowsOf = (k) => ACC.filter(a => prof[a.name] === k).reduce((t, a) => t + a.n, 0);
+const accsOf = (k) => { const l = ACC.filter(a => prof[a.name] === k).map(a => a.name); return l.length ? l.join(', ') : 'nenhuma conta'; };
+const pes = rowsOf('pes'), emp = rowsOf('emp'), tot = pes + emp;
+const catGroups = ['pes','emp'].map(k => {
+const set = {}; ACC.filter(a => prof[a.name] === k).forEach(a => a.cats.forEach(c => { set[c] = 1; }));
+const all = Object.keys(set).sort((x, y) => x.localeCompare(y, 'pt-BR'));
+const existing = all.filter(c => P[k].cats.indexOf(c) >= 0);
+const created = all.filter(c => P[k].cats.indexOf(c) < 0);
+return {label:P[k].label, pcls:P[k].cls, existing, created, existingCount:existing.length, newCount:created.length,
+hasExisting:existing.length > 0, hasNew:created.length > 0, none:all.length === 0};
+});
+return {
+themeClass: dark ? 'dark' : 'light',
+themeLabel: dark ? 'Tema claro' : 'Tema escuro',
+toggleTheme: () => this.setState({ dark: !dark }),
+defProf: def,
+setDef: (e) => this.setState({ def: e.target.value }),
+applyAll: () => { const m = {}; ACC.forEach(a => { m[a.name] = def; }); this.setState({ prof: m }); },
+accs, cards, catGroups,
+pesRows: fmt(pes), empRows: fmt(emp), pesAccs: accsOf('pes'), empAccs: accsOf('emp'),
+pesPct: Math.round(pes / tot * 1000) / 10, empPct: Math.round(emp / tot * 1000) / 10,
+barAria: 'Pessoal ' + fmt(pes) + ' linhas, Empresarial ' + fmt(emp) + ' linhas'
+};
+}
+}
+</script>
+</body>
+</html>

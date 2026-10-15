@@ -68,7 +68,7 @@ describe('preferências do aparelho', () => {
         expect(store.update({ lastPeriod: '2026-11' })).toEqual({ ...DEFAULT_PREFERENCES, theme: 'dark', lastPeriod: '2026-11' });
         expect(() => store.update({ theme: 'roxo' })).toThrow();
         expect(() => store.update({ caminho: '/etc' })).toThrow();
-        expect(JSON.parse(readFileSync(path, 'utf8'))).toEqual({ theme: 'dark', lastProfileId: null, lastPeriod: '2026-11', lastExportAt: null });
+        expect(JSON.parse(readFileSync(path, 'utf8'))).toEqual({ theme: 'dark', lastProfileId: null, lastPeriod: '2026-11', lastExportAt: null, importTemplates: [] });
     });
 
     it('a data da última cópia é gravada só pelo processo principal e sobrevive às mudanças do renderer', () => {

@@ -1,15 +1,16 @@
-import { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell, webContents, type SaveDialogOptions } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell, webContents, type OpenDialogOptions, type SaveDialogOptions } from 'electron';
 import { appendFileSync, mkdirSync } from 'node:fs';
 import { homedir, release } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { colorTokens } from '@finance/tokens';
-import { IPC_CHANNELS, type AppInfo, type DatabaseExportResult, type FatalFailure, type ReportResult, type RestoreResult } from '../shared/bridge.ts';
+import { IPC_CHANNELS, type AppInfo, type DatabaseExportResult, type FatalFailure, type ImportFileResult, type ReportResult, type RestoreResult } from '../shared/bridge.ts';
 import { databaseFiles, type DatabaseFiles } from '../utility/databaseFiles.ts';
 import { errorReplacer } from '../utility/FileLog.ts';
 import { CoreProcess } from './CoreProcess.ts';
 import { defaultExportFileName } from './databaseExport.ts';
 import { DevicePreferencesStore } from './DevicePreferencesStore.ts';
+import { readImportFile } from './importFiles.ts';
 import { buildReportUrl, problemReportSchema, readLogTail, reportChannelSchema } from './problemReport.ts';
 import { restoreBackup } from './restoreBackup.ts';
 import { installSecurityGuards } from './security.ts';
@@ -138,6 +139,8 @@ function registerIpc(core: CoreProcess, preferences: DevicePreferencesStore): vo
     // Uma exportação por vez, pelo mesmo motivo: um segundo clique em "Exportar…" abriria um
     // segundo diálogo de salvar por cima do primeiro.
     let exporting: Promise<DatabaseExportResult> | null = null;
+    // Um diálogo de abrir por vez, pelo mesmo motivo.
+    let opening: Promise<ImportFileResult> | null = null;
     ipcMain.handle(IPC_CHANNELS.preferencesGet, () => preferences.read());
     ipcMain.handle(IPC_CHANNELS.preferencesUpdate, (_event, patch: unknown) => {
         const next = preferences.update(patch);
@@ -172,6 +175,14 @@ function registerIpc(core: CoreProcess, preferences: DevicePreferencesStore): vo
     ipcMain.handle(IPC_CHANNELS.databaseShowInFolder, () => {
         shell.showItemInFolder(files.databasePath);
     });
+    ipcMain.handle(IPC_CHANNELS.importOpenFile, (event): Promise<ImportFileResult> => {
+        opening ??= openImportFile(BrowserWindow.fromWebContents(event.sender)).finally(() => {
+            opening = null;
+        });
+        return opening;
+    });
+    ipcMain.handle(IPC_CHANNELS.importTemplates, () => preferences.importTemplates());
+    ipcMain.handle(IPC_CHANNELS.importSaveTemplate, (_event, template: unknown) => preferences.saveImportTemplate(template));
     ipcMain.handle(IPC_CHANNELS.reportLogTail, () => readLogTail(logFiles, homedir()));
     ipcMain.handle(IPC_CHANNELS.reportSend, async (_event, rawChannel: unknown, rawReport: unknown): Promise<ReportResult> => {
         const channel = reportChannelSchema.safeParse(rawChannel);
@@ -233,6 +244,32 @@ async function runExport(core: CoreProcess, preferences: DevicePreferencesStore,
         log('database.export-record-failed', { error });
     }
     return { ok: true, file: choice.filePath, exportedAt };
+}
+
+/**
+ * Pergunta o arquivo a importar no diálogo de abrir do sistema e o lê aqui (desktop-mvp-plan Fase
+ * 13.1). O caminho nasce e morre no processo principal: o renderer recebe só o nome e os bytes.
+ *
+ * @param window Janela que pediu, dona do diálogo; `null` se ela fechou no meio do pedido.
+ * @return O arquivo, ou por que não foi lido.
+ */
+async function openImportFile(window: BrowserWindow | null): Promise<ImportFileResult> {
+    const options: OpenDialogOptions = {
+        title: 'Importar transações',
+        buttonLabel: 'Abrir',
+        filters: [{ name: 'Planilha CSV', extensions: ['csv', 'txt'] }],
+        properties: ['openFile'],
+    };
+    const choice = window === null ? await dialog.showOpenDialog(options) : await dialog.showOpenDialog(window, options);
+    const [path] = choice.filePaths;
+    if (choice.canceled || path === undefined) {
+        return { ok: false, reason: 'canceled' };
+    }
+    const result = await readImportFile(path);
+    if (!result.ok) {
+        log('import.open-failed', { reason: result.reason });
+    }
+    return result;
 }
 
 /**

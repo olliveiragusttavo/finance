@@ -1640,6 +1640,8 @@ for refatorado. O texto original é mantido como está no diagrama, seguido da t
    saldo, transações órfãs, arquivos de anexo ausentes. Três verificações, uma rotina.
 4. **Não restam questões em aberto.**
 5. Ainda de fato não modelado: a **proveniência da importação** do histórico que está
-   sendo migrado do app atual. Os **metadados de sincronização** estão projetados em
+   sendo migrado do app atual. A importação em si chegou sem ela (desktop-mvp-plan Fase 13.1,
+   [import-design.md](import-design.md)): reimportar duplica, e a cópia do banco antes é o
+   caminho de volta. Os **metadados de sincronização** estão projetados em
    [sync-design.md](sync-design.md) e chegam em sua própria migration quando a
    sincronização for implementada; as tabelas acima não mudam por causa disso.

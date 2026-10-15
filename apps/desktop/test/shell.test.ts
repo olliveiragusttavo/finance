@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isItemActive, MENU, showsReferenceMonth, visibleChildren, type MenuItem } from '../src/renderer/src/shell/navigation.ts';
+import { isItemActive, MENU, showsReferenceMonth, trailFor, visibleChildren, type MenuItem } from '../src/renderer/src/shell/navigation.ts';
 import { pickActiveProfile } from '../src/renderer/src/shell/pickActiveProfile.ts';
 import { currentPeriod, parseShellSearch, resolveReferenceMonth, shiftPeriod } from '../src/renderer/src/shell/referenceMonth.ts';
 import { shortcutFor, type KeyPress } from '../src/renderer/src/shell/shortcuts.ts';
@@ -37,10 +37,17 @@ describe('menu do shell (desktop-mvp-plan Fase 4)', () => {
         expect(visibleChildren(reports, '/reports/category', 'business').map((child) => child.label)).toEqual(['Por categoria', 'Fluxo por conta', 'Impacto do cartão', 'Por sócio', 'Por tag']);
     });
 
-    it('esconde o mês de referência só em Cadastros, Dispositivos e Ajustes', () => {
+    it('esconde o mês de referência só em Cadastros, Dispositivos e Ajustes, e na importação dentro de Ajustes', () => {
         const hidden = MENU.filter((item) => !showsReferenceMonth(item.to)).map((item) => item.label);
         expect(hidden).toEqual(['Cadastros', 'Dispositivos', 'Ajustes']);
         expect(showsReferenceMonth('/reports/partner')).toBe(true);
+        expect(showsReferenceMonth('/settings/import')).toBe(false);
+    });
+
+    it('mostra o caminho "Ajustes › Importar dados" no lugar do mês, com Ajustes marcado no menu', () => {
+        expect(trailFor('/settings/import')).toEqual([{ label: 'Ajustes', to: '/settings' }, { label: 'Importar dados', to: null }]);
+        expect(trailFor('/settings')).toEqual([]);
+        expect(isItemActive(menuItem('Ajustes'), '/settings/import')).toBe(true);
     });
 });
 

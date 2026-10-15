@@ -31,3 +31,11 @@ export * from './viewModels/statementTable.ts';
 export * from './viewModels/invoiceView.ts';
 export * from './viewModels/goalView.ts';
 export * from './viewModels/overviewView.ts';
+// Importação de transações (import-design): leitura do arquivo, ligação de colunas e revisão.
+export * from './import/csv.ts';
+export * from './import/cellFormats.ts';
+export * from './import/importFields.ts';
+export * from './import/importTable.ts';
+export * from './import/interpretRows.ts';
+export * from './import/importReview.ts';
+export * from './import/mappingTemplates.ts';

@@ -22,7 +22,7 @@ import {
     type TransactionTableRow,
 } from '@finance/client';
 import type { AccountInPeriodResponse, CategoryBranchResponse, CoreInput, CreditCardInPeriodResponse, InvoiceResponse, TagResponse, TransactionResponse } from '@finance/core';
-import { useNavigate, useSearch } from '@tanstack/react-router';
+import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { ErrorState, Skeleton } from '@/components/states';
@@ -207,7 +207,13 @@ export function TransactionsScreen(): ReactNode {
 
     return (
         <div className="flex flex-col gap-4">
-            <h1 className="text-24 font-semibold">Transações</h1>
+            <div className="flex items-center justify-between">
+                <h1 className="text-24 font-semibold">Transações</h1>
+                {/* Entrada da importação (desktop-mvp-plan Fase 13.1; mockup `DesktopTransacoes`). */}
+                <Button variant="outline" size="sm" className="border-line text-13 font-normal" asChild>
+                    <Link to="/settings/import">Importar arquivo…</Link>
+                </Button>
+            </div>
             <FilterBar
                 filters={filters}
                 accounts={accounts.data?.accounts ?? []}

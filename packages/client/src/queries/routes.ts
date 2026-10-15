@@ -77,6 +77,7 @@ const ROUTE_KINDS = {
     'reports.accountFlow': 'read',
     'reports.byTag': 'read',
     'reports.tagTransactions': 'read',
+    'imports.run': 'write',
 } as const satisfies Record<CoreRoute, 'read' | 'write'>;
 
 /** Rotas que só leem: viram `useQuery`. */

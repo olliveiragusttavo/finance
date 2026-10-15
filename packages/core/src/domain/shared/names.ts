@@ -42,9 +42,13 @@ export function sameName(a: string, b: string): boolean {
 }
 
 /**
+ * Chave de agrupamento pelo mesmo critério do `sameName`. Existe para quem precisa indexar
+ * muitos nomes num `Map` — a importação junta milhares de linhas por conta, categoria e série —
+ * sem comparar cada par.
+ *
  * @param name Nome a reduzir.
  * @return A forma canônica usada só para comparação; nunca é gravada.
  */
-function foldName(name: string): string {
+export function foldName(name: string): string {
     return name.trim().normalize('NFC').toLowerCase();
 }

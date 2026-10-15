@@ -122,6 +122,23 @@ export class RecurrenceSchedule implements RecurrenceScheduleProps {
     }
 }
 
+/** Meses à frente que uma série fixa mantém gravados (database-design §4.12). */
+const HORIZON_MONTHS = 12;
+
+/**
+ * Regra de negócio (Recorrências, database-design §4.12): as fixas são gravadas até um horizonte
+ * móvel de 12 meses a partir de hoje. Fica no domínio porque a importação decide pelo mesmo
+ * horizonte se uma fixa do arquivo terminou (import-design §5.5) — com uma cópia própria, as duas
+ * regras poderiam divergir e a série importada seria estendida ou cortada no lugar errado.
+ *
+ * @param today "Hoje" do usuário.
+ * @return O último dia que uma série fixa grava agora — 12 meses depois de hoje, no último dia do
+ * mês quando o dia não existe.
+ */
+export function fixedSeriesHorizon(today: LocalDate): LocalDate {
+    return LocalDate.clampedTo(today.period.plusMonths(HORIZON_MONTHS), today.day);
+}
+
 /** Maior dia âncora de cada frequência; `null` onde não há dia âncora. */
 const ANCHOR_LIMIT: Readonly<Record<RecurrenceFrequency, number | null>> = { daily: null, weekly: 7, monthly: 31, yearly: 31 };
 
@@ -141,6 +158,47 @@ export function anchorDayOf(frequency: RecurrenceFrequency, date: LocalDate): nu
         case 'yearly':
             return date.day;
     }
+}
+
+/**
+ * Dia âncora de uma série reconstruída a partir de ocorrências que já existem, como na importação.
+ * A data da referência sozinha não basta: no fim de um mês curto ela já foi encurtada (o aluguel
+ * do dia 31 vence em 30/09), e tomar esse dia como âncora mudaria a série para o dia 30 em todos
+ * os meses seguintes.
+ * Regra de negócio (Recorrências, database-design §4.12): num mês sem o dia âncora a ocorrência
+ * cai no último dia do mês, e a seguinte volta ao dia âncora.
+ *
+ * @param frequency Frequência da série; só a mensal e a anual têm dia do mês a recuperar.
+ * @param reference Data da ocorrência de referência, que define a âncora quando não é fim de mês.
+ * @param history Datas das ocorrências em ordem crescente, a referência inclusive, de onde sai o
+ * dia que os meses curtos encurtaram.
+ * @return O dia da referência; quando ela é o último dia do mês, o maior dia entre as ocorrências
+ * consecutivas que terminam nela e também caem no último dia do mês — a primeira fora do fim do
+ * mês já tem o dia exato, e uma série que o usuário mudou para o dia 30 não volta ao 31.
+ */
+export function anchorDayFromHistory(frequency: RecurrenceFrequency, reference: LocalDate, history: readonly LocalDate[]): number | null {
+    const day = anchorDayOf(frequency, reference);
+    if ((frequency !== 'monthly' && frequency !== 'yearly') || !isLastDayOfMonth(reference)) {
+        return day;
+    }
+    let anchor = reference.day;
+    for (const date of [...history].reverse()) {
+        if (!isLastDayOfMonth(date)) {
+            break;
+        }
+        anchor = Math.max(anchor, date.day);
+    }
+    return anchor;
+}
+
+/**
+ * Só uma data no último dia do mês pode ter sido encurtada; fora dele, o dia é o âncora exato.
+ *
+ * @param date Data de uma ocorrência.
+ * @return `true` quando a data é o último dia do mês dela.
+ */
+function isLastDayOfMonth(date: LocalDate): boolean {
+    return date.equals(LocalDate.clampedTo(date.period, 31));
 }
 
 /**

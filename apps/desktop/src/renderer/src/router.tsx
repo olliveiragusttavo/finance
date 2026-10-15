@@ -19,6 +19,7 @@ import { TagReportScreen } from './reports/TagReportScreen.tsx';
 import { parseTagReportSearch, type TagReportSearch } from './reports/tagReportSearch.ts';
 import { parseRegistrySearch, type RegistrySearch } from './registry/registryKinds.ts';
 import { blankScreen, PartnerReportScreen } from './screens/BlankScreen.tsx';
+import { ImportScreen } from './import/ImportScreen.tsx';
 import { SettingsScreen } from './settings/SettingsScreen.tsx';
 import { AppShell } from './shell/AppShell.tsx';
 import { TransactionsScreen } from './transactions/TransactionsScreen.tsx';
@@ -109,6 +110,7 @@ const routeTree = rootRoute.addChildren([
             validateSearch: (search: Record<string, unknown>): RegistrySearch => parseRegistrySearch(search),
         }),
         createRoute({ getParentRoute: () => shellRoute, path: '/settings' satisfies AppPath, component: SettingsScreen }),
+        createRoute({ getParentRoute: () => shellRoute, path: '/settings/import' satisfies AppPath, component: ImportScreen }),
         createRoute({
             getParentRoute: () => shellRoute,
             path: '/goals' satisfies AppPath,

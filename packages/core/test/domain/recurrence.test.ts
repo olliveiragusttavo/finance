@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { seriesHasOccurrence, seriesValueOf } from '../../src/domain/recurrence/Recurrence.ts';
-import { anchorDayOf, moveToAnchor, RecurrenceSchedule } from '../../src/domain/recurrence/RecurrenceSchedule.ts';
+import { anchorDayFromHistory, anchorDayOf, moveToAnchor, RecurrenceSchedule } from '../../src/domain/recurrence/RecurrenceSchedule.ts';
 import { Currency } from '../../src/domain/shared/Currency.ts';
 import { LocalDate } from '../../src/domain/shared/LocalDate.ts';
 import { Money } from '../../src/domain/shared/Money.ts';
@@ -83,6 +83,31 @@ describe('calendário da série (database-design §4.12)', () => {
         expect(() => RecurrenceSchedule.of({ frequency: 'weekly', startsOn: LocalDate.parse('2026-10-05'), startsAt: 1, anchorDay: 8 })).toThrow();
         expect(() => RecurrenceSchedule.of({ frequency: 'daily', startsOn: LocalDate.parse('2026-10-05'), startsAt: 1, anchorDay: 5 })).toThrow();
         expect(() => RecurrenceSchedule.of({ frequency: 'monthly', startsOn: LocalDate.parse('2026-10-05'), startsAt: 0, anchorDay: 5 })).toThrow();
+    });
+});
+
+describe('dia âncora de uma série reconstruída (import-design §5.5)', () => {
+    /**
+     * @param values Datas em `YYYY-MM-DD`, em ordem crescente.
+     * @return As datas como `LocalDate`, o histórico que a função recebe.
+     */
+    const history = (...values: readonly string[]): readonly LocalDate[] => values.map((value) => LocalDate.parse(value));
+
+    it('recupera o dia 31 quando a referência caiu no fim de um mês de 30 dias', () => {
+        expect(anchorDayFromHistory('monthly', LocalDate.parse('2027-09-30'), history('2027-07-31', '2027-08-31', '2027-09-30'))).toBe(31);
+    });
+
+    it('não leva ao dia 31 a série que mudou para o dia 30', () => {
+        expect(anchorDayFromHistory('monthly', LocalDate.parse('2027-09-30'), history('2027-07-31', '2027-08-30', '2027-09-30'))).toBe(30);
+    });
+
+    it('recupera o 29/02 da anual cuja referência caiu num ano comum', () => {
+        expect(anchorDayFromHistory('yearly', LocalDate.parse('2025-02-28'), history('2024-02-29', '2025-02-28'))).toBe(29);
+    });
+
+    it('usa o dia da referência quando ela não está no fim do mês, e não mexe na semanal', () => {
+        expect(anchorDayFromHistory('monthly', LocalDate.parse('2027-09-15'), history('2027-08-31', '2027-09-15'))).toBe(15);
+        expect(anchorDayFromHistory('weekly', LocalDate.parse('2027-09-30'), history('2027-09-23', '2027-09-30'))).toBe(anchorDayOf('weekly', LocalDate.parse('2027-09-30')));
     });
 });
 
