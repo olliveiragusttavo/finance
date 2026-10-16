@@ -95,7 +95,20 @@ export class TransactionComposer {
             this.assertOwnedBy(profile, 'partnerId', input.partnerId, this.references.partnerOwner(input.partnerId));
         }
         if (input.goalId !== null) {
-            this.assertOwnedBy(profile, 'goalId', input.goalId, this.goals.findById(input.goalId)?.profileId ?? null);
+            const goal = this.goals.findById(input.goalId);
+            this.assertOwnedBy(profile, 'goalId', input.goalId, goal?.profileId ?? null);
+            // Regra de negócio (Metas, database-design §4.11): a meta vinculada a uma conta mede o
+            // saldo dela, e um lançamento vinculado não mudaria nada — o depósito já é qualquer
+            // movimento da conta.
+            if (goal !== null && !goal.acceptsTransactions()) {
+                throw new BusinessRuleViolation('goal-funded-by-account', 'a meta vinculada a uma conta não recebe lançamentos', { field: 'goalId' });
+            }
+            // Regra de negócio (Metas, desktop-mvp-plan Fase 13.4): a meta arquivada some das
+            // escolhas de lançamentos novos, como a conta desativada; o lançamento que já estava
+            // vinculado a ela continua editável sem perder o vínculo.
+            if (goal !== null && goal.archived && current?.goalId !== goal.id) {
+                throw new BusinessRuleViolation('goal-archived', 'a meta está arquivada e não aceita lançamentos novos', { field: 'goalId' });
+            }
         }
         for (const tagId of input.tagIds) {
             this.assertOwnedBy(profile, 'tagIds', tagId, this.tags.findById(tagId)?.profileId ?? null);
@@ -223,6 +236,7 @@ export class TransactionComposer {
             destinationAccountId: input.destinationAccountId,
             partnerId: input.partnerId,
             goalId: input.goalId,
+            goalWithdrawal: input.goalWithdrawal,
             name: input.name,
             description: input.description,
             value: Money.of(input.value, profile.currency),
@@ -235,6 +249,31 @@ export class TransactionComposer {
             paymentDate: input.paymentDate,
             tagIds: input.tagIds,
         };
+    }
+
+    /**
+     * Perfil dono da transação depois de uma edição.
+     * Regra de negócio (Mover para outro perfil, database-design §4.13): a edição pode levar a
+     * transação para outro perfil, e as referências do conteúdo passam a ser conferidas contra
+     * ele. Os dois perfis precisam ter a mesma moeda, porque o valor gravado não é convertido —
+     * a mesma razão da transferência entre perfis.
+     *
+     * @param current Transação como está.
+     * @param requested Perfil pedido na edição; `null` mantém o atual.
+     * @return O perfil atual, ou o de destino já conferido.
+     * @throws {NotFoundError} Quando um dos perfis não existe.
+     * @throws {BusinessRuleViolation} Quando o destino tem outra moeda.
+     */
+    public resolveOwner(current: Transaction, requested: ProfileId | null): Profile {
+        const owner = this.requireProfile(current.profileId);
+        if (requested === null || requested === owner.id) {
+            return owner;
+        }
+        const target = this.requireProfile(requested);
+        if (!target.currency.equals(owner.currency)) {
+            throw new BusinessRuleViolation('transaction-move-currency-mismatch', 'os perfis têm moedas diferentes', { field: 'profileId' });
+        }
+        return target;
     }
 
     /**

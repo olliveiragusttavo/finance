@@ -29,21 +29,33 @@ export const REGISTRY_KINDS: readonly RegistryKindItem[] = [
 export interface RegistrySearch {
     /** Tipo aberto; ausente abre o primeiro, Contas. */
     readonly kind?: RegistryKind;
+    /**
+     * Anotação a abrir no editor, para outras telas levarem a ela (a lista de anotações da Visão
+     * geral, desktop-mvp-plan Fase 13.2); só vale com `kind` = `notes`.
+     */
+    readonly note?: string;
 }
 
 /** Os mesmos tipos da união, para validar a URL; o `satisfies` recusa nome fora dela. */
 const kindSchema = z.enum(['accounts', 'cards', 'categories', 'tags', 'profiles', 'notes'] as const satisfies readonly RegistryKind[]);
 
+/** Id da anotação pedida: qualquer texto não vazio; a que não existe mais só não abre. */
+const noteSchema = z.string().min(1);
+
 /**
  * Valida a busca da URL. Tipo desconhecido (URL editada, histórico antigo) é descartado em vez
- * de derrubar a rota: a tela abre no tipo padrão.
+ * de derrubar a rota: a tela abre no tipo padrão. A anotação só vai junto com o tipo Anotações.
  *
  * @param search Busca crua, como o roteador a leu.
- * @return Só o tipo, quando ele é válido.
+ * @return O tipo, quando ele é válido, e a anotação pedida, quando o tipo é Anotações.
  */
 export function parseRegistrySearch(search: Readonly<Record<string, unknown>>): RegistrySearch {
-    const parsed = kindSchema.safeParse(search['kind']);
-    return parsed.success ? { kind: parsed.data } : {};
+    const kind = kindSchema.safeParse(search['kind']);
+    if (!kind.success) {
+        return {};
+    }
+    const note = noteSchema.safeParse(search['note']);
+    return kind.data === 'notes' && note.success ? { kind: kind.data, note: note.data } : { kind: kind.data };
 }
 
 /**

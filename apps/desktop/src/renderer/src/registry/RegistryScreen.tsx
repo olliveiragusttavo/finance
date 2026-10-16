@@ -1,6 +1,7 @@
 import { useAccounts, useCategoryTree, useCreditCards, useNotes, useTags } from '@finance/client';
 import { Link, useSearch } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
+import { DetailPane, ListPane, PaneLayout } from '@/components/PaneLayout';
 import { cn } from '@/lib/cn';
 import { useActiveProfile } from '@/shell/activeProfile';
 import { useReferenceMonth } from '@/shell/useReferenceMonth';
@@ -28,7 +29,8 @@ export function RegistryScreen(): ReactNode {
     const { period } = useReferenceMonth();
     // Lida pelo `parseRegistrySearch`, e não pelo tipo da rota, pelo mesmo motivo do
     // `useReferenceMonth`: a tela é importada pelo próprio roteador.
-    const kind = useSearch({ strict: false, select: (raw: Readonly<Record<string, unknown>>) => openKind(parseRegistrySearch(raw)) });
+    const search = useSearch({ strict: false, select: (raw: Readonly<Record<string, unknown>>) => parseRegistrySearch(raw) });
+    const kind = openKind(search);
     const accounts = useAccounts({ profileId: profile.id, period });
     const creditCards = useCreditCards({ profileId: profile.id, period });
     const categories = useCategoryTree({ profileId: profile.id });
@@ -45,24 +47,31 @@ export function RegistryScreen(): ReactNode {
     };
 
     return (
-        <div className="-mx-8 -my-6 flex flex-1">
-            <section aria-label="Tipos de cadastro" className="flex w-75 shrink-0 flex-col border-r border-line bg-surface">
-                <div className="px-5 pt-5 pb-3">
-                    <h1 className="text-20 font-semibold">Cadastros</h1>
-                </div>
+        <PaneLayout>
+            <ListPane
+                label="Tipos de cadastro"
+                width="w-75"
+                header={
+                    <div className="px-5 pt-5 pb-3">
+                        <h1 className="text-20 font-semibold">Cadastros</h1>
+                    </div>
+                }
+                footer={
+                    <p className="px-5 py-3.5 text-12 text-muted">
+                        {profile.type === 'business' ? 'Sócios do perfil empresarial chegam numa próxima versão do app.' : 'Sócios aparecem aqui só em perfil empresarial.'}
+                    </p>
+                }
+            >
                 <ul>
                     {REGISTRY_KINDS.map((item) => (
                         <KindLink key={item.kind} item={item} current={item.kind === kind} counter={counters[item.kind]} />
                     ))}
                 </ul>
-                <p className="border-t border-line2 px-5 py-3.5 text-12 text-muted">
-                    {profile.type === 'business' ? 'Sócios do perfil empresarial chegam numa próxima versão do app.' : 'Sócios aparecem aqui só em perfil empresarial.'}
-                </p>
-            </section>
-            <div className="flex min-w-0 flex-1 flex-col gap-5 px-8 py-6">
-                <OpenSection kind={kind} accounts={accounts} creditCards={creditCards} categories={categories} tags={tags} notes={notes} />
-            </div>
-        </div>
+            </ListPane>
+            <DetailPane>
+                <OpenSection kind={kind} accounts={accounts} creditCards={creditCards} categories={categories} tags={tags} notes={notes} requestedNote={search.note ?? null} />
+            </DetailPane>
+        </PaneLayout>
     );
 }
 
@@ -103,6 +112,7 @@ function KindLink({ item, current, counter }: { readonly item: RegistryKindItem;
  * @param props.categories Árvore de categorias do perfil.
  * @param props.tags Tags do perfil, com o uso.
  * @param props.notes Anotações do perfil.
+ * @param props.requestedNote Anotação pedida pela URL, para abrir no editor; `null` sem pedido.
  * @return A seção.
  */
 function OpenSection({
@@ -112,6 +122,7 @@ function OpenSection({
     categories,
     tags,
     notes,
+    requestedNote,
 }: {
     readonly kind: RegistryKind;
     readonly accounts: ReturnType<typeof useAccounts>;
@@ -119,6 +130,7 @@ function OpenSection({
     readonly categories: ReturnType<typeof useCategoryTree>;
     readonly tags: ReturnType<typeof useTags>;
     readonly notes: ReturnType<typeof useNotes>;
+    readonly requestedNote: string | null;
 }): ReactNode {
     switch (kind) {
         case 'accounts':
@@ -132,6 +144,6 @@ function OpenSection({
         case 'tags':
             return <TagsSection query={tags} />;
         case 'notes':
-            return <NotesSection query={notes} />;
+            return <NotesSection query={notes} requestedNote={requestedNote} />;
     }
 }

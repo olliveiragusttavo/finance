@@ -4,7 +4,7 @@ import type { AccountId, GoalId, PartnerId, ProfileId, RecurrenceId, SubCategory
 import type { LocalDate } from '../shared/LocalDate.ts';
 import type { Money } from '../shared/Money.ts';
 import type { TransactionContainer } from './TransactionContainer.ts';
-import { destinationEffect, feedsGoal, movesToDestination, originEffect, type TransactionType } from './TransactionType.ts';
+import { destinationEffect, feedsGoal, movesToDestination, originEffect, withdrawsFromGoal, type TransactionType } from './TransactionType.ts';
 
 const NAME_MAX_LENGTH = 100;
 
@@ -25,6 +25,11 @@ export interface TransactionContent {
     readonly destinationAccountId: AccountId | null;
     readonly partnerId: PartnerId | null;
     readonly goalId: GoalId | null;
+    /**
+     * A transferência vinculada **retira** dinheiro da meta, que desconta do progresso; `false`
+     * guarda (database-design §4.11). Sem meta é sempre `false`.
+     */
+    readonly goalWithdrawal: boolean;
     readonly name: string;
     readonly description: string | null;
     /** Sempre na moeda do perfil; o sinal inverte o efeito do tipo (estorno). */
@@ -70,6 +75,7 @@ export class Transaction implements TransactionProps {
     public readonly destinationAccountId: AccountId | null;
     public readonly partnerId: PartnerId | null;
     public readonly goalId: GoalId | null;
+    public readonly goalWithdrawal: boolean;
     public readonly name: string;
     public readonly description: string | null;
     public readonly value: Money;
@@ -94,6 +100,7 @@ export class Transaction implements TransactionProps {
         this.destinationAccountId = props.destinationAccountId;
         this.partnerId = props.partnerId;
         this.goalId = props.goalId;
+        this.goalWithdrawal = props.goalWithdrawal;
         this.name = props.name;
         this.description = props.description;
         this.value = props.value;
@@ -131,18 +138,21 @@ export class Transaction implements TransactionProps {
     }
 
     /**
-     * Edita os campos do usuário. Identidade, perfil, tipo e vínculo com a recorrência não
-     * mudam: o id de uma ocorrência é derivado da data em que foi gerada e nunca é recalculado
-     * (sync-design §5.6), e o tipo é fixo desde a criação (`assertTypeKept`).
+     * Edita os campos do usuário. Identidade, tipo e vínculo com a recorrência não mudam: o id
+     * de uma ocorrência é derivado da data em que foi gerada e nunca é recalculado
+     * (sync-design §5.6), e o tipo é fixo desde a criação (`assertTypeKept`). O perfil só muda
+     * quando a edição move a transação para outro perfil (database-design §4.13): é ele que diz
+     * de quem são as referências do conteúdo novo.
      *
      * @param content Novo conteúdo completo da transação.
+     * @param profileId Perfil dono depois da edição; o atual quando a transação não muda de perfil.
      * @return A transação editada.
      * @throws {InvalidValueError} Quando um campo isolado é inválido.
      * @throws {BusinessRuleViolation} Quando campos se contradizem ou o tipo mudou.
      */
-    public revise(content: TransactionContent): Transaction {
+    public revise(content: TransactionContent, profileId: ProfileId = this.profileId): Transaction {
         this.assertTypeKept(content.type);
-        return new Transaction(Transaction.validated({ ...content, id: this.id, profileId: this.profileId, recurrenceId: this.recurrenceId, occurrence: this.occurrence }));
+        return new Transaction(Transaction.validated({ ...content, id: this.id, profileId, recurrenceId: this.recurrenceId, occurrence: this.occurrence }));
     }
 
     /**
@@ -190,6 +200,7 @@ export class Transaction implements TransactionProps {
             destinationAccountId: this.destinationAccountId,
             partnerId: this.partnerId,
             goalId: this.goalId,
+            goalWithdrawal: this.goalWithdrawal,
             name: this.name,
             description: this.description,
             value: this.value,
@@ -275,6 +286,11 @@ export class Transaction implements TransactionProps {
         if (props.goalId !== null && !feedsGoal(props.type)) {
             throw new BusinessRuleViolation('goal-requires-saving-type', 'só receitas e transferências podem ser vinculadas a uma meta', { field: 'goalId' });
         }
+        // Regra de negócio (Metas, desktop-mvp-plan Fase 13.3): só a transferência retira
+        // dinheiro da meta; a receita sempre guarda.
+        if (props.goalId !== null && props.goalWithdrawal && !withdrawsFromGoal(props.type)) {
+            throw new BusinessRuleViolation('goal-withdrawal-requires-transfer', 'só transferências podem retirar dinheiro de uma meta', { field: 'goalWithdrawal' });
+        }
         // Uma transferência para a própria conta somaria zero e apareceria duas vezes no
         // extrato; não representa movimento nenhum.
         if (props.container.kind === 'statement' && props.destinationAccountId === props.container.accountId) {
@@ -282,7 +298,9 @@ export class Transaction implements TransactionProps {
         }
         // A mesma tag duas vezes seria o mesmo vínculo duas vezes, que o índice único do par
         // recusaria com erro de SQL (database-design §4.14); a repetição é descartada.
-        return { ...props, name, description: normalizedDescription(props.description), tagIds: [...new Set(props.tagIds)] };
+        // Sem meta não há de onde retirar: a marca perde o sentido e é descartada, para que tirar a
+        // meta de um lançamento de retirada não exija desmarcar a retirada antes.
+        return { ...props, name, description: normalizedDescription(props.description), tagIds: [...new Set(props.tagIds)], goalWithdrawal: props.goalId !== null && props.goalWithdrawal };
     }
 }
 

@@ -238,6 +238,37 @@ export class TestWorld {
     }
 
     /**
+     * Monta a edição de uma transação sem mudança nenhuma, para o teste sobrepor só o que quer
+     * mudar ou recusar — a edição exige todos os campos explícitos (`updateTransactionRequest`).
+     *
+     * @param id Transação como está gravada.
+     * @return A entrada completa de `transactions.update`.
+     */
+    public async editInput(id: string): Promise<CoreInput<'transactions.update'>> {
+        const fresh = await this.ok('transactions.get', { id });
+        const { container } = fresh;
+        return {
+            id: fresh.id,
+            type: fresh.type,
+            source: container.kind === 'statement' ? { kind: 'account', accountId: container.accountId } : { kind: 'creditCard', creditCardId: container.creditCardId, invoicePeriod: container.period },
+            subCategoryId: fresh.subCategoryId,
+            destinationAccountId: fresh.destinationAccountId,
+            partnerId: fresh.partnerId,
+            goalId: fresh.goalId,
+            goalWithdrawal: fresh.goalWithdrawal,
+            name: fresh.name,
+            description: fresh.description,
+            value: fresh.value.amount,
+            charges: fresh.charges.amount,
+            originCurrency: fresh.originCurrency,
+            conversionRate: fresh.conversionRate,
+            dueDate: fresh.dueDate,
+            paymentDate: fresh.paymentDate,
+            tagIds: [...fresh.tagIds],
+        };
+    }
+
+    /**
      * Lança uma transação pela rota real (camada Request incluída), com padrões válidos para
      * que cada teste declare só o que importa (builders, backend-design §5.4).
      *
@@ -286,6 +317,7 @@ export class TestWorld {
             destinationAccountId: null,
             partnerId: null,
             goalId: null,
+            goalWithdrawal: false,
             originCurrency: null,
             conversionRate: 1,
             dueDate: '2026-03-10',
@@ -339,6 +371,7 @@ export class TestWorld {
             destinationAccountId: transaction.destinationAccountId,
             partnerId: transaction.partnerId,
             goalId: transaction.goalId,
+            goalWithdrawal: transaction.goalWithdrawal,
             name: transaction.name,
             description: transaction.description,
             value: transaction.value.amount,

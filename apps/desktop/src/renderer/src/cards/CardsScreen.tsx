@@ -6,24 +6,28 @@ import {
     formatInvoiceAmount,
     formatInvoiceSituation,
     formatMoney,
-    formatMonthAbbreviation,
     formatMonthLong,
     formatMonthShort,
+    formatRegistryListView,
+    REGISTRY_LIST_VIEWS,
     useAccounts,
     useCategoryTree,
     useCreditCards,
     useInvoice,
     useInvoicesByCard,
+    movementsFromInvoice,
     useRecurrences,
-    type InvoiceLine,
+    type MovementColumn,
+    type RegistryListView,
 } from '@finance/client';
-import type { AccountInPeriodResponse, CreditCardInPeriodResponse, CreditCardListResponse, InvoiceCycleResponse, TransactionResponse } from '@finance/core';
+import type { AccountInPeriodResponse, CreditCardInPeriodResponse, CreditCardListResponse, InvoiceCycleResponse } from '@finance/core';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { ListViewSwitch } from '@/components/ListViewSwitch';
+import { DetailPane, ListPane, PaneLayout } from '@/components/PaneLayout';
 import { EmptyState, QueryState, Skeleton } from '@/components/states';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/cn';
 import { CreditCardDialog, useToggleCreditCard } from '@/registry/CreditCardsSection';
 import { CreditCardDeletionDialog } from '@/registry/DeletionDialog';
@@ -31,12 +35,18 @@ import { StatusTag } from '@/registry/registryUi';
 import { useActiveProfile } from '@/shell/activeProfile';
 import { currentDate } from '@/shell/referenceMonth';
 import { useReferenceMonth } from '@/shell/useReferenceMonth';
-import { DeleteTransactionDialog } from '@/transactions/DeleteTransactionDialog';
-import { TransactionDialog } from '@/transactions/TransactionDialog';
-import { openCreditCard, openInvoicePeriod, parseCardsSearch, shouldDropInvoice, type CardsLocation } from './cardsSearch.ts';
+import { MovementGrid } from '@/transactions/MovementGrid';
+import { useTransactionActions } from '@/transactions/useTransactionActions';
+import { creditCardListView, openCreditCard, openInvoicePeriod, parseCardsSearch, shouldDropInvoice, type CardsLocation } from './cardsSearch.ts';
 import { PartialPaymentDialog, PayInvoiceDialog, ReopenInvoiceDialog, type InvoiceActionTarget } from './InvoiceDialogs.tsx';
 
 /** Diálogo aberto na tela: cadastro do cartão ou ação sobre a fatura. */
+/**
+ * Colunas da listagem na fatura: sem "Conta / fatura", porque todas as linhas são desta fatura, e
+ * sem a situação, que é a da fatura (desktop-mvp-plan Fase 13.2).
+ */
+const COLUMNS: readonly MovementColumn[] = ['date', 'name', 'category', 'amount', 'recurring'];
+
 type CardsDialogState =
     | { readonly mode: 'create' }
     | { readonly mode: 'edit'; readonly creditCard: CreditCardInPeriodResponse }
@@ -52,7 +62,8 @@ type InvoiceAction = 'pay' | 'partial' | 'reopen';
  * Cartões (mockup `DesktopCartoes`; desktop-mvp-plan Fase 8): à esquerda a lista com a fatura
  * do mês de cada cartão e os totais, à direita o detalhe da fatura aberta — números, lançamentos
  * e próximas faturas — com pagar, pagamento parcial e reabrir. O cartão e a fatura abertos ficam
- * na URL (`card`, `invoice`), como a conta aberta em Contas.
+ * na URL (`card`, `invoice`), como a conta aberta em Contas, e a lista mostra os ativos ou os
+ * desativados (`view`, desktop-mvp-plan Fase 13.4).
  *
  * @return A tela de Cartões.
  */
@@ -74,23 +85,33 @@ export function CardsScreen(): ReactNode {
     const accountList = accounts.data?.accounts ?? [];
 
     return (
-        <div className="-mx-8 -my-6 flex flex-1">
+        <PaneLayout>
             <QueryState query={creditCards} loading={<CardListSkeleton />}>
                 {(list) => {
+                    const { view, creditCards: visible } = creditCardListView(list, search);
                     const open = openCreditCard(list, search);
                     return (
                         <>
                             <CardList
                                 list={list}
+                                creditCards={visible}
+                                view={view}
+                                onViewChange={(next) => {
+                                    void navigate({ to: '/cards', search: { view: next } });
+                                }}
                                 openId={open?.id ?? null}
                                 canCreate={accountList.some((account) => !account.disabled)}
                                 onCreate={() => {
                                     setDialog({ mode: 'create' });
                                 }}
                             />
-                            <section aria-label="Fatura" className="flex min-w-0 flex-1 flex-col gap-5 px-8 py-6">
+                            <DetailPane label="Fatura">
                                 {open === null ? (
-                                    <EmptyState title="Nenhum cartão" description="Cadastre um cartão para ver a fatura do mês." />
+                                    list.creditCards.length === 0 ? (
+                                        <EmptyState title="Nenhum cartão" description="Cadastre um cartão para ver a fatura do mês." />
+                                    ) : (
+                                        <EmptyState title={`Nenhum cartão ${view === 'active' ? 'ativo' : 'desativado'}`} description="Troque a visualização na lista para ver os outros cartões." />
+                                    )
                                 ) : (
                                     <CardInvoice
                                         key={open.id}
@@ -112,7 +133,7 @@ export function CardsScreen(): ReactNode {
                                         }}
                                     />
                                 )}
-                            </section>
+                            </DetailPane>
                         </>
                     );
                 }}
@@ -144,7 +165,7 @@ export function CardsScreen(): ReactNode {
             {dialog?.mode === 'pay' && <PayInvoiceDialog target={dialog.target} onClose={close} />}
             {dialog?.mode === 'partial' && <PartialPaymentDialog target={dialog.target} accounts={accountList} onClose={close} />}
             {dialog?.mode === 'reopen' && <ReopenInvoiceDialog target={dialog.target} onClose={close} />}
-        </div>
+        </PaneLayout>
     );
 }
 
@@ -170,12 +191,16 @@ function useDropInvoiceOnMonthChange(current: CardsLocation): void {
 }
 
 /**
- * Lista lateral: cada cartão com a fatura do mês e os totais no rodapé.
+ * Lista lateral: cada cartão com a fatura do mês e os totais no rodapé fixo (`ListPane`).
  * Regra de negócio (Cartões): os totais vêm prontos do núcleo, em módulo — "Em aberto no mês"
  * soma só as faturas do mês ainda não pagas, "Total das faturas" soma todas —, e a tela não
- * refaz a soma.
+ * refaz a soma. Os totais são do perfil, e não da visualização: a fatura do cartão desativado
+ * continua a pagar.
  *
  * @param props.list Cartões do perfil no mês e os totais.
+ * @param props.creditCards Cartões da visualização escolhida.
+ * @param props.view Visualização escolhida: ativos ou desativados.
+ * @param props.onViewChange Troca a visualização.
  * @param props.openId Cartão aberto, marcado na lista.
  * @param props.canCreate Se o perfil tem conta ativa para pagar um cartão novo.
  * @param props.onCreate Abre o diálogo de novo cartão.
@@ -183,45 +208,67 @@ function useDropInvoiceOnMonthChange(current: CardsLocation): void {
  */
 function CardList({
     list,
+    creditCards,
+    view,
+    onViewChange,
     openId,
     canCreate,
     onCreate,
 }: {
     readonly list: CreditCardListResponse;
+    readonly creditCards: readonly CreditCardInPeriodResponse[];
+    readonly view: RegistryListView;
+    readonly onViewChange: (view: RegistryListView) => void;
     readonly openId: string | null;
     readonly canCreate: boolean;
     readonly onCreate: () => void;
 }): ReactNode {
     return (
-        <section aria-label="Lista de cartões" className="flex w-95 shrink-0 flex-col border-r border-line bg-surface">
-            <div className="flex items-center justify-between px-5 pt-5 pb-3">
-                <h1 className="text-20 font-semibold">Cartões</h1>
-                <Button variant="outline" size="sm" className="text-13 font-normal" disabled={!canCreate} title={canCreate ? undefined : 'Reative ou crie uma conta para pagar o cartão.'} onClick={onCreate}>
-                    + Novo cartão
-                </Button>
-            </div>
-            <div aria-hidden="true" className="flex justify-between px-5 py-2 text-12 text-muted">
-                <span>Cartão</span>
-                <span>fatura do mês</span>
-            </div>
+        <ListPane
+            label="Lista de cartões"
+            width="w-95"
+            header={
+                <>
+                    <div className="flex items-center justify-between px-5 pt-5 pb-3">
+                        <h1 className="text-20 font-semibold">Cartões</h1>
+                        <Button variant="outline" size="sm" className="text-13 font-normal" disabled={!canCreate} title={canCreate ? undefined : 'Reative ou crie uma conta para pagar o cartão.'} onClick={onCreate}>
+                            + Novo cartão
+                        </Button>
+                    </div>
+                    <ListViewSwitch
+                        views={REGISTRY_LIST_VIEWS}
+                        value={view}
+                        format={(option) => formatRegistryListView(option, 'masculine')}
+                        onChange={onViewChange}
+                    />
+                    <div aria-hidden="true" className="flex justify-between px-5 py-2 text-12 text-muted">
+                        <span>Cartão</span>
+                        <span>fatura do mês</span>
+                    </div>
+                </>
+            }
+            footer={
+                <dl className="flex flex-col gap-1 px-5 py-3.5 text-13">
+                    <div className="flex justify-between">
+                        <dt className="text-muted">Em aberto no mês</dt>
+                        <dd className="font-semibold tabular-nums">{formatMoney(list.openTotal, 'absolute')}</dd>
+                    </div>
+                    <div className="flex justify-between">
+                        <dt className="text-muted">Total das faturas</dt>
+                        <dd className="tabular-nums">{formatMoney(list.total, 'absolute')}</dd>
+                    </div>
+                </dl>
+            }
+        >
+            {creditCards.length === 0 && <p className="px-5 py-3.5 text-13 text-muted">Nenhum cartão {view === 'active' ? 'ativo' : 'desativado'}.</p>}
             <ul aria-label="Cartões">
-                {list.creditCards.map((creditCard) => (
+                {creditCards.map((creditCard) => (
                     <li key={creditCard.id}>
                         <CardLink creditCard={creditCard} current={creditCard.id === openId} />
                     </li>
                 ))}
             </ul>
-            <dl className="mt-auto flex flex-col gap-1 border-t border-line px-5 py-3.5 text-13">
-                <div className="flex justify-between">
-                    <dt className="text-muted">Em aberto no mês</dt>
-                    <dd className="font-semibold tabular-nums">{formatMoney(list.openTotal, 'absolute')}</dd>
-                </div>
-                <div className="flex justify-between">
-                    <dt className="text-muted">Total das faturas</dt>
-                    <dd className="tabular-nums">{formatMoney(list.total, 'absolute')}</dd>
-                </div>
-            </dl>
-        </section>
+        </ListPane>
     );
 }
 
@@ -466,7 +513,7 @@ function InvoiceFigures({
                     </span>
                 )}
                 <span className="text-12 text-muted tabular-nums">
-                    {usage.limitText}
+                    <span className="font-semibold text-ink">{usage.usedText}</span> {usage.limitText}
                     {usage.exceeded && ' · acima do limite'}
                 </span>
             </FigureCard>
@@ -491,25 +538,23 @@ function FigureCard({ label, children }: { readonly label: string; readonly chil
 }
 
 /**
- * Lançamentos da fatura (mockup): data, lançamento, categoria e valor, com o total. Sem fatura
- * no mês não há o que consultar, e a tabela diz isso. É aqui que se editam e excluem as compras
- * do cartão: em Transações, sem filtro, elas ficam agrupadas na linha da fatura
- * (desktop-mvp-plan Fase 11.1). Editar e excluir usam os mesmos diálogos de Transações, com o
- * escopo das séries.
+ * Lançamentos da fatura (mockup `DesktopCartoes`) na listagem comum (desktop-mvp-plan Fase 13.2):
+ * data, lançamento, categoria, valor e "Rec." — as parcelas aparecem como "3/12" —, com o total.
+ * Sem fatura no mês não há o que consultar, e a tabela diz isso. É aqui que se editam e excluem
+ * as compras do cartão: em Transações, sem filtro, elas ficam agrupadas na linha da fatura
+ * (Fase 11.1). Sem a coluna de situação, porque a situação de uma compra é a da fatura, mostrada
+ * acima; o `P` só vale no pagamento parcial, que sai da conta no dia dele.
  *
  * @param props.cycle Competência aberta.
- * @param props.accounts Contas do perfil, para a origem dos pagamentos parciais e o alerta de exclusão.
+ * @param props.accounts Contas do perfil, para a origem dos pagamentos parciais.
  * @return A tabela.
  */
 function InvoiceLines({ cycle, accounts }: { readonly cycle: InvoiceCycleResponse; readonly accounts: readonly AccountInPeriodResponse[] }): ReactNode {
     const { profile } = useActiveProfile();
-    const { period } = useReferenceMonth();
     const detail = useInvoice(cycle.invoice === null ? null : { invoiceId: cycle.invoice.id });
     const categories = useCategoryTree({ profileId: profile.id });
-    const creditCards = useCreditCards({ profileId: profile.id, period });
     const recurrences = useRecurrences({ profileId: profile.id });
-    const [editing, setEditing] = useState<TransactionResponse | null>(null);
-    const [deleting, setDeleting] = useState<TransactionResponse | null>(null);
+    const actions = useTransactionActions();
     if (cycle.invoice === null) {
         return (
             <section aria-label="Lançamentos" className="rounded-10 border border-line bg-surface px-4 py-6 text-center text-13 text-muted">
@@ -524,150 +569,24 @@ function InvoiceLines({ cycle, accounts }: { readonly cycle: InvoiceCycleRespons
                     <QueryState query={categories} loading={<Skeleton className="h-60" />}>
                         {(tree) => {
                             const table = buildInvoiceTable({ invoice, accounts, categories: tree });
-                            /**
-                             * @param line Linha da fatura.
-                             * @return O lançamento inteiro da linha, para os diálogos; `null` se
-                             * a fatura recarregou sem ele.
-                             */
-                            const transactionOf = (line: InvoiceLine): TransactionResponse | null => invoice.transactions.find((item) => item.id === line.transactionId) ?? null;
                             return (
-                                <section aria-label="Lançamentos" className="overflow-hidden rounded-10 border border-line bg-surface">
-                                    <Table className="text-13">
-                                        <TableHeader className="bg-surface2">
-                                            <TableRow className="border-line hover:bg-transparent">
-                                                <TableHead className="w-16 pl-4 text-12 font-normal text-muted">Data</TableHead>
-                                                <TableHead className="text-12 font-normal text-muted">Lançamento</TableHead>
-                                                <TableHead className="text-12 font-normal text-muted">Categoria › Sub</TableHead>
-                                                <TableHead className="text-right text-12 font-normal text-muted">Valor</TableHead>
-                                                <TableHead className="w-12 pr-4">
-                                                    <span className="sr-only">Ações</span>
-                                                </TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {table.lines.map((line) => (
-                                                <InvoiceLineRow
-                                                    key={line.key}
-                                                    line={line}
-                                                    onEdit={() => {
-                                                        setEditing(transactionOf(line));
-                                                    }}
-                                                    onDelete={() => {
-                                                        setDeleting(transactionOf(line));
-                                                    }}
-                                                />
-                                            ))}
-                                        </TableBody>
-                                        <TableFooter className="bg-surface2">
-                                            <TableRow className="border-line hover:bg-transparent">
-                                                <TableCell />
-                                                <TableCell className="font-semibold">Total</TableCell>
-                                                <TableCell />
-                                                <TableCell className="text-right font-semibold tabular-nums">{table.totalText}</TableCell>
-                                                <TableCell />
-                                            </TableRow>
-                                        </TableFooter>
-                                    </Table>
+                                <section aria-label="Lançamentos" className="overflow-clip rounded-10 border border-line bg-surface">
+                                    <MovementGrid
+                                        rows={movementsFromInvoice(table, invoice, { profileId: profile.id, recurrences: recurrences.data ?? [] })}
+                                        columns={COLUMNS}
+                                        actions={actions}
+                                        label="Lançamentos da fatura"
+                                        empty={<p className="px-4 py-6 text-center text-muted">Nenhum lançamento na fatura de {formatMonthShort(cycle.period)}.</p>}
+                                        total={{ label: 'Total', amountText: table.totalText }}
+                                    />
                                 </section>
                             );
                         }}
                     </QueryState>
                 )}
             </QueryState>
-            {editing !== null && (
-                <TransactionDialog
-                    key={editing.id}
-                    transaction={editing}
-                    container={`${detail.data?.creditCardName ?? ''} · fat. ${formatMonthAbbreviation(cycle.period)}`}
-                    recurrence={recurrences.data?.find((recurrence) => recurrence.id === editing.recurrenceId) ?? null}
-                    onClose={() => {
-                        setEditing(null);
-                    }}
-                    onDelete={(transaction) => {
-                        setDeleting(transaction);
-                    }}
-                />
-            )}
-            {deleting !== null && (
-                <DeleteTransactionDialog
-                    transaction={deleting}
-                    accounts={accounts}
-                    creditCards={creditCards.data?.creditCards ?? []}
-                    onClose={() => {
-                        setDeleting(null);
-                    }}
-                    onDeleted={() => {
-                        setEditing((current) => (current?.id === deleting.id ? null : current));
-                    }}
-                />
-            )}
+            {actions.dialogs}
         </>
-    );
-}
-
-/**
- * Uma linha da fatura. O estorno e o pagamento parcial se leem pela etiqueta, pelo sinal e pelo
- * `⇄`, não só pela cor (decisão de interface 7). O clique e o `Enter` editam e o `Del` exclui,
- * como na tabela de Transações; o "⋯" tem as duas ações para quem não usa o teclado.
- *
- * @param props.line Linha montada pelo view-model.
- * @param props.onEdit Abre a edição do lançamento.
- * @param props.onDelete Abre a confirmação de excluir o lançamento.
- * @return A linha da tabela.
- */
-function InvoiceLineRow({ line, onEdit, onDelete }: { readonly line: InvoiceLine; readonly onEdit: () => void; readonly onDelete: () => void }): ReactNode {
-    return (
-        <TableRow
-            tabIndex={0}
-            className="cursor-pointer border-line2 outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset"
-            onClick={onEdit}
-            onKeyDown={(event) => {
-                if (event.target !== event.currentTarget || event.ctrlKey || event.altKey || event.metaKey) {
-                    return;
-                }
-                if (event.key === 'Enter') {
-                    event.preventDefault();
-                    onEdit();
-                } else if (event.key === 'Delete') {
-                    event.preventDefault();
-                    onDelete();
-                }
-            }}
-        >
-            <TableCell className="pl-4 tabular-nums">{line.date}</TableCell>
-            <TableCell className="whitespace-normal">
-                <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                    <span>{line.name}</span>
-                    {line.kind === 'refund' && <StatusTag tone="neutral">estorno</StatusTag>}
-                    {line.kind === 'payment' && <StatusTag tone="neutral">pagamento parcial</StatusTag>}
-                    {line.detail !== null && <span className="text-12 text-muted">{line.detail}</span>}
-                </span>
-            </TableCell>
-            <TableCell className="whitespace-normal text-ink2">{line.category}</TableCell>
-            <TableCell className={cn('text-right font-semibold tabular-nums', line.kind !== 'purchase' && 'text-in')}>{line.amountText}</TableCell>
-            <TableCell
-                className="pr-4 text-right"
-                onClick={(event) => {
-                    // O menu não abre a edição da linha por baixo dele.
-                    event.stopPropagation();
-                }}
-            >
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" aria-label={`Ações de ${line.name}`}>
-                            ⋯
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={onEdit}>Editar</DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem variant="destructive" onSelect={onDelete}>
-                            Excluir…
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </TableCell>
-        </TableRow>
     );
 }
 

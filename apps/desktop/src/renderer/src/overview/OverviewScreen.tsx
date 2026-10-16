@@ -1,25 +1,33 @@
 import {
     balanceEvolutionRows,
+    describeGoalListItem,
     formatMoney,
+    goalInView,
     overviewAccountRows,
     overviewCardRows,
     overviewKpis,
+    overviewNotes,
     topCategories,
     useAccounts,
     useBalanceEvolution,
     useCategoryReport,
     useCreditCards,
+    useGoals,
     useMonthSummary,
+    useNotes,
     type BalanceEvolutionRow,
     type OverviewAccountRow,
     type OverviewCardRow,
     type OverviewKpi,
     type OverviewKpiTone,
+    type OverviewNotes,
 } from '@finance/client';
+import type { GoalProgressResponse } from '@finance/core';
 import type { XAxisTickContentProps } from 'recharts';
 import { Bar, BarChart, ReferenceLine, XAxis, YAxis } from 'recharts';
 import { Link } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
+import { ProgressBar } from '@/components/ProgressBar';
 import { EmptyState, QueryState, Skeleton } from '@/components/states';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -31,7 +39,8 @@ import { useReferenceMonth } from '@/shell/useReferenceMonth';
 
 /**
  * Visão geral (mockup `Main`, D2; desktop-mvp-plan Fase 10): os indicadores do mês, a evolução
- * do saldo, as maiores categorias e os resumos de contas e cartões. Cada bloco tem a própria
+ * do saldo, as maiores categorias, os resumos de contas e cartões e, desde a Fase 13.2 (pedido do
+ * usuário, sem mockup), o resumo das metas e os títulos das anotações. Cada bloco tem a própria
  * consulta e o próprio estado de carregando e de erro, para que um relatório lento não segure a
  * tela inteira; os números e as frases vêm do `overviewView` do `client`, que o celular também
  * usa.
@@ -59,6 +68,14 @@ export function OverviewScreen(): ReactNode {
                 </Panel>
                 <Panel title="Cartões" hint="fatura do mês de referência">
                     <CardsSummary profileId={profile.id} period={period} />
+                </Panel>
+            </div>
+            <div className="grid grid-cols-2 items-start gap-4">
+                <Panel title="Metas" hint="guardado até hoje · alvo">
+                    <GoalsSummary profileId={profile.id} period={period} />
+                </Panel>
+                <Panel title="Anotações" hint="as mais recentes">
+                    <NotesSummary profileId={profile.id} />
                 </Panel>
             </div>
         </>
@@ -440,7 +457,116 @@ function CardsList({ rows }: { readonly rows: readonly OverviewCardRow[] }): Rea
 }
 
 /**
- * Esqueleto das listas de contas e cartões, com a altura de três linhas.
+ * Resumo das metas (desktop-mvp-plan Fase 13.2): nome, percentual, barra e "quanto de quanto ·
+ * prazo", como na lista da tela Metas (`describeGoalListItem`), e cada linha leva ao detalhe.
+ * Regra de negócio (Metas, desktop-mvp-plan Fase 9.3): o guardado soma as vinculadas pagas até
+ * hoje, o mesmo número da tela Metas. Só as **ativas** entram (Fase 13.4, pedido do usuário) —
+ * as mesmas da visualização padrão da tela Metas (`goalInView`): a atingida já não pede
+ * acompanhamento, e a arquivada foi tirada de vista.
+ *
+ * @param props.profileId Perfil ativo.
+ * @param props.period Mês de referência, de que o ritmo das metas depende.
+ * @return A lista de metas, ou o aviso de que o perfil não tem meta.
+ */
+function GoalsSummary({ profileId, period }: MonthScope): ReactNode {
+    const goals = useGoals({ profileId, period });
+    return (
+        <QueryState query={goals} loading={<PanelRowsSkeleton />}>
+            {(all) => {
+                const list = all.filter((goal) => goalInView(goal, 'active'));
+                return list.length === 0 ? (
+                    <div className="px-5 py-4">
+                        {all.length === 0 ? (
+                            <EmptyState title="Nenhuma meta" description="Crie uma meta para acompanhar quanto já guardou." action={<Link to="/goals">Ir para Metas</Link>} />
+                        ) : (
+                            <EmptyState title="Nenhuma meta ativa" description="As atingidas e as arquivadas estão na tela Metas." action={<Link to="/goals">Ir para Metas</Link>} />
+                        )}
+                    </div>
+                ) : (
+                    <ul aria-label="Metas">
+                        {list.map((goal) => (
+                            <li key={goal.id} className="border-t border-line2 first:border-t-0">
+                                <GoalRow goal={goal} />
+                            </li>
+                        ))}
+                    </ul>
+                );
+            }}
+        </QueryState>
+    );
+}
+
+/**
+ * @param props.goal Meta com o progresso.
+ * @return A linha que abre a meta na tela Metas.
+ */
+function GoalRow({ goal }: { readonly goal: GoalProgressResponse }): ReactNode {
+    const item = describeGoalListItem(goal);
+    return (
+        <Link to="/goals" search={{ goal: goal.id }} className="flex flex-col gap-2 px-5 py-3 text-ink hover:bg-surface2">
+            <span className="flex items-center justify-between gap-3 text-14">
+                <span className="truncate">{goal.name}</span>
+                <span className="font-semibold tabular-nums">{item.percentText}</span>
+            </span>
+            <ProgressBar ratio={item.barRatio} className="h-1.5 rounded-3" />
+            <span className="text-12 text-muted tabular-nums">{item.summary}</span>
+        </Link>
+    );
+}
+
+/**
+ * Títulos das anotações (desktop-mvp-plan Fase 13.2): só o nome de cada uma, e o clique abre a
+ * anotação no editor de Cadastros › Anotações. Num perfil com muitas, mostra as mais recentes e
+ * leva às outras pelo "Ver todas".
+ *
+ * @param props.profileId Perfil ativo.
+ * @return A lista de títulos, ou o aviso de que o perfil não tem anotação.
+ */
+function NotesSummary({ profileId }: { readonly profileId: string }): ReactNode {
+    const notes = useNotes({ profileId });
+    return (
+        <QueryState query={notes} loading={<PanelRowsSkeleton />}>
+            {(list) =>
+                list.length === 0 ? (
+                    <div className="px-5 py-4">
+                        <EmptyState title="Nenhuma anotação" description="Anote o que não cabe num lançamento." action={<Link to="/registry" search={{ kind: 'notes' }}>Ir para Anotações</Link>} />
+                    </div>
+                ) : (
+                    <NotesList notes={overviewNotes(list)} total={list.length} />
+                )
+            }
+        </QueryState>
+    );
+}
+
+/**
+ * @param props.notes Títulos mostrados e quantos ficaram de fora.
+ * @param props.total Quantas anotações o perfil tem, para o "Ver todas".
+ * @return A lista de títulos.
+ */
+function NotesList({ notes, total }: { readonly notes: OverviewNotes; readonly total: number }): ReactNode {
+    return (
+        <>
+            <ul aria-label="Anotações">
+                {notes.rows.map((row) => (
+                    <li key={row.noteId} className="border-t border-line2 first:border-t-0">
+                        <Link to="/registry" search={{ kind: 'notes', note: row.noteId }} className={SUMMARY_ROW}>
+                            <span className="truncate text-14">{row.title}</span>
+                        </Link>
+                    </li>
+                ))}
+            </ul>
+            {notes.hiddenCount > 0 && (
+                <Link to="/registry" search={{ kind: 'notes' }} className="block border-t border-line2 px-5 py-2.5 text-13 text-accent hover:bg-surface2">
+                    Ver todas as {total} anotações
+                </Link>
+            )}
+        </>
+    );
+}
+
+/**
+ * Esqueleto das listas dos blocos (contas, cartões, metas, anotações), com a altura de três linhas.
  *
  * @return O esqueleto marcado como ocupado.
  */

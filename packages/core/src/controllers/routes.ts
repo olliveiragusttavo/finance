@@ -127,6 +127,8 @@ export interface CoreRoutes {
     'goals.contributions': { input: z.input<typeof goalIdRequest>; output: readonly GoalContributionResponse[] };
     'goals.create': { input: z.input<typeof createGoalRequest>; output: GoalResponse };
     'goals.update': { input: z.input<typeof updateGoalRequest>; output: GoalResponse };
+    'goals.archive': { input: z.input<typeof goalIdRequest>; output: GoalResponse };
+    'goals.unarchive': { input: z.input<typeof goalIdRequest>; output: GoalResponse };
     'goals.delete': { input: z.input<typeof goalIdRequest>; output: null };
     'transactions.create': { input: z.input<typeof createTransactionRequest>; output: TransactionResponse };
     'transactions.update': { input: z.input<typeof updateTransactionRequest>; output: TransactionResponse };

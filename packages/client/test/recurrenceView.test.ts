@@ -96,7 +96,7 @@ describe('diálogo de revisão (database-design §4.12)', () => {
         }
         const plan = await world.ok('recurrences.planUpdate', {
             id: october.id, type: 'expense', source: { kind: 'account', accountId: october.container.kind === 'statement' ? october.container.accountId : '' },
-            subCategoryId: october.subCategoryId, destinationAccountId: null, partnerId: null, goalId: null, name: 'Aluguel', description: null,
+            subCategoryId: october.subCategoryId, destinationAccountId: null, partnerId: null, goalId: null, goalWithdrawal: false, name: 'Aluguel', description: null,
             value: 900, charges: 0, originCurrency: null, conversionRate: 1, dueDate: '2026-10-05', paymentDate: null, tagIds: [],
             scope: 'future', repeat: { kind: 'installments', frequency: 'monthly', installments: 3, valueType: 'total' },
         });
@@ -132,7 +132,7 @@ describe('diálogo de revisão (database-design §4.12)', () => {
 
         const purchase = await world.ok('transactions.create', { ...input, name: 'Notebook', value: 100, repeat: { kind: 'installments', frequency: 'monthly', installments: 6, valueType: 'perInstallment' } });
         const plan = await world.ok('recurrences.planUpdate', {
-            id: purchase.id, type: 'expense', source: { kind: 'account', accountId: s.checkingId }, subCategoryId: s.subCategoryId, destinationAccountId: null, partnerId: null, goalId: null,
+            id: purchase.id, type: 'expense', source: { kind: 'account', accountId: s.checkingId }, subCategoryId: s.subCategoryId, destinationAccountId: null, partnerId: null, goalId: null, goalWithdrawal: false,
             name: 'Notebook', description: null, value: 100, charges: 0, originCurrency: null, conversionRate: 1, dueDate: '2026-10-12', paymentDate: null, tagIds: [],
             scope: 'future', repeat: { kind: 'installments', frequency: 'monthly', installments: 4, valueType: 'perInstallment' },
         });

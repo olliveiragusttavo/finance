@@ -84,10 +84,12 @@ export interface ShortcutGuideGroup {
 
 /**
  * Atalhos de teclado que o app tem hoje, agrupados por onde valem. A lista do mockup tem só os
- * globais, mas os da tabela de Transações e da fatura são os que mais poupam cliques, e sem a
- * lista ninguém os descobre. O `Ctrl K` do mockup fica de fora enquanto a busca está pendente
- * (Fase 4): listar um atalho que não faz nada seria pior que não listar. O teste confere os
- * globais contra o `shortcutFor`, para a lista não se descolar do teclado.
+ * globais, mas os das listas de lançamentos são os que mais poupam cliques, e sem a lista ninguém
+ * os descobre. Desde a Fase 13.2 as listas de Transações, do extrato de Contas e da fatura de
+ * Cartões são a mesma, com os mesmos atalhos, então são um grupo só. O `Ctrl K` do mockup fica de
+ * fora enquanto a busca está pendente (Fase 4): listar um atalho que não faz nada seria pior que
+ * não listar. O teste confere os globais contra o `shortcutFor`, para a lista não se descolar do
+ * teclado.
  */
 export const SHORTCUT_GUIDE: readonly ShortcutGuideGroup[] = [
     {
@@ -98,19 +100,12 @@ export const SHORTCUT_GUIDE: readonly ShortcutGuideGroup[] = [
         ],
     },
     {
-        title: 'Tabela de Transações',
+        title: 'Listas de lançamentos (Transações, extrato e fatura)',
         entries: [
             { keys: ['↑', '↓'], label: 'Linha anterior / seguinte' },
             { keys: ['Enter'], label: 'Editar o lançamento ou abrir a fatura' },
-            { keys: ['P'], label: 'Marcar ou desmarcar como pago' },
+            { keys: ['P'], label: 'Marcar ou desmarcar como pago (ou clicar na situação)' },
             { keys: ['Del'], label: 'Excluir o lançamento' },
-        ],
-    },
-    {
-        title: 'Fatura em Cartões',
-        entries: [
-            { keys: ['Enter'], label: 'Editar a compra' },
-            { keys: ['Del'], label: 'Excluir a compra' },
         ],
     },
 ];

@@ -29,7 +29,9 @@ export * from './viewModels/tagReport.ts';
 export * from './viewModels/deletionImpact.ts';
 export * from './viewModels/statementTable.ts';
 export * from './viewModels/invoiceView.ts';
+export * from './viewModels/movementList.ts';
 export * from './viewModels/goalView.ts';
+export * from './viewModels/listViews.ts';
 export * from './viewModels/overviewView.ts';
 // Importação de transações (import-design): leitura do arquivo, ligação de colunas e revisão.
 export * from './import/csv.ts';

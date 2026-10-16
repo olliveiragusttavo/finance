@@ -344,7 +344,9 @@ fazer do perfil a raiz dá essa separação sem multi-tenancy de verdade. Catego
 e tags, portanto, **não** são um vocabulário global compartilhado — um perfil pessoal e
 um empresarial mantêm cada um o seu. A única referência que atravessa essa fronteira é a
 conta de destino de uma **transferência**
-([§4.13](#413-transactions), "Transferência entre perfis").
+([§4.13](#413-transactions), "Transferência entre perfis"). Mover uma transação para outro
+perfil não cria referência entre perfis: ela troca todas as suas referências pelas do
+destino ([§4.13](#413-transactions), "Mover para outro perfil").
 
 Nem toda chave estrangeira cascateia, porém. A ação `ON DELETE` é escolhida pelo que o
 relacionamento *significa*, e é registrada por chave na [§4](#4-tabelas):
@@ -947,10 +949,14 @@ diferenciar maiúsculas de minúsculas.
 
 ### 4.11 goals
 
-Uma meta de economia pertencente a um perfil — um valor que se quer guardar —, alimentada
-pelas transações vinculadas a ela (`transactions.goal_id`). O rascunho original previa também
-metas de gasto; a implementação (desktop-mvp-plan Fase 9.3) ficou só com a de economia, e o
-schema não tem coluna de tipo.
+Uma meta de economia pertencente a um perfil — um valor que se quer guardar. O rascunho original
+previa também metas de gasto; a implementação (desktop-mvp-plan Fase 9.3) ficou só com a de
+economia. Desde a Fase 13.3 (migration `0005`), a coluna `kind` diz de onde vem o progresso:
+
+- **Por lançamentos** (`kind = 1`, o padrão): alimentada pelas transações vinculadas a ela
+  (`transactions.goal_id`).
+- **Vinculada a uma conta** (`kind = 2`): o progresso é o saldo de uma conta de investimento
+  (`account_id`), e nenhuma transação se vincula a ela.
 
 #### Regras de negócio
 
@@ -972,6 +978,44 @@ Decididas na Fase 9.3 do desktop-mvp-plan, a pedido do usuário:
   mesma unidade de trabalho, porque o `SET NULL` não dispara num `UPDATE`
   ([§3.6](#36-colunas-presentes-em-todas-as-tabelas)); as transações continuam.
 
+Decididas na Fase 13.3, a pedido do usuário:
+
+- **Retirada.** A transação vinculada tem `goal_withdrawal`: marcada, ela **retira** dinheiro
+  da meta — um imprevisto pago com a reserva — e o valor entra com o sinal invertido no
+  progresso. **Só a transferência** pode retirar (`goal-withdrawal-requires-transfer`); a receita
+  sempre guarda. Sem meta, a marca é descartada. O modelo da recorrência guarda a mesma marca,
+  copiada para as ocorrências ([§4.12](#412-recurrences)).
+- **Meta vinculada a uma conta.** O guardado é o **saldo consolidado de hoje** da conta. Para o
+  ritmo, a média e a projeção seguirem a mesma regra da meta por lançamentos, cada mês do
+  extrato da conta entra como a variação do consolidado, no último dia do mês (ou hoje, no mês
+  corrente), e o saldo inicial da conta como o que já estava guardado antes — fora da média
+  mensal, porque não foi guardado em mês nenhum. Um mês de referência passado mostra o saldo com
+  que a conta fechou. Meses depois do atual ficam fora.
+- Só **contas de investimento** do perfil são vinculadas (`goal-account-not-investment`), e uma
+  conta pode servir a mais de uma meta. A meta vinculada a conta não recebe lançamentos
+  (`goal-funded-by-account`) e não aparece no campo "Meta" do lançamento.
+- A conta de investimento que é o saldo de uma meta, ativa ou arquivada, **não muda de tipo**
+  (`account-type-funds-goal`): a meta passaria a medir o dinheiro do dia a dia como guardado e
+  ficaria impossível de editar sem trocar a conta. A edição da conta recusa e avisa; para mudar
+  o tipo, troca-se antes o tipo da meta. Desfazer o vínculo em silêncio foi descartado.
+- O tipo **se troca na edição**. Trocar para a meta vinculada a conta desfaz os vínculos das
+  transações e dos modelos de recorrência, que continuam existindo; o formulário avisa quantos
+  antes de salvar. Trocar de volta começa sem vínculo nenhum.
+- **Excluir a conta** vinculada exclui a meta junto, na exclusão em cadeia, e o alerta a conta
+  (desktop-mvp-plan §5.1). Desativar a conta não muda nada: o saldo continua existindo.
+
+Decididas na Fase 13.4, a pedido do usuário:
+
+- **Arquivar** (`archived_at`, migration `0006`) tira a meta de vista sem apagar nada: a tela
+  Metas mostra por padrão só as ativas, e a arquivada some das escolhas do campo "Meta" de
+  lançamentos novos (`goal-archived`), como a conta desativada. O lançamento que já estava
+  vinculado a ela continua editável sem perder o vínculo, e o progresso continua calculado.
+  Reativar desfaz. Editar a meta não desarquiva.
+- **Visualizações** da tela Metas: **ativas** (nem atingidas nem arquivadas, o padrão),
+  **atingidas** e **arquivadas**. A meta atingida e arquivada aparece nas duas últimas. "Atingida"
+  é o guardado de hoje igual ou acima do alvo — calculado, como o resto do progresso.
+- No campo "Meta" do lançamento, as atingidas ficam num **grupo à parte**, depois das ativas.
+
 #### O progresso é calculado, nunca armazenado
 
 `goals` tem um alvo (`value`, `target_date`), mas nenhuma coluna de progresso. Quanto já
@@ -991,20 +1035,25 @@ necessária e nenhum desvio é possível.
 |---|---|---|---|
 | `profile_id` | TEXT | NN, FK | |
 | `name` | TEXT | NN, `CHECK (length(name) <= 45)` | |
+| `kind` | INTEGER | NN, default 1, `CHECK (kind IN (1, 2))` | 1 = por lançamentos, 2 = vinculada a conta (migration `0005`) |
+| `account_id` | TEXT | null, FK | Conta de investimento da meta vinculada; nula na por lançamentos — o arco é garantido na aplicação ([§3.10](#310-o-que-o-banco-garante-e-o-que-a-aplicação-garante)) |
 | `value` | REAL | NN | money — valor alvo |
 | `target_date` | TEXT | null, date | Renomeada de `date` ([§3.4](#34-nomenclatura)). Anulável: uma meta sem prazo (uma reserva de emergência) não tem data limite |
+| `archived_at` | TEXT | null, timestamp | Nula = ativa; preenchida = instante do primeiro arquivamento (migration `0006`) |
 
 #### Chaves estrangeiras
 
 | FK | Destino | Nulo? | On delete | Por quê |
 |---|---|---|---|---|
 | `profile_id` | profiles | NN | `CASCADE` | Propriedade |
+| `account_id` | accounts | null | `CASCADE` | O progresso é o saldo da conta: sem ela, a meta não mede nada. O soft delete da conta exclui a meta pela exclusão em cadeia |
 
 #### Índices
 
 | Índice | Colunas | Tipo |
 |---|---|---|
 | `idx_goals_profile_id` | `(profile_id)` | simples |
+| `idx_goals_account_id` | `(account_id)` | simples |
 
 ### 4.12 recurrences
 
@@ -1027,6 +1076,18 @@ perfil**: uma regra cujas ocorrências tivessem todas sofrido soft delete ficari
 inalcançável, um hard delete de perfil deixaria todas as regras órfãs, e ocorrências
 ainda não materializadas precisam de um perfil onde ser emitidas, independentemente de
 qualquer linha existente.
+
+Regra de negócio (Recorrências): **mover uma ocorrência para outro perfil leva a série
+inteira** — a regra e todas as ocorrências vivas —, sempre no escopo "todas"; o Service recusa
+"somente esta" e "esta e as futuras" (`recurrence-move-requires-all`). A regra é do perfil e
+continua emitindo nele: tirar uma ocorrência sozinha deixaria a série dividida entre dois
+perfis, e o complemento seguiria emitindo no antigo. Na mudança, as referências que pertencem
+ao perfil (origem, destino, subcategoria, sócio, meta e tags) vão da editada para todas as
+outras ocorrências e para o modelo — inclusive as que a editada não mudou, porque uma ocorrência
+com subcategoria ou tags próprias, dadas em "somente esta", continuaria apontando para o perfil
+antigo. A regra é revista, e não recriada: o id, o calendário e a marca d'água continuam, e
+`profile_id` é gravado de novo. Mudar de perfil e mudar a série na mesma edição não cabe — uma
+vale para "todas" e a outra para "esta e as futuras".
 
 #### Uma regra materializa uma transação real por ocorrência
 
@@ -1250,9 +1311,12 @@ de finanças, significa números históricos errados.
 - Qualquer escopo que toque uma ocorrência passada altera um mês com saldo consolidado,
   então o recálculo roda de novo para cada mês afetado.
 - **Ocorrências já pagas não são protegidas.** O app **confirma antes de executar** toda
-  criação, edição e exclusão de uma transação recorrente num diálogo de revisão, que diz o
-  que realmente está em jogo — as ocorrências que serão excluídas, criadas e alteradas,
-  quais estão pagas, os saldos de quais meses vão mudar — em vez de um aviso genérico. O
+  criação de uma série e toda edição e exclusão em "esta e as futuras" ou "todas" num
+  diálogo de revisão, que diz o que realmente está em jogo — as ocorrências que serão
+  excluídas, criadas e alteradas, quais estão pagas, os saldos de quais meses vão mudar — em
+  vez de um aviso genérico. "Somente esta" grava direto da escolha do escopo
+  (desktop-mvp-plan Fase 13.2): mexe numa linha só, a que o usuário está vendo, e a revisão
+  só repetia o que ele acabou de escolher. O
   Service calcula essa lista executando a própria operação numa transação desfeita
   (`UnitOfWork.rehearse`), para que ela nunca discorde do que é gravado. Valores passados neste sistema são mutáveis por design: uma
   ferramenta de finanças pessoais muitas vezes está *corrigindo* o histórico, e não
@@ -1422,6 +1486,21 @@ perfil o dinheiro de fato saiu ou entrou ([reports-design.md](reports-design.md)
 Excluir a conta de destino apaga a transferência junto, como numa transferência interna, e
 recalcula a conta de origem no outro perfil.
 
+#### Mover para outro perfil
+
+Regra de negócio (Mover para outro perfil): a edição pode levar a transação para **outro
+perfil** (`profileId` em `transactions.update`; nulo ou igual ao atual mantém o perfil). A
+transação não tem `profile_id` próprio — o perfil vem do contêiner —, então mover é trocar a
+conta ou o cartão por um do perfil de destino, e todas as referências do conteúdo passam a ser
+conferidas contra ele no `TransactionComposer`: subcategoria, tags, meta, sócio e conta de
+destino precisam ser de lá ([§3.8](#38-o-perfil-é-a-raiz-do-tenant-e-as-chaves-estrangeiras-seguem-o-relacionamento)),
+com a exceção de sempre da transferência entre perfis. Os dois perfis precisam ter a **mesma
+moeda** (`transaction-move-currency-mismatch`), pela mesma razão da transferência entre perfis:
+o valor gravado não é convertido. O recálculo do estado antigo e do novo cobre as contas dos
+dois perfis numa só unidade de trabalho. A transferência recebida de outro perfil continua só
+para leitura no destino: quem a move é o perfil de origem. Numa ocorrência de série, a série
+inteira vai junto ([§4.12](#412-recurrences), "Pertence diretamente ao perfil").
+
 #### O tipo é fixo desde a criação
 
 Nenhuma edição troca o `type` de uma transação, em nenhum escopo de série: uma despesa
@@ -1444,7 +1523,7 @@ está presente.
 #### Os demais vínculos
 
 `goal_id` — uma receita ou transferência pode contribuir para uma meta ou para nenhuma
-([§4.11](#411-goals)). `recurrence_id` — preenchido apenas em transações emitidas por uma
+([§4.11](#411-goals)); `goal_withdrawal` marca a transferência que retira dinheiro da meta. `recurrence_id` — preenchido apenas em transações emitidas por uma
 regra ([§4.12](#412-recurrences)). Nenhum dos dois restringe o outro; a meta só restringe
 o tipo da transação. `paid` e `payment_date` precisam concordar, o que é uma regra da aplicação.
 

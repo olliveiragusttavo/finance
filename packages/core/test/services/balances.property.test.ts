@@ -136,6 +136,7 @@ async function apply(s: Scenario, operation: Operation): Promise<void> {
                 destinationAccountId: t.destinationAccountId,
                 partnerId: t.partnerId,
                 goalId: t.goalId,
+                goalWithdrawal: t.goalWithdrawal,
                 description: t.description,
                 originCurrency: t.originCurrency,
                 conversionRate: t.conversionRate,

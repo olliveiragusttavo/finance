@@ -13,6 +13,7 @@ const NOTHING_FROM_ACCOUNT: AccountDeletionImpactResponse = {
     cardTransactions: 0,
     incomingTransfers: 0,
     recurrences: 0,
+    goals: 0,
     affectedAccounts: [],
 };
 
@@ -20,6 +21,10 @@ const NOTHING_FROM_ACCOUNT: AccountDeletionImpactResponse = {
 const NOTHING_FROM_CARD: CreditCardDeletionImpactResponse = { creditCardId: 'c', invoices: 0, transactions: 0, partialPayments: 0, recurrences: 0, affectedAccounts: [] };
 
 describe('alerta de exclusão em cadeia (desktop-mvp-plan §5.1)', () => {
+    it('conta: a meta vinculada ao saldo dela sai junto (Fase 13.3)', () => {
+        expect(describeAccountDeletion({ ...NOTHING_FROM_ACCOUNT, goals: 2 }).items).toEqual(['2 metas vinculadas ao saldo dela']);
+    });
+
     it('conta: cada item com a contagem no número certo, e as outras contas pelo nome', () => {
         const warning = describeAccountDeletion({
             ...NOTHING_FROM_ACCOUNT,

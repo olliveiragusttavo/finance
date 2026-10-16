@@ -1,5 +1,5 @@
 import { formatMoneyForInput, parseMoneyInput, type RecurrenceFrequency, type SourceOption } from '@finance/client';
-import { feedsGoal, movesToDestination, type CoreInput, type RecurrenceResponse, type TransactionResponse, type TransactionType } from '@finance/core';
+import { feedsGoal, movesToDestination, withdrawsFromGoal, type CoreInput, type RecurrenceResponse, type TransactionResponse, type TransactionType } from '@finance/core';
 import { createTransactionRequest, updateTransactionRequest } from '@finance/core/requests';
 import type { z } from 'zod';
 import { periodOfDate } from '../cards/invoiceForms.ts';
@@ -14,6 +14,11 @@ import { collectIssues, moneyInputMessage, type FieldTarget, type FormErrors } f
 
 /** Valores do formulário, como estão nos campos. */
 export interface TransactionFormValues {
+    /**
+     * Perfil do lançamento: o ativo num novo, o dele na edição. Trocá-lo na edição move o
+     * lançamento para o outro perfil (database-design §4.13, "Mover para outro perfil").
+     */
+    readonly profileId: string;
     readonly type: TransactionType;
     /** Valor digitado em pt-BR, sem sinal; o sinal vem de `inverted`. */
     readonly amount: string;
@@ -37,6 +42,11 @@ export interface TransactionFormValues {
     readonly tagIds: readonly string[];
     /** Meta que o lançamento alimenta; vazio sem meta. Só vale em receita e transferência (`feedsGoal`). */
     readonly goalId: string;
+    /**
+     * "Retirar" no lugar de "Guardar": a transferência tira dinheiro da meta, que desconta do
+     * progresso (desktop-mvp-plan Fase 13.3). Só vale numa transferência com meta (`withdrawsFromGoal`).
+     */
+    readonly goalWithdrawal: boolean;
     /** "Repetir" (mockup `MobileParcelar`): não repetir, parcelado ou fixo. */
     readonly repeatKind: RepeatKind;
     readonly frequency: RecurrenceFrequency;
@@ -56,6 +66,7 @@ export type TransactionField = keyof TransactionFormValues;
 
 /** Campos que podem ter erro, na ordem do painel; o teste confere que o mapa de caminhos usa só eles. */
 export const TRANSACTION_FIELDS = [
+    'profileId',
     'type',
     'amount',
     'name',
@@ -84,9 +95,12 @@ export type TransactionSubmission =
 /** Resultado da leitura do formulário: a chamada a fazer, ou os erros por campo. */
 export type TransactionFormResult = { readonly ok: true; readonly submission: TransactionSubmission } | { readonly ok: false; readonly errors: FormErrors<TransactionErrorField> };
 
-/** Para quem o formulário grava: um lançamento novo no perfil, ou a edição de um existente. */
+/**
+ * O que o formulário grava: um lançamento novo, com a moeda dos valores digitados, ou a edição de
+ * um existente. O perfil não está aqui, e sim nos valores, porque o usuário o escolhe no formulário.
+ */
 export type TransactionFormTarget =
-    | { readonly mode: 'create'; readonly profileId: string; readonly currency: string }
+    | { readonly mode: 'create'; readonly currency: string }
     | { readonly mode: 'update'; readonly transaction: TransactionResponse; readonly recurrence: RecurrenceResponse | null };
 
 /**
@@ -135,10 +149,12 @@ export function parseSourceKey(key: string): ParsedSource | null {
  *
  * @param today Hoje, `YYYY-MM-DD`.
  * @param source Origem sugerida (`sourceKey`), ou vazio.
+ * @param profileId Perfil ativo, onde o lançamento cai se o usuário não escolher outro.
  * @return Os valores iniciais.
  */
-export function newTransactionForm(today: string, source: string): TransactionFormValues {
+export function newTransactionForm(today: string, source: string, profileId: string): TransactionFormValues {
     return {
+        profileId,
         type: 'expense',
         amount: '',
         inverted: false,
@@ -154,6 +170,7 @@ export function newTransactionForm(today: string, source: string): TransactionFo
         subCategoryId: '',
         tagIds: [],
         goalId: '',
+        goalWithdrawal: false,
         repeatKind: 'none',
         frequency: 'monthly',
         installments: '12',
@@ -177,6 +194,7 @@ export function newTransactionForm(today: string, source: string): TransactionFo
 export function transactionFormFrom(transaction: TransactionResponse, today: string, recurrence: RecurrenceResponse | null = null): TransactionFormValues {
     const { container, value } = transaction;
     return {
+        profileId: transaction.profileId,
         type: transaction.type,
         amount: formatMoneyForInput({ amount: Math.abs(value.amount), currency: value.currency }),
         inverted: value.amount < 0,
@@ -192,6 +210,7 @@ export function transactionFormFrom(transaction: TransactionResponse, today: str
         subCategoryId: transaction.subCategoryId,
         tagIds: transaction.tagIds,
         goalId: transaction.goalId ?? '',
+        goalWithdrawal: transaction.goalWithdrawal,
         repeatKind: recurrence?.kind ?? 'none',
         frequency: recurrence?.frequency ?? 'monthly',
         installments: recurrence === null ? '12' : recurrence.installments === null ? '' : String(recurrence.installments),
@@ -241,6 +260,7 @@ const PLACEHOLDER_DATE = '2000-01-01';
 
 /** Campo da tela de cada caminho das rotas de lançamento. */
 const FIELD_BY_PATH: Readonly<Record<string, FieldTarget<TransactionErrorField>>> = {
+    profileId: { field: 'profileId', label: 'o perfil', kind: 'choice' },
     type: { field: 'type', label: 'o tipo', kind: 'choice' },
     value: { field: 'amount', label: 'o valor', kind: 'money' },
     name: { field: 'name', label: 'o nome', kind: 'name' },
@@ -270,14 +290,15 @@ const INSTALLMENTS_RANGE = { min: 2, max: 360 } as const;
  * Regra de negócio (Transferência): transferência e investimento exigem a conta de destino, e só
  * eles têm uma — o destino escolhido antes de trocar o tipo não vai junto.
  * Regra de negócio (Metas, desktop-mvp-plan Fase 9.3): só receita e transferência alimentam uma
- * meta — a meta escolhida antes de trocar para outro tipo também não vai junto.
+ * meta — a meta escolhida antes de trocar para outro tipo também não vai junto. Só a
+ * transferência pode retirar dinheiro dela (Fase 13.3).
  * Regra de negócio (Cartão, database-design §4.7): sem fatura escolhida vale a sugerida pela data
  * da compra; na edição no mesmo cartão a fatura atual vai explícita, porque a sugestão nunca é
  * recalculada depois.
  * Regra da tela: o valor é maior que zero — um lançamento de zero não move dinheiro nenhum.
  *
  * @param values Valores dos campos.
- * @param target Perfil do lançamento novo, ou o lançamento editado (que fornece o que o painel
+ * @param target Moeda do lançamento novo, ou o lançamento editado (que fornece o que o painel
  * não edita: sócio e moeda de origem).
  * @return A chamada a fazer, ou a mensagem de cada campo com problema.
  * @throws {Error} Quando o schema aponta um caminho que o formulário não tem.
@@ -338,16 +359,22 @@ export function readTransactionForm(values: TransactionFormValues, target: Trans
         paymentDate: paid ? (values.paymentDate.trim() === '' ? PLACEHOLDER_DATE : values.paymentDate) : null,
         tagIds: [...values.tagIds],
         goalId: feedsGoal(values.type) && values.goalId !== '' ? values.goalId : null,
+        // Regra de negócio (Metas, Fase 13.3): só a transferência com meta retira; trocar para
+        // receita, ou tirar a meta, descarta a retirada, como o destino de um tipo sem destino.
+        goalWithdrawal: withdrawsFromGoal(values.type) && values.goalId !== '' && values.goalWithdrawal,
     };
     const submission: TransactionSubmission =
         target.mode === 'create'
-            ? { route: 'transactions.create', input: { profileId: target.profileId, ...content, repeat } }
+            ? { route: 'transactions.create', input: { profileId: values.profileId, ...content, repeat } }
             : {
                   route: 'transactions.update',
                   input: {
                       id: target.transaction.id,
+                      // Só vai quando muda: o mesmo perfil não é mudança, e `null` deixa claro que nada se move.
+                      profileId: movesProfile(values, target.transaction) ? values.profileId : null,
                       ...content,
-                      partnerId: target.transaction.partnerId,
+                      // O sócio é do perfil (database-design §4.2): não acompanha a mudança de perfil.
+                      partnerId: movesProfile(values, target.transaction) ? null : target.transaction.partnerId,
                       originCurrency: target.transaction.originCurrency,
                       conversionRate: target.transaction.conversionRate,
                       repeat,
@@ -414,4 +441,17 @@ export function cashPeriodOf(values: TransactionFormValues, suggestedInvoice: st
         return values.invoicePeriod === '' ? suggestedInvoice : values.invoicePeriod;
     }
     return periodOfDate(values.paid ? values.paymentDate : values.dueDate);
+}
+
+/**
+ * Se o formulário leva o lançamento editado para outro perfil.
+ * Regra de negócio (Recorrências, database-design §4.12): numa ocorrência, mudar de perfil leva a
+ * série inteira — o salvar pula a escolha do escopo e revisa "todas".
+ *
+ * @param values Valores dos campos.
+ * @param transaction Lançamento editado.
+ * @return `true` quando o perfil escolhido não é o do lançamento.
+ */
+export function movesProfile(values: Pick<TransactionFormValues, 'profileId'>, transaction: Pick<TransactionResponse, 'profileId'>): boolean {
+    return values.profileId !== transaction.profileId;
 }

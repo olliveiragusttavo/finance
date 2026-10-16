@@ -14,6 +14,16 @@ export interface GoalWithProgress {
     readonly linkedCount: number;
 }
 
+/**
+ * Meta como opção do campo "Meta" do lançamento: o formulário agrupa as atingidas à parte e só
+ * oferece a arquivada ao lançamento que já está vinculado a ela (desktop-mvp-plan Fase 13.4).
+ */
+export interface GoalOptionView {
+    readonly goal: Goal;
+    /** Se o guardado até hoje alcançou o alvo. */
+    readonly reached: boolean;
+}
+
 /** Transação que conta no progresso, inteira, com o dia em que passou a contar. */
 export interface GoalContributionView {
     readonly transaction: Transaction;

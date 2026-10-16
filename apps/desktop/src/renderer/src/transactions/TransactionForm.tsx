@@ -3,6 +3,7 @@ import {
     formatDayMonth,
     formatMonthShort,
     formatTransactionType,
+    goalChoices,
     invoiceChoices,
     invoiceReopenWarning,
     parseMoneyInput,
@@ -26,6 +27,7 @@ import {
 import {
     feedsGoal,
     movesToDestination,
+    withdrawsFromGoal,
     type AccountInPeriodResponse,
     type CategoryBranchResponse,
     type CreditCardInPeriodResponse,
@@ -44,7 +46,8 @@ import { Field, fieldAria, toFieldErrors } from '@/components/form';
 import { Button } from '@/components/ui/button';
 import { DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox, type ComboboxOption } from '@/components/Combobox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/cn';
 import { reportRejection } from '@/registry/coreErrorField';
 import { StatusTag } from '@/registry/registryUi';
@@ -60,6 +63,7 @@ import {
     changesSeries,
     destinationKey,
     formChangesSeries,
+    movesProfile,
     newTransactionForm,
     parseSourceKey,
     readTransactionForm,
@@ -74,6 +78,7 @@ import {
 
 /** Campo do formulário de cada campo que o núcleo aponta numa recusa. */
 const FIELD_BY_CORE_FIELD: Readonly<Partial<Record<string, TransactionErrorField>>> = {
+    profileId: 'profileId',
     accountId: 'source',
     creditCardId: 'source',
     invoicePeriod: 'invoicePeriod',
@@ -81,6 +86,8 @@ const FIELD_BY_CORE_FIELD: Readonly<Partial<Record<string, TransactionErrorField
     subCategoryId: 'subCategoryId',
     tagIds: 'tagIds',
     goalId: 'goalId',
+    // A retirada é parte da escolha da meta: o erro dela aparece no campo "Meta".
+    goalWithdrawal: 'goalId',
     dueDate: 'dueDate',
     paymentDate: 'paymentDate',
     name: 'name',
@@ -88,8 +95,8 @@ const FIELD_BY_CORE_FIELD: Readonly<Partial<Record<string, TransactionErrorField
 };
 
 /**
- * Valor do item "Sem meta" no `Select`, que não aceita item de valor vazio; o campo do
- * formulário continua vazio sem meta.
+ * Valor do item "Sem meta" no seletor, que distingue a escolha de "nenhuma meta" do campo ainda
+ * sem escolha; o campo do formulário continua vazio sem meta.
  */
 const NO_GOAL = 'none';
 
@@ -130,18 +137,15 @@ type PendingSave =
  */
 export function TransactionForm(props: TransactionFormProps): ReactNode {
     const { profile } = useActiveProfile();
-    const { period } = useReferenceMonth();
-    const accounts = useAccounts({ profileId: profile.id, period });
-    const otherProfileAccounts = useTransferTargets({ profileId: profile.id });
-    const creditCards = useCreditCards({ profileId: profile.id, period });
-    const categories = useCategoryTree({ profileId: profile.id });
-    const tags = useTags({ profileId: profile.id });
-    const goals = useGoalOptions({ profileId: profile.id });
+    const owner = props.transaction?.profileId ?? profile.id;
+    // Os cadastros do perfil do lançamento são esperados aqui e lidos de novo, do cache, dentro do
+    // formulário, que os relê quando o usuário troca de perfil.
+    const registries = useFormRegistries(owner);
     const recurring = props.transaction !== null && props.transaction.recurrenceId !== null;
     // A série só é esperada na edição de uma ocorrência: ela preenche "Repetir" e decide se o
     // salvar pergunta o escopo.
-    const recurrences = useRecurrences(recurring ? { profileId: profile.id } : null);
-    if (accounts.data === undefined || otherProfileAccounts.data === undefined || creditCards.data === undefined || categories.data === undefined || tags.data === undefined || goals.data === undefined || (recurring && recurrences.data === undefined)) {
+    const recurrences = useRecurrences(recurring ? { profileId: owner } : null);
+    if (registries === null || (recurring && recurrences.data === undefined)) {
         return (
             <div role="status" aria-busy="true" aria-label="Carregando o formulário" className="flex flex-col gap-3">
                 <Skeleton className="h-9" />
@@ -152,27 +156,11 @@ export function TransactionForm(props: TransactionFormProps): ReactNode {
             </div>
         );
     }
-    return (
-        <LoadedTransactionForm
-            {...props}
-            profileId={profile.id}
-            currency={profile.currency}
-            accounts={accounts.data.accounts}
-            otherProfileAccounts={otherProfileAccounts.data}
-            creditCards={creditCards.data.creditCards}
-            categories={categories.data}
-            tags={tags.data}
-            goals={goals.data}
-            recurrence={recurrences.data?.find((recurrence) => recurrence.id === props.transaction?.recurrenceId) ?? null}
-        />
-    );
+    return <LoadedTransactionForm {...props} recurrence={recurrences.data?.find((recurrence) => recurrence.id === props.transaction?.recurrenceId) ?? null} />;
 }
 
-/** Cadastros que o formulário oferece nas escolhas. */
+/** Cadastros de um perfil que o formulário oferece nas escolhas. */
 interface FormRegistries {
-    readonly profileId: string;
-    /** Moeda do perfil: a de todo valor digitado (database-design §4.13). */
-    readonly currency: string;
     readonly accounts: readonly AccountInPeriodResponse[];
     /** Contas de outros perfis com a mesma moeda: destinos possíveis de uma transferência. */
     readonly otherProfileAccounts: readonly TransferTargetResponse[];
@@ -181,8 +169,36 @@ interface FormRegistries {
     readonly tags: readonly TagResponse[];
     /** Metas do perfil, para o campo "Meta" das receitas e transferências. */
     readonly goals: readonly GoalOptionResponse[];
-    /** Série do lançamento editado; `null` num lançamento novo ou avulso. */
-    readonly recurrence: RecurrenceResponse | null;
+}
+
+/** Escolhas vazias enquanto os cadastros do perfil recém-escolhido carregam. */
+const NO_REGISTRIES: FormRegistries = { accounts: [], otherProfileAccounts: [], creditCards: [], categories: [], tags: [], goals: [] };
+
+/**
+ * Consulta os cadastros que as escolhas do formulário oferecem.
+ *
+ * @param profileId Perfil cujas contas, cartões, categorias, tags e metas o lançamento usa.
+ * @return Os cadastros, ou `null` enquanto algum ainda carrega.
+ */
+function useFormRegistries(profileId: string): FormRegistries | null {
+    const { period } = useReferenceMonth();
+    const accounts = useAccounts({ profileId, period });
+    const otherProfileAccounts = useTransferTargets({ profileId });
+    const creditCards = useCreditCards({ profileId, period });
+    const categories = useCategoryTree({ profileId });
+    const tags = useTags({ profileId });
+    const goals = useGoalOptions({ profileId });
+    if (accounts.data === undefined || otherProfileAccounts.data === undefined || creditCards.data === undefined || categories.data === undefined || tags.data === undefined || goals.data === undefined) {
+        return null;
+    }
+    return {
+        accounts: accounts.data.accounts,
+        otherProfileAccounts: otherProfileAccounts.data,
+        creditCards: creditCards.data.creditCards,
+        categories: categories.data,
+        tags: tags.data,
+        goals: goals.data,
+    };
 }
 
 /**
@@ -191,14 +207,22 @@ interface FormRegistries {
  * são escolha de lançamento novo; na edição, a origem e o destino atuais continuam.
  * Regra de negócio (Cartão, database-design §4.7): a compra no cartão cai na fatura sugerida pela
  * data, que se pode trocar; escolher uma paga a reabre, e o formulário avisa antes.
+ * Regra de negócio (Mover para outro perfil, database-design §4.13): o campo "Perfil" leva o
+ * lançamento para outro perfil da mesma moeda; conta, cartão, categoria, tags e meta passam a ser
+ * escolhidas entre as dele.
  *
- * @param props O formulário e os cadastros.
+ * @param props O formulário e a série do lançamento editado (`null` num novo ou avulso).
  * @return O formulário.
  */
-function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, onDelete, profileId, currency, accounts, otherProfileAccounts, creditCards, categories, tags, goals, recurrence }: TransactionFormProps & FormRegistries): ReactNode {
+function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, onDelete, recurrence }: TransactionFormProps & { readonly recurrence: RecurrenceResponse | null }): ReactNode {
     const id = useId();
     const today = currentDate(new Date());
-    const target: TransactionFormTarget = transaction === null ? { mode: 'create', profileId, currency } : { mode: 'update', transaction, recurrence };
+    const { profile: activeProfile, profiles } = useActiveProfile();
+    const home = profiles.find((item) => item.id === (transaction?.profileId ?? activeProfile.id)) ?? activeProfile;
+    // Regra de negócio (Mover para outro perfil): só perfis da mesma moeda, porque o valor não é convertido.
+    const profileChoices = profiles.filter((item) => item.currency === home.currency);
+    const { currency } = home;
+    const target: TransactionFormTarget = transaction === null ? { mode: 'create', currency } : { mode: 'update', transaction, recurrence };
     /**
      * Valida pelo `readTransactionForm`, que aplica o schema da rota de criação ou de edição; os
      * valores seguem para o envio, que relê a chamada pronta.
@@ -211,16 +235,23 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
         return result.ok ? { values, errors: {} } : { values: {}, errors: toFieldErrors<TransactionFormValues>(TRANSACTION_FIELDS, result.errors) };
     };
     const form = useForm<TransactionFormValues>({
-        defaultValues: transaction === null ? newTransactionForm(today, initialSource ?? '') : transactionFormFrom(transaction, today, recurrence),
+        defaultValues: transaction === null ? newTransactionForm(today, initialSource ?? '', activeProfile.id) : transactionFormFrom(transaction, today, recurrence),
         resolver,
     });
+    const values = form.watch();
+    const loaded = useFormRegistries(values.profileId);
+    const { accounts, otherProfileAccounts, creditCards, categories, tags, goals } = loaded ?? NO_REGISTRIES;
+    const owner = profiles.find((item) => item.id === values.profileId) ?? home;
+    const moved = transaction !== null && movesProfile(values, transaction);
     const create = useCoreMutation('transactions.create');
     const update = useCoreMutation('transactions.update');
     const [generalError, setGeneralError] = useState<string | null>(null);
     const { errors } = form.formState;
-    const values = form.watch();
     const source = parseSourceKey(values.source);
     const options = transactionSourceOptions({ accounts, creditCards, current: transaction?.container ?? null });
+    // As atingidas num grupo à parte; a arquivada só se este lançamento já está vinculado a ela
+    // (desktop-mvp-plan Fase 13.4).
+    const goalOptions = goalChoices(goals, transaction?.goalId ?? null).map((choice): ComboboxOption => ({ value: choice.id, label: choice.label, group: choice.group }));
     const card = source?.kind === 'creditCard' ? (creditCards.find((creditCard) => creditCard.id === source.creditCardId) ?? null) : null;
     const invoice = useInvoiceChoice({ card, values, transaction, accounts });
     const notice = recalculationNotice({ before: transaction?.container.period ?? null, after: cashPeriodOf(values, invoice.suggestedPeriod), today });
@@ -248,7 +279,15 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
                 ? await create.mutateAsync(submission.input)
                 : await update.mutateAsync(scope === undefined ? submission.input : { ...submission.input, scope });
             const series = submission.route === 'transactions.create' && submission.input.repeat !== null;
-            toast.success(transaction === null ? (series ? `“${saved.name}” lançado com a repetição.` : `“${saved.name}” lançado.`) : `“${saved.name}” salvo.`);
+            // Gravado noutro perfil, o lançamento some da tela aberta; a mensagem diz para onde foi.
+            const elsewhere = saved.profileId === activeProfile.id ? '' : ` em ${owner.name}`;
+            toast.success(
+                transaction === null
+                    ? `“${saved.name}” lançado${series ? ' com a repetição' : ''}${elsewhere}.`
+                    : moved
+                      ? `“${saved.name}” movido para ${owner.name}.`
+                      : `“${saved.name}” salvo.`,
+            );
             setPending(null);
             onSaved?.(saved);
             onClose();
@@ -265,6 +304,26 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
         }
     };
 
+    /**
+     * Troca o perfil do lançamento. Conta, cartão, fatura, destino, categoria, tags e meta são do
+     * perfil (database-design §3.8) e não valem no outro, então voltam a ser escolhidos; voltar ao
+     * perfil do lançamento editado devolve as escolhas dele.
+     *
+     * @param next Perfil escolhido.
+     */
+    const changeProfile = (next: string): void => {
+        const original = transaction !== null && next === transaction.profileId ? transactionFormFrom(transaction, today, recurrence) : null;
+        form.setValue('profileId', next);
+        form.setValue('source', original?.source ?? '');
+        form.setValue('invoicePeriod', original?.invoicePeriod ?? '');
+        form.setValue('destinationAccountId', original?.destinationAccountId ?? '');
+        form.setValue('subCategoryId', original?.subCategoryId ?? '');
+        form.setValue('tagIds', original?.tagIds ?? []);
+        form.setValue('goalId', original?.goalId ?? '');
+        form.setValue('goalWithdrawal', original?.goalWithdrawal ?? false);
+        form.clearErrors();
+    };
+
     const submit = form.handleSubmit(async (current) => {
         const result = readTransactionForm(current, target);
         if (!result.ok) {
@@ -272,15 +331,21 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
         }
         const { submission } = result;
         // Regra de negócio (Recorrências, database-design §4.12):
-        // criar ou editar uma série passa pelo diálogo de revisão. Editar uma ocorrência pergunta
-        // antes a quais da série a edição se aplica — menos quando a série muda, o que vale sempre
-        // para a editada e as futuras.
+        // criar uma série passa pelo diálogo de revisão. Editar uma ocorrência pergunta antes a
+        // quais da série a edição se aplica — menos quando a série muda, o que vale sempre para a
+        // editada e as futuras, e quando o perfil muda, o que leva a série inteira; os dois casos
+        // vão direto para a revisão, e juntos não cabem numa edição só.
         if (submission.route === 'transactions.create' && submission.input.repeat !== null) {
             setPending({ step: 'review', submission, scope: null, from: 'form' });
             return;
         }
         if (submission.route === 'transactions.update' && recurrence !== null) {
-            setPending(changesSeries(recurrence, submission.input.repeat ?? null) ? { step: 'review', submission, scope: 'future', from: 'form' } : { step: 'scope', submission });
+            const seriesChanged = changesSeries(recurrence, submission.input.repeat ?? null);
+            if (moved && seriesChanged) {
+                setGeneralError('Mude o perfil e a repetição em edições separadas: mudar de perfil leva a série inteira, e mudar a repetição vale para este lançamento e os seguintes.');
+                return;
+            }
+            setPending(moved ? { step: 'review', submission, scope: 'all', from: 'form' } : seriesChanged ? { step: 'review', submission, scope: 'future', from: 'form' } : { step: 'scope', submission });
             return;
         }
         await save(submission);
@@ -295,6 +360,31 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
                 void submit(event);
             }}
         >
+            {profileChoices.length > 1 && (
+                <Field
+                    id={fieldId('profile')}
+                    label="Perfil"
+                    error={errors.profileId}
+                    hint={transaction === null || !moved ? undefined : `Ao salvar, o lançamento sai de ${home.name} e vai para ${owner.name}, com a conta, a categoria e as tags escolhidas lá.`}
+                >
+                    <Controller
+                        control={form.control}
+                        name="profileId"
+                        render={({ field }) => (
+                            <Combobox
+                                id={fieldId('profile')}
+                                options={profileChoices.map((item) => ({ value: item.id, label: item.name }))}
+                                value={field.value}
+                                onChange={changeProfile}
+                                placeholder="Escolha o perfil"
+                                searchLabel="Buscar perfil"
+                                emptyText="Nenhum perfil encontrado."
+                                aria={fieldAria(fieldId('profile'), errors.profileId, moved)}
+                            />
+                        )}
+                    />
+                </Field>
+            )}
             <Controller control={form.control} name="type" render={({ field }) => <TypeSelector value={field.value} onChange={field.onChange} locked={transaction !== null} />} />
             <AmountField id={fieldId('amount')} form={form} currency={currency} autoFocus={transaction === null} />
             <Field id={fieldId('name')} label="Nome" error={errors.name}>
@@ -304,7 +394,9 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
                 <Controller
                     control={form.control}
                     name="subCategoryId"
-                    render={({ field }) => <SubCategoryPicker id={fieldId('category')} tree={categories} value={field.value} onChange={field.onChange} aria={fieldAria(fieldId('category'), errors.subCategoryId)} />}
+                    render={({ field }) => (
+                        <SubCategoryPicker id={fieldId('category')} tree={categories} value={field.value} onChange={field.onChange} disabled={loaded === null} aria={fieldAria(fieldId('category'), errors.subCategoryId)} />
+                    )}
                 />
             </Field>
             <Field id={fieldId('source')} label="Conta ou cartão" error={errors.source}>
@@ -312,24 +404,23 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
                     control={form.control}
                     name="source"
                     render={({ field }) => (
-                        <Select
+                        <Combobox
+                            id={fieldId('source')}
+                            options={[...sourceChoices('Contas', options.accounts), ...sourceChoices('Cartões', options.creditCards)]}
                             value={field.value}
-                            onValueChange={(next) => {
+                            onChange={(next) => {
                                 field.onChange(next);
                                 // Trocar de cartão volta para a sugestão; voltar ao cartão atual da
                                 // edição devolve a fatura em que o lançamento já está.
                                 const container = transaction?.container;
                                 form.setValue('invoicePeriod', container?.kind === 'invoice' && next === sourceKey({ kind: 'creditCard', id: container.creditCardId }) ? container.period : '');
                             }}
-                        >
-                            <SelectTrigger id={fieldId('source')} className="w-full" {...fieldAria(fieldId('source'), errors.source)}>
-                                <SelectValue placeholder="Escolha a conta ou o cartão" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SourceGroup label="Contas" options={options.accounts} />
-                                <SourceGroup label="Cartões" options={options.creditCards} />
-                            </SelectContent>
-                        </Select>
+                            disabled={loaded === null}
+                            placeholder="Escolha a conta ou o cartão"
+                            searchLabel="Buscar conta ou cartão"
+                            emptyText="Nenhuma conta ou cartão encontrado."
+                            aria={fieldAria(fieldId('source'), errors.source)}
+                        />
                     )}
                 />
             </Field>
@@ -374,22 +465,23 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
                         control={form.control}
                         name="destinationAccountId"
                         render={({ field }) => (
-                            <Select value={field.value} onValueChange={field.onChange}>
-                                <SelectTrigger id={fieldId('destination')} className="w-full" {...fieldAria(fieldId('destination'), errors.destinationAccountId)}>
-                                    <SelectValue placeholder="Escolha a conta de destino" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {destinationAccountOptions({
-                                        accounts,
-                                        originAccountId: source?.kind === 'account' ? source.accountId : null,
-                                        currentDestinationId: transaction?.destinationAccountId ?? null,
-                                        type: values.type,
-                                        otherProfileAccounts,
-                                    }).map((option) => (
-                                        <SourceItem key={option.id} option={option} value={destinationKey(option)} />
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <Combobox
+                                id={fieldId('destination')}
+                                options={destinationAccountOptions({
+                                    accounts,
+                                    originAccountId: source?.kind === 'account' ? source.accountId : null,
+                                    currentDestinationId: transaction?.destinationAccountId ?? null,
+                                    type: values.type,
+                                    otherProfileAccounts,
+                                }).map((option) => ({ value: destinationKey(option), label: sourceLabel(option) }))}
+                                value={field.value}
+                                onChange={field.onChange}
+                                disabled={loaded === null}
+                                placeholder="Escolha a conta de destino"
+                                searchLabel="Buscar conta de destino"
+                                emptyText="Nenhuma conta encontrada."
+                                aria={fieldAria(fieldId('destination'), errors.destinationAccountId)}
+                            />
                         )}
                     />
                 </Field>
@@ -428,7 +520,7 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
                     idOf={fieldId}
                     mode={transaction === null ? 'create' : 'edit'}
                     seriesKind={recurrence?.kind ?? null}
-                    profileId={profileId}
+                    profileId={values.profileId}
                     currency={currency}
                 />
             )}
@@ -436,33 +528,30 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
                 <Controller control={form.control} name="tagIds" render={({ field }) => <TagPicker id={fieldId('tags')} tags={tags} value={field.value} onChange={field.onChange} />} />
             </Field>
             {feedsGoal(values.type) && (
-                <Field id={fieldId('goal')} label="Meta" error={errors.goalId} hint={goals.length === 0 ? 'Nenhuma meta cadastrada; crie uma na tela Metas.' : undefined}>
+                <Field id={fieldId('goal')} label="Meta" error={errors.goalId} hint={goalOptions.length === 0 ? 'Nenhuma meta cadastrada; crie uma na tela Metas.' : undefined}>
                     <Controller
                         control={form.control}
                         name="goalId"
                         render={({ field }) => (
-                            <Select
+                            <Combobox
+                                id={fieldId('goal')}
+                                options={[{ value: NO_GOAL, label: 'Sem meta' }, ...goalOptions]}
                                 value={field.value === '' ? NO_GOAL : field.value}
-                                disabled={goals.length === 0}
-                                onValueChange={(value) => {
+                                onChange={(value) => {
                                     field.onChange(value === NO_GOAL ? '' : value);
                                 }}
-                            >
-                                <SelectTrigger id={fieldId('goal')} className="w-full" {...fieldAria(fieldId('goal'), errors.goalId, goals.length === 0)}>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value={NO_GOAL}>Sem meta</SelectItem>
-                                    {goals.map((goal) => (
-                                        <SelectItem key={goal.id} value={goal.id}>
-                                            {goal.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                disabled={goalOptions.length === 0}
+                                placeholder="Sem meta"
+                                searchLabel="Buscar meta"
+                                emptyText="Nenhuma meta encontrada."
+                                aria={fieldAria(fieldId('goal'), errors.goalId, goalOptions.length === 0)}
+                            />
                         )}
                     />
                 </Field>
+            )}
+            {withdrawsFromGoal(values.type) && values.goalId !== '' && (
+                <Controller control={form.control} name="goalWithdrawal" render={({ field }) => <GoalDirection value={field.value} onChange={field.onChange} />} />
             )}
             <Field id={fieldId('description')} label="Descrição" error={errors.description}>
                 <textarea
@@ -475,9 +564,11 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
             </Field>
             {recurrence !== null && (
                 <p role="note" className="rounded-6 bg-warn-bg px-2.5 py-2 text-warn-ink">
-                    {formChangesSeries(values, recurrence)
-                        ? 'Mudar a repetição vale para este lançamento e os seguintes. Antes de salvar, você revisa o que será excluído e criado.'
-                        : 'Ao salvar, perguntaremos: somente esta, esta e as futuras, ou todas. Depois você revisa o que muda antes de confirmar.'}
+                    {moved
+                        ? `Mudar de perfil leva a série inteira para ${owner.name}. Antes de salvar, você revisa o que muda.`
+                        : formChangesSeries(values, recurrence)
+                          ? 'Mudar a repetição vale para este lançamento e os seguintes. Antes de salvar, você revisa o que será excluído e criado.'
+                          : 'Ao salvar, perguntaremos: somente esta, esta e as futuras, ou todas. Em “esta e as futuras” e “todas”, você revisa o que muda antes de confirmar.'}
                 </p>
             )}
             {notice !== null && (
@@ -508,8 +599,15 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
                     transaction={transaction}
                     title={`Salvar “${transaction.name}”`}
                     action="edit"
+                    pending={update.isPending}
                     onConfirm={(scope) => {
-                        setPending({ step: 'review', submission: pending.submission, scope, from: 'scope' });
+                        // "Somente esta" grava direto: a revisão só repetiria a linha que o usuário
+                        // está editando (desktop-mvp-plan Fase 13.2).
+                        if (scope === 'single') {
+                            void save(pending.submission, scope);
+                        } else {
+                            setPending({ step: 'review', submission: pending.submission, scope, from: 'scope' });
+                        }
                     }}
                     onClose={() => {
                         setPending(null);
@@ -537,6 +635,41 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
                 />
             )}
         </form>
+    );
+}
+
+/**
+ * "Guardar" ou "Retirar" da transferência vinculada a uma meta (desktop-mvp-plan Fase 13.3), como
+ * botões de opção, os dois à vista como o seletor de tipo.
+ * Regra de negócio (Metas, database-design §4.11): a retirada — tirar da reserva para um
+ * imprevisto — desconta do progresso; só a transferência pode retirar.
+ *
+ * @param props.value `true` quando a transferência retira da meta.
+ * @param props.onChange Recebe a escolha.
+ * @return O seletor.
+ */
+function GoalDirection({ value, onChange }: { readonly value: boolean; readonly onChange: (withdrawal: boolean) => void }): ReactNode {
+    const options: readonly { readonly withdrawal: boolean; readonly label: string }[] = [
+        { withdrawal: false, label: 'Guardar na meta' },
+        { withdrawal: true, label: 'Retirar da meta' },
+    ];
+    return (
+        <div role="radiogroup" aria-label="Efeito na meta" className="grid grid-cols-2 gap-0.5 rounded-8 bg-surface2 p-0.5 ring-1 ring-line">
+            {options.map((option) => (
+                <button
+                    key={option.label}
+                    type="button"
+                    role="radio"
+                    aria-checked={option.withdrawal === value}
+                    className={cn('rounded-6 px-1 py-1.5 text-12 text-ink2', option.withdrawal === value && 'bg-surface font-semibold text-ink ring-1 ring-line')}
+                    onClick={() => {
+                        onChange(option.withdrawal);
+                    }}
+                >
+                    {option.label}
+                </button>
+            ))}
+        </div>
     );
 }
 
@@ -651,34 +784,22 @@ function AmountField({
 }
 
 /**
- * Um grupo de origens no campo "Conta ou cartão".
+ * Opções de um grupo do campo "Conta ou cartão".
  *
- * @param props.label Título do grupo.
- * @param props.options Contas ou cartões do grupo; o grupo vazio não aparece.
- * @return O grupo.
+ * @param group Título do grupo ("Contas", "Cartões").
+ * @param options Contas ou cartões do grupo; o grupo vazio não aparece.
+ * @return As opções do seletor, com a chave da origem (`sourceKey`).
  */
-function SourceGroup({ label, options }: { readonly label: string; readonly options: readonly SourceOption[] }): ReactNode {
-    if (options.length === 0) {
-        return null;
-    }
-    return (
-        <SelectGroup>
-            <SelectLabel>{label}</SelectLabel>
-            {options.map((option) => (
-                <SourceItem key={option.id} option={option} />
-            ))}
-        </SelectGroup>
-    );
+function sourceChoices(group: string, options: readonly SourceOption[]): readonly ComboboxOption[] {
+    return options.map((option) => ({ value: sourceKey(option), label: sourceLabel(option), group }));
 }
 
 /**
- * @param props.option Conta ou cartão; o desativado (oferecido só na edição) leva a marca.
- * @param props.value Valor gravado no campo; padrão `sourceKey`, a chave do campo "Conta ou
- * cartão". O campo "Conta de destino" passa `destinationKey`, porque guarda o id puro.
- * @return A opção.
+ * @param option Conta ou cartão; o desativado (oferecido só na edição) leva a marca.
+ * @return O rótulo da opção.
  */
-function SourceItem({ option, value = sourceKey(option) }: { readonly option: SourceOption; readonly value?: string }): ReactNode {
-    return <SelectItem value={value}>{option.disabled ? `${option.name} (desativado)` : option.name}</SelectItem>;
+function sourceLabel(option: SourceOption): string {
+    return option.disabled ? `${option.name} (desativado)` : option.name;
 }
 
 /** A fatura da compra no cartão: a sugerida, as opções da troca e os avisos. */

@@ -57,6 +57,8 @@ export function describeAccountDeletion(impact: AccountDeletionImpactResponse): 
             ? counted(impact.incomingTransfers, 'transferência ou investimento recebido de outra conta', 'transferências e investimentos recebidos de outras contas')
             : null,
         recurrencesItem(impact.recurrences),
+        // A meta vinculada mede o saldo da conta: sem a conta, não há o que medir (database-design §4.11).
+        impact.goals > 0 ? counted(impact.goals, 'meta vinculada ao saldo dela', 'metas vinculadas ao saldo dela') : null,
     ];
     return { items: items.filter((item) => item !== null), affectedAccounts: impact.affectedAccounts.map((account) => account.name) };
 }

@@ -1,4 +1,4 @@
-import type { AccountId, BankStatementId, CreditCardId, InvoiceId, RecurrenceId, TransactionId } from '../domain/shared/ids.ts';
+import type { AccountId, BankStatementId, CreditCardId, GoalId, InvoiceId, RecurrenceId, TransactionId } from '../domain/shared/ids.ts';
 import type { TransactionType } from '../domain/transaction/TransactionType.ts';
 
 /**
@@ -33,6 +33,11 @@ export interface DeletionScope {
      * excluída: a regra não emite para quem não existe mais (database-design §4.12).
      */
     readonly recurrences: readonly RecurrenceId[];
+    /**
+     * Metas vinculadas a uma conta excluída: o progresso delas é o saldo da conta, que deixa de
+     * existir (database-design §4.11).
+     */
+    readonly goals: readonly GoalId[];
     /**
      * Faturas que sobrevivem, mas estavam pagas num extrato que vai ser excluído (o cartão
      * trocou de conta pagadora depois do pagamento). Voltam a ficar em aberto, como quando o

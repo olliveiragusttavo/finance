@@ -11,6 +11,7 @@ import {
     TRANSACTION_FIELDS,
     changesSeries,
     formChangesSeries,
+    movesProfile,
     transactionFormFrom,
     type TransactionFormValues,
 } from '../src/renderer/src/transactions/transactionForm.ts';
@@ -33,7 +34,7 @@ const SUB_CATEGORY = '55555555-5555-4555-8555-555555555555';
 const TAG = '66666666-6666-4666-8666-666666666666';
 const TRANSACTION = '88888888-8888-4888-8888-888888888888';
 
-const CREATE = { mode: 'create', profileId: PROFILE, currency: 'BRL' } as const;
+const CREATE = { mode: 'create', currency: 'BRL' } as const;
 
 /**
  * @param overrides Campos a trocar.
@@ -41,7 +42,7 @@ const CREATE = { mode: 'create', profileId: PROFILE, currency: 'BRL' } as const;
  */
 function filled(overrides: Partial<TransactionFormValues> = {}): TransactionFormValues {
     return {
-        ...newTransactionForm('2026-10-15', sourceKey({ kind: 'account', id: NUBANK })),
+        ...newTransactionForm('2026-10-15', sourceKey({ kind: 'account', id: NUBANK }), PROFILE),
         amount: '487,32',
         name: 'Supermercado',
         subCategoryId: SUB_CATEGORY,
@@ -64,6 +65,7 @@ function purchase(overrides: Partial<TransactionResponse> = {}): TransactionResp
         destinationAccountId: null,
         partnerId: null,
         goalId: null,
+        goalWithdrawal: false,
         recurrenceId: null,
         occurrence: null,
         name: 'Estorno Uber',
@@ -144,6 +146,7 @@ describe('formulário de lançamento (desktop-mvp-plan Fase 9)', () => {
                     paymentDate: null,
                     tagIds: [],
                     goalId: null,
+                    goalWithdrawal: false,
                     repeat: null,
                 },
             },
@@ -201,7 +204,7 @@ describe('formulário de lançamento (desktop-mvp-plan Fase 9)', () => {
     });
 
     it('aponta todos os campos com problema no mesmo envio', () => {
-        const result = readTransactionForm({ ...newTransactionForm('2026-10-15', ''), dueDate: '', paid: true, paymentDate: '', charges: '-1' }, CREATE);
+        const result = readTransactionForm({ ...newTransactionForm('2026-10-15', '', PROFILE), dueDate: '', paid: true, paymentDate: '', charges: '-1' }, CREATE);
         expect(result).toEqual({
             ok: false,
             errors: {
@@ -241,12 +244,14 @@ describe('formulário de lançamento (desktop-mvp-plan Fase 9)', () => {
                 route: 'transactions.update',
                 input: {
                     id: TRANSACTION,
+                    profileId: null,
                     type: 'expense',
                     source: { kind: 'creditCard', creditCardId: ROXINHO, invoicePeriod: '2026-11' },
                     subCategoryId: SUB_CATEGORY,
                     destinationAccountId: null,
                     partnerId: null,
                     goalId: null,
+                    goalWithdrawal: false,
                     name: 'Estorno Uber (corrida)',
                     description: null,
                     value: -23.9,
@@ -260,6 +265,39 @@ describe('formulário de lançamento (desktop-mvp-plan Fase 9)', () => {
                 },
             },
         });
+    });
+
+    it('mover para outro perfil manda o perfil de destino e deixa o sócio, que é do perfil, para trás (Fase 13.2)', () => {
+        const business = '99999999-9999-4999-8999-999999999999';
+        const partner = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+        const transaction = purchase({ partnerId: partner });
+        const values = transactionFormFrom(transaction, '2026-10-15');
+        expect(values.profileId).toBe(PROFILE);
+        expect(movesProfile(values, transaction)).toBe(false);
+
+        const kept = readTransactionForm(values, { mode: 'update', transaction, recurrence: null });
+        expect(kept.ok && kept.submission.route === 'transactions.update' && [kept.submission.input.profileId, kept.submission.input.partnerId]).toEqual([null, partner]);
+
+        const movedValues = { ...values, profileId: business };
+        expect(movesProfile(movedValues, transaction)).toBe(true);
+        const moved = readTransactionForm(movedValues, { mode: 'update', transaction, recurrence: null });
+        expect(moved.ok && moved.submission.route === 'transactions.update' && [moved.submission.input.profileId, moved.submission.input.partnerId]).toEqual([business, null]);
+    });
+
+    it('Regra de negócio (Metas, Fase 13.3): só a transferência com meta retira; a receita sempre guarda', () => {
+        const goal = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+        const transfer = readTransactionForm(filled({ type: 'transference', destinationAccountId: TESOURO, goalId: goal, goalWithdrawal: true }), CREATE);
+        expect(transfer.ok && transfer.submission.input.goalWithdrawal).toBe(true);
+        const income = readTransactionForm(filled({ type: 'income', goalId: goal, goalWithdrawal: true }), CREATE);
+        expect(income.ok && income.submission.input.goalWithdrawal).toBe(false);
+        const withoutGoal = readTransactionForm(filled({ type: 'transference', destinationAccountId: TESOURO, goalWithdrawal: true }), CREATE);
+        expect(withoutGoal.ok && withoutGoal.submission.input.goalWithdrawal).toBe(false);
+    });
+
+    it('o lançamento novo vai para o perfil escolhido no formulário', () => {
+        const business = '99999999-9999-4999-8999-999999999999';
+        const result = readTransactionForm(filled({ profileId: business }), CREATE);
+        expect(result.ok && result.submission.route === 'transactions.create' && result.submission.input.profileId).toBe(business);
     });
 
     it('a chave da origem vai e volta, e lixo não vira origem', () => {

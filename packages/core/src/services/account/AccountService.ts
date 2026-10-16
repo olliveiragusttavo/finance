@@ -2,13 +2,14 @@ import { Account, type AccountContent } from '../../domain/account/Account.ts';
 import { BalancePair } from '../../domain/balance/BalancePair.ts';
 import { currentAccountBalances } from '../../domain/balance/StatementChain.ts';
 import type { Profile } from '../../domain/profile/Profile.ts';
-import { NotFoundError } from '../../domain/shared/errors.ts';
+import { BusinessRuleViolation, NotFoundError } from '../../domain/shared/errors.ts';
 import { AccountId, type ProfileId } from '../../domain/shared/ids.ts';
 import { Money } from '../../domain/shared/Money.ts';
 import type { YearMonth } from '../../domain/shared/YearMonth.ts';
 import type { IdGenerator } from '../../ports/IdGenerator.ts';
 import type { AccountRepository } from '../../repositories/AccountRepository.ts';
 import type { BankStatementRepository } from '../../repositories/BankStatementRepository.ts';
+import type { GoalRepository } from '../../repositories/GoalRepository.ts';
 import { BalanceImpact } from '../balance/BalanceImpact.ts';
 import { BEGINNING_OF_TIME, type BalanceRecalculationService } from '../balance/BalanceRecalculationService.ts';
 import type { ProfileService } from '../profile/ProfileService.ts';
@@ -28,6 +29,7 @@ export class AccountService {
      * @param accounts Contas.
      * @param statements Fechamento do mês pedido na lista.
      * @param recalculation A rotina única de recálculo, para o saldo inicial editado.
+     * @param goals Metas, para saber se a conta é o saldo de alguma antes de ela deixar de ser de investimento.
      */
     public constructor(
         private readonly unitOfWork: UnitOfWork,
@@ -36,6 +38,7 @@ export class AccountService {
         private readonly accounts: AccountRepository,
         private readonly statements: BankStatementRepository,
         private readonly recalculation: BalanceRecalculationService,
+        private readonly goals: GoalRepository,
     ) {}
 
     /**
@@ -114,15 +117,23 @@ export class AccountService {
      * Regra de negócio (Contas): editar o `opening_balance` recalcula **todos** os extratos
      * da conta, já que todos dependem dele (database-design §4.4). Mudar "considerar no
      * saldo" não recalcula nada: o total do perfil é somado na leitura.
+     * Regra de negócio (Metas, database-design §4.11): a conta de investimento que é o saldo de
+     * uma meta não muda de tipo, porque a meta passaria a medir o dinheiro do dia a dia como
+     * guardado e a edição dela seria recusada por `goal-account-not-investment` mesmo sem trocar
+     * a conta. Recusar, e não desfazer o vínculo, evita apagar a escolha do usuário em silêncio.
      *
      * @param command Novo cadastro completo, com o id da conta.
      * @return A conta editada, relida do banco com os saldos em dia.
      * @throws {NotFoundError} Quando a conta não existe.
      * @throws {InvalidValueError} Quando o nome ou o rótulo de moeda é inválido.
+     * @throws {BusinessRuleViolation} Quando a conta deixaria de ser de investimento com meta vinculada.
      */
     public update(command: UpdateAccountCommand): Account {
         return this.unitOfWork.run(() => {
             const current = this.require(command.id);
+            if (current.type === 'investment' && command.type !== 'investment' && this.fundsGoal(current)) {
+                throw new BusinessRuleViolation('account-type-funds-goal', 'a conta é o saldo de uma meta', { field: 'type' });
+            }
             const content = this.toContent(this.profiles.require(current.profileId), command);
             this.accounts.save(current.revise(content));
             if (current.openingBalanceDiffersFrom(content)) {
@@ -170,6 +181,18 @@ export class AccountService {
             throw new NotFoundError('Account', id);
         }
         return account;
+    }
+
+    /**
+     * Protege a invariante da meta vinculada, que só aponta para conta de investimento
+     * (database-design §4.11). A arquivada também conta, porque continua medindo a conta e pode
+     * ser reativada.
+     *
+     * @param account Conta cujo tipo vai mudar.
+     * @return `true` quando alguma meta do perfil é o saldo dela.
+     */
+    private fundsGoal(account: Account): boolean {
+        return this.goals.listByProfile(account.profileId).some((goal) => goal.funding.kind === 'account' && goal.funding.accountId === account.id);
     }
 
     /**

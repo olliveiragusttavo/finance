@@ -57,6 +57,11 @@ export interface StatementRow {
     readonly kind: StatementRowKind;
     /** `08/10`, ou `—` na fatura paga antes de o dia ser gravado. */
     readonly date: string;
+    /**
+     * Data de caixa `YYYY-MM-DD`, para ordenar pela data na lista; `null` na fatura paga sem dia
+     * gravado, que não se sabe em que ponto do mês entrou.
+     */
+    readonly cashDate: string | null;
     /** `Salário`, `Fatura Roxinho · set`. */
     readonly name: string;
     /** Complemento do nome: `→ Tesouro`, `de Nubank`, `fatura Roxinho · out`; `null` sem complemento. */
@@ -217,6 +222,7 @@ function entryRow(transaction: TransactionResponse, placement: EntryPlacement, l
             key: `transaction:${transaction.id}`,
             kind: placement.kind,
             date: formatDayMonth(cashDate),
+            cashDate,
             name: transaction.name,
             detail: placement.detail,
             refund: transaction.type === 'expense' && transaction.value.amount < 0,
@@ -248,6 +254,7 @@ function invoiceRow(invoice: StatementInvoiceResponse, cashDate: string | null, 
             key: `invoice:${invoice.id}`,
             kind: situation === 'invoicePaid' ? 'paidInvoice' : 'openInvoice',
             date: cashDate === null ? '—' : formatDayMonth(cashDate),
+            cashDate,
             name: `Fatura ${invoice.creditCardName} · ${formatMonthAbbreviation(invoice.period)}`,
             detail: null,
             refund: false,

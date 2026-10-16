@@ -34,6 +34,8 @@ export interface RecurrenceTemplate {
     readonly subCategoryId: SubCategoryId;
     readonly partnerId: PartnerId | null;
     readonly goalId: GoalId | null;
+    /** A série retira dinheiro da meta, como a transferência de retirada (database-design §4.11). */
+    readonly goalWithdrawal: boolean;
     readonly name: string;
     readonly description: string | null;
     /** O total da compra quando `valueType = total`; senão o valor de cada ocorrência. */
@@ -132,10 +134,13 @@ export class Recurrence implements RecurrenceProps {
     }
 
     /**
+     * O perfil está entre as partes trocáveis porque mover uma ocorrência para outro perfil leva
+     * a série inteira (database-design §4.12): a regra pertence ao perfil e continua emitindo lá.
+     *
      * @param changes Partes a trocar.
      * @return Uma nova regra com as partes trocadas e revalidada.
      */
-    public revise(changes: Partial<Pick<RecurrenceProps, 'terms' | 'schedule' | 'template' | 'materializedCount'>>): Recurrence {
+    public revise(changes: Partial<Pick<RecurrenceProps, 'profileId' | 'terms' | 'schedule' | 'template' | 'materializedCount'>>): Recurrence {
         return Recurrence.create({ ...this.props(), ...changes });
     }
 

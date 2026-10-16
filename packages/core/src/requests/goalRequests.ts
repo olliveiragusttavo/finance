@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { GoalId, ProfileId } from '../domain/shared/ids.ts';
+import { AccountId, GoalId, ProfileId } from '../domain/shared/ids.ts';
 import type { CreateGoalCommand, GoalContentCommand, UpdateGoalCommand } from '../services/goal/GoalCommands.ts';
 import { localDateField, moneyField, parsedText, registryNameField, yearMonthField } from './fields.ts';
 
@@ -15,14 +15,24 @@ export const goalContentShape = {
 };
 
 /**
+ * De onde vem o progresso (database-design §4.11): os lançamentos vinculados ou o saldo de uma
+ * conta de investimento. Na criação o padrão é por lançamentos, o caso de sempre; na edição o
+ * tipo vem explícito, porque trocá-lo desfaz os vínculos e não pode acontecer por omissão.
+ */
+export const goalFundingField = z.discriminatedUnion('kind', [
+    z.strictObject({ kind: z.literal('transactions') }),
+    z.strictObject({ kind: z.literal('account'), accountId: parsedText(AccountId) }),
+]);
+
+/**
  * Converte a saída do schema no conteúdo do Service campo a campo, pelo mesmo motivo do
  * `toAccountInput`: sob `exactOptionalPropertyTypes` o comando precisa de todos os campos.
  *
  * @param data Saída validada do schema.
  * @return O conteúdo da meta no formato do Service.
  */
-function toGoalContent(data: z.output<z.ZodObject<typeof goalContentShape>>): GoalContentCommand {
-    return { name: data.name, value: data.value, targetDate: data.targetDate };
+function toGoalContent(data: z.output<z.ZodObject<typeof goalContentShape>> & { readonly funding: z.output<typeof goalFundingField> }): GoalContentCommand {
+    return { name: data.name, funding: data.funding, value: data.value, targetDate: data.targetDate };
 }
 
 export const listGoalsRequest = z.strictObject({ profileId: parsedText(ProfileId), period: yearMonthField });
@@ -31,11 +41,11 @@ export const listGoalsRequest = z.strictObject({ profileId: parsedText(ProfileId
 export const goalOptionsRequest = z.strictObject({ profileId: parsedText(ProfileId) });
 
 export const createGoalRequest = z
-    .strictObject({ profileId: parsedText(ProfileId), ...goalContentShape })
+    .strictObject({ profileId: parsedText(ProfileId), ...goalContentShape, funding: goalFundingField.default({ kind: 'transactions' }) })
     .transform((data): CreateGoalCommand => ({ profileId: data.profileId, ...toGoalContent(data) }));
 
 export const updateGoalRequest = z
-    .strictObject({ id: parsedText(GoalId), ...goalContentShape })
+    .strictObject({ id: parsedText(GoalId), ...goalContentShape, funding: goalFundingField })
     .transform((data): UpdateGoalCommand => ({ id: data.id, ...toGoalContent(data) }));
 
 export const goalIdRequest = z.strictObject({ id: parsedText(GoalId) });

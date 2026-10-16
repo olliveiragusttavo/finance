@@ -150,9 +150,9 @@ describe('limite usado', () => {
          * @return Dinheiro em BRL como vem do núcleo.
          */
         const brl = (amount: number): MoneyResponse => ({ amount, currency: 'BRL' });
-        expect(describeLimitUsage({ limit: brl(8000), limitUsed: brl(2449.75) })).toEqual({ percentText: '31%', share: 2449.75 / 8000, exceeded: false, limitText: 'de R$ 8.000,00' });
+        expect(describeLimitUsage({ limit: brl(8000), limitUsed: brl(2449.75) })).toEqual({ percentText: '31%', share: 2449.75 / 8000, exceeded: false, usedText: 'R$ 2.449,75', limitText: 'de R$ 8.000,00' });
         expect(describeLimitUsage({ limit: brl(1000), limitUsed: brl(1500) })).toEqual(expect.objectContaining({ percentText: '150%', share: 1, exceeded: true }));
-        expect(describeLimitUsage({ limit: brl(0), limitUsed: brl(10) })).toEqual({ percentText: '—', share: null, exceeded: true, limitText: 'de R$ 0,00' });
+        expect(describeLimitUsage({ limit: brl(0), limitUsed: brl(10) })).toEqual({ percentText: '—', share: null, exceeded: true, usedText: 'R$ 10,00', limitText: 'de R$ 0,00' });
     });
 });
 

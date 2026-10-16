@@ -1,6 +1,6 @@
 # Plano do MVP Desktop — CRUD e primeiros relatórios
 
-**Status:** Em andamento — Fases 0 a 13.1 concluídas (ficaram pendentes só o `Ctrl K` da Fase 4, a pendência da Fase 9.2 que depende da sincronização, o XLSX da Fase 13.1 e a decisão da Fase 11.1 sobre a data dos lançamentos de conta em Transações). Primeira entrega com tela do projeto: o app desktop
+**Status:** Em andamento — Fases 0 a 13.5 concluídas (ficaram pendentes só o `Ctrl K` da Fase 4, a pendência da Fase 9.2 que depende da sincronização, o XLSX da Fase 13.1 e a decisão da Fase 11.1 sobre a data dos lançamentos de conta em Transações). Primeira entrega com tela do projeto: o app desktop
 (Electron) com os cadastros e lançamentos básicos e os dois primeiros relatórios
 personalizados, que são a motivação original do projeto ([README](../../README.md#motivação)).
 O mobile fica inteiro para depois.
@@ -178,7 +178,7 @@ Nenhuma decisão de produto está aberta. Ficaram decididas:
 | Itens do menu sem tela no MVP (Dispositivos, Por sócio) | Aparecem no menu normalmente e levam a uma **tela em branco**, já com a rota e o mês de referência; "Por sócio" continua só no perfil empresarial. Fluxo por conta e Por tag saíram da lista nas Fases 12.1 e 12.2 |
 | Excluir conta ou cartão | Ver [§5.1](#51-desativar-e-excluir-conta-ou-cartão) |
 | Trocar a moeda do perfil | Só enquanto o perfil não tem lançamentos: a moeda é a unidade de todo valor gravado e a troca não converte nada (database-design §4.1). Renomear continua livre |
-| Limite usado do cartão | Valor a pagar somado de **todas** as faturas em aberto do cartão, futuras de parcelas incluídas; fatura credora conta zero |
+| Limite usado do cartão | Valor a pagar somado das faturas em aberto até a **fatura aberta hoje**; das faturas depois dela, só o comprometido (parcelas e compras lançadas adiante), sem as ocorrências de séries fixas (Fase 13.5); fatura credora conta zero |
 
 Pendência técnica: o backup `VACUUM INTO` antes de migrar
 ([backend-design §4.6](backend-design.md#46-backup-antes-de-migrar)) precisa existir antes
@@ -647,6 +647,172 @@ de mapeamento, o arquivo com coluna de tipo e as `#palavras` como tags.
 - A "Exportar uma cópia do banco antes de importar" usa o diálogo de salvar de Ajustes; cancelar ou falhar a cópia não importa nada.
 - Parcelamentos são separados também pelo total de parcelas e pela data da compra: o arquivo real tem 32 séries, e não as 30 do mockup (duas compras com o mesmo nome em totais diferentes).
 - O arquivo também pode ser arrastado para a etapa Arquivo; o conteúdo vem do próprio arrastar, sem caminho.
+
+### Fase 13.2 — Melhorias antes do empacotamento
+
+Entrou depois da Fase 13.1, a pedido, antes da fase final. **Decisões** (perguntadas antes do
+código):
+
+- **Mover entre perfis** pelo campo **"Perfil"** no próprio formulário de lançamento (e não
+  num diálogo à parte): trocar o perfil esvazia conta ou cartão, fatura, destino, categoria,
+  tags e meta, que passam a ser escolhidos entre os do outro perfil; voltar ao perfil original
+  devolve as escolhas. Só aparecem perfis da **mesma moeda**. Numa ocorrência de série, a
+  **série inteira** vai junto ("todas", direto para a revisão, sem a escolha do escopo). Regras
+  em [database-design.md §4.13](database-design.md#413-transactions) ("Mover para outro perfil")
+  e §4.12 ("Pertence diretamente ao perfil").
+- **"Somente esta"** grava direto do diálogo de escopo, sem o diálogo de revisão, na edição e
+  na exclusão: o botão vira "Salvar"/"Excluir"; "esta e as futuras" e "todas" continuam com
+  "Continuar" e a revisão.
+- **Atalho de pagar:** a situação "Pendente"/"Pago" é um **botão** na linha — o atalho de mouse
+  do `P` —, onde marcar pago vale (não na compra do cartão nem na transferência recebida de
+  outro perfil).
+- **Listagem única** em Transações, no extrato de Contas e na fatura de Cartões: o mesmo
+  componente, o mesmo teclado (`↑↓`, `Enter`, `P`, `Del`), o mesmo menu de contexto, o "⋯" e a
+  ordenação por coluna. As colunas se adaptam: "Conta / fatura" só em Transações; a fatura não
+  tem a situação, que é a da fatura. O valor continua o de cada tela (efeito no perfil, efeito
+  nesta conta, quanto soma à fatura). A coluna do extrato passou a ter Valor antes de Situação,
+  como em Transações, e ganhou "Rec.".
+- **Seletor com busca** (`Combobox`) em toda escolha de **cadastro** nos formulários — perfil,
+  conta ou cartão, conta de destino, categoria, tags, meta, conta pagadora, conta do pagamento
+  parcial e destino ao mover lançamentos. Listas curtas e fixas (tipo de conta, as quatro
+  moedas, frequência, as faturas sugeridas) continuam no `Select`, e a importação continua com o
+  seletor nativo das tabelas de revisão.
+- **Visão geral** ganhou dois blocos, sem mockup: **Metas** (nome, percentual, barra e "quanto
+  de quanto · prazo", como na lista de Metas) e **Anotações** (só o título das 6 mais recentes,
+  com "Ver todas"); o título abre a anotação no editor de Cadastros pelo *search param* `note`
+  de `/registry`.
+
+**Núcleo**
+- [x] `profileId` opcional em `transactions.update` (`TransactionComposer.resolveOwner`), regras
+  `transaction-move-currency-mismatch` e `recurrence-move-requires-all`; a série movida grava
+  `profile_id` na regra e leva as referências do perfil para todas as ocorrências
+  (`profileReferencesOf`)
+- [x] Testes: `test/services/moveProfile.test.ts` (avulsa na conta e no cartão, referência que
+  ficou no perfil antigo, outra moeda, transferência que vira interna, série em "somente esta" e
+  "esta e as futuras" recusada, série inteira com ocorrência de subcategoria própria e o plano,
+  complemento no perfil de destino)
+
+**Client e desktop**
+- [x] View-model `movementList.ts` (`movementsFromTransactions`, `movementsFromStatement`,
+  `movementsFromInvoice`, `compareMovementRows`, `movementPermissions`); a linha do extrato
+  ganhou a data de caixa crua (`cashDate`). `overviewNotes` no `overviewView.ts`
+- [x] `MovementGrid.tsx` no lugar da `TransactionGrid.tsx`, e `useTransactionActions.tsx` com
+  editar, pagar, excluir e abrir a fatura, usados pelas três telas
+- [x] `Combobox.tsx` (escolha única e múltipla, com grupos), sobre o qual ficaram o
+  `SubCategoryPicker` e o `TagPicker`
+- [x] Formulário: campo "Perfil", cadastros relidos do perfil escolhido; escopo "somente esta"
+  sem revisão no formulário e na exclusão; atalhos de Ajustes num grupo só
+- [x] Testes: `client` (`test/movementList.test.ts`), desktop (`test/transactions.test.ts`:
+  perfil no envio; `test/registry.test.ts`: `note` na URL) e ponta a ponta
+  (`e2e/movements.spec.ts`: situação e edição no extrato, "somente esta" sem revisão, mover de
+  perfil, blocos da Visão geral; os demais specs seguiram a ordem nova das colunas e o seletor
+  com busca)
+
+### Fase 13.3 — Tipos de meta e retirada
+
+Entrou depois da Fase 13.2, a pedido: guardar numa poupança e retirar para um imprevisto
+precisa descontar da meta, e uma meta pode ser simplesmente o saldo de uma conta de
+investimento. Regras em [database-design.md §4.11](database-design.md#411-goals). **Decisões**
+(perguntadas antes do código):
+
+- A meta tem um **tipo**, escolhido no formulário de criação e de edição: **por lançamentos**
+  (como até aqui) ou **saldo de uma conta**.
+- Na meta por lançamentos, a transferência vinculada tem **"Guardar na meta" / "Retirar da
+  meta"**; a retirada desconta do progresso e aparece negativa, com a etiqueta "retirada", na
+  tabela das vinculadas. **Só a transferência retira**; a receita sempre guarda.
+- Na meta vinculada a conta, o progresso é o **saldo consolidado de hoje**; ritmo e projeção
+  saem da variação mensal do consolidado. Só **contas de investimento**, e a mesma conta pode
+  servir a várias metas. O detalhe troca a tabela das vinculadas pelo link para o extrato.
+- Trocar para a vinculada a conta **desfaz os vínculos**, com o aviso de quantos antes de
+  salvar. Excluir a conta exclui a meta, e o alerta da exclusão a conta.
+
+**Núcleo**
+- [x] Migration `0005` (`goals.kind`, `goals.account_id`, `goal_withdrawal` em `transactions` e
+  `recurrences`); `pnpm embed:migrations`
+- [x] Domínio: `GoalFunding` na meta, `goalWithdrawal` na transação e no modelo da série
+  (`withdrawsFromGoal`, exportada para o formulário); o cálculo do progresso ganhou o saldo
+  inicial fora da média (`startingBalance`) e vínculos sem transação (os meses da conta)
+- [x] Regras `goal-withdrawal-requires-transfer`, `goal-funded-by-account`,
+  `goal-account-not-investment` e `account-type-funds-goal` (a conta que é o saldo de uma meta não
+  deixa de ser de investimento; o erro vai para o campo "Tipo" do diálogo da conta); `goals.options` só com as metas por lançamentos; metas na
+  exclusão em cadeia da conta (`goals` no `accounts.deletionImpact`)
+- [x] Testes: `test/services/goalFunding.test.ts` (retirada no guardado e no mês passado, receita
+  recusada, marca descartada sem meta, série de retirada, saldo consolidado de hoje e do fim de um
+  mês passado, lançamento recusado e fora das opções, conta corrente recusada, troca de tipo
+  desfazendo vínculos, exclusão da conta, troca do tipo da conta recusada com meta vinculada,
+  inclusive arquivada)
+
+**Client e desktop**
+- [x] `describeGoalFunding`, `describeGoalFundingChange`, a retirada nas vinculadas e a meta no
+  alerta da exclusão da conta; `goals.update` invalida
+  também o conteúdo de transação e as séries
+- [x] Formulário da meta com o tipo e a conta (`goalForm.ts`), detalhe com a origem do progresso
+  e o link para o extrato; "Guardar/Retirar" no lançamento
+- [x] Testes: `client` (`test/goalView.test.ts`, `test/deletionImpact.test.ts`), desktop
+  (`test/goals.test.ts`, `test/transactions.test.ts`) e ponta a ponta (`e2e/goals.spec.ts`: meta
+  vinculada ao Tesouro pelo diálogo e a transferência de retirada pelo lançamento)
+
+**Ajustes pedidos depois** (mesma rodada)
+- [x] As vinculadas da meta usam a listagem comum de movimentos (`MovementGrid`, via
+  `movementsFromGoalContributions`), no lugar da tabela só de leitura: editar, marcar pago e
+  excluir como em Transações. Colunas: data do pagamento, nome, categoria, conta e valor — sem a
+  situação, porque só as pagas contam; o total é o guardado
+- [x] Filtros de Transações com busca (`Combobox`) em conta ou cartão, categoria e tag; a situação,
+  lista curta e fixa, continua no `Select`
+- [x] Cabeçalho da listagem fixo no topo ao rolar: a barra superior saiu da área que rola
+  (`AppShell`), a tabela perdeu a rolagem horizontal do contêiner e as seções em volta recortam
+  com `overflow-clip`, que não prende o `sticky`
+- [x] Telas em painéis (Contas, Cartões, Metas, Cadastros, Fluxo por conta e Por tag) com rolagem
+  separada por painel (`PaneLayout`): a lista lateral rola sozinha, com o cabeçalho e o rodapé
+  dos totais (consolidado e previsto das contas, faturas dos cartões) fixos; o detalhe rola à
+  parte, e o cabeçalho fixo das listagens gruda no topo dele
+
+### Fase 13.4 — Visualizações das listas e metas arquivadas
+
+Entrou depois da Fase 13.3, a pedido. Regras em
+[database-design.md §4.11](database-design.md#411-goals). **Decisões** (perguntadas antes do
+código):
+
+- Metas ganham o estado **arquivada** ("Arquivar meta"/"Reativar meta" no "⋯" do detalhe). No
+  campo "Meta" do lançamento, a arquivada **só aparece na edição do lançamento já vinculado**,
+  marcada "(arquivada)", como a conta desativada.
+- A lista de Metas tem três **visualizações**: ativas (padrão), atingidas e arquivadas; a meta
+  atingida e arquivada aparece **nas duas**. No campo "Meta", as atingidas ficam num **grupo à
+  parte**.
+- Contas e Cartões ganham a mesma escolha entre **ativos e desativados**; o estado continua se
+  chamando "desativado" (não foi renomeado para "arquivado"). Os totais do rodapé continuam os
+  do perfil inteiro.
+- A visualização fica na URL (`view`). Sem ela, a conta, o cartão ou a meta pedida por um link
+  abre a lista em que aparece — o "Ver extrato da conta" de uma conta desativada abre as
+  desativadas.
+
+**Núcleo**
+- [x] Migration `0006` (`goals.archived_at`); `pnpm embed:migrations`
+- [x] `Goal.archive`/`unarchive`, rotas `goals.archive`/`goals.unarchive`, `archived` no
+  `GoalResponse`; `goals.options` com `reached` e `archived`; regra `goal-archived`
+- [x] Testes: `test/services/goalArchive.test.ts`
+
+**Client e desktop**
+- [x] `listViews.ts` (`goalInView`, `registryInView`, `goalChoices`...), invalidação das rotas
+  novas e a mensagem da regra
+- [x] `ListViewSwitch` nas listas de Contas, Cartões e Metas; `view` em `accountsSearch.ts`,
+  `cardsSearch.ts` e `goalsSearch.ts`; etiqueta "Arquivada" na lista e no detalhe; o resumo das
+  metas da Visão geral mostra só as ativas, como a visualização padrão de Metas
+- [x] Testes: `client` (`test/listViews.test.ts`), desktop (`test/accounts.test.ts`,
+  `test/cards.test.ts`, `test/goals.test.ts`) e ponta a ponta (`e2e/goals.spec.ts`,
+  `e2e/accounts.spec.ts`)
+
+### Fase 13.5 — Limite usado sem as séries fixas futuras
+
+Entrou depois da Fase 13.4, a pedido: as séries fixas no cartão (assinaturas) são gravadas 12
+meses à frente ([database-design.md §4.12](database-design.md#412-recurrences)) e inflavam o
+limite usado com um ano de cobranças que ainda não aconteceram.
+
+- [x] Regra: o limite usado soma inteiras as faturas em aberto até a **fatura aberta hoje** (a
+  que recebe uma compra feita hoje, pelo dia de fechamento); das faturas depois dela, só o já
+  comprometido — parcelas e compras avulsas lançadas adiante —, sem as ocorrências de séries
+  fixas (`BalanceLedgerRepository.committedInvoiceTypeTotals`, `CreditCardService.limitUsed`)
+- [x] Teste: `test/services/creditCards.test.ts` (assinatura, parcelas e compra adiante)
 
 ### Fase 14 — Empacotamento e validação
 

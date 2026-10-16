@@ -53,6 +53,7 @@ function editInput(transaction: Transaction): CoreInput<'transactions.update'> {
         destinationAccountId: transaction.destinationAccountId,
         partnerId: transaction.partnerId,
         goalId: transaction.goalId,
+        goalWithdrawal: transaction.goalWithdrawal,
         name: transaction.name,
         description: transaction.description,
         value: transaction.value.amount,

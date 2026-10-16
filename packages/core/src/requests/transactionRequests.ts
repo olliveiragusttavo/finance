@@ -61,6 +61,8 @@ const contentShape = {
     destinationAccountId: parsedText(AccountId).nullable().default(null),
     partnerId: parsedText(PartnerId).nullable().default(null),
     goalId: parsedText(GoalId).nullable().default(null),
+    // Guardar é o caso comum; só a transferência retira (database-design §4.11).
+    goalWithdrawal: z.boolean().default(false),
     name: z.string().trim().min(1).max(100),
     description: z.string().nullable().default(null),
     value: moneyField,
@@ -88,6 +90,7 @@ const explicitContentShape = {
     destinationAccountId: parsedText(AccountId).nullable(),
     partnerId: parsedText(PartnerId).nullable(),
     goalId: parsedText(GoalId).nullable(),
+    goalWithdrawal: z.boolean(),
     name: contentShape.name,
     description: z.string().nullable(),
     value: moneyField,
@@ -115,6 +118,7 @@ function toInput(data: z.output<z.ZodObject<typeof contentShape>>): TransactionI
         destinationAccountId: data.destinationAccountId,
         partnerId: data.partnerId,
         goalId: data.goalId,
+        goalWithdrawal: data.goalWithdrawal,
         name: data.name,
         description: data.description,
         value: data.value,
@@ -137,12 +141,14 @@ export const updateTransactionRequest = z
     .strictObject({
         id: parsedText(TransactionId),
         ...explicitContentShape,
-        // Escopo e série não são conteúdo da transação: o padrão "somente esta" sem mudar a série
-        // é o único que vale para qualquer lançamento, e não apaga nada em silêncio.
+        // Perfil, escopo e série não são conteúdo da transação, e sim o que fazer com ela: o
+        // padrão — ficar no perfil, "somente esta", sem mudar a série — é o único que vale para
+        // qualquer lançamento e não move nem apaga nada em silêncio.
+        profileId: parsedText(ProfileId).nullable().default(null),
         scope: editScopeField.default('single'),
         repeat: repeatSchema.nullable().default(null),
     })
-    .transform((data): UpdateTransactionCommand => ({ ...toInput(data), id: data.id, scope: data.scope, repeat: data.repeat }));
+    .transform((data): UpdateTransactionCommand => ({ ...toInput(data), id: data.id, profileId: data.profileId, scope: data.scope, repeat: data.repeat }));
 
 export const transactionIdRequest = z.strictObject({ id: parsedText(TransactionId) });
 

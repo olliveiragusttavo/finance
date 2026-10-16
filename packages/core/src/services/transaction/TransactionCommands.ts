@@ -26,6 +26,8 @@ export interface TransactionInput {
     readonly destinationAccountId: AccountId | null;
     readonly partnerId: PartnerId | null;
     readonly goalId: GoalId | null;
+    /** A transferência vinculada retira dinheiro da meta (database-design §4.11). */
+    readonly goalWithdrawal: boolean;
     readonly name: string;
     readonly description: string | null;
     readonly value: number;
@@ -63,6 +65,11 @@ export interface CreateTransactionCommand extends TransactionInput {
 /** Edição completa de uma transação existente ("somente esta", para ocorrências de recorrência). */
 export interface UpdateTransactionCommand extends TransactionInput {
     readonly id: TransactionId;
+    /**
+     * Perfil para onde a transação vai (database-design §4.13, "Mover para outro perfil"); `null`
+     * a mantém no perfil atual. As referências do conteúdo precisam ser do perfil de destino.
+     */
+    readonly profileId: ProfileId | null;
     readonly scope: EditScope;
     /**
      * Série como deve ficar (frequência, parcelas, fim); `null` ou igual à atual não muda a

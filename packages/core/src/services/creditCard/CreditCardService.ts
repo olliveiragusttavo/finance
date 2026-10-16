@@ -1,4 +1,5 @@
 import type { Account } from '../../domain/account/Account.ts';
+import { invoiceBalance } from '../../domain/balance/MonthlyMovement.ts';
 import { BillingCycle } from '../../domain/creditCard/BillingCycle.ts';
 import { CreditCard, type CreditCardContent } from '../../domain/creditCard/CreditCard.ts';
 import { amountDue, type Invoice } from '../../domain/invoice/Invoice.ts';
@@ -8,7 +9,9 @@ import { BusinessRuleViolation, NotFoundError } from '../../domain/shared/errors
 import { CreditCardId, type ProfileId } from '../../domain/shared/ids.ts';
 import { Money } from '../../domain/shared/Money.ts';
 import type { YearMonth } from '../../domain/shared/YearMonth.ts';
+import type { Clock } from '../../ports/Clock.ts';
 import type { IdGenerator } from '../../ports/IdGenerator.ts';
+import type { BalanceLedgerRepository } from '../../repositories/BalanceLedgerRepository.ts';
 import type { CreditCardRepository } from '../../repositories/CreditCardRepository.ts';
 import type { InvoiceRepository } from '../../repositories/InvoiceRepository.ts';
 import type { AccountService } from '../account/AccountService.ts';
@@ -33,6 +36,8 @@ export class CreditCardService {
      * @param creditCards Cartões.
      * @param invoices Fatura do mês e faturas em aberto, para o limite usado.
      * @param recalculation A rotina única de recálculo, para conta pagadora ou ciclo editados.
+     * @param ledger Somas das faturas futuras sem as séries fixas, para o limite usado.
+     * @param clock Dá o "hoje" que decide qual é a fatura aberta no limite usado.
      */
     public constructor(
         private readonly unitOfWork: UnitOfWork,
@@ -42,15 +47,16 @@ export class CreditCardService {
         private readonly creditCards: CreditCardRepository,
         private readonly invoices: InvoiceRepository,
         private readonly recalculation: BalanceRecalculationService,
+        private readonly ledger: BalanceLedgerRepository,
+        private readonly clock: Clock,
     ) {}
 
     /**
      * Lista os cartões com a fatura do mês e os totais do mês (mockup `DesktopCartoes`:
      * "Em aberto no mês" e "Total das faturas").
      * Regra de negócio (Cartões): a "fatura do mês" é a fatura da competência pedida — a que
-     * fecha naquele mês (mockup `DesktopCartoes`). O limite usado é o valor a pagar somado
-     * de **todas** as faturas em aberto do cartão, inclusive as futuras de parcelas, porque é
-     * o que o banco já reservou do limite; faturas pagas não usam limite.
+     * fecha naquele mês (mockup `DesktopCartoes`). O limite usado (`limitUsed`) é o que o banco
+     * já reservou do limite; faturas pagas não usam limite.
      *
      * @param profileId Perfil consultado.
      * @param period Mês de referência da tela.
@@ -65,7 +71,7 @@ export class CreditCardService {
                 return {
                     creditCard,
                     invoiceOfMonth: invoiceCycle(creditCard, period, invoices.find((invoice) => invoice.period.equals(period)) ?? null),
-                    limitUsed: totalDue(invoices.filter((invoice) => !invoice.isPaid()), profile.currency),
+                    limitUsed: this.limitUsed(creditCard, invoices.filter((invoice) => !invoice.isPaid()), profile.currency),
                 };
             });
             const monthInvoices = creditCards.flatMap(({ invoiceOfMonth }) => (invoiceOfMonth.invoice === null ? [] : [invoiceOfMonth.invoice]));
@@ -77,6 +83,29 @@ export class CreditCardService {
                 total: totalDue(monthInvoices, profile.currency),
             };
         });
+    }
+
+    /**
+     * Regra de negócio (Cartão de crédito, desktop-mvp-plan Fase 13.5): o limite usado soma o
+     * valor a pagar das faturas em aberto até a **fatura aberta hoje** (a que recebe uma compra
+     * feita hoje) e, das faturas depois dela, só o já comprometido — compras avulsas lançadas
+     * adiante e parcelas. As ocorrências futuras de séries fixas ficam fora: a série é gravada 12
+     * meses à frente, e somá-la reservaria do limite um ano de assinatura que ainda não foi
+     * cobrada. A fatura aberta hoje e as anteriores contam inteiras, fixas incluídas: aquela
+     * cobrança já entrou (ou entra no fechamento) e o banco já a reservou.
+     *
+     * @param creditCard Cartão, pelo ciclo que diz qual é a fatura aberta hoje.
+     * @param unpaid Faturas não pagas do cartão.
+     * @param currency Moeda do perfil.
+     * @return O limite usado.
+     */
+    private limitUsed(creditCard: CreditCard, unpaid: readonly Invoice[], currency: Currency): Money {
+        const open = creditCard.billingCycle.suggestedInvoicePeriod(this.clock.today());
+        const committed = this.ledger.committedInvoiceTypeTotals(creditCard.id, open, currency);
+        return unpaid.reduce((sum, invoice) => {
+            const balance = open.isBefore(invoice.period) ? invoiceBalance(currency, committed.get(invoice.id) ?? []) : invoice.balance;
+            return sum.add(amountDue(balance));
+        }, Money.zero(currency));
     }
 
     /**

@@ -60,7 +60,7 @@ async function fillBasics(page: Page, column: Locator, fields: { readonly amount
     await page.getByRole('combobox', { name: 'Buscar categoria' }).fill('mercado');
     await page.getByRole('combobox', { name: 'Buscar categoria' }).press('Enter');
     await column.getByLabel('Conta ou cartão').press('Enter');
-    await page.getByRole('option', { name: fields.source, exact: true }).press('Enter');
+    await page.getByRole('option', { name: fields.source, exact: true }).dispatchEvent('click');
     await column.getByLabel(fields.dateLabel, { exact: true }).fill(fields.date);
 }
 

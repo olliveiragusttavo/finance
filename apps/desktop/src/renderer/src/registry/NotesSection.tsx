@@ -35,10 +35,14 @@ interface PendingLeave {
  * texto de uma anotação não está em nenhum outro lugar, e descartá-lo em silêncio o perderia.
  * Por isso o rascunho e a gravação ficam aqui, e não no editor: o diálogo precisa salvar.
  *
+ * A anotação pedida pela URL (`note`, que a Visão geral usa para levar a uma anotação) abre no
+ * editor assim que a lista carrega, uma vez por pedido.
+ *
  * @param props.query Anotações do perfil, da mais recente para a mais antiga.
+ * @param props.requestedNote Anotação a abrir, vinda da URL; `null` sem pedido.
  * @return A seção de anotações.
  */
-export function NotesSection({ query }: { readonly query: UseQueryResult<readonly NoteResponse[], CoreCallError> }): ReactNode {
+export function NotesSection({ query, requestedNote = null }: { readonly query: UseQueryResult<readonly NoteResponse[], CoreCallError>; readonly requestedNote?: string | null }): ReactNode {
     const { profile } = useActiveProfile();
     const create = useCoreMutation('notes.create');
     const rewrite = useCoreMutation('notes.update');
@@ -51,6 +55,9 @@ export function NotesSection({ query }: { readonly query: UseQueryResult<readonl
     const [error, setError] = useState<string | null>(null);
     const [orphaned, setOrphaned] = useState(false);
     const [pending, setPending] = useState<PendingLeave | null>(null);
+    // Último pedido da URL já atendido: abrir a anotação pedida não pode desfazer, a cada render,
+    // a escolha que o usuário fez depois na lista.
+    const [handledRequest, setHandledRequest] = useState<string | null>(null);
     const notes = query.data ?? [];
     const open = target.mode === 'edit' ? (notes.find((note) => note.id === target.noteId) ?? null) : null;
     const dirty = target.mode !== 'none' && draft !== baseline;
@@ -104,6 +111,16 @@ export function NotesSection({ query }: { readonly query: UseQueryResult<readonl
         setError(null);
         setOrphaned(false);
     };
+
+    // Pedido novo da URL, com a lista carregada: abre a anotação pedida. Não há rascunho a
+    // perder, porque a navegação que muda a URL passa antes pelo bloqueio das alterações não
+    // salvas; a anotação que não existe mais só não abre.
+    if (requestedNote !== null && requestedNote !== handledRequest && query.data !== undefined) {
+        setHandledRequest(requestedNote);
+        if (notes.some((note) => note.id === requestedNote)) {
+            show({ mode: 'edit', noteId: requestedNote });
+        }
+    }
 
     /**
      * Abre outra anotação (ou uma nova) no editor, perguntando antes o que fazer com a

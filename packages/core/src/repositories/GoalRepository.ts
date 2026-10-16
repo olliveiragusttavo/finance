@@ -40,6 +40,16 @@ export interface GoalRepository {
     save(goal: Goal): void;
 
     /**
+     * Tira a meta das transações e dos modelos de recorrência que a apontam, que continuam
+     * existindo. Serve à exclusão e à troca para a meta vinculada a uma conta, que não recebe
+     * lançamentos (database-design §4.11).
+     *
+     * @param id Meta cujos vínculos se desfazem.
+     * @return void
+     */
+    unlinkTransactions(id: GoalId): void;
+
+    /**
      * Soft delete da meta, tirando-a das transações e dos modelos de recorrência que a
      * apontam. A propagação é explícita porque o `ON DELETE SET NULL` do banco não dispara num
      * `UPDATE` (database-design §3.6); as transações em si continuam.

@@ -1,5 +1,5 @@
-import type { AccountResponse, CategoryBranchResponse, CreditCardResponse, GoalContributionResponse, GoalProgressResponse, MoneyResponse } from '@finance/core';
-import { formatDate, formatDayMonth, formatMonthShort } from '../format/dates.ts';
+import type { GoalProgressResponse, MoneyResponse } from '@finance/core';
+import { formatDate, formatMonthShort } from '../format/dates.ts';
 import { formatMoney } from '../format/money.ts';
 import { formatPercent } from '../format/percent.ts';
 
@@ -104,7 +104,10 @@ export function goalPendingNote(goal: GoalProgressResponse): string | null {
  * @param goal Meta a excluir.
  * @return A frase com quantos lançamentos perdem o vínculo.
  */
-export function describeGoalDeletion(goal: Pick<GoalProgressResponse, 'name' | 'linkedCount'>): string {
+export function describeGoalDeletion(goal: Pick<GoalProgressResponse, 'name' | 'linkedCount' | 'funding'>): string {
+    if (goal.funding.kind === 'account') {
+        return `${goal.name} mede o saldo de uma conta; excluir só apaga a meta — a conta e os lançamentos continuam.`;
+    }
     if (goal.linkedCount === 0) {
         return `Nenhum lançamento está vinculado a ${goal.name}; excluir só apaga a meta.`;
     }
@@ -112,55 +115,36 @@ export function describeGoalDeletion(goal: Pick<GoalProgressResponse, 'name' | '
     return `${linked} o vínculo com ${goal.name} e continua${goal.linkedCount === 1 ? '' : 'm'} existindo, com os mesmos valores e saldos.`;
 }
 
-/** Linha da tabela "Transações vinculadas". */
-export interface GoalContributionRow {
-    readonly id: string;
-    /** Dia do pagamento, `05/10`. */
-    readonly date: string;
-    readonly name: string;
-    /** `Investimentos › Aporte`. */
-    readonly category: string;
-    /** `Nubank`, ou `Nubank → Tesouro` numa transferência. */
-    readonly account: string;
-    /** Quanto soma à meta, com o sinal do estorno. */
-    readonly amountText: string;
-    readonly refund: boolean;
-}
-
-/** Os cadastros que dão nome às linhas. */
-export interface GoalContributionSource {
-    readonly contributions: readonly GoalContributionResponse[];
-    /** Todas as contas do perfil, desativadas incluídas: o histórico continua mostrando o nome. */
-    readonly accounts: readonly Pick<AccountResponse, 'id' | 'name'>[];
-    readonly creditCards: readonly Pick<CreditCardResponse, 'id' | 'name'>[];
-    readonly categories: readonly CategoryBranchResponse[];
+/**
+ * De onde vem o progresso, para o subtítulo do detalhe e da lista (desktop-mvp-plan Fase 13.3).
+ *
+ * @param goal Meta.
+ * @param accounts Contas do perfil, para o nome da conta vinculada.
+ * @return "Por lançamentos" ou "Saldo de Tesouro".
+ */
+export function describeGoalFunding(goal: Pick<GoalProgressResponse, 'funding'>, accounts: readonly { readonly id: string; readonly name: string }[]): string {
+    const { funding } = goal;
+    if (funding.kind === 'transactions') {
+        return 'Por lançamentos';
+    }
+    const account = accounts.find((item) => item.id === funding.accountId);
+    return account === undefined ? 'Saldo de uma conta' : `Saldo de ${account.name}`;
 }
 
 /**
- * Monta a tabela das transações que contam, na ordem do núcleo (dia do pagamento). O valor é o
- * que a transação soma à meta — o valor dela, sem encargos —, e não o efeito na conta: a
- * transferência para o Tesouro sai da corrente, mas entra na meta.
+ * Aviso do formulário ao trocar a meta por lançamentos para a vinculada a conta.
+ * Regra de negócio (Metas, desktop-mvp-plan Fase 13.3): a troca desfaz os vínculos, e os
+ * lançamentos continuam existindo — o aviso diz quantos antes de salvar, como na exclusão.
  *
- * @param source Contribuições e os cadastros.
- * @return As linhas da tabela.
+ * @param goal Meta editada, com quantos lançamentos estão vinculados.
+ * @return A frase, ou `null` quando nenhum lançamento perde o vínculo.
  */
-export function buildGoalContributionRows(source: GoalContributionSource): readonly GoalContributionRow[] {
-    const accounts = new Map(source.accounts.map((account) => [account.id, account.name]));
-    const creditCards = new Map(source.creditCards.map((creditCard) => [creditCard.id, creditCard.name]));
-    const subCategories = new Map(source.categories.flatMap((category) => category.subCategories.map((sub) => [sub.id, `${category.name} › ${sub.name}`])));
-    return source.contributions.map(({ transaction, paidOn }) => {
-        const { container } = transaction;
-        const origin = container.kind === 'statement' ? accounts.get(container.accountId) ?? '' : creditCards.get(container.creditCardId) ?? '';
-        return {
-            id: transaction.id,
-            date: formatDayMonth(paidOn),
-            name: transaction.name,
-            category: subCategories.get(transaction.subCategoryId) ?? '',
-            account: transaction.destinationAccountId === null ? origin : `${origin} → ${accounts.get(transaction.destinationAccountId) ?? ''}`,
-            amountText: formatMoney(transaction.value),
-            refund: transaction.value.amount < 0,
-        };
-    });
+export function describeGoalFundingChange(goal: Pick<GoalProgressResponse, 'name' | 'linkedCount'>): string | null {
+    if (goal.linkedCount === 0) {
+        return null;
+    }
+    const linked = goal.linkedCount === 1 ? 'o lançamento vinculado perde' : `os ${String(goal.linkedCount)} lançamentos vinculados perdem`;
+    return `Ao salvar, ${linked} o vínculo com ${goal.name}, que passa a medir o saldo da conta. Os lançamentos continuam existindo.`;
 }
 
 /**

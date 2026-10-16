@@ -3,11 +3,10 @@ import {
     formatMonthAbbreviation,
     formatMonthShort,
     formatTransactionSituation,
-    otherProfileAccountLabel,
+    movementsFromTransactions,
     TRANSACTION_SITUATIONS,
     useAccounts,
     useCategoryTree,
-    useCoreMutation,
     useCreditCards,
     useInvoicesByCards,
     useProfileInvoices,
@@ -15,27 +14,25 @@ import {
     useTags,
     useTransactions,
     useTransferTargets,
+    type MovementColumn,
     type TransactionFilters,
-    type InvoiceTableRow,
-    type TransactionRow,
     type TransactionTable,
-    type TransactionTableRow,
 } from '@finance/client';
 import type { AccountInPeriodResponse, CategoryBranchResponse, CoreInput, CreditCardInPeriodResponse, InvoiceResponse, TagResponse, TransactionResponse } from '@finance/core';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useId, useMemo, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
+import { Combobox, type ComboboxOption } from '@/components/Combobox';
 import { ErrorState, Skeleton } from '@/components/states';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useActiveProfile } from '@/shell/activeProfile';
 import { useTransactionPanel, useTransactionPanelHost } from '@/shell/TransactionPanel';
 import { useReferenceMonth } from '@/shell/useReferenceMonth';
-import { DeleteTransactionDialog } from './DeleteTransactionDialog.tsx';
-import { TransactionDialog } from './TransactionDialog.tsx';
+import { MovementGrid } from './MovementGrid.tsx';
 import { sourceKey } from './transactionForm.ts';
-import { TransactionGrid } from './TransactionGrid.tsx';
+import { useTransactionActions } from './useTransactionActions.tsx';
 import {
     categoryFilterValue,
     containerFilterValue,
@@ -46,10 +43,10 @@ import {
     withFilters,
 } from './transactionsSearch.ts';
 
-/** O que o diálogo de lançamento mostra: um lançamento novo ou a edição de um existente. */
-type EditorState = { readonly mode: 'new' } | { readonly mode: 'edit'; readonly transaction: TransactionResponse };
+/** Colunas da listagem em Transações: o mês inteiro do perfil, com a conta ou o cartão de cada linha. */
+const COLUMNS: readonly MovementColumn[] = ['date', 'name', 'category', 'container', 'amount', 'situation', 'recurring'];
 
-/** Valor dos campos de filtro para "Todos/Todas": o `Select` do Radix não aceita valor vazio. */
+/** Valor dos campos de filtro para "Todos/Todas": o `Select` do Radix não aceita valor vazio, e o `Combobox` trata o vazio como "nada escolhido". */
 const ALL = 'all';
 
 /**
@@ -76,16 +73,8 @@ export function TransactionsScreen(): ReactNode {
     const recurrences = useRecurrences({ profileId: profile.id });
     const invoices = useMonthInvoices(transactions.data);
     const monthInvoices = useProfileInvoices({ profileId: profile.id, period });
-    const [editor, setEditor] = useState<EditorState | null>(null);
     const [selectedId, setSelectedId] = useState<string | null>(null);
-    const [deleting, setDeleting] = useState<TransactionResponse | null>(null);
-    const setPaid = useCoreMutation('transactions.setPaid');
     const panel = useTransactionPanel();
-
-    const openNew = useCallback(() => {
-        setEditor({ mode: 'new' });
-    }, []);
-    useTransactionPanelHost(openNew);
 
     const table = useMemo(
         () =>
@@ -107,38 +96,8 @@ export function TransactionsScreen(): ReactNode {
                   ),
         [profile.id, transactions.data, accounts.data, otherProfileAccounts.data, creditCards.data, categories.data, invoices, recurrences.data, monthInvoices.data, filters],
     );
+    const rows = useMemo(() => (table === null ? [] : movementsFromTransactions(table.rows, profile.id)), [table, profile.id]);
     const failed = [transactions, accounts, otherProfileAccounts, creditCards, categories, monthInvoices].find((query) => query.error !== null)?.error ?? null;
-    // Nomes das contas do outro perfil para o alerta de exclusão de uma transferência que sai daqui.
-    const namedAccounts = useMemo(
-        () => [...(accounts.data?.accounts ?? []), ...(otherProfileAccounts.data ?? []).map((account) => ({ id: account.id, name: otherProfileAccountLabel(account) }))],
-        [accounts.data, otherProfileAccounts.data],
-    );
-
-    /**
-     * Regra de negócio (Transferência entre perfis): a transferência recebida de outro perfil é
-     * uma linha só, do perfil de origem (database-design §4.13); editar, pagar ou excluir daqui
-     * mexeria no extrato de um perfil que não está aberto. A tela avisa onde fazer a alteração
-     * em vez de abrir um formulário com a subcategoria e as tags do outro perfil.
-     *
-     * @param row Linha em que o usuário agiu.
-     * @return `true` quando a linha é só para leitura e a ação foi barrada.
-     */
-    const blockedReadOnly = (row: TransactionRow): boolean => {
-        if (row.readOnly) {
-            toast.info('Esta transferência veio de outro perfil. Para alterá-la, abra o perfil de origem.');
-        }
-        return row.readOnly;
-    };
-
-    /**
-     * A linha da fatura leva à fatura em Cartões, onde estão as compras, o pagamento e a reabertura
-     * (desktop-mvp-plan Fase 11.1).
-     *
-     * @param row Linha da fatura.
-     */
-    const openInvoice = (row: InvoiceTableRow): void => {
-        void navigate({ to: '/cards', search: { card: row.invoice.creditCardId, invoice: row.invoice.period } });
-    };
 
     /**
      * Lançamento gravado. A compra no cartão não aparece na tabela agrupada, então a tela diz em
@@ -170,40 +129,24 @@ export function TransactionsScreen(): ReactNode {
         void navigate({ to: '/transactions', search: (current: Readonly<Record<string, unknown>>) => withFilters(current, next), replace: true });
     };
 
+    const actions = useTransactionActions({
+        onSaved,
+        onDeleted: (id) => {
+            setSelectedId((current) => (current === id ? null : current));
+        },
+    });
+    const { openNew } = actions;
+    const initialSource = initialSourceOf(filters);
     /**
-     * Atalho `P`: marca ou desmarca o pagamento com a data de hoje.
-     * Regra de negócio (Cartão, database-design §4.7): numa compra no cartão quem decide se o
-     * dinheiro saiu é a fatura, não a compra; marcar a compra não mudaria a situação mostrada, e a
-     * tela diz onde pagar. O pagamento parcial é a exceção: é dinheiro que sai da conta no dia
-     * dele, com a situação própria. A linha da fatura também leva a Cartões, onde se paga.
-     *
-     * @param row Linha selecionada.
+     * Faz o "+ Lançamento" e o `N` abrirem o diálogo desta tela, com a origem do filtro sugerida,
+     * em vez do painel genérico do shell. O `useCallback` depende só da origem: o
+     * `useTransactionPanelHost` refaz o registro a cada referência nova, e ele precisa mudar
+     * apenas quando o filtro muda a sugestão.
      */
-    const togglePaid = (row: TransactionTableRow): void => {
-        if (row.kind === 'invoice') {
-            toast.info('Para pagar ou reabrir a fatura, abra-a em Cartões (Enter).');
-            return;
-        }
-        if (blockedReadOnly(row)) {
-            return;
-        }
-        if (row.transaction.container.kind === 'invoice' && !row.invoicePayment) {
-            toast.info('A situação de uma compra no cartão é a da fatura: pague ou reabra a fatura em Cartões.');
-            return;
-        }
-        const paid = !row.transaction.paid;
-        setPaid.mutate(
-            { id: row.id, paid },
-            {
-                onSuccess: () => {
-                    toast.success(paid ? `“${row.name}” marcado como pago.` : `“${row.name}” voltou a pendente.`);
-                },
-                onError: (error) => {
-                    toast.error(error.message);
-                },
-            },
-        );
-    };
+    const openHere = useCallback(() => {
+        openNew(initialSource);
+    }, [openNew, initialSource]);
+    useTransactionPanelHost(openHere);
 
     return (
         <div className="flex flex-col gap-4">
@@ -226,7 +169,7 @@ export function TransactionsScreen(): ReactNode {
             {table?.grouped === true && table.rows.some((row) => row.kind === 'invoice') && (
                 <p className="text-12 text-muted">As compras no cartão estão na linha de cada fatura, no dia em que ela pesa na conta. Filtre por cartão, categoria, tag ou busca para vê-las uma a uma.</p>
             )}
-            <section aria-label="Lançamentos do mês" className="min-w-0 overflow-hidden rounded-10 border border-line bg-surface text-13">
+            <section aria-label="Lançamentos do mês" className="min-w-0 overflow-clip rounded-10 border border-line bg-surface text-13">
                 {failed !== null ? (
                     <div className="p-4">
                         <ErrorState error={failed} />
@@ -234,10 +177,13 @@ export function TransactionsScreen(): ReactNode {
                 ) : table === null ? (
                     <TableSkeleton />
                 ) : (
-                    <TransactionGrid
-                        rows={table.rows}
+                    <MovementGrid
+                        rows={rows}
+                        columns={COLUMNS}
+                        actions={actions}
+                        label="Lançamentos"
                         selectedId={selectedId}
-                        editingId={editor?.mode === 'edit' ? editor.transaction.id : null}
+                        onSelect={setSelectedId}
                         empty={
                             <EmptyTable
                                 table={table}
@@ -249,58 +195,10 @@ export function TransactionsScreen(): ReactNode {
                                 }}
                             />
                         }
-                        onSelect={setSelectedId}
-                        onEdit={(row) => {
-                            setSelectedId(row.id);
-                            if (row.kind === 'invoice') {
-                                openInvoice(row);
-                            } else if (!blockedReadOnly(row)) {
-                                setEditor({ mode: 'edit', transaction: row.transaction });
-                            }
-                        }}
-                        onTogglePaid={togglePaid}
-                        onDelete={(row) => {
-                            if (row.kind === 'invoice') {
-                                toast.info('A fatura não se exclui: abra-a (Enter) para editar ou excluir as compras dela.');
-                            } else if (!blockedReadOnly(row)) {
-                                setDeleting(row.transaction);
-                            }
-                        }}
                     />
                 )}
             </section>
-            {editor !== null && (
-                <TransactionDialog
-                    key={editor.mode === 'edit' ? editor.transaction.id : 'new'}
-                    transaction={editor.mode === 'edit' ? editor.transaction : null}
-                    container={editor.mode === 'edit' ? (table?.rows.find((row) => row.id === editor.transaction.id)?.container ?? null) : null}
-                    recurrence={editor.mode === 'edit' ? (recurrences.data?.find((recurrence) => recurrence.id === editor.transaction.recurrenceId) ?? null) : null}
-                    initialSource={initialSourceOf(filters)}
-                    onClose={() => {
-                        setEditor(null);
-                    }}
-                    onSaved={onSaved}
-                    onDelete={(transaction) => {
-                        setDeleting(transaction);
-                    }}
-                />
-            )}
-            {deleting !== null && (
-                <DeleteTransactionDialog
-                    transaction={deleting}
-                    accounts={namedAccounts}
-                    creditCards={creditCards.data?.creditCards ?? []}
-                    onClose={() => {
-                        setDeleting(null);
-                    }}
-                    onDeleted={() => {
-                        if (editor?.mode === 'edit' && editor.transaction.id === deleting.id) {
-                            setEditor(null);
-                        }
-                        setSelectedId((current) => (current === deleting.id ? null : current));
-                    }}
-                />
-            )}
+            {actions.dialogs}
         </div>
     );
 }
@@ -399,7 +297,7 @@ function FilterBar({
                     }}
                 />
             </label>
-            <FilterSelect
+            <FilterCombobox
                 label="Conta ou cartão"
                 width="w-43"
                 value={containerFilterValue(filters.container)}
@@ -407,29 +305,14 @@ function FilterBar({
                     onChange({ ...filters, container: parseContainerFilterValue(value) });
                 }}
                 allLabel="Todos"
-            >
-                {accounts.length > 0 && (
-                    <SelectGroup>
-                        <SelectLabel>Contas</SelectLabel>
-                        {accounts.map((account) => (
-                            <SelectItem key={account.id} value={`account:${account.id}`}>
-                                {account.name}
-                            </SelectItem>
-                        ))}
-                    </SelectGroup>
-                )}
-                {creditCards.length > 0 && (
-                    <SelectGroup>
-                        <SelectLabel>Cartões</SelectLabel>
-                        {creditCards.map((creditCard) => (
-                            <SelectItem key={creditCard.id} value={`creditCard:${creditCard.id}`}>
-                                {creditCard.name}
-                            </SelectItem>
-                        ))}
-                    </SelectGroup>
-                )}
-            </FilterSelect>
-            <FilterSelect
+                searchLabel="Buscar conta ou cartão"
+                emptyText="Nenhuma conta ou cartão encontrado."
+                options={[
+                    ...accounts.map((account): ComboboxOption => ({ value: `account:${account.id}`, label: account.name, group: 'Contas' })),
+                    ...creditCards.map((creditCard): ComboboxOption => ({ value: `creditCard:${creditCard.id}`, label: creditCard.name, group: 'Cartões' })),
+                ]}
+            />
+            <FilterCombobox
                 label="Categoria"
                 width="w-38"
                 value={categoryFilterValue(filters.category)}
@@ -437,21 +320,16 @@ function FilterBar({
                     onChange({ ...filters, category: parseCategoryFilterValue(value) });
                 }}
                 allLabel="Todas"
-            >
-                {categories.map((category) => (
-                    <SelectGroup key={category.id}>
-                        <SelectItem value={`category:${category.id}`} className="font-semibold">
-                            {category.name}
-                        </SelectItem>
-                        {category.subCategories.map((sub) => (
-                            <SelectItem key={sub.id} value={`subCategory:${sub.id}`} className="pl-6">
-                                {sub.name}
-                            </SelectItem>
-                        ))}
-                    </SelectGroup>
-                ))}
-            </FilterSelect>
-            <FilterSelect
+                searchLabel="Buscar categoria"
+                emptyText="Nenhuma categoria encontrada."
+                // A categoria filtra todas as suas subcategorias; a subcategoria leva a categoria
+                // como prefixo, para que buscar "alimentação" ache as duas coisas.
+                options={categories.flatMap((category): ComboboxOption[] => [
+                    { value: `category:${category.id}`, label: category.name },
+                    ...category.subCategories.map((sub): ComboboxOption => ({ value: `subCategory:${sub.id}`, label: sub.name, prefix: `${category.name} › ` })),
+                ])}
+            />
+            <FilterCombobox
                 label="Tag"
                 width="w-30"
                 value={filters.tagId ?? ''}
@@ -459,13 +337,11 @@ function FilterBar({
                     onChange({ ...filters, tagId: value === '' ? null : value });
                 }}
                 allLabel="Todas"
-            >
-                {tags.map((tag) => (
-                    <SelectItem key={tag.id} value={tag.id}>
-                        {tag.name}
-                    </SelectItem>
-                ))}
-            </FilterSelect>
+                searchLabel="Buscar tag"
+                emptyText="Nenhuma tag encontrada."
+                options={tags.map((tag): ComboboxOption => ({ value: tag.id, label: tag.name }))}
+            />
+            {/* Lista curta e fixa: fica no `Select`, como o tipo e a moeda nos formulários. */}
             <FilterSelect
                 label="Situação"
                 width="w-30"
@@ -497,7 +373,64 @@ function FilterBar({
 }
 
 /**
- * Um filtro de escolha da barra, com "Todos/Todas" no topo.
+ * Um filtro de cadastro da barra, com busca como os campos do formulário (desktop-mvp-plan Fase
+ * 13.3): contas, categorias e tags crescem com o uso, e rolar um menu para achar uma delas é o
+ * mesmo problema que o `Combobox` resolveu no lançamento. "Todos/Todas" fica no topo da lista.
+ *
+ * @param props.label Rótulo acima do campo, que também nomeia o botão.
+ * @param props.width Largura do botão, a do mockup.
+ * @param props.value Valor escolhido; vazio para "Todos".
+ * @param props.onChange Recebe o valor; vazio para "Todos".
+ * @param props.allLabel "Todos" ou "Todas", conforme o gênero do rótulo.
+ * @param props.searchLabel Nome do campo de busca da lista.
+ * @param props.emptyText Frase da busca sem resultado.
+ * @param props.options As opções, sem o "Todos".
+ * @return O filtro.
+ */
+function FilterCombobox({
+    label,
+    width,
+    value,
+    onChange,
+    allLabel,
+    searchLabel,
+    emptyText,
+    options,
+}: {
+    readonly label: string;
+    readonly width: string;
+    readonly value: string;
+    readonly onChange: (value: string) => void;
+    readonly allLabel: string;
+    readonly searchLabel: string;
+    readonly emptyText: string;
+    readonly options: readonly ComboboxOption[];
+}): ReactNode {
+    const id = useId();
+    return (
+        <div className="flex flex-col gap-1">
+            <label htmlFor={id} className="text-12 text-muted">
+                {label}
+            </label>
+            <div className={width}>
+                <Combobox
+                    id={id}
+                    value={value === '' ? ALL : value}
+                    onChange={(next) => {
+                        onChange(next === ALL ? '' : next);
+                    }}
+                    options={[{ value: ALL, label: allLabel }, ...options]}
+                    placeholder={allLabel}
+                    searchLabel={searchLabel}
+                    emptyText={emptyText}
+                />
+            </div>
+        </div>
+    );
+}
+
+/**
+ * Um filtro de lista curta e fixa da barra (a situação), com "Todas" no topo.
  *
  * @param props.label Rótulo acima do campo.
  * @param props.width Largura mínima, a do mockup.

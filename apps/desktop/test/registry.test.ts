@@ -241,6 +241,13 @@ describe('lista lateral de Cadastros', () => {
         expect(openKind(parseRegistrySearch({ kind: 'notes' }))).toBe('notes');
     });
 
+    it('a anotação pedida pela URL só vale em Anotações (a Visão geral leva a ela, Fase 13.2)', () => {
+        expect(parseRegistrySearch({ kind: 'notes', note: 'n1' })).toEqual({ kind: 'notes', note: 'n1' });
+        expect(parseRegistrySearch({ kind: 'tags', note: 'n1' })).toEqual({ kind: 'tags' });
+        expect(parseRegistrySearch({ kind: 'notes', note: '' })).toEqual({ kind: 'notes' });
+        expect(parseRegistrySearch({ note: 'n1' })).toEqual({});
+    });
+
     it('o contador de categorias segue o mockup (8 · 17 sub)', () => {
         expect(categoryCounter([])).toBe('0 · 0 sub');
         expect(

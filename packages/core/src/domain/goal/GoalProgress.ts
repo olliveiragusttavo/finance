@@ -12,10 +12,20 @@ import type { Goal } from './Goal.ts';
  */
 const AVERAGE_MONTH_DAYS = 365.2425 / 12;
 
-/** Uma transação vinculada a uma meta, como o Repository a lê. */
+/**
+ * O que move o progresso de uma meta: uma transação vinculada (meta por lançamentos) ou a
+ * variação do saldo consolidado de um mês da conta (meta vinculada a conta, desktop-mvp-plan
+ * Fase 13.3). As duas entram no mesmo cálculo, para que ritmo, média e projeção sigam uma regra só.
+ */
 export interface GoalLink {
-    readonly transactionId: TransactionId;
-    /** Valor com sinal, na moeda do perfil: o estorno (negativo) desconta da meta. Sem encargos. */
+    /** Identidade estável do vínculo, para ordenar e separar os que contam. */
+    readonly key: string;
+    /** A transação vinculada; `null` no mês do extrato de uma meta vinculada a conta. */
+    readonly transactionId: TransactionId | null;
+    /**
+     * Valor com sinal, na moeda do perfil: o estorno (negativo) e a transferência de retirada
+     * descontam da meta. Sem encargos.
+     */
     readonly value: Money;
     /**
      * Dia em que o dinheiro de fato se moveu: o pagamento numa conta, o da fatura num cartão.
@@ -24,9 +34,11 @@ export interface GoalLink {
     readonly paidOn: LocalDate | null;
 }
 
-/** Transação que conta no progresso, com o dia em que passou a contar. */
+/** O que conta no progresso, com o dia em que passou a contar. */
 export interface GoalContribution {
-    readonly transactionId: TransactionId;
+    readonly key: string;
+    /** A transação; `null` no mês do extrato de uma meta vinculada a conta. */
+    readonly transactionId: TransactionId | null;
     readonly value: Money;
     readonly paidOn: LocalDate;
 }
@@ -87,8 +99,14 @@ export interface GoalProgress {
 /** O que o cálculo do progresso precisa saber. */
 export interface GoalProgressInput {
     readonly goal: Goal;
-    /** Todas as transações vivas vinculadas à meta, pagas ou não. */
+    /** Todas as transações vivas vinculadas à meta, pagas ou não — ou os meses do extrato da conta. */
     readonly links: readonly GoalLink[];
+    /**
+     * Quanto já estava guardado antes do primeiro vínculo: o saldo inicial da conta numa meta
+     * vinculada a conta; zero na meta por lançamentos. Conta no guardado, mas não na média
+     * mensal — não foi guardado em mês nenhum, e diluí-lo no primeiro mês inflaria o ritmo.
+     */
+    readonly startingBalance?: Money | undefined;
     /** Mês de referência da tela: o ritmo conta a partir do fim dele. */
     readonly period: YearMonth;
     /** Hoje, no fuso do usuário. */
@@ -117,19 +135,20 @@ export interface GoalProgressInput {
 export function measureGoalProgress(input: GoalProgressInput): GoalProgress {
     const { goal, links, period, today } = input;
     const currency = goal.target.currency;
+    const starting = input.startingBalance ?? Money.zero(currency);
     const contributions = links
-        .flatMap((link): GoalContribution[] => (link.paidOn !== null && !today.isBefore(link.paidOn) ? [{ transactionId: link.transactionId, value: link.value, paidOn: link.paidOn }] : []))
-        .sort((a, b) => a.paidOn.compare(b.paidOn) || a.transactionId.localeCompare(b.transactionId));
-    const counted = new Set(contributions.map((contribution) => contribution.transactionId));
-    const pendingLinks = links.filter((link) => !counted.has(link.transactionId));
+        .flatMap((link): GoalContribution[] => (link.paidOn !== null && !today.isBefore(link.paidOn) ? [{ key: link.key, transactionId: link.transactionId, value: link.value, paidOn: link.paidOn }] : []))
+        .sort((a, b) => a.paidOn.compare(b.paidOn) || a.key.localeCompare(b.key));
+    const counted = new Set(contributions.map((contribution) => contribution.key));
+    const pendingLinks = links.filter((link) => !counted.has(link.key));
 
-    const saved = sum(contributions.map((contribution) => contribution.value), currency);
+    const saved = starting.add(sum(contributions.map((contribution) => contribution.value), currency));
     const missing = goal.target.subtract(saved);
     const reached = missing.isZero() || missing.isNegative();
     const remaining = reached ? Money.zero(currency) : missing;
     const monthsLeft = goal.targetDate === null ? null : monthsBetween(endOf(period), goal.targetDate);
     const averagePerMonth = averageOf(contributions, YearMonth.min(period, today.period), currency);
-    const paceBase = paceBaseOf(contributions, saved, averagePerMonth, period, today);
+    const paceBase = paceBaseOf(contributions, { starting, saved }, averagePerMonth, period, today);
     const missingAtBase = goal.target.subtract(paceBase.saved);
     const open = monthsLeft !== null && monthsLeft > 0 && !missingAtBase.isZero() && !missingAtBase.isNegative();
 
@@ -156,17 +175,24 @@ export function measureGoalProgress(input: GoalProgressInput): GoalProgress {
  * média por mês inteiro depois do atual, que é a mesma média da projeção.
  *
  * @param contributions Contribuições pagas até hoje, em ordem de data.
- * @param saved Guardado até hoje, já somado pelo chamador.
+ * @param totals O guardado antes do primeiro vínculo e o guardado até hoje, já somados pelo chamador.
  * @param averagePerMonth Média mensal até o mês de referência (ou o atual); `null` sem aporte.
  * @param period Mês de referência.
  * @param today Hoje, que separa o mês passado, o atual e o futuro.
  * @return A base do ritmo.
  */
-function paceBaseOf(contributions: readonly GoalContribution[], saved: Money, averagePerMonth: Money | null, period: YearMonth, today: LocalDate): GoalPaceBase {
+function paceBaseOf(
+    contributions: readonly GoalContribution[],
+    totals: { readonly starting: Money; readonly saved: Money },
+    averagePerMonth: Money | null,
+    period: YearMonth,
+    today: LocalDate,
+): GoalPaceBase {
+    const { starting, saved } = totals;
     if (period.isBefore(today.period)) {
         const end = endOf(period);
         const until = contributions.filter((contribution) => !end.isBefore(contribution.paidOn));
-        return { period, saved: sum(until.map((contribution) => contribution.value), saved.currency), kind: 'past' };
+        return { period, saved: starting.add(sum(until.map((contribution) => contribution.value), saved.currency)), kind: 'past' };
     }
     if (today.period.isBefore(period)) {
         const ahead = averagePerMonth === null ? Money.zero(saved.currency) : averagePerMonth.times(today.period.monthsUntil(period));

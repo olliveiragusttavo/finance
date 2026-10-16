@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { currentPeriod, shiftPeriod } from '../src/renderer/src/shell/referenceMonth.ts';
 import { completeFirstUse } from './firstUse.ts';
 import { launchApp, removeUserData } from './launchApp.ts';
@@ -67,6 +67,25 @@ async function openCards(page: Page): Promise<void> {
 }
 
 /**
+ * Escolhe a opção já visível da lista aberta. No seletor com busca dos cadastros (`Combobox`,
+ * desktop-mvp-plan Fase 13.2) o foco fica no campo de busca e a opção não recebe foco, então o
+ * clique (por `dispatchEvent`, como os outros cliques destes testes) é o caminho; no `Select` do Radix, que ficou nas listas curtas, o foco vai direto à
+ * opção e o Enter confirma, sem a busca por digitação do Radix, que pode parar numa opção de nome
+ * parecido.
+ *
+ * @param page Janela do app.
+ * @param item Opção a escolher.
+ */
+async function pickOption(page: Page, item: Locator): Promise<void> {
+    if ((await page.getByRole('combobox', { name: /^Buscar/ }).count()) > 0) {
+        await item.dispatchEvent('click');
+        return;
+    }
+    await item.focus();
+    await item.press('Enter');
+}
+
+/**
  * Escolhe uma opção numa lista do Radix pelo teclado, como em `registry.spec.ts`.
  *
  * @param page Janela do app.
@@ -76,8 +95,7 @@ async function openCards(page: Page): Promise<void> {
 async function chooseOption(page: Page, label: string, option: string): Promise<void> {
     await page.getByLabel(label).press('Enter');
     const item = page.getByRole('option', { name: option, exact: true });
-    await item.focus();
-    await item.press('Enter');
+    await pickOption(page, item);
     await expect(page.getByRole('option')).toHaveCount(0);
     await expect(page.getByLabel(label)).toHaveText(option);
 }
@@ -118,7 +136,7 @@ test('fatura: lista com totais, detalhe, pagamento parcial, pagar e o extrato da
         await expect(figures).toContainText(`Fechamento03${month}Todo dia 3`);
         await expect(figures).toContainText(`Vencimento10${month}Entra no previsto de Nubank`);
         // Limite usado: todas as faturas em aberto, a do mês (150) e a seguinte (400), sobre 5.000.
-        await expect(figures).toContainText('Limite usado11%de R$ 5.000,00');
+        await expect(figures).toContainText('Limite usado11%R$ 550,00 de R$ 5.000,00');
         const lines = page.getByRole('region', { name: 'Lançamentos' });
         await expect(lines.getByRole('row').nth(1)).toContainText(`10${monthSuffix(shiftPeriod(period, -1))}Farmácia`);
         await expect(lines).toContainText('TotalR$ 150,00');
@@ -130,7 +148,7 @@ test('fatura: lista com totais, detalhe, pagamento parcial, pagar e o extrato da
         await page.getByRole('button', { name: 'Pagamento parcial' }).dispatchEvent('click');
         const partial = page.getByRole('dialog', { name: /^Pagamento parcial da fatura/ });
         await partial.getByLabel(/^Valor pago/).fill('1.000,00');
-        await chooseOption(page, 'Subcategoria', 'Aluguel');
+        await chooseOption(page, 'Subcategoria', 'Moradia › Aluguel');
         await partial.getByRole('button', { name: 'Lançar pagamento' }).dispatchEvent('click');
         await expect(partial).toContainText('A fatura tem R$ 150,00 a pagar; para quitar tudo, use "Pagar fatura".');
         await partial.getByLabel(/^Valor pago/).fill('50');
@@ -162,7 +180,7 @@ test('fatura: lista com totais, detalhe, pagamento parcial, pagar e o extrato da
         await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('link', { name: 'Contas', exact: true }).dispatchEvent('click');
         const movements = page.getByRole('region', { name: 'Movimentos' });
         const invoiceRow = movements.getByRole('row', { name: new RegExp(`^07${month} Fatura Roxinho`) });
-        await expect(invoiceRow).toContainText('Paga−R$ 100,00');
+        await expect(invoiceRow).toContainText('−R$ 100,00Paga');
         await expect(movements.getByRole('row', { name: new RegExp(`^04${month} Pagamento parcial`) })).toContainText('⇄ −R$ 50,00');
     } finally {
         await app.close();

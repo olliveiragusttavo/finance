@@ -34,7 +34,7 @@ import { RowReader } from './RowReader.ts';
 // transação num extrato excluído não existe mais para o usuário.
 const SELECT_TRANSACTION = `
     SELECT t.id, t.sub_category_id, t.bank_statement_id, t.invoice_id, t.destination_account_id,
-        t.partner_id, t.goal_id, t.recurrence_id, t.occurrence, t.name, t.description, t.value, t.currency,
+        t.partner_id, t.goal_id, t.goal_withdrawal, t.recurrence_id, t.occurrence, t.name, t.description, t.value, t.currency,
         t.conversion_rate, t.due_date, t.paid, t.payment_date, t.charges, t.type,
         bs.account_id AS statement_account_id, bs.year AS statement_year, bs.month AS statement_month,
         i.credit_card_id AS invoice_card_id, i.year AS invoice_year, i.month AS invoice_month,
@@ -90,14 +90,14 @@ export class SqliteTransactionRepository implements TransactionRepository {
     public insert(transaction: Transaction): void {
         const { changes } = this.database.run(
             `INSERT INTO transactions (id, sub_category_id, bank_statement_id, invoice_id, destination_account_id,
-                partner_id, goal_id, recurrence_id, occurrence, name, description, value, currency, conversion_rate,
+                partner_id, goal_id, goal_withdrawal, recurrence_id, occurrence, name, description, value, currency, conversion_rate,
                 due_date, paid, payment_date, charges, type, updated_at)
             VALUES (:id, :subCategoryId, :statementId, :invoiceId, :destinationAccountId,
-                :partnerId, :goalId, :recurrenceId, :occurrence, :name, :description, :value, :currency, :conversionRate,
+                :partnerId, :goalId, :goalWithdrawal, :recurrenceId, :occurrence, :name, :description, :value, :currency, :conversionRate,
                 :dueDate, :paid, :paymentDate, :charges, :type, :now)
             ON CONFLICT (id) DO UPDATE SET sub_category_id = excluded.sub_category_id, bank_statement_id = excluded.bank_statement_id,
                 invoice_id = excluded.invoice_id, destination_account_id = excluded.destination_account_id,
-                partner_id = excluded.partner_id, goal_id = excluded.goal_id, recurrence_id = excluded.recurrence_id,
+                partner_id = excluded.partner_id, goal_id = excluded.goal_id, goal_withdrawal = excluded.goal_withdrawal, recurrence_id = excluded.recurrence_id,
                 occurrence = excluded.occurrence, name = excluded.name, description = excluded.description, value = excluded.value,
                 currency = excluded.currency, conversion_rate = excluded.conversion_rate, due_date = excluded.due_date,
                 paid = excluded.paid, payment_date = excluded.payment_date, charges = excluded.charges, type = excluded.type,
@@ -122,7 +122,7 @@ export class SqliteTransactionRepository implements TransactionRepository {
         this.database.run(
             `UPDATE transactions SET sub_category_id = :subCategoryId, bank_statement_id = :statementId,
                 invoice_id = :invoiceId, destination_account_id = :destinationAccountId, partner_id = :partnerId,
-                goal_id = :goalId, name = :name, description = :description, value = :value, currency = :currency,
+                goal_id = :goalId, goal_withdrawal = :goalWithdrawal, name = :name, description = :description, value = :value, currency = :currency,
                 conversion_rate = :conversionRate, due_date = :dueDate, paid = :paid, payment_date = :paymentDate,
                 charges = :charges, type = :type, updated_at = :now
             WHERE id = :id AND deleted_at IS NULL`,
@@ -346,6 +346,7 @@ export class SqliteTransactionRepository implements TransactionRepository {
             destinationAccountId: transaction.destinationAccountId,
             partnerId: transaction.partnerId,
             goalId: transaction.goalId,
+            goalWithdrawal: transaction.goalWithdrawal ? 1 : 0,
             name: transaction.name,
             description: transaction.description,
             value: transaction.value.rounded().amount,
@@ -397,6 +398,7 @@ export class SqliteTransactionRepository implements TransactionRepository {
             destinationAccountId: nullableId('destination_account_id', AccountId),
             partnerId: nullableId('partner_id', PartnerId),
             goalId: nullableId('goal_id', GoalId),
+            goalWithdrawal: reader.boolean('goal_withdrawal'),
             name: reader.text('name'),
             description: reader.nullableText('description'),
             value: Money.of(reader.number('value'), currency),

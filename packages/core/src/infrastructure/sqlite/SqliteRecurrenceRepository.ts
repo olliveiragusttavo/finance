@@ -73,31 +73,34 @@ export class SqliteRecurrenceRepository implements RecurrenceRepository {
         this.database.run(
             `INSERT INTO recurrences (id, profile_id, type, recurrence, installments, value_type, end_at, starts_on, starts_at,
                 anchor_day, materialized_count, transaction_type, account_id, credit_card_id, invoice_offset, destination_account_id,
-                sub_category_id, partner_id, goal_id, name, description, value, charges, currency, conversion_rate, updated_at)
+                sub_category_id, partner_id, goal_id, goal_withdrawal, name, description, value, charges, currency, conversion_rate, updated_at)
             VALUES (:id, :profileId, :kind, :frequency, :installments, :valueType, :endAt, :startsOn, :startsAt,
                 :anchorDay, :materializedCount, :transactionType, :accountId, :creditCardId, :invoiceOffset, :destinationAccountId,
-                :subCategoryId, :partnerId, :goalId, :name, :description, :value, :charges, :currency, :conversionRate, :now)`,
+                :subCategoryId, :partnerId, :goalId, :goalWithdrawal, :name, :description, :value, :charges, :currency, :conversionRate, :now)`,
             { ...this.params(recurrence), profileId: recurrence.profileId },
         );
         this.syncTags(recurrence);
     }
 
     /**
+     * Grava também o perfil, porque mover uma série para outro perfil é uma revisão da regra
+     * (database-design §4.12), e não uma regra nova: o id e a marca d'água continuam.
+     *
      * @param recurrence Regra revisada.
      * @return void
      */
     public update(recurrence: Recurrence): void {
         this.database.run(
-            `UPDATE recurrences SET type = :kind, recurrence = :frequency, installments = :installments, value_type = :valueType,
+            `UPDATE recurrences SET profile_id = :profileId, type = :kind, recurrence = :frequency, installments = :installments, value_type = :valueType,
                 end_at = :endAt, starts_on = :startsOn, starts_at = :startsAt, anchor_day = :anchorDay,
                 -- A marca d'água só avança, mesmo que uma regeneração tenha emitido menos.
                 materialized_count = max(materialized_count, :materializedCount),
                 transaction_type = :transactionType, account_id = :accountId, credit_card_id = :creditCardId,
                 invoice_offset = :invoiceOffset, destination_account_id = :destinationAccountId, sub_category_id = :subCategoryId,
-                partner_id = :partnerId, goal_id = :goalId, name = :name, description = :description, value = :value,
+                partner_id = :partnerId, goal_id = :goalId, goal_withdrawal = :goalWithdrawal, name = :name, description = :description, value = :value,
                 charges = :charges, currency = :currency, conversion_rate = :conversionRate, updated_at = :now
             WHERE id = :id AND deleted_at IS NULL`,
-            this.params(recurrence),
+            { ...this.params(recurrence), profileId: recurrence.profileId },
         );
         this.syncTags(recurrence);
     }
@@ -177,6 +180,7 @@ export class SqliteRecurrenceRepository implements RecurrenceRepository {
             subCategoryId: template.subCategoryId,
             partnerId: template.partnerId,
             goalId: template.goalId,
+            goalWithdrawal: template.goalWithdrawal ? 1 : 0,
             name: template.name,
             description: template.description,
             value: template.value.rounded().amount,
@@ -224,6 +228,7 @@ export class SqliteRecurrenceRepository implements RecurrenceRepository {
                 subCategoryId: SubCategoryId(reader.text('sub_category_id')),
                 partnerId: nullableId('partner_id', PartnerId),
                 goalId: nullableId('goal_id', GoalId),
+                goalWithdrawal: reader.boolean('goal_withdrawal'),
                 name: reader.text('name'),
                 description: reader.nullableText('description'),
                 value: Money.of(reader.number('value'), currency),

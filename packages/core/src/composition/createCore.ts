@@ -170,12 +170,12 @@ export function createCore(ports: CorePorts): Core {
     const recurrenceService = new RecurrenceService(unitOfWork, ids, clock, composer, transactions, recurrenceRepository, impacts, recalculation);
     const transactionService = new TransactionService(unitOfWork, ids, composer, accounts, transactions, consolidation, recurrenceService, impacts, recalculation, clock);
     const profileService = new ProfileService(unitOfWork, ids, profiles);
-    const accountService = new AccountService(unitOfWork, ids, profileService, accounts, statements, recalculation);
-    const creditCardService = new CreditCardService(unitOfWork, ids, profileService, accountService, creditCards, invoices, recalculation);
+    const accountService = new AccountService(unitOfWork, ids, profileService, accounts, statements, recalculation, goals);
+    const creditCardService = new CreditCardService(unitOfWork, ids, profileService, accountService, creditCards, invoices, recalculation, ledger, clock);
     const categoryService = new CategoryService(unitOfWork, ids, profileService, categories);
     const tagService = new TagService(unitOfWork, ids, profileService, tags);
     const noteService = new NoteService(unitOfWork, ids, profileService, notes);
-    const goalService = new GoalService(unitOfWork, ids, clock, profileService, goals, transactions);
+    const goalService = new GoalService(unitOfWork, ids, clock, profileService, goals, transactions, accounts, statements);
     const onboardingService = new OnboardingService(unitOfWork, profileService, accountService, categoryService);
     const cascadeDeletion = new CascadeDeletionService(unitOfWork, deletions, accounts, creditCards, invoices, transactions, recalculation);
     const balances = new AccountBalanceService(unitOfWork, profiles, accounts, recalculation);
@@ -241,6 +241,8 @@ export function createCore(ports: CorePorts): Core {
         'goals.contributions': (raw) => goalController.contributions(raw),
         'goals.create': (raw) => goalController.create(raw),
         'goals.update': (raw) => goalController.update(raw),
+        'goals.archive': (raw) => goalController.archive(raw),
+        'goals.unarchive': (raw) => goalController.unarchive(raw),
         'goals.delete': (raw) => goalController.delete(raw),
         'transactions.create': (raw) => transactionController.create(raw),
         'transactions.update': (raw) => transactionController.update(raw),

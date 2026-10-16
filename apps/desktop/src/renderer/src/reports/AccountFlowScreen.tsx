@@ -2,6 +2,7 @@ import { buildAccountFlowTable, formatAccountType, useAccountFlow, useAccounts, 
 import type { AccountInPeriodResponse, AccountListResponse } from '@finance/core';
 import { Link, useSearch } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
+import { DetailPane, ListPane, PaneLayout } from '@/components/PaneLayout';
 import { EmptyState, QueryState, Skeleton } from '@/components/states';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/cn';
@@ -28,25 +29,25 @@ export function AccountFlowScreen(): ReactNode {
     const accounts = useAccounts({ profileId: profile.id, period });
 
     return (
-        <div className="-mx-8 -my-6 flex flex-1">
+        <PaneLayout>
             <QueryState query={accounts} loading={<FlowSkeleton />}>
                 {(list) => {
                     const choice = chooseAccountFlow(list.accounts, search);
                     return (
                         <>
                             <AccountChoiceList list={list} choice={choice} />
-                            <section aria-label="Extratos encadeados" className="flex min-w-0 flex-1 flex-col gap-5 px-8 py-6">
+                            <DetailPane label="Extratos encadeados">
                                 {choice === null ? (
                                     <EmptyState title="Nenhuma conta" description="Crie uma conta para ver o fluxo dos extratos." action={<Link to="/accounts">Ir para Contas</Link>} />
                                 ) : (
                                     <FlowReport choice={choice} />
                                 )}
-                            </section>
+                            </DetailPane>
                         </>
                     );
                 }}
             </QueryState>
-        </div>
+        </PaneLayout>
     );
 }
 
@@ -61,11 +62,16 @@ export function AccountFlowScreen(): ReactNode {
  */
 function AccountChoiceList({ list, choice }: { readonly list: AccountListResponse; readonly choice: AccountFlowChoice | null }): ReactNode {
     return (
-        <section aria-label="Escolher conta" className="flex w-95 shrink-0 flex-col border-r border-line bg-surface">
-            <div className="flex flex-col gap-1 px-5 pt-5 pb-3">
-                <span className="text-12 text-muted">Relatórios</span>
-                <h1 className="text-20 font-semibold">Fluxo por conta</h1>
-            </div>
+        <ListPane
+            label="Escolher conta"
+            width="w-95"
+            header={
+                <div className="flex flex-col gap-1 px-5 pt-5 pb-3">
+                    <span className="text-12 text-muted">Relatórios</span>
+                    <h1 className="text-20 font-semibold">Fluxo por conta</h1>
+                </div>
+            }
+        >
             <ul aria-label="Contas">
                 {list.accounts.map((account) => (
                     <li key={account.id}>
@@ -76,7 +82,7 @@ function AccountChoiceList({ list, choice }: { readonly list: AccountListRespons
                     <ChoiceLink account={ALL_ACCOUNTS} current={choice?.kind === 'total'} title="Todas as contas do total" detail="somadas" />
                 </li>
             </ul>
-        </section>
+        </ListPane>
     );
 }
 

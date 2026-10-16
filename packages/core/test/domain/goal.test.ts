@@ -15,7 +15,7 @@ const profileId = ProfileId('00000000-0000-4000-8000-000000000002');
  * @return Uma meta válida, para que cada teste declare só o alvo.
  */
 function goal(target: number, targetDate: string | null): Goal {
-    return Goal.create({ id: goalId, profileId, name: 'Viagem Floripa', target: Money.of(target, BRL), targetDate: targetDate === null ? null : LocalDate.parse(targetDate) });
+    return Goal.create({ id: goalId, profileId, name: 'Viagem Floripa', funding: { kind: 'transactions' }, target: Money.of(target, BRL), targetDate: targetDate === null ? null : LocalDate.parse(targetDate) });
 }
 
 let sequence = 0;
@@ -27,7 +27,8 @@ let sequence = 0;
  */
 function link(value: number, paidOn: string | null): GoalLink {
     sequence++;
-    return { transactionId: TransactionId(`00000000-0000-4000-8000-${sequence.toString(16).padStart(12, '0')}`), value: Money.of(value, BRL), paidOn: paidOn === null ? null : LocalDate.parse(paidOn) };
+    const id = TransactionId(`00000000-0000-4000-8000-${sequence.toString(16).padStart(12, '0')}`);
+    return { key: id, transactionId: id, value: Money.of(value, BRL), paidOn: paidOn === null ? null : LocalDate.parse(paidOn) };
 }
 
 /**
@@ -44,13 +45,13 @@ function measure(target: Goal, links: readonly GoalLink[], period = '2026-10', t
 describe('meta (database-design §4.11)', () => {
     it('apara o nome e recusa valor-alvo zero ou negativo, também ao editar', () => {
         const created = goal(4000, null);
-        expect(Goal.create({ id: goalId, profileId, name: '  Reserva  ', target: created.target, targetDate: null }).name).toBe('Reserva');
+        expect(Goal.create({ id: goalId, profileId, name: '  Reserva  ', funding: { kind: 'transactions' }, target: created.target, targetDate: null }).name).toBe('Reserva');
         expect(() => goal(0, null)).toThrow(InvalidValueError);
         expect(() => goal(-10, null)).toThrow(InvalidValueError);
         // Arredonda a zero na precisão da moeda: também não há o que juntar.
         expect(() => goal(0.001, null)).toThrow(InvalidValueError);
-        expect(() => created.revise({ name: 'Viagem', target: Money.of(0, BRL), targetDate: null })).toThrow(InvalidValueError);
-        expect(created.revise({ name: 'Viagem', target: Money.of(5000, BRL), targetDate: null }).id).toBe(created.id);
+        expect(() => created.revise({ name: 'Viagem', funding: { kind: 'transactions' }, target: Money.of(0, BRL), targetDate: null })).toThrow(InvalidValueError);
+        expect(created.revise({ name: 'Viagem', funding: { kind: 'transactions' }, target: Money.of(5000, BRL), targetDate: null }).id).toBe(created.id);
     });
 });
 

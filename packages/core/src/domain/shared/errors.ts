@@ -80,13 +80,18 @@ export class NotFoundError extends DomainError {
  */
 export type BusinessRule =
     | 'account-disabled'
+    | 'account-type-funds-goal'
     | 'credit-card-disabled'
     | 'cross-profile-transfer-currency-mismatch'
     | 'cross-profile-transfer-requires-account'
     | 'destination-equals-origin'
     | 'destination-not-allowed'
     | 'destination-required'
+    | 'goal-account-not-investment'
+    | 'goal-archived'
+    | 'goal-funded-by-account'
     | 'goal-requires-saving-type'
+    | 'goal-withdrawal-requires-transfer'
     | 'invoice-already-paid'
     | 'invoice-not-paid'
     | 'move-target-deleted'
@@ -97,9 +102,11 @@ export type BusinessRule =
     | 'recurrence-end-before-occurrence'
     | 'recurrence-end-before-start'
     | 'recurrence-installments-below-occurrence'
+    | 'recurrence-move-requires-all'
     | 'recurrence-scope-requires-series'
     | 'reference-outside-profile'
     | 'sub-category-in-use'
+    | 'transaction-move-currency-mismatch'
     | 'transaction-type-locked';
 
 /**

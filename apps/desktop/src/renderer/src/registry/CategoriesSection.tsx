@@ -3,11 +3,11 @@ import type { CategoryBranchResponse, SubCategoryUsageResponse } from '@finance/
 import type { UseQueryResult } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
+import { Combobox } from '@/components/Combobox';
 import { Field, fieldAria } from '@/components/form';
 import { EmptyState, QueryState } from '@/components/states';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useActiveProfile } from '@/shell/activeProfile';
 import { moveTargets, transactionsToMove, type CategoryDeletionTarget } from './categoryMoves.ts';
 import { reportRejection } from './coreErrorField.ts';
@@ -424,23 +424,16 @@ function CategoryDeletionDialog({ tree, target, onClose }: { readonly tree: read
                     </p>
                 ) : (
                     <Field id="move-to" label={`Mover ${String(toMove)} ${toMove === 1 ? 'lançamento' : 'lançamentos'} para`} error={error}>
-                        <Select value={moveTo} onValueChange={setMoveTo}>
-                            <SelectTrigger id="move-to" className="w-full" {...fieldAria('move-to', error)}>
-                                <SelectValue placeholder="Escolha a subcategoria" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {groups.map((group) => (
-                                    <SelectGroup key={group.categoryId}>
-                                        <SelectLabel>{group.categoryName}</SelectLabel>
-                                        {group.subCategories.map((subCategory) => (
-                                            <SelectItem key={subCategory.id} value={subCategory.id}>
-                                                {subCategory.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Combobox
+                            id="move-to"
+                            options={groups.flatMap((group) => group.subCategories.map((subCategory) => ({ value: subCategory.id, label: subCategory.name, group: group.categoryName })))}
+                            value={moveTo}
+                            onChange={setMoveTo}
+                            placeholder="Escolha a subcategoria"
+                            searchLabel="Buscar subcategoria"
+                            emptyText="Nenhuma subcategoria encontrada."
+                            aria={fieldAria('move-to', error)}
+                        />
                     </Field>
                 ))}
         </FormDialog>

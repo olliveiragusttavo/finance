@@ -260,16 +260,23 @@ export class RecurrenceService {
      * @return A ocorrência editada, relida do banco — numa série recomeçada, a 1ª da regra nova.
      * @throws {NotFoundError} Quando a transação, a regra ou uma referência não existe.
      * @throws {BusinessRuleViolation} Quando o lançamento não é de uma série, o tipo mudou, a
-     * série mudou fora de "esta e as futuras", a data de uma diária mudou fora de "somente
-     * esta", as parcelas ficaram abaixo da editada ou o término ficou antes dela.
+     * série mudou fora de "esta e as futuras", a série mudou de perfil fora de "todas" ou para um
+     * perfil de outra moeda, a data de uma diária mudou fora de "somente esta", as parcelas
+     * ficaram abaixo da editada ou o término ficou antes dela.
      */
     public update(command: UpdateTransactionCommand): Transaction {
         return this.unitOfWork.run(() => {
             const current = this.composer.requireTransaction(command.id);
             const recurrence = this.requireSeries(current);
-            const profile = this.composer.requireProfile(current.profileId);
+            const profile = this.composer.resolveOwner(current, command.profileId);
             if (command.scope === 'single') {
                 throw new BusinessRuleViolation('recurrence-change-requires-scope', 'o escopo "somente esta" é do TransactionService', { field: 'scope' });
+            }
+            // Regra de negócio (Recorrências, database-design §4.12): a regra pertence ao perfil,
+            // então mover para outro perfil leva a série inteira — "todas", sem escolha.
+            const moved = profile.id !== current.profileId;
+            if (moved && command.scope !== 'all') {
+                throw new BusinessRuleViolation('recurrence-move-requires-all', 'mover uma série para outro perfil vale para todas as ocorrências', { field: 'scope' });
             }
             const change = seriesChangeOf(recurrence, command.repeat);
             // Regra de negócio (Recorrências, database-design §4.12): mudar a série não tem escolha
@@ -347,9 +354,10 @@ export class RecurrenceService {
      * Regra de negócio (Recorrências, database-design §4.12): o calendário não muda, então as
      * ocorrências que continuam na série ficam como estão, com as edições feitas nelas; as que
      * saem da série saem mesmo pagas. Recriar todas as futuras, como antes, apagava pagamentos
-     * e edições sem necessidade.
+     * e edições sem necessidade. Na mudança de perfil (escopo "todas"), a regra e todas as
+     * ocorrências vão para o perfil de destino com as referências da editada.
      *
-     * @param profile Perfil dono.
+     * @param profile Perfil dono depois da edição: o de destino, quando a série muda de perfil.
      * @param recurrence Regra como está.
      * @param current Ocorrência editada, como está.
      * @param command Conteúdo da editada, com o escopo.
@@ -371,17 +379,20 @@ export class RecurrenceService {
         }
 
         const edited = this.composer.resolveContainer(profile, command, current);
-        const revisedEdited = current.revise(this.composer.toContent(profile, command, edited.container));
+        const revisedEdited = current.revise(this.composer.toContent(profile, command, edited.container), profile.id);
         this.transactions.update(revisedEdited);
         impact = impact.merge(edited.impact).merge(this.impacts.ofTransaction(revisedEdited));
 
-        const changes = changesBetween(current, revisedEdited);
+        // Na mudança de perfil, toda referência que pertence ao perfil vai para as outras, mesmo a
+        // que a editada não mudou: a de uma ocorrência continuaria apontando para o perfil antigo.
+        const moved = profile.id !== current.profileId;
+        const changes = moved ? { ...changesBetween(current, revisedEdited), ...profileReferencesOf(revisedEdited) } : changesBetween(current, revisedEdited);
         const offset = this.offsetOf(revisedEdited);
         for (const member of others) {
             impact = impact.merge(this.reviseMember(profile, member, changes, { schedule, dateChanged, offset }));
         }
 
-        let revised = reanchored.revise({ template: applyChanges(recurrence.template, changes, offset) });
+        let revised = reanchored.revise({ profileId: profile.id, template: applyChanges(recurrence.template, changes, offset) });
         if (revised.terms.kind === 'installments' && (changes.value !== undefined || reshape !== null)) {
             // Regra de negócio (Parcelamento, database-design §4.12): daqui em diante a série vale
             // por parcela. O valor alterado na tela vale para as parcelas novas; sem alteração,
@@ -644,6 +655,7 @@ export class RecurrenceService {
             destinationAccountId: template.destinationAccountId,
             partnerId: template.partnerId,
             goalId: template.goalId,
+            goalWithdrawal: template.goalWithdrawal,
             name: template.name,
             description: template.description,
             value: recurrence.valueOf(occurrence).amount,
@@ -669,7 +681,7 @@ export class RecurrenceService {
     /**
      * Aplica a uma ocorrência do escopo o que mudou na editada.
      *
-     * @param profile Perfil dono.
+     * @param profile Perfil dono depois da edição, que a ocorrência acompanha.
      * @param member Ocorrência do escopo, como está.
      * @param changes O que mudou na editada.
      * @param context Calendário (com o dia âncora novo), se a data mudou e o deslocamento de
@@ -693,6 +705,7 @@ export class RecurrenceService {
             destinationAccountId: changes.destinationAccountId === undefined ? member.destinationAccountId : changes.destinationAccountId,
             partnerId: changes.partnerId === undefined ? member.partnerId : changes.partnerId,
             goalId: changes.goalId === undefined ? member.goalId : changes.goalId,
+            goalWithdrawal: changes.goalWithdrawal ?? member.goalWithdrawal,
             name: changes.name ?? member.name,
             description: changes.description === undefined ? member.description : changes.description,
             value: (changes.value ?? member.value).amount,
@@ -704,7 +717,7 @@ export class RecurrenceService {
             tagIds: changes.tagIds ?? member.tagIds,
         };
         const resolved = this.composer.resolveContainer(profile, input, member, 'generated');
-        const revised = member.revise(this.composer.toContent(profile, input, resolved.container));
+        const revised = member.revise(this.composer.toContent(profile, input, resolved.container), profile.id);
         this.transactions.update(revised);
         return resolved.impact.merge(this.impacts.ofTransaction(revised));
     }
@@ -762,6 +775,7 @@ export class RecurrenceService {
             subCategoryId: input.subCategoryId,
             partnerId: input.partnerId,
             goalId: input.goalId,
+            goalWithdrawal: input.goalWithdrawal,
             name: input.name,
             description: input.description,
             value: Money.of(input.value, profile.currency),
@@ -808,6 +822,7 @@ type TemplateChanges = Partial<{
     readonly subCategoryId: Transaction['subCategoryId'];
     readonly partnerId: Transaction['partnerId'];
     readonly goalId: Transaction['goalId'];
+    readonly goalWithdrawal: boolean;
     readonly name: string;
     readonly description: string | null;
     readonly value: Money;
@@ -847,6 +862,9 @@ function changesBetween(before: Transaction, after: Transaction): TemplateChange
     if (before.goalId !== after.goalId) {
         changes.goalId = after.goalId;
     }
+    if (before.goalWithdrawal !== after.goalWithdrawal) {
+        changes.goalWithdrawal = after.goalWithdrawal;
+    }
     if (before.name !== after.name) {
         changes.name = after.name;
     }
@@ -869,6 +887,29 @@ function changesBetween(before: Transaction, after: Transaction): TemplateChange
 }
 
 /**
+ * Referências da ocorrência que pertencem ao perfil: origem, destino, subcategoria, sócio, meta e
+ * tags. Na mudança de perfil todas vão para as outras ocorrências e para o modelo, e não só as que
+ * mudaram na editada — senão uma ocorrência com subcategoria ou tags próprias, dadas em "somente
+ * esta", ficaria apontando para o perfil antigo e seria recusada (database-design §3.8).
+ *
+ * @param transaction Ocorrência editada, já no perfil de destino.
+ * @return As referências dela no formato das mudanças da série.
+ */
+function profileReferencesOf(transaction: Transaction): TemplateChanges {
+    return {
+        source: transaction.container.kind === 'statement'
+            ? { kind: 'account', accountId: transaction.container.accountId }
+            : { kind: 'creditCard', creditCardId: transaction.container.creditCardId, invoiceOffset: 0 },
+        destinationAccountId: transaction.destinationAccountId,
+        subCategoryId: transaction.subCategoryId,
+        partnerId: transaction.partnerId,
+        goalId: transaction.goalId,
+        goalWithdrawal: transaction.goalWithdrawal,
+        tagIds: transaction.tagIds,
+    };
+}
+
+/**
  * @param template Modelo atual.
  * @param changes O que mudou na editada.
  * @param offset Deslocamento de fatura da editada; `null` numa conta.
@@ -887,6 +928,7 @@ function applyChanges(template: RecurrenceTemplate, changes: TemplateChanges, of
         subCategoryId: changes.subCategoryId ?? template.subCategoryId,
         partnerId: changes.partnerId === undefined ? template.partnerId : changes.partnerId,
         goalId: changes.goalId === undefined ? template.goalId : changes.goalId,
+        goalWithdrawal: changes.goalWithdrawal ?? template.goalWithdrawal,
         name: changes.name ?? template.name,
         description: changes.description === undefined ? template.description : changes.description,
         value: changes.value ?? template.value,

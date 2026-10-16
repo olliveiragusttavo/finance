@@ -45,6 +45,8 @@ const ROUTE_KINDS = {
     'goals.contributions': 'read',
     'goals.create': 'write',
     'goals.update': 'write',
+    'goals.archive': 'write',
+    'goals.unarchive': 'write',
     'goals.delete': 'write',
     'transactions.create': 'write',
     'transactions.update': 'write',

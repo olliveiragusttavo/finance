@@ -24,7 +24,7 @@ function probes(s: SeriesScenario): readonly Probe[] {
             route: 'recurrences.planCreate',
             input: { ...seriesContent(s), profileId: s.profileId, dueDate: '2027-04-01', repeat: { kind: 'installments', frequency: 'monthly', installments: 3, valueType: 'total' } },
         },
-        { route: 'recurrences.planUpdate', input: { ...seriesContent(s), id: s.seriesFirstId, partnerId: null, goalId: null, originCurrency: null, conversionRate: 1, charges: 0, description: null, destinationAccountId: null, paymentDate: null, value: 12, scope: 'future' } },
+        { route: 'recurrences.planUpdate', input: { ...seriesContent(s), id: s.seriesFirstId, partnerId: null, goalId: null, goalWithdrawal: false, originCurrency: null, conversionRate: 1, charges: 0, description: null, destinationAccountId: null, paymentDate: null, value: 12, scope: 'future' } },
         { route: 'recurrences.planDelete', input: { id: s.seriesFirstId, scope: 'future' } },
         {
             route: 'recurrences.preview',
@@ -119,7 +119,9 @@ const WRITES: readonly Write[] = [
     { route: 'notes.update', input: (s) => ({ id: s.noteId, text: 'IPTU 2027\nPago.' }) },
     { route: 'notes.delete', input: (s) => ({ id: s.noteId }) },
     { route: 'goals.create', input: (s) => ({ profileId: s.profileId, name: 'Carro', value: 50000 }) },
-    { route: 'goals.update', input: (s) => ({ id: s.goalId, name: 'Reserva de emergência', value: 20000, targetDate: null }) },
+    { route: 'goals.update', input: (s) => ({ id: s.goalId, name: 'Reserva de emergência', value: 20000, targetDate: null, funding: { kind: 'transactions' } }) },
+    { route: 'goals.archive', input: (s) => ({ id: s.goalId }) },
+    { route: 'goals.unarchive', input: (s) => ({ id: s.goalId }), prepare: (world, s) => world.ok('goals.archive', { id: s.goalId }) },
     { route: 'goals.delete', input: (s) => ({ id: s.goalId }) },
     {
         route: 'transactions.create',
@@ -135,6 +137,7 @@ const WRITES: readonly Write[] = [
             destinationAccountId: null,
             partnerId: null,
             goalId: null,
+            goalWithdrawal: false,
             name: 'Aluguel reajustado',
             description: null,
             value: 2400,

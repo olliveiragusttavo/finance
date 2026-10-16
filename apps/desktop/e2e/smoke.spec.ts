@@ -31,7 +31,7 @@ test('abre, cria perfil, lança uma despesa e vê no extrato; os dados sobrevive
         await page.getByRole('combobox', { name: 'Buscar categoria' }).fill('mercado');
         await page.getByRole('combobox', { name: 'Buscar categoria' }).press('Enter');
         await column.getByLabel('Conta ou cartão').press('Enter');
-        await page.getByRole('option', { name: 'Nubank', exact: true }).press('Enter');
+        await page.getByRole('option', { name: 'Nubank', exact: true }).dispatchEvent('click');
         await column.getByLabel('Data', { exact: true }).fill(`${period}-05`);
         await column.getByLabel('Pago').dispatchEvent('click');
         await column.getByLabel('Data do pagamento').fill(`${period}-05`);

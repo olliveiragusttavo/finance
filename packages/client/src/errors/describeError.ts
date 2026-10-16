@@ -17,13 +17,18 @@ export interface ErrorDescription {
  */
 const RULE_MESSAGES: Readonly<Record<BusinessRule, string>> = {
     'account-disabled': 'Esta conta está desativada e não aceita lançamentos novos. Reative-a em Cadastros para usá-la.',
+    'account-type-funds-goal': 'Esta conta é o saldo de uma meta. Troque o tipo da meta antes de mudar o tipo da conta.',
     'credit-card-disabled': 'Este cartão está desativado e não aceita lançamentos novos. Reative-o em Cadastros para usá-lo.',
     'cross-profile-transfer-currency-mismatch': 'Só dá para transferir para um perfil com a mesma moeda deste.',
     'cross-profile-transfer-requires-account': 'A transferência para outro perfil precisa sair de uma conta, não de um cartão.',
     'destination-equals-origin': 'A conta de destino precisa ser diferente da conta de origem.',
     'destination-not-allowed': 'Só transferências e investimentos têm conta de destino.',
     'destination-required': 'Escolha a conta de destino da transferência ou do investimento.',
+    'goal-account-not-investment': 'A meta só pode ser vinculada a uma conta de investimento.',
+    'goal-archived': 'Esta meta está arquivada e não recebe lançamentos novos. Reative-a na tela Metas para vincular.',
+    'goal-funded-by-account': 'Esta meta mede o saldo de uma conta e não recebe lançamentos. Para guardar nela, transfira para a conta.',
     'goal-requires-saving-type': 'Só receitas e transferências podem ser vinculadas a uma meta.',
+    'goal-withdrawal-requires-transfer': 'Só uma transferência pode retirar dinheiro de uma meta.',
     'invoice-already-paid': 'Esta fatura já está paga. Reabra a fatura antes de pagá-la de novo.',
     'invoice-not-paid': 'Esta fatura já está em aberto.',
     'move-target-deleted': 'Escolha para onde mover os lançamentos entre as subcategorias que continuam existindo.',
@@ -34,9 +39,11 @@ const RULE_MESSAGES: Readonly<Record<BusinessRule, string>> = {
     'recurrence-end-before-occurrence': 'A repetição não pode terminar antes do lançamento que você está editando.',
     'recurrence-end-before-start': 'A repetição termina antes do primeiro lançamento. Escolha um fim depois dele.',
     'recurrence-installments-below-occurrence': 'O parcelamento não pode ter menos parcelas que a parcela que você está editando.',
+    'recurrence-move-requires-all': 'Mover para outro perfil leva a série inteira: escolha "todas".',
     'recurrence-scope-requires-series': 'Este lançamento não faz parte de uma série.',
     'reference-outside-profile': 'O item escolhido pertence a outro perfil.',
     'sub-category-in-use': 'Esta subcategoria tem lançamentos. Escolha para onde movê-los antes de excluir.',
+    'transaction-move-currency-mismatch': 'Só dá para mover o lançamento para um perfil com a mesma moeda deste.',
     'transaction-type-locked': 'O tipo do lançamento não muda depois de criado. Exclua-o e lance de novo com o outro tipo.',
 };
 
@@ -46,6 +53,7 @@ const RULE_MESSAGES: Readonly<Record<BusinessRule, string>> = {
  */
 const ENTITY_NAMES: Readonly<Record<string, string>> = {
     Account: 'A conta',
+    accountId: 'A conta',
     Category: 'A categoria',
     CreditCard: 'O cartão',
     Goal: 'A meta',
