@@ -3,15 +3,16 @@ import type { AccountResponse, InvoiceResponse } from '@finance/core';
 import { useState, type ReactNode } from 'react';
 import { Controller, useForm, type Resolver } from 'react-hook-form';
 import { toast } from 'sonner';
+import { Combobox } from '@/components/Combobox';
 import { Field, fieldAria, toFieldErrors } from '@/components/form';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { reportRejection } from '@/registry/coreErrorField';
 import { FormDialog } from '@/registry/registryUi';
 import { useActiveProfile } from '@/shell/activeProfile';
 import { currentDate } from '@/shell/referenceMonth';
+import { SubCategoryPicker } from '@/transactions/pickers';
 import {
     defaultPartialPaymentAccount,
     PARTIAL_PAYMENT_FIELDS,
@@ -240,18 +241,16 @@ export function PartialPaymentDialog({
                     control={form.control}
                     name="accountId"
                     render={({ field }) => (
-                        <Select value={field.value} onValueChange={field.onChange}>
-                            <SelectTrigger id="partial-account" className="w-full" {...fieldAria('partial-account', errors.accountId)}>
-                                <SelectValue placeholder="Escolha a conta" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {options.map((account) => (
-                                    <SelectItem key={account.id} value={account.id}>
-                                        {account.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Combobox
+                            id="partial-account"
+                            options={options.map((account) => ({ value: account.id, label: account.name }))}
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Escolha a conta"
+                            searchLabel="Buscar conta"
+                            emptyText="Nenhuma conta encontrada."
+                            aria={fieldAria('partial-account', errors.accountId)}
+                        />
                     )}
                 />
             </Field>
@@ -260,25 +259,14 @@ export function PartialPaymentDialog({
                     control={form.control}
                     name="subCategoryId"
                     render={({ field }) => (
-                        <Select value={field.value} onValueChange={field.onChange}>
-                            <SelectTrigger id="partial-sub-category" className="w-full" {...fieldAria('partial-sub-category', errors.subCategoryId)}>
-                                <SelectValue placeholder={categories.isPending ? 'Carregando…' : 'Escolha a subcategoria'} />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {(categories.data ?? []).map((category) =>
-                                    category.subCategories.length === 0 ? null : (
-                                        <SelectGroup key={category.id}>
-                                            <SelectLabel>{category.name}</SelectLabel>
-                                            {category.subCategories.map((sub) => (
-                                                <SelectItem key={sub.id} value={sub.id}>
-                                                    {sub.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectGroup>
-                                    ),
-                                )}
-                            </SelectContent>
-                        </Select>
+                        <SubCategoryPicker
+                            id="partial-sub-category"
+                            tree={categories.data ?? []}
+                            value={field.value}
+                            onChange={field.onChange}
+                            disabled={categories.isPending}
+                            aria={fieldAria('partial-sub-category', errors.subCategoryId)}
+                        />
                     )}
                 />
             </Field>

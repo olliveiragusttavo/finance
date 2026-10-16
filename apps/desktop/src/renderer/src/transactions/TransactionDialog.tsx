@@ -33,10 +33,10 @@ export function TransactionDialog({
     readonly transaction: TransactionResponse | null;
     readonly container?: string | null;
     readonly recurrence?: RecurrenceResponse | null;
-    readonly initialSource?: string;
+    readonly initialSource?: string | undefined;
     readonly onClose: () => void;
-    readonly onSaved?: (saved: TransactionResponse) => void;
-    readonly onDelete?: (transaction: TransactionResponse) => void;
+    readonly onSaved?: ((saved: TransactionResponse) => void) | undefined;
+    readonly onDelete?: ((transaction: TransactionResponse) => void) | undefined;
 }): ReactNode {
     // Mockup: "Despesa · parcela 3 de 12 (valor total R$ 4.800,00)".
     const subtitle = transaction === null

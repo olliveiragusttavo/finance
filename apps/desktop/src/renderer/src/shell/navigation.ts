@@ -47,8 +47,8 @@ export interface MenuItem {
 const REPORTS_SECTION = '/reports';
 
 /**
- * Relatórios na ordem dos mockups (`DesktopRelSocio` mostra a lista completa). Fluxo por conta,
- * Por sócio e Por tag ficam no menu sem tela no MVP (desktop-mvp-plan §5).
+ * Relatórios na ordem dos mockups (`DesktopRelSocio` mostra a lista completa). Todos têm tela;
+ * Por sócio só aparece no perfil empresarial.
  */
 const REPORT_ITEMS: readonly ReportMenuItem[] = [
     { label: 'Por categoria', to: '/reports/category', businessOnly: false },

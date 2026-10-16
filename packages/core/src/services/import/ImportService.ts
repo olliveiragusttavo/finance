@@ -343,6 +343,7 @@ export class ImportService {
             destinationAccountId: row.type === 'transference' && row.destination !== null ? requireResolved(registries.accounts, row.destination, 'accounts').id : null,
             partnerId: null,
             goalId: null,
+            goalWithdrawal: false,
             name: item.name,
             description: row.description,
             value: row.value,

@@ -211,6 +211,7 @@ function sameContent(a: Transaction, b: Transaction): boolean {
         && a.destinationAccountId === b.destinationAccountId
         && a.partnerId === b.partnerId
         && a.goalId === b.goalId
+        && a.goalWithdrawal === b.goalWithdrawal
         && a.name === b.name
         && a.description === b.description
         && a.value.equals(b.value)

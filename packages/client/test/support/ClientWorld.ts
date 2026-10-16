@@ -64,6 +64,10 @@ export interface Scenario {
  */
 export class ClientWorld {
     public readonly client: DirectCoreClient;
+    private readonly database: BetterSqliteDatabase;
+    private readonly clock: FixedClock;
+    /** Sequência dos ids dos sócios, separada da do núcleo para não deslocar os ids do cenário. */
+    private partners = 0;
 
     /**
      * @param today Data de "hoje" do relógio do núcleo.
@@ -72,6 +76,8 @@ export class ClientWorld {
         const clock = new FixedClock(today);
         const database = BetterSqliteDatabase.open(':memory:');
         openDatabase(database, { backups: null, clock });
+        this.database = database;
+        this.clock = clock;
         this.client = new DirectCoreClient(createCore({
             database,
             clock,
@@ -97,6 +103,24 @@ export class ClientWorld {
             throw new Error(`${route} falhou: ${JSON.stringify(result.error)}`);
         }
         return result.data;
+    }
+
+    /**
+     * Semeia um sócio direto no banco: o cadastro de sócios ainda não tem rota.
+     *
+     * @param profileId Perfil empresarial dono.
+     * @param name Nome do sócio.
+     * @param percentage Participação, de 0 a 100.
+     * @return O id do sócio.
+     */
+    public partner(profileId: string, name: string, percentage: number): string {
+        this.partners++;
+        const id = `00000000-0000-4000-9000-${this.partners.toString(16).padStart(12, '0')}`;
+        this.database.run(
+            'INSERT INTO partners (id, profile_id, name, percentage, updated_at) VALUES (:id, :profileId, :name, :percentage, :now)',
+            { id, profileId, name, percentage, now: this.clock.now() },
+        );
+        return id;
     }
 
     /**

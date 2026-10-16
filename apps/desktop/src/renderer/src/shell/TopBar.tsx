@@ -14,12 +14,12 @@ import { useReferenceMonth } from './useReferenceMonth.ts';
  *
  * @param props.showMonth Se a tela depende de período; nas telas de configuração o mês some e
  * a barra mantém só as ações — e, nas telas dentro de outra, o caminho até ela.
- * @return A barra, presa ao topo da área de conteúdo.
+ * @return A barra, acima da área que rola (`AppShell`).
  */
 export function TopBar({ showMonth }: { readonly showMonth: boolean }): ReactNode {
     const panel = useTransactionPanel();
     return (
-        <header className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-line bg-surface px-8 py-3">
+        <header className="flex shrink-0 items-center justify-between gap-4 border-b border-line bg-surface px-8 py-3">
             {showMonth ? <MonthPicker /> : <Trail />}
             <div className="flex items-center gap-2.5">
                 <ThemeMenu />

@@ -1,6 +1,6 @@
 import type { AccountListResponse } from '@finance/core';
 import { describe, expect, it } from 'vitest';
-import { openAccount, parseAccountsSearch } from '../src/renderer/src/accounts/accountsSearch.ts';
+import { accountListView, openAccount, parseAccountsSearch } from '../src/renderer/src/accounts/accountsSearch.ts';
 
 const NUBANK = '11111111-1111-4111-8111-111111111111';
 const ITAU = '22222222-2222-4222-8222-222222222222';
@@ -9,9 +9,10 @@ const ITAU = '22222222-2222-4222-8222-222222222222';
  * Lista de contas mínima para escolher a conta aberta; os saldos não entram na escolha.
  *
  * @param ids Contas da lista, na ordem do núcleo.
+ * @param disabledIds Contas desativadas.
  * @return A lista no formato do `accounts.list`.
  */
-function listOf(ids: readonly string[]): AccountListResponse {
+function listOf(ids: readonly string[], disabledIds: readonly string[] = []): AccountListResponse {
     const zero = { amount: 0, currency: 'BRL' };
     return {
         profileId: '44444444-4444-4444-8444-444444444444',
@@ -24,7 +25,7 @@ function listOf(ids: readonly string[]): AccountListResponse {
             currency: 'BRL',
             considerBalance: true,
             openingBalance: zero,
-            disabled: false,
+            disabled: disabledIds.includes(id),
             balances: { consolidated: zero, projected: zero },
         })),
         total: { consolidated: zero, projected: zero },
@@ -42,5 +43,19 @@ describe('conta aberta na tela Contas', () => {
     it('id malformado é descartado, e perfil sem conta não abre nenhuma', () => {
         expect(parseAccountsSearch({ account: 'nubank' })).toEqual({});
         expect(openAccount(listOf([]), {})).toBeNull();
+    });
+
+    it('a lista mostra as ativas ou as desativadas; a conta pedida sem visualização abre a lista dela (desktop-mvp-plan Fase 13.4)', () => {
+        const list = listOf([NUBANK, ITAU], [ITAU]);
+        expect(parseAccountsSearch({ view: 'disabled' })).toEqual({ view: 'disabled' });
+        expect(parseAccountsSearch({ view: 'arquivadas' })).toEqual({});
+        expect(accountListView(list, {}).accounts.map((account) => account.name)).toEqual(['Nubank']);
+        expect(accountListView(list, { view: 'disabled' }).accounts.map((account) => account.name)).toEqual(['Itaú']);
+        // O link para a conta desativada abre a lista das desativadas, com ela aberta.
+        expect(accountListView(list, { account: ITAU }).view).toBe('disabled');
+        expect(openAccount(list, { account: ITAU })?.name).toBe('Itaú');
+        // Escolhida a visualização, a conta pedida fora dela dá lugar à primeira da lista.
+        expect(openAccount(list, { account: ITAU, view: 'active' })?.name).toBe('Nubank');
+        expect(openAccount(listOf([NUBANK]), { view: 'disabled' })).toBeNull();
     });
 });

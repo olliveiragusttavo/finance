@@ -101,6 +101,22 @@ test('extrato: lista com totais, quatro números, as quatro fontes de movimento 
         await expect(list.getByRole('link', { name: /^Tesouro/ })).not.toContainText('previsto');
         const listRegion = page.getByRole('region', { name: 'Lista de contas' });
         await expect(listRegion).toContainText('Total consolidadoR$ 5.720,00');
+        // Lista e extrato rolam cada um no seu painel, na altura da janela, com os totais fixos
+        // embaixo da lista (`PaneLayout`, desktop-mvp-plan Fase 13.3).
+        /**
+         * Roda dentro da página (`evaluate`), por isso não usa nada do escopo do teste. A folga
+         * de 1px absorve o arredondamento subpixel do layout, que daria falha sem a página ter
+         * rolado.
+         *
+         * @param element Painel ou rodapé conferido.
+         * @return `true` quando o fim do elemento está dentro da altura da janela.
+         */
+        const fitsWindow = (element: HTMLElement | SVGElement): boolean => element.getBoundingClientRect().bottom <= window.innerHeight + 1;
+        expect(await listRegion.evaluate(fitsWindow)).toBe(true);
+        const statement = page.getByRole('region', { name: 'Extrato', exact: true });
+        expect(await statement.evaluate(fitsWindow)).toBe(true);
+        expect(await statement.evaluate((element) => getComputedStyle(element).overflowY)).toBe('auto');
+        expect(await listRegion.getByText('Total consolidado').evaluate(fitsWindow)).toBe(true);
         await expect(listRegion).toContainText('Total previstoR$ 5.270,00');
 
         await expect(page.getByText('Conta corrente · entra no saldo total')).toBeVisible();
@@ -116,11 +132,11 @@ test('extrato: lista com totais, quatro números, as quatro fontes de movimento 
         await expect(rows).toHaveCount(6);
         await expect(rows.nth(1)).toContainText(`01${monthSuffix(period)}Salário`);
         await expect(rows.nth(2)).toContainText(`02${monthSuffix(period)}Fatura Roxinho`);
-        await expect(rows.nth(2)).toContainText('Paga−R$ 80,00');
+        await expect(rows.nth(2)).toContainText('−R$ 80,00Paga');
         await expect(rows.nth(4)).toContainText('Aporte→ Tesouro');
         await expect(rows.nth(4)).toContainText('⇄ −R$ 200,00');
         await expect(rows.nth(5)).toContainText(`10${monthSuffix(period)}Fatura Roxinho`);
-        await expect(rows.nth(5)).toContainText('Em aberto−R$ 150,00');
+        await expect(rows.nth(5)).toContainText('−R$ 150,00Em aberto');
         await expect(movements).toContainText('Fatura em aberto conta só no saldo previsto, no mês do vencimento.');
 
         await rows.nth(5).getByRole('link', { name: 'ver fatura' }).dispatchEvent('click');
@@ -167,6 +183,15 @@ test('conta: transferência recebida, editar, desativar pelo menu, mês sem movi
         await expect(page.getByRole('heading', { name: /^Tesouro — extrato de/, level: 2 })).toBeVisible();
         await expect(page.getByRole('region', { name: 'Movimentos' })).toContainText('Nenhum movimento em');
         await expect(page.getByRole('region', { name: 'Resumo do extrato' })).toContainText('Saldo finalR$ 200,00');
+
+        // A conta desativada aberta pelo link fica na lista das desativadas; as ativas não a
+        // mostram (desktop-mvp-plan Fase 13.4).
+        const views = page.getByRole('group', { name: 'Visualização' });
+        await expect(views.getByRole('button', { name: 'Desativadas' })).toHaveAttribute('aria-pressed', 'true');
+        await expect(list.getByRole('link')).toHaveText([/^Tesouro/]);
+        await views.getByRole('button', { name: 'Ativas' }).dispatchEvent('click');
+        await expect(list.getByRole('link', { name: /^Tesouro/ })).toHaveCount(0);
+        await expect(list.getByRole('link', { name: /^Nubank/ })).toHaveAttribute('aria-current', 'page');
 
         await page.getByRole('button', { name: '+ Nova conta' }).dispatchEvent('click');
         await page.getByLabel('Nome', { exact: true }).fill('Itaú');

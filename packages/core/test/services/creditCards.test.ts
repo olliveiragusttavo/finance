@@ -138,6 +138,23 @@ describe('lista de cartões e próximas faturas (mockup DesktopCartoes)', () => 
         expect(list.total).toEqualMoney('2600');
     });
 
+    it('Regra de negócio (Cartão, desktop-mvp-plan Fase 13.5): a série fixa só usa limite até a fatura aberta hoje; parcelas e compras adiante usam', async () => {
+        const { world, profileId, accountId, base } = setup();
+        // Hoje é 15/10 e o cartão fecha no dia 3: a fatura aberta é a de novembro.
+        const card = await world.ok('creditCards.create', { profileId, accountId, name: 'Roxinho', limit: 8000, closingDay: 3, dueDay: 10 });
+        const source: CoreInput<'transactions.create'>['source'] = { kind: 'creditCard', creditCardId: card.id };
+        // Assinatura gravada 12 meses à frente: só a ocorrência de novembro reserva limite.
+        await world.create(base, { source, name: 'Streaming', value: 50, dueDate: '2026-10-20', repeat: { kind: 'fixed', frequency: 'monthly', endAt: null } });
+        // Parcelas de novembro a janeiro: a compra já foi feita, o limite fica preso inteiro.
+        await world.create(base, { source, name: 'Geladeira', value: 100, dueDate: '2026-10-20', repeat: { kind: 'installments', frequency: 'monthly', installments: 3, valueType: 'perInstallment' } });
+        // Compra avulsa lançada adiante, na fatura de fevereiro.
+        await world.create(base, { source, name: 'Passagem', value: 70, dueDate: '2027-01-10' });
+
+        const list = await world.ok('creditCards.list', { profileId, period: '2026-10' });
+
+        expect(list.creditCards[0]?.limitUsed).toEqualMoney('420');
+    });
+
     it('próximas faturas: o mês pedido sempre, mesmo vazio, e as faturas que existem depois dele', async () => {
         const { world, profileId, accountId, base } = setup();
         const creditCardId = world.creditCard(profileId, accountId, 3, 10);

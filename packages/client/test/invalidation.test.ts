@@ -24,7 +24,7 @@ function probes(s: SeriesScenario): readonly Probe[] {
             route: 'recurrences.planCreate',
             input: { ...seriesContent(s), profileId: s.profileId, dueDate: '2027-04-01', repeat: { kind: 'installments', frequency: 'monthly', installments: 3, valueType: 'total' } },
         },
-        { route: 'recurrences.planUpdate', input: { ...seriesContent(s), id: s.seriesFirstId, partnerId: null, goalId: null, originCurrency: null, conversionRate: 1, charges: 0, description: null, destinationAccountId: null, paymentDate: null, value: 12, scope: 'future' } },
+        { route: 'recurrences.planUpdate', input: { ...seriesContent(s), id: s.seriesFirstId, partnerId: null, goalId: null, goalWithdrawal: false, originCurrency: null, conversionRate: 1, charges: 0, description: null, destinationAccountId: null, paymentDate: null, value: 12, scope: 'future' } },
         { route: 'recurrences.planDelete', input: { id: s.seriesFirstId, scope: 'future' } },
         {
             route: 'recurrences.preview',
@@ -47,6 +47,10 @@ function probes(s: SeriesScenario): readonly Probe[] {
             { route: 'reports.tagTransactions', input: { profileId: s.profileId, period, range: 'month', tagId: s.tagId } },
         ]),
         { route: 'reports.byTag', input: { profileId: s.profileId, period: PERIOD, range: 'all' } },
+        { route: 'reports.byPartner', input: { profileId: s.businessId, period: PERIOD } },
+        { route: 'reports.entriesWithoutPartner', input: { profileId: s.businessId, period: PERIOD } },
+        { route: 'partners.list', input: { profileId: s.businessId } },
+        { route: 'transactions.get', input: { id: s.businessIncomeId } },
         { route: 'accounts.transferTargets', input: { profileId: s.profileId } },
         { route: 'accounts.deletionImpact', input: { id: s.savingsId } },
         { route: 'creditCards.deletionImpact', input: { id: s.creditCardId } },
@@ -76,8 +80,8 @@ function probes(s: SeriesScenario): readonly Probe[] {
 type Write = {
     readonly [W in WriteRoute]: {
         readonly route: W;
-        readonly input: (s: Scenario) => CoreInput<W>;
-        readonly prepare?: (world: ClientWorld, s: Scenario) => Promise<unknown>;
+        readonly input: (s: SeriesScenario) => CoreInput<W>;
+        readonly prepare?: (world: ClientWorld, s: SeriesScenario) => Promise<unknown>;
         readonly unchanged?: true;
     }
 }[WriteRoute];
@@ -115,11 +119,19 @@ const WRITES: readonly Write[] = [
     { route: 'tags.create', input: (s) => ({ profileId: s.profileId, name: 'presente' }) },
     { route: 'tags.update', input: (s) => ({ id: s.tagId, name: 'férias' }) },
     { route: 'tags.delete', input: (s) => ({ id: s.tagId }) },
+    // Troca a Ana pelo Bruno: o aporte dela fica sem sócio.
+    {
+        route: 'partners.save',
+        input: (s) => ({ profileId: s.businessId, partners: [{ id: null, name: 'Bruno', percentage: 100 }] }),
+        prepare: (world, s) => world.ok('transactions.setPartner', { id: s.businessIncomeId, partnerId: s.partnerId }),
+    },
     { route: 'notes.create', input: (s) => ({ profileId: s.profileId, text: 'Reembolsos pendentes' }) },
     { route: 'notes.update', input: (s) => ({ id: s.noteId, text: 'IPTU 2027\nPago.' }) },
     { route: 'notes.delete', input: (s) => ({ id: s.noteId }) },
     { route: 'goals.create', input: (s) => ({ profileId: s.profileId, name: 'Carro', value: 50000 }) },
-    { route: 'goals.update', input: (s) => ({ id: s.goalId, name: 'Reserva de emergência', value: 20000, targetDate: null }) },
+    { route: 'goals.update', input: (s) => ({ id: s.goalId, name: 'Reserva de emergência', value: 20000, targetDate: null, funding: { kind: 'transactions' } }) },
+    { route: 'goals.archive', input: (s) => ({ id: s.goalId }) },
+    { route: 'goals.unarchive', input: (s) => ({ id: s.goalId }), prepare: (world, s) => world.ok('goals.archive', { id: s.goalId }) },
     { route: 'goals.delete', input: (s) => ({ id: s.goalId }) },
     {
         route: 'transactions.create',
@@ -135,6 +147,7 @@ const WRITES: readonly Write[] = [
             destinationAccountId: null,
             partnerId: null,
             goalId: null,
+            goalWithdrawal: false,
             name: 'Aluguel reajustado',
             description: null,
             value: 2400,
@@ -148,6 +161,7 @@ const WRITES: readonly Write[] = [
     },
     { route: 'transactions.delete', input: (s) => ({ id: s.purchaseId }) },
     { route: 'transactions.setPaid', input: (s) => ({ id: s.expenseId, paid: true }) },
+    { route: 'transactions.setPartner', input: (s) => ({ id: s.businessIncomeId, partnerId: s.partnerId }) },
     { route: 'balances.rebuildAccount', input: (s) => ({ accountId: s.checkingId }), unchanged: true },
     { route: 'invoices.pay', input: (s) => ({ invoiceId: s.openInvoiceId, paymentDate: '2026-10-09' }) },
     { route: 'invoices.reopen', input: (s) => ({ invoiceId: s.paidInvoiceId }) },
@@ -168,11 +182,18 @@ const WRITES: readonly Write[] = [
     },
 ];
 
-/** O cenário do `ClientWorld` e uma série fixa para as sondas de recorrência. */
+/**
+ * O cenário do `ClientWorld`, uma série fixa para as sondas de recorrência e um perfil
+ * empresarial com um sócio para as do relatório por sócio.
+ */
 interface SeriesScenario extends Scenario {
     readonly recurrenceId: string;
     /** 1ª ocorrência da série, a editada e excluída nas sondas de plano. */
     readonly seriesFirstId: string;
+    readonly businessId: string;
+    readonly partnerId: string;
+    /** Receita de outubro do perfil empresarial, ainda sem sócio: a entrada que pode ser aporte. */
+    readonly businessIncomeId: string;
 }
 
 /**
@@ -184,7 +205,8 @@ function seriesContent(s: SeriesScenario): { type: 'expense'; source: { kind: 'a
 }
 
 /**
- * Semeia o cenário e uma série fixa mensal no Tesouro a partir de março de 2027. Fica aqui, e
+ * Semeia o cenário, uma série fixa mensal no Tesouro a partir de março de 2027 e o perfil
+ * empresarial com um sócio e uma despesa sem sócio. Fica aqui, e
  * não no `ClientWorld`, porque os outros testes contam os lançamentos de outubro; numa conta e
  * em meses que nenhuma outra sonda olha, a série só aparece nas sondas de recorrência — e nas
  * escritas que a levam junto (excluir a conta) ou mudam o ciclo do cartão.
@@ -205,7 +227,30 @@ async function seedWithSeries(world: ClientWorld): Promise<SeriesScenario> {
         tagIds: [scenario.tagId],
         repeat: { kind: 'fixed', frequency: 'monthly', endAt: null },
     });
-    return { ...scenario, recurrenceId: first.recurrenceId ?? '', seriesFirstId: first.id };
+    const business = await world.ok('onboarding.start', {
+        profile: { name: 'Estúdio', type: 'business', currency: 'BRL' },
+        account: { name: 'Conta PJ', type: 'checking' },
+        suggestedCategories: false,
+    });
+    const category = await world.ok('categories.create', { profileId: business.profile.id, name: 'Escritório' });
+    const sub = await world.ok('subCategories.create', { categoryId: category.id, name: 'Material' });
+    const businessIncome = await world.ok('transactions.create', {
+        profileId: business.profile.id,
+        subCategoryId: sub.id,
+        type: 'income',
+        source: { kind: 'account', accountId: business.account.id },
+        name: 'Aporte',
+        value: 90,
+        dueDate: '2026-10-14',
+    });
+    return {
+        ...scenario,
+        recurrenceId: first.recurrenceId ?? '',
+        seriesFirstId: first.id,
+        businessId: business.profile.id,
+        partnerId: world.partner(business.profile.id, 'Ana', 100),
+        businessIncomeId: businessIncome.id,
+    };
 }
 
 /**

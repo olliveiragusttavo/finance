@@ -23,6 +23,8 @@ export interface AccountDeletionImpactResponse {
     readonly incomingTransfers: number;
     /** Séries que param de emitir junto com a conta (database-design §4.12). */
     readonly recurrences: number;
+    /** Metas vinculadas à conta, excluídas junto (database-design §4.11). */
+    readonly goals: number;
     readonly affectedAccounts: readonly AffectedAccountResponse[];
 }
 
@@ -57,6 +59,7 @@ export function toAccountDeletionImpactResponse(impact: DeletionImpact): Account
         cardTransactions: scope.transactions.filter((transaction) => transaction.role === 'creditCard').length,
         incomingTransfers: scope.transactions.filter((transaction) => transaction.role === 'incoming').length,
         recurrences: scope.recurrences.length,
+        goals: scope.goals.length,
         affectedAccounts: impact.affectedAccounts.map((account) => ({ id: account.id, name: account.name })),
     };
 }

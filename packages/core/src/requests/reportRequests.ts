@@ -78,3 +78,7 @@ export const tagTransactionsRequest = z.strictObject({
     range: tagRangeField,
     tagId: parsedText(TagId),
 });
+
+export const partnerReportRequest = z.strictObject({ profileId: parsedText(ProfileId), period: yearMonthField });
+
+export const entriesWithoutPartnerRequest = z.strictObject({ profileId: parsedText(ProfileId), period: yearMonthField });

@@ -1,5 +1,5 @@
-import { NotFoundError } from '../../domain/shared/errors.ts';
-import { TransactionId, type ProfileId } from '../../domain/shared/ids.ts';
+import { BusinessRuleViolation, NotFoundError } from '../../domain/shared/errors.ts';
+import { TransactionId, type PartnerId, type ProfileId } from '../../domain/shared/ids.ts';
 import { LocalDate } from '../../domain/shared/LocalDate.ts';
 import type { YearMonth } from '../../domain/shared/YearMonth.ts';
 import { Transaction } from '../../domain/transaction/Transaction.ts';
@@ -86,8 +86,12 @@ export class TransactionService {
      * Edita uma transação e recalcula os saldos do estado antigo **e** do novo: mudar de mês,
      * de conta ou de fatura precisa recalcular os dois contêineres (backend-design §5.1). Os
      * escopos de série vão para o `RecurrenceService`; "somente esta" deixa a regra intocada.
+     * Regra de negócio (Mover para outro perfil, database-design §4.13): com outro perfil no
+     * comando, a transação vai para uma conta ou um cartão dele, com as referências dele; o
+     * recálculo do estado antigo e do novo cobre as contas dos dois perfis. A ocorrência de uma
+     * série não sai sozinha — a regra é do perfil, então a série inteira vai junto ("todas").
      *
-     * @param command Novo conteúdo completo, com o id da transação e o escopo.
+     * @param command Novo conteúdo completo, com o id da transação, o perfil de destino e o escopo.
      * @return A transação editada, relida do banco.
      * @throws {NotFoundError} Quando a transação ou alguma referência não existe.
      * @throws {BusinessRuleViolation} Quando uma regra de negócio é violada.
@@ -101,13 +105,16 @@ export class TransactionService {
             if (command.repeat !== null) {
                 this.recurrences.assertSeriesUnchanged(current, command.repeat);
             }
-            const profile = this.composer.requireProfile(current.profileId);
+            const profile = this.composer.resolveOwner(current, command.profileId);
+            if (current.recurrenceId !== null && profile.id !== current.profileId) {
+                throw new BusinessRuleViolation('recurrence-move-requires-all', 'mover uma ocorrência para outro perfil leva a série inteira', { field: 'scope' });
+            }
             // O impacto do estado antigo é calculado antes de qualquer escrita, enquanto a
             // fatura antiga ainda está no estado (pago ou em aberto) que pesava nos saldos.
             const before = this.impacts.ofTransaction(current);
             this.composer.assertReferences(profile, command, current);
             const resolved = this.composer.resolveContainer(profile, command, current);
-            const revised = current.revise(this.composer.toContent(profile, command, resolved.container));
+            const revised = current.revise(this.composer.toContent(profile, command, resolved.container), profile.id);
             this.transactions.update(revised);
             this.recalculation.apply(before.merge(resolved.impact).merge(this.impacts.ofTransaction(revised)));
             return this.composer.requireTransaction(revised.id);
@@ -165,6 +172,33 @@ export class TransactionService {
             const revised = current.withPaymentDate(paymentDate, this.containerOnPayment(current, paymentDate ?? current.dueDate));
             this.transactions.update(revised);
             this.recalculation.apply(before.merge(this.impacts.ofTransaction(revised)));
+            return this.composer.requireTransaction(id);
+        });
+    }
+
+    /**
+     * Atribui ou tira o sócio que aportou, sem a edição completa — a escolha "Quem aportou" da
+     * lista de entradas sem sócio do relatório por sócio. Vale só para esta transação, como marcar
+     * como paga: numa série, as outras ocorrências continuam como estavam, porque quem aportou é
+     * um fato de cada mês. O sócio não muda saldo nenhum, então não há recálculo.
+     *
+     * @param id Transação a atribuir.
+     * @param partnerId Sócio que aportou, ou `null` para tirar a atribuição.
+     * @return A transação gravada, relida do banco.
+     * @throws {NotFoundError} Quando a transação ou o sócio não existem.
+     * @throws {BusinessRuleViolation} Quando o lançamento não é um aporte num perfil empresarial
+     * ou o sócio é de outro perfil (`TransactionComposer.assertPartner`).
+     */
+    public setPartner(id: TransactionId, partnerId: PartnerId | null): Transaction {
+        return this.unitOfWork.run(() => {
+            const current = this.composer.requireTransaction(id);
+            if (current.partnerId === partnerId) {
+                return current;
+            }
+            if (partnerId !== null) {
+                this.composer.assertPartner(this.composer.requireProfile(current.profileId), current, partnerId);
+            }
+            this.transactions.update(current.withPartner(partnerId));
             return this.composer.requireTransaction(id);
         });
     }

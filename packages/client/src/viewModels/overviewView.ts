@@ -7,10 +7,12 @@ import type {
     CreditCardListResponse,
     MoneyResponse,
     MonthSummaryResponse,
+    NoteResponse,
 } from '@finance/core';
 import { formatAccountType } from '../format/account.ts';
 import { formatDayMonth, formatMonthAbbreviation, formatMonthShort } from '../format/dates.ts';
 import { formatMoney } from '../format/money.ts';
+import { summarizeNote } from '../format/note.ts';
 import { formatPercent } from '../format/percent.ts';
 import { formatInvoiceAmount } from './invoiceView.ts';
 
@@ -317,5 +319,41 @@ function cardRow(creditCard: CreditCardInPeriodResponse, payerName: string | und
         status: cycle.invoice === null ? null : cycle.invoice.status === 'open' ? { text: 'Em aberto', tone: 'warn' } : { text: 'Paga', tone: 'ok' },
         amount: formatInvoiceAmount(cycle),
         disabled: creditCard.disabled,
+    };
+}
+
+/** Uma anotação no bloco da Visão geral: só o título, que leva a ela em Cadastros › Anotações. */
+export interface OverviewNoteRow {
+    readonly noteId: string;
+    /** A primeira linha da anotação (decisão de interface 9 dos mockups). */
+    readonly title: string;
+}
+
+/** O bloco de anotações da Visão geral. */
+export interface OverviewNotes {
+    readonly rows: readonly OverviewNoteRow[];
+    /** Quantas ficaram de fora do bloco; o link "Ver todas" diz o total. */
+    readonly hiddenCount: number;
+}
+
+/**
+ * Quantas anotações o bloco mostra: as mais recentes, para o bloco ter a altura dos vizinhos
+ * mesmo num perfil com dezenas delas; as outras estão a um clique, em Cadastros.
+ */
+export const OVERVIEW_NOTES_LIMIT = 6;
+
+/**
+ * Anotações da Visão geral (desktop-mvp-plan Fase 13.2): só os títulos, das mais recentes para as
+ * mais antigas — a ordem em que o núcleo as lista —, para que se ache a anotação sem abrir
+ * Cadastros; o texto inteiro fica no editor, para onde cada título leva.
+ *
+ * @param notes Anotações do perfil, da mais recente para a mais antiga.
+ * @param limit Quantas mostrar.
+ * @return Os títulos mostrados e quantos ficaram de fora.
+ */
+export function overviewNotes(notes: readonly NoteResponse[], limit: number = OVERVIEW_NOTES_LIMIT): OverviewNotes {
+    return {
+        rows: notes.slice(0, limit).map((note) => ({ noteId: note.id, title: summarizeNote(note.text).title })),
+        hiddenCount: Math.max(0, notes.length - limit),
     };
 }

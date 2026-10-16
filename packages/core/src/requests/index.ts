@@ -18,6 +18,7 @@ export * from './balanceRequests.ts';
 export * from './integrityRequests.ts';
 export * from './reportRequests.ts';
 export * from './tagRequests.ts';
+export * from './partnerRequests.ts';
 export * from './noteRequests.ts';
 export * from './recurrenceRequests.ts';
 export * from './goalRequests.ts';

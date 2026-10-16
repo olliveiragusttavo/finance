@@ -2,6 +2,7 @@ import type {
     AccountClosingHistory,
     CashFlowTotals,
     InvoiceExpenseTotals,
+    PartnerContributionTotals,
     SubCategoryExpenseTotals,
     TagCategoryTotals,
 } from '../domain/report/ReportTotals.ts';
@@ -65,4 +66,14 @@ export interface ReportRepository {
      * Transferências e investimentos ficam fora (T2).
      */
     tagTotalsByCategory(profileId: ProfileId, period: YearMonth | null, currency: Currency): readonly TagCategoryTotals[];
+
+    /**
+     * @param profileId Perfil empresarial consultado.
+     * @param period Mês de referência, que recorta a parte do mês de cada soma.
+     * @param currency Moeda do perfil.
+     * @return Somas das entradas (receitas e transferências vindas de outro perfil) por sócio que
+     * aportou, de todos os períodos e do mês, com uma linha de `partnerId` nulo para as sem sócio
+     * vivo do perfil; perfil sem entrada não tem linha.
+     */
+    contributionTotalsByPartner(profileId: ProfileId, period: YearMonth, currency: Currency): readonly PartnerContributionTotals[];
 }

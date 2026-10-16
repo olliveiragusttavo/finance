@@ -1,31 +1,40 @@
 import {
-    buildGoalContributionRows,
+    describeGoalFunding,
     describeGoalListItem,
+    formatGoalListView,
     formatMoney,
+    GOAL_LIST_VIEWS,
     goalFigures,
     goalPendingNote,
     goalProjectionNote,
+    movementsFromGoalContributions,
     useAccounts,
     useCategoryTree,
     useCreditCards,
     useGoalContributions,
     useGoals,
-    type GoalContributionRow,
+    useRecurrences,
     type GoalFigure,
+    type GoalListView,
+    type MovementColumn,
 } from '@finance/client';
 import type { GoalProgressResponse } from '@finance/core';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
+import { ListViewSwitch } from '@/components/ListViewSwitch';
+import { DetailPane, ListPane, PaneLayout } from '@/components/PaneLayout';
+import { ProgressBar } from '@/components/ProgressBar';
 import { EmptyState, QueryState, Skeleton } from '@/components/states';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/cn';
 import { StatusTag } from '@/registry/registryUi';
 import { useActiveProfile } from '@/shell/activeProfile';
 import { useReferenceMonth } from '@/shell/useReferenceMonth';
-import { DeleteGoalDialog, GoalDialog } from './GoalDialogs.tsx';
-import { openGoal, parseGoalsSearch } from './goalsSearch.ts';
+import { MovementGrid } from '@/transactions/MovementGrid';
+import { useTransactionActions } from '@/transactions/useTransactionActions';
+import { DeleteGoalDialog, GoalDialog, useToggleGoalArchive } from './GoalDialogs.tsx';
+import { goalListView, openGoal, parseGoalsSearch } from './goalsSearch.ts';
 
 /** Diálogo aberto na tela: criar, editar ou excluir uma meta. */
 type GoalDialogState = { readonly mode: 'create' } | { readonly mode: 'edit'; readonly goal: GoalProgressResponse } | { readonly mode: 'delete'; readonly goal: GoalProgressResponse };
@@ -34,7 +43,9 @@ type GoalDialogState = { readonly mode: 'create' } | { readonly mode: 'edit'; re
  * Metas (mockup `DesktopMetas`; desktop-mvp-plan Fase 9.3): à esquerda a lista com o progresso
  * de cada meta, à direita o detalhe da meta aberta — progresso, quanto falta, data-alvo, ritmo
  * necessário e as transações que contam. A meta aberta fica na URL (`goal`), como a conta em
- * Contas. O mês de referência só move o ritmo: o progresso é o que já foi pago até hoje.
+ * Contas. O mês de referência só move o ritmo: o progresso é o que já foi pago até hoje. A lista
+ * mostra por padrão só as ativas; as atingidas e as arquivadas ficam no seletor de visualização
+ * (`view`, desktop-mvp-plan Fase 13.4).
  *
  * @return A tela de Metas.
  */
@@ -47,27 +58,37 @@ export function GoalsScreen(): ReactNode {
     const search = useSearch({ strict: false, select: (raw: Readonly<Record<string, unknown>>) => parseGoalsSearch(raw) });
     const goals = useGoals({ profileId: profile.id, period });
     const [dialog, setDialog] = useState<GoalDialogState | null>(null);
+    const toggleArchive = useToggleGoalArchive();
     const close = (): void => {
         setDialog(null);
     };
 
     return (
-        <div className="-mx-8 -my-6 flex flex-1">
+        <PaneLayout>
             <QueryState query={goals} loading={<GoalListSkeleton />}>
                 {(list) => {
+                    const { view, goals: visible } = goalListView(list, search);
                     const open = openGoal(list, search);
                     return (
                         <>
                             <GoalList
-                                goals={list}
+                                goals={visible}
+                                view={view}
+                                onViewChange={(next) => {
+                                    void navigate({ to: '/goals', search: { view: next } });
+                                }}
                                 openId={open?.id ?? null}
                                 onCreate={() => {
                                     setDialog({ mode: 'create' });
                                 }}
                             />
-                            <section aria-label="Detalhe da meta" className="flex min-w-0 flex-1 flex-col gap-5 px-8 py-6">
+                            <DetailPane label="Detalhe da meta">
                                 {open === null ? (
-                                    <EmptyState title="Nenhuma meta" description="Crie uma meta em “+ Nova meta” e vincule a ela as receitas e transferências que guardam dinheiro para o objetivo." />
+                                    list.length === 0 ? (
+                                        <EmptyState title="Nenhuma meta" description="Crie uma meta em “+ Nova meta” e vincule a ela as receitas e transferências que guardam dinheiro para o objetivo." />
+                                    ) : (
+                                        <EmptyState title={EMPTY_VIEW[view]} description="Troque a visualização na lista para ver as outras metas." />
+                                    )
                                 ) : (
                                     <GoalDetail
                                         key={open.id}
@@ -75,12 +96,15 @@ export function GoalsScreen(): ReactNode {
                                         onEdit={() => {
                                             setDialog({ mode: 'edit', goal: open });
                                         }}
+                                        onToggleArchive={() => {
+                                            toggleArchive(open);
+                                        }}
                                         onDelete={() => {
                                             setDialog({ mode: 'delete', goal: open });
                                         }}
                                     />
                                 )}
-                            </section>
+                            </DetailPane>
                         </>
                     );
                 }}
@@ -96,27 +120,53 @@ export function GoalsScreen(): ReactNode {
             )}
             {dialog?.mode === 'edit' && <GoalDialog key={dialog.goal.id} goal={dialog.goal} onClose={close} />}
             {dialog?.mode === 'delete' && <DeleteGoalDialog goal={dialog.goal} onClose={close} />}
-        </div>
+        </PaneLayout>
     );
 }
+
+/** Frase da visualização sem meta, na lista e no detalhe. */
+const EMPTY_VIEW: Readonly<Record<GoalListView, string>> = { active: 'Nenhuma meta ativa', reached: 'Nenhuma meta atingida', archived: 'Nenhuma meta arquivada' };
 
 /**
  * Lista lateral: cada meta com o percentual, a barra e "quanto de quanto · prazo" (mockup).
  *
- * @param props.goals Metas do perfil, por nome.
+ * @param props.goals Metas da visualização escolhida, por nome.
+ * @param props.view Visualização escolhida: ativas, atingidas ou arquivadas.
+ * @param props.onViewChange Troca a visualização.
  * @param props.openId Meta aberta, marcada na lista.
  * @param props.onCreate Abre o diálogo de nova meta.
  * @return A lista de metas.
  */
-function GoalList({ goals, openId, onCreate }: { readonly goals: readonly GoalProgressResponse[]; readonly openId: string | null; readonly onCreate: () => void }): ReactNode {
+function GoalList({
+    goals,
+    view,
+    onViewChange,
+    openId,
+    onCreate,
+}: {
+    readonly goals: readonly GoalProgressResponse[];
+    readonly view: GoalListView;
+    readonly onViewChange: (view: GoalListView) => void;
+    readonly openId: string | null;
+    readonly onCreate: () => void;
+}): ReactNode {
     return (
-        <section aria-label="Lista de metas" className="flex w-90 shrink-0 flex-col border-r border-line bg-surface">
-            <div className="flex items-center justify-between px-5 pt-5 pb-3">
-                <h1 className="text-20 font-semibold">Metas</h1>
-                <Button variant="outline" size="sm" className="text-13 font-normal" onClick={onCreate}>
-                    + Nova meta
-                </Button>
-            </div>
+        <ListPane
+            label="Lista de metas"
+            width="w-90"
+            header={
+                <>
+                    <div className="flex items-center justify-between px-5 pt-5 pb-3">
+                        <h1 className="text-20 font-semibold">Metas</h1>
+                        <Button variant="outline" size="sm" className="text-13 font-normal" onClick={onCreate}>
+                            + Nova meta
+                        </Button>
+                    </div>
+                    <ListViewSwitch views={GOAL_LIST_VIEWS} value={view} format={formatGoalListView} onChange={onViewChange} />
+                </>
+            }
+        >
+            {goals.length === 0 && <p className="px-5 py-3.5 text-13 text-muted">{EMPTY_VIEW[view]}.</p>}
             <ul aria-label="Metas">
                 {goals.map((goal) => (
                     <li key={goal.id}>
@@ -124,7 +174,7 @@ function GoalList({ goals, openId, onCreate }: { readonly goals: readonly GoalPr
                     </li>
                 ))}
             </ul>
-        </section>
+        </ListPane>
     );
 }
 
@@ -148,7 +198,11 @@ function GoalLink({ goal, current }: { readonly goal: GoalProgressResponse; read
             )}
         >
             <span className="flex items-center justify-between gap-3 text-14">
-                <span className={cn('truncate', current && 'font-semibold')}>{goal.name}</span>
+                <span className="flex min-w-0 items-center gap-2">
+                    <span className={cn('truncate', current && 'font-semibold')}>{goal.name}</span>
+                    {/* A atingida e arquivada aparece também em "Atingidas"; a etiqueta diz qual é. */}
+                    {goal.archived && <StatusTag tone="warn">Arquivada</StatusTag>}
+                </span>
                 <span className="font-semibold tabular-nums">{item.percentText}</span>
             </span>
             <ProgressBar ratio={item.barRatio} className="h-1.5 rounded-3" />
@@ -159,14 +213,30 @@ function GoalLink({ goal, current }: { readonly goal: GoalProgressResponse; read
 
 /**
  * Detalhe da meta aberta: cabeçalho com as ações, progresso, os três números, a projeção e a
- * tabela das transações que contam.
+ * tabela das transações que contam — ou, na meta vinculada a conta, de onde vem o saldo
+ * (desktop-mvp-plan Fase 13.3).
  *
  * @param props.goal Meta aberta.
  * @param props.onEdit Abre "Editar meta".
+ * @param props.onToggleArchive Arquiva a meta, ou a reativa quando já está arquivada.
  * @param props.onDelete Abre a confirmação de exclusão.
  * @return O detalhe.
  */
-function GoalDetail({ goal, onEdit, onDelete }: { readonly goal: GoalProgressResponse; readonly onEdit: () => void; readonly onDelete: () => void }): ReactNode {
+function GoalDetail({
+    goal,
+    onEdit,
+    onToggleArchive,
+    onDelete,
+}: {
+    readonly goal: GoalProgressResponse;
+    readonly onEdit: () => void;
+    readonly onToggleArchive: () => void;
+    readonly onDelete: () => void;
+}): ReactNode {
+    const { profile } = useActiveProfile();
+    const { period } = useReferenceMonth();
+    const accounts = useAccounts({ profileId: profile.id, period });
+    const funding = describeGoalFunding(goal, accounts.data?.accounts ?? []);
     const item = describeGoalListItem(goal);
     const projection = goalProjectionNote(goal);
     const pending = goalPendingNote(goal);
@@ -174,10 +244,11 @@ function GoalDetail({ goal, onEdit, onDelete }: { readonly goal: GoalProgressRes
         <>
             <header className="flex items-start justify-between gap-4">
                 <div className="flex flex-col gap-1">
-                    <span className="text-12 text-muted">Meta de economia</span>
+                    <span className="text-12 text-muted">Meta de economia · {funding}</span>
                     <h2 className="flex items-center gap-2 text-22 font-semibold">
                         {goal.name}
                         {goal.reached && <StatusTag tone="neutral">Atingida</StatusTag>}
+                        {goal.archived && <StatusTag tone="warn">Arquivada</StatusTag>}
                     </h2>
                 </div>
                 <div className="flex gap-2">
@@ -191,6 +262,8 @@ function GoalDetail({ goal, onEdit, onDelete }: { readonly goal: GoalProgressRes
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                            <DropdownMenuItem onSelect={onToggleArchive}>{goal.archived ? 'Reativar meta' : 'Arquivar meta'}</DropdownMenuItem>
+                            <DropdownMenuSeparator />
                             <DropdownMenuItem variant="destructive" onSelect={onDelete}>
                                 Excluir meta…
                             </DropdownMenuItem>
@@ -217,23 +290,8 @@ function GoalDetail({ goal, onEdit, onDelete }: { readonly goal: GoalProgressRes
                     {projection}
                 </p>
             )}
-            <Contributions goal={goal} pendingNote={pending} />
+            {goal.funding.kind === 'account' ? <AccountSource accountId={goal.funding.accountId} name={funding} /> : <Contributions goal={goal} pendingNote={pending} />}
         </>
-    );
-}
-
-/**
- * Barra de progresso. Decorativa: o percentual ao lado já diz o mesmo em texto.
- *
- * @param props.ratio Preenchimento entre 0 e 1.
- * @param props.className Altura e raio, que mudam entre a lista e o detalhe.
- * @return A barra.
- */
-function ProgressBar({ ratio, className }: { readonly ratio: number; readonly className: string }): ReactNode {
-    return (
-        <span aria-hidden="true" className={cn('block overflow-hidden bg-track', className)}>
-            <span className="block h-full bg-accent" style={{ width: `${String(ratio * 100)}%` }} />
-        </span>
     );
 }
 
@@ -253,13 +311,18 @@ function Figure({ figure }: { readonly figure: GoalFigure }): ReactNode {
     );
 }
 
+/** Colunas das vinculadas: a conta importa (de onde veio o dinheiro guardado); a situação não, porque só as pagas contam. */
+const CONTRIBUTION_COLUMNS: readonly MovementColumn[] = ['date', 'name', 'category', 'container', 'amount'];
+
 /**
- * Tabela "Transações vinculadas" (mockup): as que contam no progresso, com o total, que é o
- * próprio progresso. Contas, cartões e categorias só dão nome às linhas.
+ * "Transações vinculadas" (mockup) na listagem comum de movimentos, com o total, que é o próprio
+ * progresso. Editar, marcar pago e excluir funcionam como em Transações (pedido do usuário,
+ * desktop-mvp-plan Fase 13.3): é aqui que se nota a vinculada errada. Contas, cartões e categorias
+ * só dão nome às linhas.
  *
  * @param props.goal Meta aberta.
  * @param props.pendingNote Frase sobre as vinculadas que ainda não contam, ou `null`.
- * @return A tabela.
+ * @return A listagem.
  */
 function Contributions({ goal, pendingNote }: { readonly goal: GoalProgressResponse; readonly pendingNote: string | null }): ReactNode {
     const { profile } = useActiveProfile();
@@ -268,9 +331,11 @@ function Contributions({ goal, pendingNote }: { readonly goal: GoalProgressRespo
     const accounts = useAccounts({ profileId: profile.id, period });
     const creditCards = useCreditCards({ profileId: profile.id, period });
     const categories = useCategoryTree({ profileId: profile.id });
+    const recurrences = useRecurrences({ profileId: profile.id });
+    const actions = useTransactionActions();
 
     return (
-        <section aria-label="Transações vinculadas" className="overflow-hidden rounded-10 border border-line bg-surface text-13">
+        <section aria-label="Transações vinculadas" className="overflow-clip rounded-10 border border-line bg-surface text-13">
             <div className="flex items-center justify-between px-4 py-3.5">
                 <h3 className="text-16 font-semibold">Transações vinculadas</h3>
                 <span className="text-12 text-muted">O progresso é a soma delas</span>
@@ -283,9 +348,20 @@ function Contributions({ goal, pendingNote }: { readonly goal: GoalProgressRespo
                                 {(cardList) => (
                                     <QueryState query={categories} loading={<Skeleton className="m-4 h-24" />}>
                                         {(tree) => (
-                                            <ContributionTable
-                                                rows={buildGoalContributionRows({ contributions: list, accounts: accountList.accounts, creditCards: cardList.creditCards, categories: tree })}
-                                                total={formatMoney(goal.saved)}
+                                            <MovementGrid
+                                                rows={movementsFromGoalContributions({
+                                                    contributions: list,
+                                                    accounts: accountList.accounts,
+                                                    creditCards: cardList.creditCards,
+                                                    categories: tree,
+                                                    recurrences: recurrences.data ?? [],
+                                                    profileId: profile.id,
+                                                })}
+                                                columns={CONTRIBUTION_COLUMNS}
+                                                actions={actions}
+                                                label="Transações vinculadas"
+                                                empty={<p className="px-4 py-6 text-center text-muted">Nenhuma transação paga vinculada ainda. Vincule receitas ou transferências pelo campo “Meta” do lançamento.</p>}
+                                                total={list.length === 0 ? undefined : { label: 'Total', amountText: formatMoney(goal.saved) }}
                                             />
                                         )}
                                     </QueryState>
@@ -296,56 +372,28 @@ function Contributions({ goal, pendingNote }: { readonly goal: GoalProgressRespo
                 )}
             </QueryState>
             {pendingNote !== null && <p className="border-t border-line2 bg-surface2 px-4 py-2.5 text-12 text-muted">{pendingNote}</p>}
+            {actions.dialogs}
         </section>
     );
 }
 
 /**
- * @param props.rows Linhas montadas pelo view-model.
- * @param props.total Progresso formatado, para a linha de total.
- * @return A tabela, ou a frase da meta sem transação que conte.
+ * No lugar da tabela, na meta vinculada a conta: não há transações vinculadas — o progresso é o
+ * saldo consolidado de hoje da conta (database-design §4.11) —, e o extrato dela explica cada
+ * movimento.
+ *
+ * @param props.accountId Conta vinculada.
+ * @param props.name "Saldo de Tesouro", o subtítulo do detalhe.
+ * @return A nota com o link para o extrato.
  */
-function ContributionTable({ rows, total }: { readonly rows: readonly GoalContributionRow[]; readonly total: string }): ReactNode {
-    if (rows.length === 0) {
-        return <p className="border-t border-line2 px-4 py-6 text-center text-muted">Nenhuma transação paga vinculada ainda. Vincule receitas ou transferências pelo campo “Meta” do lançamento.</p>;
-    }
+function AccountSource({ accountId, name }: { readonly accountId: string; readonly name: string }): ReactNode {
     return (
-        <Table className="text-13">
-            <TableHeader className="bg-surface2">
-                <TableRow className="border-line hover:bg-transparent">
-                    <TableHead className="w-16 pl-4 text-12 font-normal text-muted">Data</TableHead>
-                    <TableHead className="text-12 font-normal text-muted">Nome</TableHead>
-                    <TableHead className="text-12 font-normal text-muted">Categoria › Sub</TableHead>
-                    <TableHead className="text-12 font-normal text-muted">Conta</TableHead>
-                    <TableHead className="pr-4 text-right text-12 font-normal text-muted">Valor</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {rows.map((row) => (
-                    <TableRow key={row.id} className="border-line2">
-                        <TableCell className="pl-4 tabular-nums">{row.date}</TableCell>
-                        <TableCell className="whitespace-normal">
-                            <span className="flex flex-wrap items-center gap-2">
-                                {row.name}
-                                {row.refund && <StatusTag tone="neutral">estorno</StatusTag>}
-                            </span>
-                        </TableCell>
-                        <TableCell className="whitespace-normal text-ink2">{row.category}</TableCell>
-                        <TableCell className="whitespace-normal">{row.account}</TableCell>
-                        <TableCell className="pr-4 text-right tabular-nums">{row.amountText}</TableCell>
-                    </TableRow>
-                ))}
-            </TableBody>
-            <TableFooter className="bg-surface2">
-                <TableRow className="border-line font-semibold hover:bg-transparent">
-                    <TableCell />
-                    <TableCell>Total</TableCell>
-                    <TableCell />
-                    <TableCell />
-                    <TableCell className="pr-4 text-right tabular-nums">{total}</TableCell>
-                </TableRow>
-            </TableFooter>
-        </Table>
+        <p role="note" className="flex flex-wrap items-center justify-between gap-2 rounded-10 border border-line bg-surface px-4 py-3.5 text-13 text-ink2">
+            <span>{name}: o progresso é o saldo consolidado de hoje da conta, com tudo o que entrou e saiu dela.</span>
+            <Link to="/accounts" search={{ account: accountId }} className="text-accent hover:text-soft-ink">
+                Ver extrato da conta →
+            </Link>
+        </p>
     );
 }
 

@@ -6,12 +6,14 @@ import { cn } from '@/lib/cn';
  * página.
  *
  * @param props Propriedades do elemento ou do primitivo do Radix, repassadas a ele; `className`
- * é somado às classes do componente.
+ * é somado às classes do componente. `containerClassName` vai para o contêiner: a tabela de
+ * largura fixa com cabeçalho fixo troca a rolagem horizontal por `overflow-visible`, porque um
+ * contêiner que rola prende o `sticky` nele, e não na tela.
  * @return O elemento com o estilo dos tokens.
  */
-function Table({ className, ...props }: React.ComponentProps<'table'>): React.ReactNode {
+function Table({ className, containerClassName, ...props }: React.ComponentProps<'table'> & { readonly containerClassName?: string | undefined }): React.ReactNode {
     return (
-        <div data-slot="table-container" className="relative w-full overflow-x-auto">
+        <div data-slot="table-container" className={cn('relative w-full overflow-x-auto', containerClassName)}>
             <table data-slot="table" className={cn('w-full caption-bottom text-14', className)} {...props} />
         </div>
     );

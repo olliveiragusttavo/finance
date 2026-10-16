@@ -4,11 +4,11 @@ import type { UseQueryResult } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 import { Controller, useForm, type Resolver } from 'react-hook-form';
 import { toast } from 'sonner';
+import { Combobox } from '@/components/Combobox';
 import { Field, fieldAria, toFieldErrors } from '@/components/form';
 import { EmptyState, QueryState } from '@/components/states';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useActiveProfile } from '@/shell/activeProfile';
 import { reportRejection } from './coreErrorField.ts';
 import {
@@ -283,18 +283,16 @@ export function CreditCardDialog({
                     control={form.control}
                     name="accountId"
                     render={({ field }) => (
-                        <Select value={field.value} onValueChange={field.onChange}>
-                            <SelectTrigger id="card-account" className="w-full" {...fieldAria('card-account', errors.accountId)}>
-                                <SelectValue placeholder="Escolha a conta" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {options.map((account) => (
-                                    <SelectItem key={account.id} value={account.id}>
-                                        {account.disabled ? `${account.name} (desativada)` : account.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Combobox
+                            id="card-account"
+                            options={options.map((account) => ({ value: account.id, label: account.disabled ? `${account.name} (desativada)` : account.name }))}
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Escolha a conta"
+                            searchLabel="Buscar conta"
+                            emptyText="Nenhuma conta encontrada."
+                            aria={fieldAria('card-account', errors.accountId)}
+                        />
                     )}
                 />
             </Field>

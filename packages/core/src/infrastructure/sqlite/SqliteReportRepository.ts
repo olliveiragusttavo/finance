@@ -3,18 +3,19 @@ import type {
     AccountClosingHistory,
     CashFlowTotals,
     InvoiceExpenseTotals,
+    PartnerContributionTotals,
     SubCategoryExpenseTotals,
     TagCategoryTotals,
 } from '../../domain/report/ReportTotals.ts';
 import type { Currency } from '../../domain/shared/Currency.ts';
-import { AccountId, CategoryId, CreditCardId, InvoiceId, SubCategoryId, TagId, type ProfileId } from '../../domain/shared/ids.ts';
+import { AccountId, CategoryId, CreditCardId, InvoiceId, PartnerId, SubCategoryId, TagId, type ProfileId } from '../../domain/shared/ids.ts';
 import { LocalDate } from '../../domain/shared/LocalDate.ts';
 import { Money } from '../../domain/shared/Money.ts';
 import { YearMonth } from '../../domain/shared/YearMonth.ts';
 import type { Database } from '../../ports/Database.ts';
 import type { ReportRepository } from '../../repositories/ReportRepository.ts';
 import { TRANSACTION_TYPE_CODE } from './enumCodes.ts';
-import { CROSS_PROFILE_TRANSFERS_CTE, periodFromKey, periodKey, periodListSql, REPORT_SOURCES_CTE } from './periodSql.ts';
+import { CROSS_PROFILE_TRANSFERS_CTE, PARTNER_ENTRIES_CTE, periodFromKey, periodKey, periodListSql, REPORT_SOURCES_CTE } from './periodSql.ts';
 import { RowReader } from './RowReader.ts';
 
 /**
@@ -247,6 +248,42 @@ export class SqliteReportRepository implements ReportRepository {
                     count: reader.number('count'),
                     firstPeriod: periodFromKey(reader.number('first_key')),
                     lastPeriod: periodFromKey(reader.number('last_key')),
+                };
+            });
+    }
+
+    /**
+     * O sócio entra pelo `LEFT JOIN` só quando está vivo e é do perfil consultado: um vínculo com
+     * sócio excluído — o `SET NULL` da chave só age na exclusão física, e o app exclui com soft
+     * delete — cai no grupo sem sócio, que a tela pede para atribuir de novo.
+     *
+     * @param profileId Perfil empresarial consultado.
+     * @param period Mês de referência, que recorta a parte do mês de cada soma.
+     * @param currency Moeda do perfil.
+     * @return As somas das entradas por sócio, de todos os períodos e do mês, e a das sem sócio
+     * com `partnerId` nulo.
+     */
+    public contributionTotalsByPartner(profileId: ProfileId, period: YearMonth, currency: Currency): readonly PartnerContributionTotals[] {
+        return this.database
+            .all(
+                `WITH ${REPORT_SOURCES_CTE}, ${PARTNER_ENTRIES_CTE}
+                SELECT pa.id AS partner_id, SUM(pe.amount) AS total, COUNT(*) AS count,
+                    SUM(CASE WHEN pe.payment_key = :period THEN pe.amount ELSE 0 END) AS month_total,
+                    SUM(CASE WHEN pe.payment_key = :period THEN 1 ELSE 0 END) AS month_count
+                FROM partner_entries pe
+                LEFT JOIN partners pa ON pa.id = pe.partner_id AND pa.deleted_at IS NULL AND pa.profile_id = :profileId
+                GROUP BY pa.id`,
+                { profileId, income: TRANSACTION_TYPE_CODE.income, transference: TRANSACTION_TYPE_CODE.transference, period: periodKey(period) },
+            )
+            .map((row) => {
+                const reader = new RowReader('transactions', row);
+                const partnerId = reader.nullableText('partner_id');
+                return {
+                    partnerId: partnerId === null ? null : PartnerId(partnerId),
+                    total: Money.of(reader.number('total'), currency),
+                    count: reader.number('count'),
+                    month: Money.of(reader.number('month_total'), currency),
+                    monthCount: reader.number('month_count'),
                 };
             });
     }

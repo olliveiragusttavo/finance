@@ -40,7 +40,7 @@ export class GoalController {
 
     /**
      * @param raw Entrada com o perfil.
-     * @return As metas do perfil só com id e nome, para o campo "Meta" do lançamento.
+     * @return As metas do perfil com o nome e os estados que agrupam o campo "Meta" do lançamento.
      */
     public options(raw: unknown): Promise<CoreResult<readonly GoalOptionResponse[]>> {
         return handle(goalOptionsRequest, raw, ({ profileId }) => toGoalOptionResponses(this.goals.options(profileId)), this.onUnexpected);
@@ -78,6 +78,22 @@ export class GoalController {
      */
     public update(raw: unknown): Promise<CoreResult<GoalResponse>> {
         return handle(updateGoalRequest, raw, (command) => toGoalResponse(this.goals.update(command)), this.onUnexpected);
+    }
+
+    /**
+     * @param raw Entrada com a meta.
+     * @return A meta arquivada.
+     */
+    public archive(raw: unknown): Promise<CoreResult<GoalResponse>> {
+        return handle(goalIdRequest, raw, ({ id }) => toGoalResponse(this.goals.archive(id)), this.onUnexpected);
+    }
+
+    /**
+     * @param raw Entrada com a meta.
+     * @return A meta de volta às ativas.
+     */
+    public unarchive(raw: unknown): Promise<CoreResult<GoalResponse>> {
+        return handle(goalIdRequest, raw, ({ id }) => toGoalResponse(this.goals.unarchive(id)), this.onUnexpected);
     }
 
     /**

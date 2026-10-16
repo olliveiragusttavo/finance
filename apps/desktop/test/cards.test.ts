@@ -1,6 +1,6 @@
 import type { AccountResponse, CreditCardListResponse } from '@finance/core';
 import { describe, expect, it } from 'vitest';
-import { openCreditCard, openInvoicePeriod, parseCardsSearch, shouldDropInvoice } from '../src/renderer/src/cards/cardsSearch.ts';
+import { creditCardListView, openCreditCard, openInvoicePeriod, parseCardsSearch, shouldDropInvoice } from '../src/renderer/src/cards/cardsSearch.ts';
 import {
     defaultPartialPaymentAccount,
     PARTIAL_PAYMENT_FIELDS,
@@ -26,9 +26,10 @@ const PROFILE = '77777777-7777-4777-8777-777777777777';
  * Lista de cartões mínima para escolher o cartão aberto; faturas e totais não entram na escolha.
  *
  * @param ids Cartões da lista, na ordem do núcleo.
+ * @param disabledIds Cartões desativados.
  * @return A lista no formato do `creditCards.list`.
  */
-function listOf(ids: readonly string[]): CreditCardListResponse {
+function listOf(ids: readonly string[], disabledIds: readonly string[] = []): CreditCardListResponse {
     const zero = { amount: 0, currency: 'BRL' };
     return {
         profileId: PROFILE,
@@ -41,7 +42,7 @@ function listOf(ids: readonly string[]): CreditCardListResponse {
             limit: zero,
             closingDay: 3,
             dueDay: 10,
-            disabled: false,
+            disabled: disabledIds.includes(id),
             invoiceOfMonth: { period: '2026-10', closingDate: '2026-10-03', dueDate: '2026-10-10', invoice: null },
             limitUsed: zero,
         })),
@@ -85,6 +86,14 @@ describe('cartão e fatura abertos na tela Cartões', () => {
         expect(openCreditCard(list, {})?.name).toBe('Roxinho');
         expect(openCreditCard(list, { card: SUB_CATEGORY })?.name).toBe('Roxinho');
         expect(openCreditCard(listOf([]), {})).toBeNull();
+    });
+
+    it('a lista mostra os ativos ou os desativados; o cartão pedido sem visualização abre a lista dele (desktop-mvp-plan Fase 13.4)', () => {
+        const list = listOf([ROXINHO, CLICK], [CLICK]);
+        expect(parseCardsSearch({ view: 'disabled', card: CLICK })).toEqual({ view: 'disabled', card: CLICK });
+        expect(creditCardListView(list, {}).creditCards.map((creditCard) => creditCard.name)).toEqual(['Roxinho']);
+        expect(creditCardListView(list, { card: CLICK })).toMatchObject({ view: 'disabled', creditCards: [{ name: 'Click' }] });
+        expect(openCreditCard(list, { card: CLICK, view: 'active' })?.name).toBe('Roxinho');
     });
 
     it('sem fatura na URL vale a do mês de referência; com ela ("ver fatura"), a pedida', () => {

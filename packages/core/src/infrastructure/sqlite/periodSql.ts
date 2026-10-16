@@ -104,7 +104,7 @@ export const REPORT_SOURCES_CTE = `
         WHERE i.deleted_at IS NULL AND c.profile_id = :profileId
     ),
     report_transactions AS (
-        SELECT t.id, t.type, t.value, t.charges, t.sub_category_id, t.invoice_id, t.destination_account_id,
+        SELECT t.id, t.type, t.value, t.charges, t.sub_category_id, t.invoice_id, t.destination_account_id, t.partner_id,
             CASE
                 WHEN t.invoice_id IS NOT NULL THEN ri.payment_key
                 ELSE bs.year * 100 + bs.month
@@ -146,6 +146,39 @@ export const CROSS_PROFILE_TRANSFERS_CTE = `
         WHERE rt.type = :transference AND rt.invoice_id IS NULL AND da.profile_id <> :profileId
         UNION ALL
         SELECT bs.year * 100 + bs.month AS payment_key, :income AS type, t.value, 0 AS charges
+        FROM transactions t
+        JOIN bank_statements bs ON bs.id = t.bank_statement_id AND bs.deleted_at IS NULL
+        JOIN accounts oa ON oa.id = bs.account_id AND oa.deleted_at IS NULL
+        JOIN accounts da ON da.id = t.destination_account_id AND da.deleted_at IS NULL
+        WHERE t.deleted_at IS NULL AND t.type = :transference AND t.invoice_id IS NULL
+            AND da.profile_id = :profileId AND oa.profile_id <> :profileId
+    )
+`;
+
+/**
+ * Entradas de um perfil empresarial (`:profileId`) que podem ser aporte de sócio, com o mês de
+ * pagamento e o efeito no saldo de cada uma.
+ * Regra de negócio (Sócios — aportes, reports-design §8): toda despesa é paga com o dinheiro da
+ * empresa, e o sócio aparece no dinheiro que entra — a **receita** do perfil, pelo que entra na
+ * conta (valor menos encargos, o `originEffect`), e a **transferência que chega de outro perfil**,
+ * pelo valor (os encargos são da origem). A transferência entre contas do próprio perfil não é
+ * entrada: o dinheiro já era da empresa.
+ *
+ * A receita vem de `report_transactions`, que já recortou o perfil e o mês de pagamento. A
+ * transferência é uma linha do perfil de origem e repete o recorte do lado do destino, como a
+ * `CROSS_PROFILE_TRANSFERS_CTE`. O `partner_id` é o da própria transação: na transferência, um
+ * sócio do perfil de destino (`TransactionComposer.assertPartner`).
+ *
+ * Uso: `WITH ${REPORT_SOURCES_CTE}, ${PARTNER_ENTRIES_CTE} SELECT ... FROM partner_entries pe ...`,
+ * com `:income` e `:transference` nos parâmetros.
+ */
+export const PARTNER_ENTRIES_CTE = `
+    partner_entries AS (
+        SELECT rt.id, rt.payment_key, rt.partner_id, rt.value - rt.charges AS amount
+        FROM report_transactions rt
+        WHERE rt.type = :income
+        UNION ALL
+        SELECT t.id, bs.year * 100 + bs.month AS payment_key, t.partner_id, t.value AS amount
         FROM transactions t
         JOIN bank_statements bs ON bs.id = t.bank_statement_id AND bs.deleted_at IS NULL
         JOIN accounts oa ON oa.id = bs.account_id AND oa.deleted_at IS NULL

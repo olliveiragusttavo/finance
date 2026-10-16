@@ -79,6 +79,25 @@ async function openTransactions(page: Page): Promise<void> {
 }
 
 /**
+ * Escolhe a opção já visível da lista aberta. No seletor com busca dos cadastros (`Combobox`,
+ * desktop-mvp-plan Fase 13.2) o foco fica no campo de busca e a opção não recebe foco, então o
+ * clique (por `dispatchEvent`, como os outros cliques destes testes) é o caminho; no `Select` do Radix, que ficou nas listas curtas, o foco vai direto à
+ * opção e o Enter confirma, sem a busca por digitação do Radix, que pode parar numa opção de nome
+ * parecido.
+ *
+ * @param page Janela do app.
+ * @param item Opção a escolher.
+ */
+async function pickOption(page: Page, item: Locator): Promise<void> {
+    if ((await page.getByRole('combobox', { name: /^Buscar/ }).count()) > 0) {
+        await item.dispatchEvent('click');
+        return;
+    }
+    await item.focus();
+    await item.press('Enter');
+}
+
+/**
  * Escolhe uma opção num `Select` do Radix pelo teclado, como em `cards.spec.ts`.
  *
  * @param page Janela do app.
@@ -88,8 +107,7 @@ async function openTransactions(page: Page): Promise<void> {
 async function chooseOption(page: Page, field: Locator, option: string): Promise<void> {
     await field.press('Enter');
     const item = page.getByRole('option', { name: option, exact: true });
-    await item.focus();
-    await item.press('Enter');
+    await pickOption(page, item);
     await expect(page.getByRole('listbox')).toHaveCount(0);
 }
 
@@ -226,7 +244,11 @@ test('compra no cartão: fatura sugerida, aviso ao escolher a fatura paga, e est
         // tela diz em qual ela caiu. Filtrando pelo cartão, as compras voltam uma a uma.
         await expect(page.getByText(`Está na fatura Roxinho · ${formatMonthAbbreviation(next)}`)).toBeVisible();
         await expect(rowOf(page, 'Estorno Uber')).toHaveCount(0);
-        await chooseOption(page, page.getByRole('search', { name: 'Filtros' }).getByLabel('Conta ou cartão'), 'Roxinho');
+        // O filtro tem busca, como o campo do formulário (desktop-mvp-plan Fase 13.3).
+        await page.getByRole('search', { name: 'Filtros' }).getByLabel('Conta ou cartão').press('Enter');
+        await page.getByRole('combobox', { name: 'Buscar conta ou cartão' }).fill('roxi');
+        await expect(page.getByRole('option')).toHaveCount(1);
+        await page.getByRole('option', { name: 'Roxinho' }).dispatchEvent('click');
         await expect(rowOf(page, 'Estorno Uber')).toContainText(`Roxinho · fat. ${formatMonthAbbreviation(next)}`);
         await expect(rowOf(page, 'Estorno Uber')).toContainText('+R$ 23,90');
         await expect(rowOf(page, 'Estorno Uber')).toContainText('estorno');

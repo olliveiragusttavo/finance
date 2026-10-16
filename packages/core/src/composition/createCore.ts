@@ -12,6 +12,7 @@ import { ReportController } from '../controllers/ReportController.ts';
 import type { CoreApi, CoreRoute, RouteHandlers } from '../controllers/routes.ts';
 import { StatementController } from '../controllers/StatementController.ts';
 import { TagController } from '../controllers/TagController.ts';
+import { PartnerController } from '../controllers/PartnerController.ts';
 import { RecurrenceController } from '../controllers/RecurrenceController.ts';
 import { TransactionController } from '../controllers/TransactionController.ts';
 import { embeddedMigrations } from '../infrastructure/migrations/embedded.generated.ts';
@@ -28,6 +29,7 @@ import { SqliteDeletionRepository } from '../infrastructure/sqlite/SqliteDeletio
 import { SqliteGoalRepository } from '../infrastructure/sqlite/SqliteGoalRepository.ts';
 import { SqliteInvoiceRepository } from '../infrastructure/sqlite/SqliteInvoiceRepository.ts';
 import { SqliteNoteRepository } from '../infrastructure/sqlite/SqliteNoteRepository.ts';
+import { SqlitePartnerRepository } from '../infrastructure/sqlite/SqlitePartnerRepository.ts';
 import { SqliteProfileRepository } from '../infrastructure/sqlite/SqliteProfileRepository.ts';
 import { SqliteReferenceRepository } from '../infrastructure/sqlite/SqliteReferenceRepository.ts';
 import { SqliteRecurrenceRepository } from '../infrastructure/sqlite/SqliteRecurrenceRepository.ts';
@@ -54,6 +56,7 @@ import { ProfileService } from '../services/profile/ProfileService.ts';
 import { ReportService } from '../services/report/ReportService.ts';
 import { StatementConsolidationService } from '../services/statement/StatementConsolidationService.ts';
 import { TagService } from '../services/tag/TagService.ts';
+import { PartnerService } from '../services/partner/PartnerService.ts';
 import { ImportService } from '../services/import/ImportService.ts';
 import { RecurrenceService } from '../services/recurrence/RecurrenceService.ts';
 import { SeriesPlanner } from '../services/recurrence/SeriesPlanner.ts';
@@ -78,6 +81,7 @@ export interface CoreServices {
     readonly creditCards: CreditCardService;
     readonly categories: CategoryService;
     readonly tags: TagService;
+    readonly partners: PartnerService;
     readonly notes: NoteService;
     readonly goals: GoalService;
     readonly deletions: CascadeDeletionService;
@@ -155,6 +159,7 @@ export function createCore(ports: CorePorts): Core {
     const references = new SqliteReferenceRepository(database);
     const categories = new SqliteCategoryRepository(database, clock);
     const tags = new SqliteTagRepository(database, clock);
+    const partners = new SqlitePartnerRepository(database, clock);
     const notes = new SqliteNoteRepository(database, clock);
     const goals = new SqliteGoalRepository(database, clock);
     const deletions = new SqliteDeletionRepository(database, clock);
@@ -170,12 +175,13 @@ export function createCore(ports: CorePorts): Core {
     const recurrenceService = new RecurrenceService(unitOfWork, ids, clock, composer, transactions, recurrenceRepository, impacts, recalculation);
     const transactionService = new TransactionService(unitOfWork, ids, composer, accounts, transactions, consolidation, recurrenceService, impacts, recalculation, clock);
     const profileService = new ProfileService(unitOfWork, ids, profiles);
-    const accountService = new AccountService(unitOfWork, ids, profileService, accounts, statements, recalculation);
-    const creditCardService = new CreditCardService(unitOfWork, ids, profileService, accountService, creditCards, invoices, recalculation);
+    const accountService = new AccountService(unitOfWork, ids, profileService, accounts, statements, recalculation, goals);
+    const creditCardService = new CreditCardService(unitOfWork, ids, profileService, accountService, creditCards, invoices, recalculation, ledger, clock);
     const categoryService = new CategoryService(unitOfWork, ids, profileService, categories);
     const tagService = new TagService(unitOfWork, ids, profileService, tags);
+    const partnerService = new PartnerService(unitOfWork, ids, profileService, partners);
     const noteService = new NoteService(unitOfWork, ids, profileService, notes);
-    const goalService = new GoalService(unitOfWork, ids, clock, profileService, goals, transactions);
+    const goalService = new GoalService(unitOfWork, ids, clock, profileService, goals, transactions, accounts, statements);
     const onboardingService = new OnboardingService(unitOfWork, profileService, accountService, categoryService);
     const cascadeDeletion = new CascadeDeletionService(unitOfWork, deletions, accounts, creditCards, invoices, transactions, recalculation);
     const balances = new AccountBalanceService(unitOfWork, profiles, accounts, recalculation);
@@ -184,7 +190,7 @@ export function createCore(ports: CorePorts): Core {
         unitOfWork, clock, ids, composer, transactions, accounts, creditCards, invoices, categories, tags,
         accountService, creditCardService, categoryService, tagService, recurrenceService, invoiceService, impacts, recalculation,
     );
-    const reportService = new ReportService(unitOfWork, profileService, reportRepository, transactions, creditCards, categories, accounts, tags, consolidation, clock);
+    const reportService = new ReportService(unitOfWork, profileService, reportRepository, transactions, creditCards, categories, accounts, tags, partners, consolidation, clock);
 
     const transactionController = new TransactionController(transactionService, onUnexpected);
     const recurrenceController = new RecurrenceController(recurrenceService, new SeriesPlanner(unitOfWork, transactionService, composer, transactions, recurrenceRepository), onUnexpected);
@@ -197,6 +203,7 @@ export function createCore(ports: CorePorts): Core {
     const categoryController = new CategoryController(categoryService, onUnexpected);
     const reportController = new ReportController(reportService, onUnexpected);
     const tagController = new TagController(tagService, onUnexpected);
+    const partnerController = new PartnerController(partnerService, onUnexpected);
     const noteController = new NoteController(noteService, onUnexpected);
     const goalController = new GoalController(goalService, onUnexpected);
     const importController = new ImportController(importService, onUnexpected);
@@ -232,6 +239,8 @@ export function createCore(ports: CorePorts): Core {
         'tags.create': (raw) => tagController.create(raw),
         'tags.update': (raw) => tagController.rename(raw),
         'tags.delete': (raw) => tagController.delete(raw),
+        'partners.list': (raw) => partnerController.list(raw),
+        'partners.save': (raw) => partnerController.save(raw),
         'notes.list': (raw) => noteController.list(raw),
         'notes.create': (raw) => noteController.create(raw),
         'notes.update': (raw) => noteController.rewrite(raw),
@@ -241,6 +250,8 @@ export function createCore(ports: CorePorts): Core {
         'goals.contributions': (raw) => goalController.contributions(raw),
         'goals.create': (raw) => goalController.create(raw),
         'goals.update': (raw) => goalController.update(raw),
+        'goals.archive': (raw) => goalController.archive(raw),
+        'goals.unarchive': (raw) => goalController.unarchive(raw),
         'goals.delete': (raw) => goalController.delete(raw),
         'transactions.create': (raw) => transactionController.create(raw),
         'transactions.update': (raw) => transactionController.update(raw),
@@ -248,6 +259,7 @@ export function createCore(ports: CorePorts): Core {
         'transactions.get': (raw) => transactionController.get(raw),
         'transactions.listByPeriod': (raw) => transactionController.listByPeriod(raw),
         'transactions.setPaid': (raw) => transactionController.setPaid(raw),
+        'transactions.setPartner': (raw) => transactionController.setPartner(raw),
         'recurrences.list': (raw) => recurrenceController.list(raw),
         'recurrences.occurrences': (raw) => recurrenceController.occurrences(raw),
         'recurrences.preview': (raw) => recurrenceController.preview(raw),
@@ -273,6 +285,8 @@ export function createCore(ports: CorePorts): Core {
         'reports.accountFlow': (raw) => reportController.accountFlow(raw),
         'reports.byTag': (raw) => reportController.byTag(raw),
         'reports.tagTransactions': (raw) => reportController.tagTransactions(raw),
+        'reports.byPartner': (raw) => reportController.byPartner(raw),
+        'reports.entriesWithoutPartner': (raw) => reportController.entriesWithoutPartner(raw),
         'imports.run': (raw) => importController.run(raw),
     };
 
@@ -284,6 +298,7 @@ export function createCore(ports: CorePorts): Core {
             creditCards: creditCardService,
             categories: categoryService,
             tags: tagService,
+            partners: partnerService,
             notes: noteService,
             goals: goalService,
             deletions: cascadeDeletion,

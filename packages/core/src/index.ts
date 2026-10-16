@@ -23,9 +23,12 @@ export { MONEY_MAX_AMOUNT, Money, roundHalfAwayFromZero } from './domain/shared/
 export { COMPARISON_MODES, type ComparisonMode } from './domain/report/Comparison.ts';
 export { TAG_REPORT_RANGES, type TagReportRange } from './domain/report/TagReport.ts';
 export type { FlowMonthTiming } from './domain/report/AccountFlowReport.ts';
+// Divisão pela participação: a prévia do cadastro de sócios usa a mesma conta do relatório por sócio.
+export { allocateByShares } from './domain/report/PartnerReport.ts';
+export { PARTNER_NAME_MAX_LENGTH } from './domain/partner/Partner.ts';
 // Regras puras do tipo da transação: o formulário de lançamento mostra o sinal do efeito e pede
 // a conta de destino e a meta pela mesma regra que o núcleo aplica, sem reimplementá-la na UI.
-export { feedsGoal, movesToDestination, originEffect, TRANSACTION_TYPES, type TransactionType } from './domain/transaction/TransactionType.ts';
+export { feedsGoal, movesToDestination, originEffect, TRANSACTION_TYPES, withdrawsFromGoal, type TransactionType } from './domain/transaction/TransactionType.ts';
 // Análise da importação: a tela de revisão mostra os números pela mesma função que o núcleo usa
 // ao gravar, para que a prévia aprovada nunca discorde do que entra no banco (import-design §2).
 export { analyzeImport, type ImportAccountUse, type ImportAnalysis, type ImportCategoryUse, type ImportCreditCardUse, type ImportIssue, type ImportIssueReason, type ImportSource, type PlannedRow, type PlannedSeries } from './domain/import/ImportAnalysis.ts';

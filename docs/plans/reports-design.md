@@ -1,6 +1,6 @@
 # Design dos Relatórios
 
-**Status:** Implementado no núcleo e nas telas — Fases 2, 10 a 12, 12.1 e 12.2 do
+**Status:** Implementado no núcleo e nas telas — Fases 2, 10 a 12, 12.1, 12.2 e 13.6 do
 [desktop-mvp-plan.md](desktop-mvp-plan.md), rotas `reports.*`. Os relatórios serão refinados depois do MVP; as regras
 abaixo valem para esta primeira versão.
 **Relacionado:** [desktop-mvp-plan.md §3](desktop-mvp-plan.md#3-regras-de-negócio-dos-relatórios)
@@ -176,7 +176,46 @@ Decisões de implementação:
   gasto). A tela mostra o gasto sem sinal ("Total gasto") e a entrada líquida com `+`; com receita
   o indicador vira "Total líquido" e explica as duas partes.
 
-## 8. Rotas
+## 8. Por sócio (`reports.byPartner`, `reports.entriesWithoutPartner`)
+
+Só em perfil empresarial: no pessoal as duas rotas recusam com `partner-requires-business-profile`.
+Revisto na Fase 13.8 do [desktop-mvp-plan.md](desktop-mvp-plan.md): o relatório deixou de dividir
+as despesas e passou a dividir os **aportes**. Toda despesa de um perfil empresarial é paga com o
+dinheiro da empresa; o que cada sócio põe na empresa é o dinheiro que entra vinculado a ele.
+
+| # | Pergunta | Regra |
+|---|---|---|
+| P1 | Período | Os aportes de **todos os períodos** formam o total e a divisão. O mês de referência só recorta os indicadores do mês ("Aportes em out/2026", "Entradas sem sócio em out/2026") e a lista de entradas sem sócio, pela regra-mestra da [§2](#2-regra-mestra-o-período-é-o-do-pagamento) |
+| P2 | O que é aporte? | **Receita** do perfil empresarial e **transferência que chega a ele de outro perfil**, com sócio. A receita vale o que entrou no saldo (valor − encargos), a transferência, o valor (os encargos são da origem). Despesa, investimento e transferência entre contas do próprio perfil não são aporte |
+| P3 | "Deveria ter aportado" | Total de aportes **com sócio** × participação. Ex.: Matheus (60%) e Gustavo (40%) aportaram R$ 1.000,00 cada; do total de R$ 2.000,00, Matheus deveria R$ 1.200,00 e Gustavo R$ 800,00. Entradas sem sócio ficam **fora da divisão**: a receita de serviço é lucro, não aporte (a distribuição do lucro pela participação é assunto futuro). Com as participações somando 100%, a sobra do arredondamento vai para os maiores restos e a divisão soma exatamente o total |
+| P4 | Acerto | Diferença = aportou − deveria. O maior devedor paga o maior credor até zerar um dos dois — no exemplo, "Matheus transfere R$ 200,00 para Gustavo". **Sem acerto** quando as participações não somam 100%: as diferenças não fechariam em zero |
+| P5 | Entradas sem sócio | As entradas do mês (P2) sem sócio vivo do perfil, com a mesma CTE das somas (`PARTNER_ENTRIES_CTE`): a lista soma o indicador. A transferência aparece como "Transferência recebida", com a conta de origem do outro perfil |
+
+Decisões de implementação:
+
+- **Onde o sócio pode ser vinculado** (`TransactionComposer.assertPartner`): só no aporte (P2). Em
+  outro lançamento a gravação recusa com `partner-requires-contribution`; numa entrada de perfil
+  pessoal, com `partner-requires-business-profile`. Na transferência entre perfis a linha é do perfil
+  de origem (database-design §4.13), mas o sócio é do perfil **de destino**.
+- **Despesa com sócio gravada antes da revisão** fica como está: não conta como aporte, e editar a
+  despesa mantém o sócio enquanto perfil e destino não mudam. Só não ganha um sócio novo.
+- **Sócio excluído** (soft delete) ou de outro perfil conta como sem sócio: o vínculo morto não diz
+  mais quem aportou, e a lista pede para atribuir de novo.
+- **Todos os sócios vivos aparecem**, mesmo sem aporte, pela participação (maior primeiro) e depois
+  pelo nome.
+- **Centavos inteiros:** a divisão e o acerto trabalham em unidades menores, para que a soma das
+  partes seja o total e o acerto zere as diferenças sem sobra.
+- **Atribuir pelo relatório:** a rota `transactions.setPartner` troca só o sócio de uma transação,
+  como `transactions.setPaid` troca o pagamento — numa série, só a ocorrência. Confere a mesma regra
+  de aporte. Não recalcula saldo: o sócio não pesa em nenhum.
+- **Atribuir no lançamento:** o formulário mostra "Sócio que aportou" só quando o lançamento é aporte,
+  com os sócios do perfil certo — o de destino, na transferência para outro perfil.
+- **Cadastro de sócios:** criar, editar, remover e conferir a soma de 100% ficam no cadastro
+  (rotas `partners.list` e `partners.save`, desktop-mvp-plan Fase 13.7), que mostra o "Aportou" e o
+  "Deveria ter aportado" de cada sócio. Remover um sócio apaga o vínculo dos lançamentos e das
+  séries ligados a ele, que voltam a ser entradas sem sócio.
+
+## 9. Rotas
 
 | Rota | Entrada | Saída |
 |---|---|---|
@@ -188,11 +227,13 @@ Decisões de implementação:
 | `reports.accountFlow` | `profileId`, `period`, `accountId` opcional (sem ele, as contas do total) | Linhas de cada mês da janela no consolidado e no previsto, com a situação do mês |
 | `reports.byTag` | `profileId`, `period`, `range` (`all` padrão, ou `month`) | Tags com despesas, receitas, líquido, lançamentos, intervalo de meses e divisão por categoria |
 | `reports.tagTransactions` | `profileId`, `period`, `range`, `tagId` | Receitas e despesas da tag e o total líquido |
+| `reports.byPartner` | `profileId` (empresarial), `period` | Total de aportes (todos os períodos), aportes e entradas sem sócio do mês, cada sócio (participação, aportou, deveria, diferença), soma das participações e o acerto |
+| `reports.entriesWithoutPartner` | `profileId` (empresarial), `period` | Entradas do mês sem sócio (receitas e transferências vindas de outro perfil) e o total |
 
 Valores monetários vão arredondados (`MoneyResponse`); proporções vão como número (0,322
 para 32,2%) e a tela formata.
 
-## 9. Testes
+## 10. Testes
 
 | Arquivo | Cobre |
 |---|---|
@@ -204,3 +245,4 @@ para 32,2%) e a tela formata.
 | `test/services/reports.property.test.ts` | Árvore do mês = saída prevista das contas ([§2.1](#21-relatório-e-extrato-concordam)) |
 | `test/services/reports.accountFlow.test.ts` | Cadeia dos saldos, concordância com o extrato, faturas e parciais, em aberto só no previsto, soma das contas do total |
 | `test/services/reports.tag.test.ts` | Mês do pagamento, futuro em "todo o período", reembolso, estorno, encargos, transferência fora, participação, ordem, lista = total |
+| `test/services/reports.partner.test.ts` | Exemplo dos aportes, todos os períodos × mês, receita de serviço e despesa fora, encargos e devolução, despesa antiga com sócio, sócio sem aporte, sócio excluído, maior resto, acerto com três sócios, participações fora de 100%, lista = indicador, onde o sócio pode ser vinculado, `setPartner` numa ocorrência e recusas |

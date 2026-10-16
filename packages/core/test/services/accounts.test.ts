@@ -162,6 +162,7 @@ describe('conta desativada nas escolhas de lançamentos (desktop-mvp-plan §5.1)
             destinationAccountId: null,
             partnerId: null,
             goalId: null,
+            goalWithdrawal: false,
             originCurrency: null,
             conversionRate: 1,
             dueDate: '2026-03-10',

@@ -99,7 +99,7 @@ test('tema, cópia do banco, local do arquivo, atalhos e versões', async () => 
         // Atalhos: os que existem, agrupados por onde valem; sem o Ctrl K ainda pendente.
         const shortcuts = page.getByRole('region', { name: 'Atalhos de teclado' });
         await expect(shortcuts.getByRole('region', { name: 'Em qualquer tela' })).toContainText('Novo lançamento');
-        await expect(shortcuts.getByRole('region', { name: 'Tabela de Transações' })).toContainText('Marcar ou desmarcar como pago');
+        await expect(shortcuts.getByRole('region', { name: 'Listas de lançamentos (Transações, extrato e fatura)' })).toContainText('Marcar ou desmarcar como pago');
         await expect(shortcuts).not.toContainText('Ctrl');
 
         // A data da última cópia é do aparelho e sobrevive a recarregar a janela.

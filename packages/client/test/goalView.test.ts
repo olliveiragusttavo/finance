@@ -1,7 +1,7 @@
 import type { GoalProgressResponse } from '@finance/core';
 import { describe, expect, it } from 'vitest';
-import { buildGoalContributionRows, describeGoalDeletion, describeGoalListItem, goalFigures, goalPendingNote, goalProjectionNote } from '../src/index.ts';
-import { ClientWorld } from './support/ClientWorld.ts';
+import { describeGoalDeletion, describeGoalFunding, describeGoalFundingChange, describeGoalListItem, goalFigures, goalPendingNote, goalProjectionNote, movementsFromGoalContributions, type MovementRow } from '../src/index.ts';
+import { ClientWorld, type Scenario } from './support/ClientWorld.ts';
 
 /**
  * @param amount Valor em reais.
@@ -20,6 +20,7 @@ function trip(overrides: Partial<GoalProgressResponse> = {}): GoalProgressRespon
         id: 'g1',
         profileId: 'p1',
         name: 'Viagem Floripa',
+        funding: { kind: 'transactions' },
         value: brl(4000),
         targetDate: '2027-01-15',
         saved: brl(1400),
@@ -33,8 +34,28 @@ function trip(overrides: Partial<GoalProgressResponse> = {}): GoalProgressRespon
         requiredPerMonth: brl(1041.26),
         averagePerMonth: brl(700),
         projectedGap: brl(-852.12),
+        archived: false,
         ...overrides,
     };
+}
+
+/**
+ * Monta as transações vinculadas à meta do cenário na listagem comum, com os cadastros como a tela
+ * os carrega.
+ *
+ * @param world Núcleo do teste.
+ * @param s Ids do cenário.
+ * @return As linhas da listagem.
+ */
+async function contributionMovements(world: ClientWorld, s: Scenario): Promise<readonly MovementRow[]> {
+    const [contributions, accounts, creditCards, categories, recurrences] = await Promise.all([
+        world.ok('goals.contributions', { id: s.goalId }),
+        world.ok('accounts.list', { profileId: s.profileId, period: '2026-10' }),
+        world.ok('creditCards.list', { profileId: s.profileId, period: '2026-10' }),
+        world.ok('categories.tree', { profileId: s.profileId }),
+        world.ok('recurrences.list', { profileId: s.profileId }),
+    ]);
+    return movementsFromGoalContributions({ contributions, accounts: accounts.accounts, creditCards: creditCards.creditCards, categories, recurrences, profileId: s.profileId });
 }
 
 describe('lista e detalhe de Metas (mockup DesktopMetas)', () => {
@@ -102,9 +123,9 @@ describe('lista e detalhe de Metas (mockup DesktopMetas)', () => {
         expect(goalPendingNote(trip())).toBeNull();
         expect(goalPendingNote(trip({ pending: { count: 1, total: brl(700) } }))).toBe('1 lançamento vinculado ainda não conta (R$ 700,00): entra no progresso quando for pago.');
         expect(goalPendingNote(trip({ pending: { count: 3, total: brl(2100) } }))).toBe('3 lançamentos vinculados ainda não contam (R$ 2.100,00): entram no progresso quando forem pagos.');
-        expect(describeGoalDeletion({ name: 'Viagem', linkedCount: 0 })).toBe('Nenhum lançamento está vinculado a Viagem; excluir só apaga a meta.');
-        expect(describeGoalDeletion({ name: 'Viagem', linkedCount: 1 })).toBe('O lançamento vinculado perde o vínculo com Viagem e continua existindo, com os mesmos valores e saldos.');
-        expect(describeGoalDeletion({ name: 'Viagem', linkedCount: 4 })).toBe('Os 4 lançamentos vinculados perdem o vínculo com Viagem e continuam existindo, com os mesmos valores e saldos.');
+        expect(describeGoalDeletion({ name: 'Viagem', funding: { kind: 'transactions' }, linkedCount: 0 })).toBe('Nenhum lançamento está vinculado a Viagem; excluir só apaga a meta.');
+        expect(describeGoalDeletion({ name: 'Viagem', funding: { kind: 'transactions' }, linkedCount: 1 })).toBe('O lançamento vinculado perde o vínculo com Viagem e continua existindo, com os mesmos valores e saldos.');
+        expect(describeGoalDeletion({ name: 'Viagem', funding: { kind: 'transactions' }, linkedCount: 4 })).toBe('Os 4 lançamentos vinculados perdem o vínculo com Viagem e continuam existindo, com os mesmos valores e saldos.');
     });
 
     it('tabela das vinculadas: dia do pagamento, conta → destino e o valor que soma à meta', async () => {
@@ -134,20 +155,50 @@ describe('lista e detalhe de Metas (mockup DesktopMetas)', () => {
             paymentDate: '2026-10-06',
             goalId: s.goalId,
         });
-        const [contributions, accounts, creditCards, categories] = await Promise.all([
-            world.ok('goals.contributions', { id: s.goalId }),
-            world.ok('accounts.list', { profileId: s.profileId, period: '2026-10' }),
-            world.ok('creditCards.list', { profileId: s.profileId, period: '2026-10' }),
-            world.ok('categories.tree', { profileId: s.profileId }),
-        ]);
-        const rows = buildGoalContributionRows({ contributions, accounts: accounts.accounts, creditCards: creditCards.creditCards, categories });
-        expect(rows.map(({ date, name, category, account, amountText, refund }) => [date, name, category, account, amountText, refund])).toEqual([
-            ['01/10', 'Salário', 'Alimentação › Mercado', 'Nubank', 'R$ 9.500,00', false],
+        const rows = await contributionMovements(world, s);
+        expect(rows.map(({ date, name, category, container, detail, amountText, badges, tone }) => [date, name, category, container, detail, amountText, badges, tone])).toEqual([
+            ['01/10', 'Salário', 'Alimentação › Mercado', 'Nubank', null, 'R$ 9.500,00', [], 'in'],
             // Os encargos ficam fora: são custo da transferência, não dinheiro guardado.
-            ['04/10', 'Reserva', 'Alimentação › Mercado', 'Nubank → Tesouro', 'R$ 700,00', false],
-            ['06/10', 'Devolução', 'Alimentação › Mercado', 'Nubank', '−R$ 50,00', true],
+            ['04/10', 'Reserva', 'Alimentação › Mercado', 'Nubank', '→ Tesouro', 'R$ 700,00', [], 'in'],
+            ['06/10', 'Devolução', 'Alimentação › Mercado', 'Nubank', null, '−R$ 50,00', ['estorno'], 'out'],
         ]);
+        // As linhas se editam e pagam como em Transações (desktop-mvp-plan Fase 13.3).
+        expect(rows.every((row) => row.target.kind === 'transaction' && row.target.payable && !row.target.readOnly)).toBe(true);
         const [goal] = await world.ok('goals.list', { profileId: s.profileId, period: '2026-10' });
         expect(goal?.saved.amount).toBe(10150);
+    });
+});
+
+describe('meta vinculada a conta e retirada (desktop-mvp-plan Fase 13.3)', () => {
+    it('diz de onde vem o progresso e quantos lançamentos perdem o vínculo na troca', () => {
+        const accounts = [{ id: 'a1', name: 'Tesouro' }];
+        expect(describeGoalFunding(trip(), accounts)).toBe('Por lançamentos');
+        expect(describeGoalFunding(trip({ funding: { kind: 'account', accountId: 'a1' } }), accounts)).toBe('Saldo de Tesouro');
+        expect(describeGoalFundingChange(trip({ linkedCount: 0 }))).toBeNull();
+        expect(describeGoalFundingChange(trip({ linkedCount: 3 }))).toBe('Ao salvar, os 3 lançamentos vinculados perdem o vínculo com Viagem Floripa, que passa a medir o saldo da conta. Os lançamentos continuam existindo.');
+        expect(describeGoalDeletion(trip({ funding: { kind: 'account', accountId: 'a1' } }))).toBe('Viagem Floripa mede o saldo de uma conta; excluir só apaga a meta — a conta e os lançamentos continuam.');
+    });
+
+    it('a retirada aparece negativa e com a etiqueta, e a tabela continua somando o guardado', async () => {
+        const world = new ClientWorld();
+        const s = await world.seed();
+        await world.ok('transactions.create', {
+            profileId: s.profileId,
+            subCategoryId: s.subCategoryId,
+            type: 'transference',
+            source: { kind: 'account', accountId: s.savingsId },
+            destinationAccountId: s.checkingId,
+            name: 'Conserto',
+            value: 300,
+            dueDate: '2026-10-07',
+            paymentDate: '2026-10-07',
+            goalId: s.goalId,
+            goalWithdrawal: true,
+        });
+        const rows = await contributionMovements(world, s);
+        expect(rows.map((row) => [row.name, row.amountText, row.badges])).toEqual([
+            ['Salário', 'R$ 9.500,00', []],
+            ['Conserto', '−R$ 300,00', ['retirada']],
+        ]);
     });
 });

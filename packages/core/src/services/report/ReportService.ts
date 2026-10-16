@@ -6,10 +6,11 @@ import { buildCategoryReport, type CategoryReport } from '../../domain/report/Ca
 import type { CategoryScope } from '../../domain/report/CategoryScope.ts';
 import { ComparisonBasis, sumMoney, type ComparisonMode } from '../../domain/report/Comparison.ts';
 import { buildMonthSummary, type MonthSummary } from '../../domain/report/MonthSummary.ts';
+import { buildPartnerReport, type PartnerReport } from '../../domain/report/PartnerReport.ts';
 import { incomeInflow } from '../../domain/report/ReportTotals.ts';
 import { buildTagReport, type TagReport, type TagReportRange } from '../../domain/report/TagReport.ts';
 import type { Profile } from '../../domain/profile/Profile.ts';
-import { NotFoundError } from '../../domain/shared/errors.ts';
+import { BusinessRuleViolation, NotFoundError } from '../../domain/shared/errors.ts';
 import type { AccountId, ProfileId, TagId } from '../../domain/shared/ids.ts';
 import { Money } from '../../domain/shared/Money.ts';
 import type { YearMonth } from '../../domain/shared/YearMonth.ts';
@@ -18,17 +19,18 @@ import type { Clock } from '../../ports/Clock.ts';
 import type { AccountRepository } from '../../repositories/AccountRepository.ts';
 import type { CategoryRepository } from '../../repositories/CategoryRepository.ts';
 import type { CreditCardRepository } from '../../repositories/CreditCardRepository.ts';
+import type { PartnerRepository } from '../../repositories/PartnerRepository.ts';
 import type { ReportRepository } from '../../repositories/ReportRepository.ts';
 import type { TagRepository } from '../../repositories/TagRepository.ts';
 import type { TransactionRepository } from '../../repositories/TransactionRepository.ts';
 import type { ProfileService } from '../profile/ProfileService.ts';
 import type { StatementConsolidationService } from '../statement/StatementConsolidationService.ts';
 import type { UnitOfWork } from '../UnitOfWork.ts';
-import type { BalanceEvolutionView, CategoryTransactionsView, TagTransactionsView } from './ReportViews.ts';
+import type { BalanceEvolutionView, CategoryTransactionsView, EntriesWithoutPartnerView, TagTransactionsView } from './ReportViews.ts';
 
 /**
  * Relatórios do perfil: Visão geral, relatório por categoria, impacto do cartão, fluxo por
- * conta e por tag (desktop-mvp-plan §6, Fases 2, 12.1 e 12.2). Só lê: a agregação roda no SQL do `ReportRepository`, com
+ * conta, por tag e por sócio (desktop-mvp-plan §6, Fases 2, 12.1, 12.2 e 13.6). Só lê: a agregação roda no SQL do `ReportRepository`, com
  * o mês de pagamento da fonte única (reports-design §2), e as regras de comparação, variação
  * e peso ficam nos montadores puros de `domain/report`. Cada caso de uso lê numa unidade de
  * trabalho para que as consultas de um mesmo relatório vejam o mesmo estado do banco.
@@ -43,6 +45,7 @@ export class ReportService {
      * @param categories Posse da categoria do drill-down.
      * @param accounts Contas do fluxo por conta e a posse da conta pedida.
      * @param tags Posse da tag da lista de lançamentos.
+     * @param partners Sócios do perfil, que o relatório por sócio lista mesmo sem despesa no mês.
      * @param statements Extrato de cada conta, a fonte do fluxo por conta (F2).
      * @param clock "Hoje", que separa fatura futura de fatura em aberto e mês futuro de passado.
      */
@@ -55,6 +58,7 @@ export class ReportService {
         private readonly categories: CategoryRepository,
         private readonly accounts: AccountRepository,
         private readonly tags: TagRepository,
+        private readonly partners: PartnerRepository,
         private readonly statements: StatementConsolidationService,
         private readonly clock: Clock,
     ) {}
@@ -261,6 +265,71 @@ export class ReportService {
                 total: sumMoney(transactions.map((transaction) => transaction.originEffect()), Money.zero(profile.currency)).negate(),
             };
         });
+    }
+
+    /**
+     * Relatório por sócio: quanto cada sócio aportou, em todos os períodos, contra quanto deveria
+     * pela participação no total de aportes, os números do mês e o acerto (reports-design §8, P1–P5).
+     *
+     * @param profileId Perfil consultado.
+     * @param reference Mês de referência, que recorta os aportes e as entradas sem sócio do mês.
+     * @return O relatório.
+     * @throws {NotFoundError} Quando o perfil não existe.
+     * @throws {BusinessRuleViolation} Quando o perfil é pessoal.
+     */
+    public byPartner(profileId: ProfileId, reference: YearMonth): PartnerReport {
+        return this.unitOfWork.run(() => {
+            const profile = this.requireBusiness(profileId);
+            return buildPartnerReport({
+                reference,
+                partners: this.partners.listByProfile(profileId),
+                totals: this.reports.contributionTotalsByPartner(profileId, reference, profile.currency),
+                zero: Money.zero(profile.currency),
+            });
+        });
+    }
+
+    /**
+     * Entradas do mês sem sócio, para a lista em que a tela pede para atribuir as que são aporte —
+     * com o mesmo critério das somas, para que a lista some o valor do indicador (P5). Cada entrada
+     * vale o que pôs no saldo do perfil: a receita sem os encargos (`originEffect`), a
+     * transferência pelo valor que chega (`destinationEffect`).
+     *
+     * @param profileId Perfil consultado.
+     * @param reference Mês de referência.
+     * @return As entradas e o total delas.
+     * @throws {NotFoundError} Quando o perfil não existe.
+     * @throws {BusinessRuleViolation} Quando o perfil é pessoal.
+     */
+    public entriesWithoutPartner(profileId: ProfileId, reference: YearMonth): EntriesWithoutPartnerView {
+        return this.unitOfWork.run(() => {
+            const profile = this.requireBusiness(profileId);
+            const transactions = this.transactions.listEntriesWithoutPartner(profileId, reference);
+            const zero = Money.zero(profile.currency);
+            return {
+                period: reference,
+                transactions,
+                total: sumMoney(transactions.map((transaction) => (transaction.type === 'income' ? transaction.originEffect() : transaction.destinationEffect() ?? zero)), zero),
+            };
+        });
+    }
+
+    /**
+     * Regra de negócio (Perfil): sócio só existe em perfil empresarial, e o relatório por sócio
+     * não está disponível no pessoal (database-design §4.1). Recusar, em vez de devolver um
+     * relatório vazio, impede que a tela mostre "nenhum sócio" num perfil em que sócio nem existe.
+     *
+     * @param profileId Perfil consultado.
+     * @return O perfil empresarial.
+     * @throws {NotFoundError} Quando o perfil não existe.
+     * @throws {BusinessRuleViolation} Quando o perfil é pessoal.
+     */
+    private requireBusiness(profileId: ProfileId): Profile {
+        const profile = this.profiles.require(profileId);
+        if (!profile.acceptsPartners()) {
+            throw new BusinessRuleViolation('partner-requires-business-profile', 'o relatório por sócio só existe em perfil empresarial');
+        }
+        return profile;
     }
 
     /**

@@ -32,6 +32,19 @@ export function feedsGoal(type: TransactionType): boolean {
 }
 
 /**
+ * Regra de negócio (Metas, desktop-mvp-plan Fase 13.3): só a transferência pode **retirar**
+ * dinheiro da meta — tirar da reserva para um imprevisto é mover dinheiro de uma conta para
+ * outra; a receita sempre guarda. Exportada para que o formulário mostre "Guardar/Retirar" pela
+ * mesma regra que o núcleo aplica.
+ *
+ * @param type Tipo da transação.
+ * @return `true` quando o vínculo com a meta pode ser de retirada.
+ */
+export function withdrawsFromGoal(type: TransactionType): boolean {
+    return type === 'transference';
+}
+
+/**
  * Efeito de uma transação (ou de uma soma de transações do mesmo tipo) no saldo do
  * contêiner de **origem** — o extrato da conta ou a fatura do cartão.
  *

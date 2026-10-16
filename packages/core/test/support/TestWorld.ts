@@ -195,14 +195,17 @@ export class TestWorld {
     }
 
     /**
+     * Semeia o sócio direto no banco: o cadastro de sócios ainda não tem rota.
+     *
      * @param profileId Perfil empresarial dono.
+     * @param options Nome e participação (0 a 100); sem eles, "Sócio" com 100%.
      * @return O id do sócio semeado.
      */
-    public partner(profileId: string): string {
+    public partner(profileId: string, options: { readonly name?: string; readonly percentage?: number } = {}): string {
         const id = this.ids.random();
         this.database.run(
-            "INSERT INTO partners (id, profile_id, name, percentage, updated_at) VALUES (:id, :profileId, 'Sócio', 100, :now)",
-            { id, profileId, now: this.clock.now() },
+            'INSERT INTO partners (id, profile_id, name, percentage, updated_at) VALUES (:id, :profileId, :name, :percentage, :now)',
+            { id, profileId, name: options.name ?? 'Sócio', percentage: options.percentage ?? 100, now: this.clock.now() },
         );
         return id;
     }
@@ -235,6 +238,37 @@ export class TestWorld {
             throw new Error(`${route} deveria falhar, mas devolveu ${JSON.stringify(result.data)}`);
         }
         return result.error;
+    }
+
+    /**
+     * Monta a edição de uma transação sem mudança nenhuma, para o teste sobrepor só o que quer
+     * mudar ou recusar — a edição exige todos os campos explícitos (`updateTransactionRequest`).
+     *
+     * @param id Transação como está gravada.
+     * @return A entrada completa de `transactions.update`.
+     */
+    public async editInput(id: string): Promise<CoreInput<'transactions.update'>> {
+        const fresh = await this.ok('transactions.get', { id });
+        const { container } = fresh;
+        return {
+            id: fresh.id,
+            type: fresh.type,
+            source: container.kind === 'statement' ? { kind: 'account', accountId: container.accountId } : { kind: 'creditCard', creditCardId: container.creditCardId, invoicePeriod: container.period },
+            subCategoryId: fresh.subCategoryId,
+            destinationAccountId: fresh.destinationAccountId,
+            partnerId: fresh.partnerId,
+            goalId: fresh.goalId,
+            goalWithdrawal: fresh.goalWithdrawal,
+            name: fresh.name,
+            description: fresh.description,
+            value: fresh.value.amount,
+            charges: fresh.charges.amount,
+            originCurrency: fresh.originCurrency,
+            conversionRate: fresh.conversionRate,
+            dueDate: fresh.dueDate,
+            paymentDate: fresh.paymentDate,
+            tagIds: [...fresh.tagIds],
+        };
     }
 
     /**
@@ -286,6 +320,7 @@ export class TestWorld {
             destinationAccountId: null,
             partnerId: null,
             goalId: null,
+            goalWithdrawal: false,
             originCurrency: null,
             conversionRate: 1,
             dueDate: '2026-03-10',
@@ -339,6 +374,7 @@ export class TestWorld {
             destinationAccountId: transaction.destinationAccountId,
             partnerId: transaction.partnerId,
             goalId: transaction.goalId,
+            goalWithdrawal: transaction.goalWithdrawal,
             name: transaction.name,
             description: transaction.description,
             value: transaction.value.amount,

@@ -1,4 +1,4 @@
-import { AccountId, BankStatementId, CreditCardId, InvoiceId, RecurrenceId, TransactionId } from '../../domain/shared/ids.ts';
+import { AccountId, BankStatementId, CreditCardId, GoalId, InvoiceId, RecurrenceId, TransactionId } from '../../domain/shared/ids.ts';
 import { CorruptRowError } from '../../domain/shared/errors.ts';
 import type { Clock } from '../../ports/Clock.ts';
 import type { Database, SqlParams } from '../../ports/Database.ts';
@@ -92,6 +92,7 @@ export class SqliteDeletionRepository implements DeletionRepository {
                 params,
                 RecurrenceId,
             ),
+            goals: this.ids('SELECT id FROM goals WHERE account_id = :accountId AND deleted_at IS NULL ORDER BY id', params, GoalId),
             reopenedInvoices: reopened.map((invoice) => invoice.id),
             touchedAccounts: unique([
                 accountId,
@@ -117,6 +118,7 @@ export class SqliteDeletionRepository implements DeletionRepository {
             invoices: invoices.map((invoice) => invoice.id),
             transactions: transactions.map(({ doomed }) => doomed),
             recurrences: this.ids('SELECT id FROM recurrences WHERE credit_card_id = :creditCardId AND deleted_at IS NULL ORDER BY id', params, RecurrenceId),
+            goals: [],
             reopenedInvoices: [],
             touchedAccounts: unique([
                 ...invoices.flatMap(accountsOf),
@@ -129,7 +131,8 @@ export class SqliteDeletionRepository implements DeletionRepository {
      * Apaga de baixo para cima no grafo de propriedade — faturas, extratos, cartões, contas
      * — só por organização: dentro da unidade de trabalho a ordem não muda o resultado, e o
      * soft delete não dispara cascade nenhum (database-design §3.6). As recorrências do escopo
-     * saem junto, com as tags do modelo, para que o complemento não emita para quem não existe.
+     * saem junto, com as tags do modelo, para que o complemento não emita para quem não existe;
+     * as metas vinculadas à conta também, porque medem o saldo dela.
      *
      * @param scope Escopo calculado na mesma unidade de trabalho.
      * @return void
@@ -141,6 +144,8 @@ export class SqliteDeletionRepository implements DeletionRepository {
             ['bank_statements', scope.statements],
             ['credit_cards', scope.creditCards],
             ['accounts', scope.accounts],
+            // A meta vinculada a conta não tem lançamentos vinculados a desfazer: só sai junto.
+            ['goals', scope.goals],
         ];
         for (const [table, ids] of tables) {
             for (const id of ids) {

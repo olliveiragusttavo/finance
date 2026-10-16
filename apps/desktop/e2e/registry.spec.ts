@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { currentPeriod, shiftPeriod } from '../src/renderer/src/shell/referenceMonth.ts';
 import { completeFirstUse } from './firstUse.ts';
 import { launchApp, removeUserData } from './launchApp.ts';
@@ -24,6 +24,25 @@ async function openRegistry(page: Page, kind: string): Promise<void> {
 }
 
 /**
+ * Escolhe a opção já visível da lista aberta. No seletor com busca dos cadastros (`Combobox`,
+ * desktop-mvp-plan Fase 13.2) o foco fica no campo de busca e a opção não recebe foco, então o
+ * clique (por `dispatchEvent`, como os outros cliques destes testes) é o caminho; no `Select` do Radix, que ficou nas listas curtas, o foco vai direto à
+ * opção e o Enter confirma, sem a busca por digitação do Radix, que pode parar numa opção de nome
+ * parecido.
+ *
+ * @param page Janela do app.
+ * @param item Opção a escolher.
+ */
+async function pickOption(page: Page, item: Locator): Promise<void> {
+    if ((await page.getByRole('combobox', { name: /^Buscar/ }).count()) > 0) {
+        await item.dispatchEvent('click');
+        return;
+    }
+    await item.focus();
+    await item.press('Enter');
+}
+
+/**
  * Escolhe uma opção numa lista do Radix pelo teclado: abre com Enter, põe o foco na opção e
  * confirma com Enter. O foco vai direto à opção, e não pela busca por digitação do Radix, que
  * pode parar numa opção de nome parecido.
@@ -35,8 +54,7 @@ async function openRegistry(page: Page, kind: string): Promise<void> {
 async function chooseOption(page: Page, label: string, option: string): Promise<void> {
     await page.getByLabel(label).press('Enter');
     const item = page.getByRole('option', { name: option, exact: true });
-    await item.focus();
-    await item.press('Enter');
+    await pickOption(page, item);
     await expect(page.getByRole('option')).toHaveCount(0);
     await expect(page.getByLabel(label)).toHaveText(option);
 }
@@ -244,7 +262,7 @@ test('perfis: "Gerenciar perfis" abre o cadastro de perfis, criar empresarial co
         await page.getByRole('button', { name: '+ Novo perfil' }).dispatchEvent('click');
         await page.getByLabel('Nome do perfil').fill('Estúdio GO');
         await page.getByRole('radio', { name: 'Empresarial' }).dispatchEvent('click');
-        await expect(page.getByRole('dialog')).toContainText('o cadastro de sócios e o relatório por sócio chegam numa próxima versão');
+        await expect(page.getByRole('dialog')).toContainText('cadastrados em Cadastros › Sócios');
         await page.getByRole('button', { name: 'Criar perfil' }).dispatchEvent('click');
         await expect(page.getByRole('list', { name: 'Perfis' })).toContainText('Estúdio GO');
         await expect(page.getByRole('list', { name: 'Perfis' })).toContainText('Empresarial · BRL');

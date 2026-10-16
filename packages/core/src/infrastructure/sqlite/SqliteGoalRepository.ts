@@ -1,7 +1,7 @@
-import { Goal } from '../../domain/goal/Goal.ts';
+import { Goal, type GoalFunding } from '../../domain/goal/Goal.ts';
 import type { GoalLink } from '../../domain/goal/GoalProgress.ts';
 import { Currency } from '../../domain/shared/Currency.ts';
-import { GoalId, ProfileId, TransactionId } from '../../domain/shared/ids.ts';
+import { AccountId, GoalId, ProfileId, TransactionId } from '../../domain/shared/ids.ts';
 import { LocalDate } from '../../domain/shared/LocalDate.ts';
 import { Money } from '../../domain/shared/Money.ts';
 import type { Clock } from '../../ports/Clock.ts';
@@ -11,7 +11,10 @@ import { RowReader } from './RowReader.ts';
 
 // A moeda vem do perfil: `goals` não tem coluna de moeda, porque todo valor gravado está na
 // moeda do perfil (database-design §3.7).
-const SELECT_GOAL = 'SELECT g.id, g.profile_id, g.name, g.value, g.target_date, p.currency AS profile_currency FROM goals g JOIN profiles p ON p.id = g.profile_id';
+const SELECT_GOAL = 'SELECT g.id, g.profile_id, g.name, g.kind, g.account_id, g.value, g.target_date, g.archived_at, p.currency AS profile_currency FROM goals g JOIN profiles p ON p.id = g.profile_id';
+
+/** Código de cada tipo de meta na coluna `goals.kind` (migration `0005`). */
+const GOAL_KIND_CODE: Readonly<Record<GoalFunding['kind'], number>> = { transactions: 1, account: 2 };
 
 /** Implementação SQLite de `GoalRepository`. */
 export class SqliteGoalRepository implements GoalRepository {
@@ -80,6 +83,9 @@ export class SqliteGoalRepository implements GoalRepository {
      * paga antes da migration `0003` não tem o dia gravado e vale o 1º dia do mês do extrato do
      * pagamento; a fatura cujo extrato de pagamento foi excluído volta a estar em aberto, como
      * no saldo.
+     * Regra de negócio (Metas, desktop-mvp-plan Fase 13.3): a transferência de retirada entra com
+     * o sinal invertido e desconta do progresso. Só metas por lançamentos têm vínculos: a
+     * vinculada a conta é medida pelo saldo dela.
      *
      * @param filter Condição sobre a meta (`g`) que recorta os vínculos: o perfil ou uma meta.
      * @param params Parâmetros nomeados da condição.
@@ -87,13 +93,13 @@ export class SqliteGoalRepository implements GoalRepository {
      */
     private selectLinks(filter: string, params: SqlParams): readonly SqlRow[] {
         return this.database.all(
-            `SELECT t.goal_id, t.id, t.value, p.currency AS profile_currency,
+            `SELECT t.goal_id, t.id, CASE WHEN t.goal_withdrawal = 1 THEN -t.value ELSE t.value END AS value, p.currency AS profile_currency,
                 CASE
                     WHEN t.invoice_id IS NULL THEN (CASE WHEN t.paid = 1 THEN t.payment_date END)
                     WHEN ps.id IS NOT NULL THEN COALESCE(i.payment_date, printf('%04d-%02d-01', ps.year, ps.month))
                 END AS paid_on
             FROM transactions t
-            JOIN goals g ON g.id = t.goal_id AND g.deleted_at IS NULL
+            JOIN goals g ON g.id = t.goal_id AND g.deleted_at IS NULL AND g.kind = 1
             JOIN profiles p ON p.id = g.profile_id
             LEFT JOIN invoices i ON i.id = t.invoice_id AND i.deleted_at IS NULL
             LEFT JOIN bank_statements ps ON ps.id = i.bank_statement_id AND ps.deleted_at IS NULL
@@ -110,29 +116,40 @@ export class SqliteGoalRepository implements GoalRepository {
     private toLink(row: SqlRow): GoalLink {
         const reader = new RowReader('transactions', row);
         const paidOn = reader.nullableText('paid_on');
+        const transactionId = TransactionId(reader.text('id'));
         return {
-            transactionId: TransactionId(reader.text('id')),
+            key: transactionId,
+            transactionId,
             value: Money.of(reader.number('value'), Currency.of(reader.text('profile_currency'))),
             paidOn: paidOn === null ? null : LocalDate.parse(paidOn),
         };
     }
 
     /**
+     * Grava a meta. `archived_at` guarda o instante do primeiro arquivamento, como o
+     * `disabled_at` das contas: arquivar de novo uma meta arquivada não muda a data.
+     *
      * @param goal Meta a gravar.
      * @return void
      */
     public save(goal: Goal): void {
         this.database.run(
-            `INSERT INTO goals (id, profile_id, name, value, target_date, updated_at)
-            VALUES (:id, :profileId, :name, :value, :targetDate, :now)
-            ON CONFLICT (id) DO UPDATE SET name = excluded.name, value = excluded.value, target_date = excluded.target_date, updated_at = excluded.updated_at
+            `INSERT INTO goals (id, profile_id, name, kind, account_id, value, target_date, archived_at, updated_at)
+            VALUES (:id, :profileId, :name, :kind, :accountId, :value, :targetDate, CASE WHEN :archived = 1 THEN :now END, :now)
+            ON CONFLICT (id) DO UPDATE SET name = excluded.name, kind = excluded.kind, account_id = excluded.account_id, value = excluded.value,
+                target_date = excluded.target_date,
+                archived_at = CASE WHEN :archived = 1 THEN COALESCE(goals.archived_at, excluded.archived_at) END,
+                updated_at = excluded.updated_at
             WHERE goals.deleted_at IS NULL`,
             {
                 id: goal.id,
                 profileId: goal.profileId,
                 name: goal.name,
+                kind: GOAL_KIND_CODE[goal.funding.kind],
+                accountId: goal.funding.kind === 'account' ? goal.funding.accountId : null,
                 value: goal.target.rounded().amount,
                 targetDate: goal.targetDate?.toString() ?? null,
+                archived: goal.archived ? 1 : 0,
                 now: this.clock.now(),
             },
         );
@@ -140,17 +157,26 @@ export class SqliteGoalRepository implements GoalRepository {
 
     /**
      * Os vínculos são desfeitos com `updated_at` novo, como na mudança de subcategoria em massa,
-     * para que a sincronização propague a linha alterada (sync-design §5).
+     * para que a sincronização propague a linha alterada (sync-design §5). A marca de retirada
+     * sai junto, porque sem meta não tem sentido.
      *
-     * @param id Meta a excluir, com os vínculos.
+     * @param id Meta cujos vínculos se desfazem.
+     * @return void
+     */
+    public unlinkTransactions(id: GoalId): void {
+        const params = { id, now: this.clock.now() };
+        this.database.run('UPDATE transactions SET goal_id = NULL, goal_withdrawal = 0, updated_at = :now WHERE goal_id = :id AND deleted_at IS NULL', params);
+        // A meta também sai do modelo das recorrências, para não voltar nas próximas ocorrências.
+        this.database.run('UPDATE recurrences SET goal_id = NULL, goal_withdrawal = 0, updated_at = :now WHERE goal_id = :id AND deleted_at IS NULL', params);
+    }
+
+    /**
+     * @param id Meta a excluir, com os vínculos (`unlinkTransactions`).
      * @return void
      */
     public softDelete(id: GoalId): void {
-        const params = { id, now: this.clock.now() };
-        this.database.run('UPDATE transactions SET goal_id = NULL, updated_at = :now WHERE goal_id = :id AND deleted_at IS NULL', params);
-        // A meta também sai do modelo das recorrências, para não voltar nas próximas ocorrências.
-        this.database.run('UPDATE recurrences SET goal_id = NULL, updated_at = :now WHERE goal_id = :id AND deleted_at IS NULL', params);
-        this.database.run('UPDATE goals SET deleted_at = :now, updated_at = :now WHERE id = :id AND deleted_at IS NULL', params);
+        this.unlinkTransactions(id);
+        this.database.run('UPDATE goals SET deleted_at = :now, updated_at = :now WHERE id = :id AND deleted_at IS NULL', { id, now: this.clock.now() });
     }
 
     /**
@@ -160,12 +186,18 @@ export class SqliteGoalRepository implements GoalRepository {
     private toGoal(row: SqlRow): Goal {
         const reader = new RowReader('goals', row);
         const targetDate = reader.nullableText('target_date');
+        const accountId = reader.nullableText('account_id');
+        // A meta vinculada a conta sem a conta gravada não é um estado que a aplicação grava; lida
+        // como por lançamentos, ela continua visível e editável em vez de derrubar a lista.
+        const funding: GoalFunding = reader.number('kind') === GOAL_KIND_CODE.account && accountId !== null ? { kind: 'account', accountId: AccountId(accountId) } : { kind: 'transactions' };
         return Goal.restore({
             id: GoalId(reader.text('id')),
             profileId: ProfileId(reader.text('profile_id')),
             name: reader.text('name'),
+            funding,
             target: Money.of(reader.number('value'), Currency.of(reader.text('profile_currency'))),
             targetDate: targetDate === null ? null : LocalDate.parse(targetDate),
+            archived: reader.nullableText('archived_at') !== null,
         });
     }
 }

@@ -4,28 +4,42 @@ import {
     formatAccountType,
     formatMoney,
     formatMonthLong,
+    formatRegistryListView,
+    movementsFromStatement,
+    REGISTRY_LIST_VIEWS,
     useAccounts,
     useCategoryTree,
     useCreditCards,
+    useRecurrences,
     useStatement,
     useTransferTargets,
-    type StatementRow,
+    type MovementColumn,
+    type RegistryListView,
     type StatementTable,
 } from '@finance/client';
 import type { AccountInPeriodResponse, AccountListResponse, BalancePairResponse, StatementResponse } from '@finance/core';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
+import { ListViewSwitch } from '@/components/ListViewSwitch';
+import { DetailPane, ListPane, PaneLayout } from '@/components/PaneLayout';
 import { EmptyState, QueryState, Skeleton } from '@/components/states';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/cn';
 import { AccountDialog, useToggleAccount } from '@/registry/AccountsSection';
 import { AccountDeletionDialog } from '@/registry/DeletionDialog';
 import { StatusTag } from '@/registry/registryUi';
 import { useActiveProfile } from '@/shell/activeProfile';
 import { useReferenceMonth } from '@/shell/useReferenceMonth';
-import { openAccount, parseAccountsSearch } from './accountsSearch.ts';
+import { MovementGrid } from '@/transactions/MovementGrid';
+import { useTransactionActions } from '@/transactions/useTransactionActions';
+import { accountListView, openAccount, parseAccountsSearch } from './accountsSearch.ts';
+
+/**
+ * Colunas da listagem no extrato: sem "Conta / fatura", porque todas as linhas são desta conta; o
+ * valor é o efeito nela (desktop-mvp-plan Fase 13.2).
+ */
+const COLUMNS: readonly MovementColumn[] = ['date', 'name', 'category', 'amount', 'situation', 'recurring'];
 
 /** Diálogo aberto na tela: criar, editar ou excluir uma conta. */
 type AccountDialogState = { readonly mode: 'create' } | { readonly mode: 'edit'; readonly account: AccountInPeriodResponse } | { readonly mode: 'delete'; readonly account: AccountInPeriodResponse };
@@ -33,7 +47,8 @@ type AccountDialogState = { readonly mode: 'create' } | { readonly mode: 'edit';
 /**
  * Contas (mockup `DesktopContas`; desktop-mvp-plan Fase 7): à esquerda a lista com o saldo do
  * mês de cada conta e os totais, à direita o extrato do mês da conta aberta. A conta aberta
- * fica na URL (`account`), como o tipo aberto em Cadastros.
+ * fica na URL (`account`), como o tipo aberto em Cadastros, e a lista mostra as ativas ou as
+ * desativadas (`view`, desktop-mvp-plan Fase 13.4).
  *
  * @return A tela de Contas.
  */
@@ -52,22 +67,32 @@ export function AccountsScreen(): ReactNode {
     };
 
     return (
-        <div className="-mx-8 -my-6 flex flex-1">
+        <PaneLayout>
             <QueryState query={accounts} loading={<AccountListSkeleton />}>
                 {(list) => {
+                    const { view, accounts: visible } = accountListView(list, search);
                     const open = openAccount(list, search);
                     return (
                         <>
                             <AccountList
                                 list={list}
+                                accounts={visible}
+                                view={view}
+                                onViewChange={(next) => {
+                                    void navigate({ to: '/accounts', search: { view: next } });
+                                }}
                                 openId={open?.id ?? null}
                                 onCreate={() => {
                                     setDialog({ mode: 'create' });
                                 }}
                             />
-                            <section aria-label="Extrato" className="flex min-w-0 flex-1 flex-col gap-5 px-8 py-6">
+                            <DetailPane label="Extrato">
                                 {open === null ? (
-                                    <EmptyState title="Nenhuma conta" description="Crie uma conta para ver o extrato do mês." />
+                                    list.accounts.length === 0 ? (
+                                        <EmptyState title="Nenhuma conta" description="Crie uma conta para ver o extrato do mês." />
+                                    ) : (
+                                        <EmptyState title={`Nenhuma conta ${view === 'active' ? 'ativa' : 'desativada'}`} description="Troque a visualização na lista para ver as outras contas." />
+                                    )
                                 ) : (
                                     <AccountStatement
                                         key={open.id}
@@ -85,7 +110,7 @@ export function AccountsScreen(): ReactNode {
                                         }}
                                     />
                                 )}
-                            </section>
+                            </DetailPane>
                         </>
                     );
                 }}
@@ -113,52 +138,89 @@ export function AccountsScreen(): ReactNode {
                     }
                 />
             )}
-        </div>
+        </PaneLayout>
     );
 }
 
 /**
- * Lista lateral: cada conta com o saldo do mês e os totais do perfil no rodapé.
+ * Lista lateral: cada conta com o saldo do mês e os totais do perfil no rodapé fixo, à vista
+ * mesmo numa lista longa (`ListPane`).
  * Regra de negócio (Contas): a conta fora do total aparece apagada e só com o consolidado,
  * como no mockup, e o rodapé soma só as que entram no total — o `total` já vem filtrado do
  * núcleo, e a tela não refaz a soma (database-design §4.4).
  *
+ * Os totais são do perfil, e não da visualização: a conta desativada continua no saldo
+ * (desktop-mvp-plan §5.1), e esconder a linha dela não muda quanto o perfil tem.
+ *
  * @param props.list Contas do perfil no mês e o total.
+ * @param props.accounts Contas da visualização escolhida.
+ * @param props.view Visualização escolhida: ativas ou desativadas.
+ * @param props.onViewChange Troca a visualização.
  * @param props.openId Conta aberta, marcada na lista.
  * @param props.onCreate Abre o diálogo de nova conta.
  * @return A lista de contas.
  */
-function AccountList({ list, openId, onCreate }: { readonly list: AccountListResponse; readonly openId: string | null; readonly onCreate: () => void }): ReactNode {
+function AccountList({
+    list,
+    accounts,
+    view,
+    onViewChange,
+    openId,
+    onCreate,
+}: {
+    readonly list: AccountListResponse;
+    readonly accounts: AccountListResponse['accounts'];
+    readonly view: RegistryListView;
+    readonly onViewChange: (view: RegistryListView) => void;
+    readonly openId: string | null;
+    readonly onCreate: () => void;
+}): ReactNode {
     return (
-        <section aria-label="Lista de contas" className="flex w-95 shrink-0 flex-col border-r border-line bg-surface">
-            <div className="flex items-center justify-between px-5 pt-5 pb-3">
-                <h1 className="text-20 font-semibold">Contas</h1>
-                <Button variant="outline" size="sm" className="text-13 font-normal" onClick={onCreate}>
-                    + Nova conta
-                </Button>
-            </div>
-            <div aria-hidden="true" className="flex justify-between px-5 py-2 text-12 text-muted">
-                <span>Conta</span>
-                <span>saldo no mês</span>
-            </div>
+        <ListPane
+            label="Lista de contas"
+            width="w-95"
+            header={
+                <>
+                    <div className="flex items-center justify-between px-5 pt-5 pb-3">
+                        <h1 className="text-20 font-semibold">Contas</h1>
+                        <Button variant="outline" size="sm" className="text-13 font-normal" onClick={onCreate}>
+                            + Nova conta
+                        </Button>
+                    </div>
+                    <ListViewSwitch
+                        views={REGISTRY_LIST_VIEWS}
+                        value={view}
+                        format={(option) => formatRegistryListView(option, 'feminine')}
+                        onChange={onViewChange}
+                    />
+                    <div aria-hidden="true" className="flex justify-between px-5 py-2 text-12 text-muted">
+                        <span>Conta</span>
+                        <span>saldo no mês</span>
+                    </div>
+                </>
+            }
+            footer={
+                <dl className="flex flex-col gap-1 px-5 py-3.5 text-13">
+                    <div className="flex justify-between">
+                        <dt className="text-muted">Total consolidado</dt>
+                        <dd className="font-semibold tabular-nums">{formatMoney(list.total.consolidated)}</dd>
+                    </div>
+                    <div className="flex justify-between">
+                        <dt className="text-muted">Total previsto</dt>
+                        <dd className="tabular-nums">{formatMoney(list.total.projected)}</dd>
+                    </div>
+                </dl>
+            }
+        >
+            {accounts.length === 0 && <p className="px-5 py-3.5 text-13 text-muted">Nenhuma conta {view === 'active' ? 'ativa' : 'desativada'}.</p>}
             <ul aria-label="Contas">
-                {list.accounts.map((account) => (
+                {accounts.map((account) => (
                     <li key={account.id}>
                         <AccountLink account={account} current={account.id === openId} />
                     </li>
                 ))}
             </ul>
-            <dl className="mt-auto flex flex-col gap-1 border-t border-line px-5 py-3.5 text-13">
-                <div className="flex justify-between">
-                    <dt className="text-muted">Total consolidado</dt>
-                    <dd className="font-semibold tabular-nums">{formatMoney(list.total.consolidated)}</dd>
-                </div>
-                <div className="flex justify-between">
-                    <dt className="text-muted">Total previsto</dt>
-                    <dd className="tabular-nums">{formatMoney(list.total.projected)}</dd>
-                </div>
-            </dl>
-        </section>
+        </ListPane>
     );
 }
 
@@ -342,71 +404,32 @@ function Figure({
 }
 
 /**
- * Tabela de movimentos do mês (mockup): data, movimento, categoria, situação e valor, na
- * ordem da data de caixa. A fatura leva ao cartão ("ver fatura"), e a nota do rodapé explica
- * por que a fatura em aberto não mexe no consolidado.
+ * Movimentos do mês (mockup `DesktopContas`) na listagem comum (desktop-mvp-plan Fase 13.2): data,
+ * movimento, categoria, valor, situação e "Rec.", na ordem da data de caixa. Os lançamentos se
+ * editam, pagam e excluem aqui como em Transações; a fatura leva ao cartão. A nota do rodapé
+ * explica por que a fatura em aberto não mexe no consolidado.
  *
- * @param props.statement Extrato do mês, para a frase do mês sem movimento.
+ * @param props.statement Extrato do mês, com as transações inteiras e a frase do mês sem movimento.
  * @param props.table Linhas montadas pelo `buildStatementTable`.
  * @return A tabela.
  */
 function StatementMovements({ statement, table }: { readonly statement: StatementResponse; readonly table: StatementTable }): ReactNode {
+    const { profile } = useActiveProfile();
+    const recurrences = useRecurrences({ profileId: profile.id });
+    const actions = useTransactionActions();
+    const rows = movementsFromStatement(table, statement, { profileId: profile.id, recurrences: recurrences.data ?? [] });
     return (
-        <section aria-label="Movimentos" className="overflow-hidden rounded-10 border border-line bg-surface text-13">
-            <Table className="text-13">
-                <TableHeader className="bg-surface2">
-                    <TableRow className="border-line hover:bg-transparent">
-                        <TableHead className="w-16 pl-4 text-12 font-normal text-muted">Data</TableHead>
-                        <TableHead className="text-12 font-normal text-muted">Movimento</TableHead>
-                        <TableHead className="text-12 font-normal text-muted">Categoria › Sub</TableHead>
-                        <TableHead className="w-25 text-12 font-normal text-muted">Situação</TableHead>
-                        <TableHead className="pr-4 text-right text-12 font-normal text-muted">Valor</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {table.rows.map((row) => (
-                        <MovementRow key={row.key} row={row} />
-                    ))}
-                </TableBody>
-            </Table>
-            {table.rows.length === 0 && (
-                <p className="px-4 py-6 text-center text-muted">
-                    Nenhum movimento em {formatMonthLong(statement.period).toLowerCase()}. O saldo final é o mesmo do inicial.
-                </p>
-            )}
+        <section aria-label="Movimentos" className="overflow-clip rounded-10 border border-line bg-surface text-13">
+            <MovementGrid
+                rows={rows}
+                columns={COLUMNS}
+                actions={actions}
+                label="Movimentos do mês"
+                empty={<p className="px-4 py-6 text-center text-muted">Nenhum movimento em {formatMonthLong(statement.period).toLowerCase()}. O saldo final é o mesmo do inicial.</p>}
+            />
             {table.hasOpenInvoices && <p className="border-t border-line2 bg-surface2 px-4 py-2.5 text-12 text-muted">Fatura em aberto conta só no saldo previsto, no mês do vencimento.</p>}
+            {actions.dialogs}
         </section>
-    );
-}
-
-/**
- * Uma linha de movimento. O sentido se lê pelo sinal e pelo `⇄`, não só pela cor (decisão de
- * interface 7); o estorno leva a etiqueta.
- *
- * @param props.row Linha montada pelo view-model.
- * @return A linha da tabela.
- */
-function MovementRow({ row }: { readonly row: StatementRow }): ReactNode {
-    const { invoice } = row;
-    return (
-        <TableRow className={cn('border-line2', (row.kind === 'paidInvoice' || row.kind === 'openInvoice') && 'text-ink2')}>
-            <TableCell className="pl-4 tabular-nums">{row.date}</TableCell>
-            <TableCell className="whitespace-normal">
-                <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                    <span>{row.name}</span>
-                    {row.refund && <StatusTag tone="neutral">estorno</StatusTag>}
-                    {row.detail !== null && <span className="text-12 text-muted">{row.detail}</span>}
-                    {invoice !== null && (
-                        <Link to="/cards" search={{ card: invoice.creditCardId, invoice: invoice.period }} className="text-12 text-accent hover:text-soft-ink">
-                            ver fatura
-                        </Link>
-                    )}
-                </span>
-            </TableCell>
-            <TableCell className="whitespace-normal text-ink2">{row.category}</TableCell>
-            <TableCell className={cn(row.situation === 'invoiceOpen' && 'text-warn-ink')}>{row.situationText}</TableCell>
-            <TableCell className={cn('pr-4 text-right font-semibold tabular-nums', row.direction === 'in' && 'text-in', row.direction === 'out' && 'text-out')}>{row.amountText}</TableCell>
-        </TableRow>
     );
 }
 

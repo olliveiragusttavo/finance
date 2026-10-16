@@ -1,6 +1,6 @@
 import { formatMoneyForInput, parseMoneyInput } from '@finance/client';
 import type { CoreInput, GoalResponse } from '@finance/core';
-import { goalContentShape } from '@finance/core/requests';
+import { goalContentShape, goalFundingField } from '@finance/core/requests';
 import { z } from 'zod';
 import { collectIssues, moneyInputMessage, type FieldTarget, type FormErrors } from '../lib/formIssues.ts';
 
@@ -16,6 +16,13 @@ export type GoalContent = Omit<CoreInput<'goals.update'>, 'id'>;
 /** Valores do formulário, como estão nos campos. */
 export interface GoalFormValues {
     readonly name: string;
+    /**
+     * De onde vem o progresso (desktop-mvp-plan Fase 13.3): os lançamentos vinculados pelo campo
+     * "Meta", ou o saldo de uma conta de investimento.
+     */
+    readonly fundingKind: 'transactions' | 'account';
+    /** Conta de investimento da meta vinculada a conta; vazio enquanto nada foi escolhido. */
+    readonly accountId: string;
     /** Valor-alvo digitado em pt-BR (`4.000,00`). */
     readonly value: string;
     /** Data-alvo `YYYY-MM-DD`; vazio é a meta sem prazo. */
@@ -26,17 +33,21 @@ export interface GoalFormValues {
 export type GoalField = keyof GoalFormValues;
 
 /** Todos os campos, na ordem do diálogo; o teste confere que nenhum ficou de fora. */
-export const GOAL_FIELDS = ['name', 'value', 'targetDate'] as const satisfies readonly GoalField[];
+export const GOAL_FIELDS = ['name', 'fundingKind', 'accountId', 'value', 'targetDate'] as const satisfies readonly GoalField[];
 
 /** Resultado da leitura: o conteúdo pronto para o núcleo, ou os erros. */
 export type GoalFormResult = { readonly ok: true; readonly content: GoalContent } | { readonly ok: false; readonly errors: FormErrors<GoalField> };
 
 /** O mesmo schema do conteúdo que as rotas de meta aplicam. */
-const goalContentSchema = z.strictObject(goalContentShape);
+const goalContentSchema = z.strictObject({ ...goalContentShape, funding: goalFundingField });
+
+/** Id válido no formato, usado só para validar os outros campos sem a conta escolhida. */
+const PLACEHOLDER_ID = '00000000-0000-4000-8000-000000000000';
 
 /** Campo da tela de cada caminho do schema, com o nome usado na mensagem. */
 const FIELD_BY_PATH: Readonly<Record<string, FieldTarget<GoalField>>> = {
     name: { field: 'name', label: 'o nome da meta', kind: 'name' },
+    'funding.accountId': { field: 'accountId', label: 'a conta', kind: 'choice' },
     value: { field: 'value', label: 'o valor-alvo', kind: 'money' },
     targetDate: { field: 'targetDate', label: 'a data-alvo', kind: 'choice' },
 };
@@ -50,7 +61,7 @@ const FIELD_BY_PATH: Readonly<Record<string, FieldTarget<GoalField>>> = {
  * @return Os campos em branco de uma meta nova.
  */
 export function emptyGoalForm(): GoalFormValues {
-    return { name: '', value: '', targetDate: '' };
+    return { name: '', fundingKind: 'transactions', accountId: '', value: '', targetDate: '' };
 }
 
 /**
@@ -58,13 +69,21 @@ export function emptyGoalForm(): GoalFormValues {
  * @return Os campos preenchidos, com o valor escrito como o usuário o digitaria.
  */
 export function goalFormFrom(goal: GoalResponse): GoalFormValues {
-    return { name: goal.name, value: formatMoneyForInput(goal.value), targetDate: goal.targetDate ?? '' };
+    return {
+        name: goal.name,
+        fundingKind: goal.funding.kind,
+        accountId: goal.funding.kind === 'account' ? goal.funding.accountId : '',
+        value: formatMoneyForInput(goal.value),
+        targetDate: goal.targetDate ?? '',
+    };
 }
 
 /**
  * Lê o formulário de meta.
  * Regra de negócio (Metas, database-design §4.11): o valor-alvo é maior que zero e a data-alvo é
- * opcional — em branco, a meta não tem prazo (reserva de emergência).
+ * opcional — em branco, a meta não tem prazo (reserva de emergência). A meta vinculada a conta
+ * precisa da conta; a por lançamentos não leva conta nenhuma, mesmo que uma tenha sido escolhida
+ * antes de trocar o tipo.
  *
  * O valor recusado pelo `parseMoneyInput` não interrompe a leitura: o schema roda com um valor
  * neutro no lugar dele, para que os erros dos outros campos apareçam no mesmo envio.
@@ -82,8 +101,13 @@ export function readGoalForm(values: GoalFormValues, profileCurrency: string): G
     } else if (amount.amount <= 0) {
         initial.value = 'Use um valor-alvo maior que zero.';
     }
+    const linked = values.fundingKind === 'account';
+    if (linked && values.accountId === '') {
+        initial.accountId = 'Escolha a conta de investimento.';
+    }
     const content: GoalContent = {
         name: values.name,
+        funding: linked ? { kind: 'account', accountId: values.accountId === '' ? PLACEHOLDER_ID : values.accountId } : { kind: 'transactions' },
         value: amount.ok && amount.amount > 0 ? amount.amount : 1,
         targetDate: values.targetDate.trim() === '' ? null : values.targetDate,
     };

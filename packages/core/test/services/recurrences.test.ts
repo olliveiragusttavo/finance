@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { CoreInput, CoreOutput } from '../../src/index.ts';
+import type { CoreOutput } from '../../src/index.ts';
 import { TestWorld } from '../support/TestWorld.ts';
 
 /*
@@ -208,7 +208,7 @@ describe('editar com escopo (database-design §4.12)', () => {
 
         const daily = await world.create(base, { source: { kind: 'account', accountId }, dueDate: '2026-10-05', repeat: { kind: 'fixed', frequency: 'daily', endAt: '2026-10-07' } });
         const second = await occurrenceOf(world, daily, 2);
-        const error = await world.failure('transactions.update', { ...(await editInput(world, second)), dueDate: '2026-10-20', scope: 'future' });
+        const error = await world.failure('transactions.update', { ...(await world.editInput(second.id)), dueDate: '2026-10-20', scope: 'future' });
         expect(error.details).toMatchObject({ rule: 'recurrence-daily-date-single-only' });
         expect((await world.edit(second, { dueDate: '2026-10-20' })).dueDate).toBe('2026-10-20');
     });
@@ -299,11 +299,11 @@ describe('mudar a quantidade de parcelas ou o término mantém a regra (database
         const first = await world.create(base, { source: { kind: 'account', accountId }, value: 100, dueDate: '2026-10-15', repeat });
         const fourth = await occurrenceOf(world, first, 4);
 
-        const below = await world.failure('transactions.update', { ...(await editInput(world, fourth)), scope: 'future', repeat: { ...repeat, installments: 3 } });
+        const below = await world.failure('transactions.update', { ...(await world.editInput(fourth.id)), scope: 'future', repeat: { ...repeat, installments: 3 } });
         expect(below.details).toMatchObject({ rule: 'recurrence-installments-below-occurrence' });
-        const all = await world.failure('transactions.update', { ...(await editInput(world, fourth)), scope: 'all', repeat: { ...repeat, installments: 8 } });
+        const all = await world.failure('transactions.update', { ...(await world.editInput(fourth.id)), scope: 'all', repeat: { ...repeat, installments: 8 } });
         expect(all.details).toMatchObject({ rule: 'recurrence-change-requires-scope' });
-        const single = await world.failure('transactions.update', { ...(await editInput(world, fourth)), repeat: { ...repeat, installments: 8 } });
+        const single = await world.failure('transactions.update', { ...(await world.editInput(fourth.id)), repeat: { ...repeat, installments: 8 } });
         expect(single.details).toMatchObject({ rule: 'recurrence-change-requires-scope' });
     });
 
@@ -325,7 +325,7 @@ describe('mudar a quantidade de parcelas ou o término mantém a regra (database
         expect(extended.at(-1)?.dueDate).toBe('2027-10-05');
         expect(await world.ok('recurrences.topUp', {})).toEqual({ emitted: 0, failures: [] });
 
-        const before = await world.failure('transactions.update', { ...(await editInput(world, await occurrenceOf(world, first, 3))), scope: 'future', repeat: { kind: 'fixed', frequency: 'monthly', endAt: '2026-11-30' } });
+        const before = await world.failure('transactions.update', { ...(await world.editInput((await occurrenceOf(world, first, 3)).id)), scope: 'future', repeat: { kind: 'fixed', frequency: 'monthly', endAt: '2026-11-30' } });
         expect(before.details).toMatchObject({ rule: 'recurrence-end-before-occurrence' });
         expect(await drifts(world)).toEqual([]);
     });
@@ -570,32 +570,3 @@ describe('o complemento nunca impede a abertura por uma série (backend-design �
         expect(await drifts(world)).toEqual([]);
     });
 });
-
-/**
- * @param world Núcleo do teste.
- * @param transaction Transação como está.
- * @return A entrada completa de `transactions.update` sem mudança nenhuma, para o teste sobrepor
- * só o que quer recusar.
- */
-async function editInput(world: TestWorld, transaction: Transaction): Promise<CoreInput<'transactions.update'>> {
-    const fresh = await world.ok('transactions.get', { id: transaction.id });
-    const { container } = fresh;
-    return {
-        id: fresh.id,
-        type: fresh.type,
-        source: container.kind === 'statement' ? { kind: 'account', accountId: container.accountId } : { kind: 'creditCard', creditCardId: container.creditCardId, invoicePeriod: container.period },
-        subCategoryId: fresh.subCategoryId,
-        destinationAccountId: fresh.destinationAccountId,
-        partnerId: fresh.partnerId,
-        goalId: fresh.goalId,
-        name: fresh.name,
-        description: fresh.description,
-        value: fresh.value.amount,
-        charges: fresh.charges.amount,
-        originCurrency: fresh.originCurrency,
-        conversionRate: fresh.conversionRate,
-        dueDate: fresh.dueDate,
-        paymentDate: fresh.paymentDate,
-        tagIds: [...fresh.tagIds],
-    };
-}

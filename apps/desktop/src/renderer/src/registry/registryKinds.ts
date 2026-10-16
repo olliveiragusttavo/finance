@@ -7,43 +7,69 @@ import { z } from 'zod';
  */
 
 /** Tipo de cadastro, o *search param* `kind` da rota `/registry`. */
-export type RegistryKind = 'accounts' | 'cards' | 'categories' | 'tags' | 'profiles' | 'notes';
+export type RegistryKind = 'accounts' | 'cards' | 'categories' | 'tags' | 'partners' | 'profiles' | 'notes';
 
 /** Item da lista lateral. */
 export interface RegistryKindItem {
     readonly kind: RegistryKind;
     readonly label: string;
+    /** Só aparece em perfil empresarial (Sócios). */
+    readonly businessOnly: boolean;
 }
 
-/** Tipos na ordem do mockup. */
+/** Tipos na ordem do mockup (`DesktopSocios` mostra a lista completa). */
 export const REGISTRY_KINDS: readonly RegistryKindItem[] = [
-    { kind: 'accounts', label: 'Contas' },
-    { kind: 'cards', label: 'Cartões' },
-    { kind: 'categories', label: 'Categorias' },
-    { kind: 'tags', label: 'Tags' },
-    { kind: 'profiles', label: 'Perfis' },
-    { kind: 'notes', label: 'Anotações' },
+    { kind: 'accounts', label: 'Contas', businessOnly: false },
+    { kind: 'cards', label: 'Cartões', businessOnly: false },
+    { kind: 'categories', label: 'Categorias', businessOnly: false },
+    { kind: 'tags', label: 'Tags', businessOnly: false },
+    { kind: 'partners', label: 'Sócios', businessOnly: true },
+    { kind: 'profiles', label: 'Perfis', businessOnly: false },
+    { kind: 'notes', label: 'Anotações', businessOnly: false },
 ];
+
+/**
+ * Regra de negócio (Perfis): sócio só existe em perfil empresarial (database-design §4.2), então
+ * o tipo Sócios some da lista no perfil pessoal, como "Por sócio" some do menu de Relatórios.
+ *
+ * @param type Tipo do perfil ativo.
+ * @return Os tipos que a lista lateral mostra para o perfil, na ordem do mockup.
+ */
+export function registryKindsFor(type: 'personal' | 'business'): readonly RegistryKindItem[] {
+    return REGISTRY_KINDS.filter((item) => !item.businessOnly || type === 'business');
+}
 
 /** Parâmetros de busca próprios da tela de Cadastros. */
 export interface RegistrySearch {
     /** Tipo aberto; ausente abre o primeiro, Contas. */
     readonly kind?: RegistryKind;
+    /**
+     * Anotação a abrir no editor, para outras telas levarem a ela (a lista de anotações da Visão
+     * geral, desktop-mvp-plan Fase 13.2); só vale com `kind` = `notes`.
+     */
+    readonly note?: string;
 }
 
 /** Os mesmos tipos da união, para validar a URL; o `satisfies` recusa nome fora dela. */
-const kindSchema = z.enum(['accounts', 'cards', 'categories', 'tags', 'profiles', 'notes'] as const satisfies readonly RegistryKind[]);
+const kindSchema = z.enum(['accounts', 'cards', 'categories', 'tags', 'partners', 'profiles', 'notes'] as const satisfies readonly RegistryKind[]);
+
+/** Id da anotação pedida: qualquer texto não vazio; a que não existe mais só não abre. */
+const noteSchema = z.string().min(1);
 
 /**
  * Valida a busca da URL. Tipo desconhecido (URL editada, histórico antigo) é descartado em vez
- * de derrubar a rota: a tela abre no tipo padrão.
+ * de derrubar a rota: a tela abre no tipo padrão. A anotação só vai junto com o tipo Anotações.
  *
  * @param search Busca crua, como o roteador a leu.
- * @return Só o tipo, quando ele é válido.
+ * @return O tipo, quando ele é válido, e a anotação pedida, quando o tipo é Anotações.
  */
 export function parseRegistrySearch(search: Readonly<Record<string, unknown>>): RegistrySearch {
-    const parsed = kindSchema.safeParse(search['kind']);
-    return parsed.success ? { kind: parsed.data } : {};
+    const kind = kindSchema.safeParse(search['kind']);
+    if (!kind.success) {
+        return {};
+    }
+    const note = noteSchema.safeParse(search['note']);
+    return kind.data === 'notes' && note.success ? { kind: kind.data, note: note.data } : { kind: kind.data };
 }
 
 /**

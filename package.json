@@ -11,6 +11,7 @@
         "tokens:css": "pnpm --filter @finance/tokens generate",
         "dev:desktop": "pnpm --filter @finance/desktop dev",
         "build:desktop": "pnpm --filter @finance/desktop build",
+        "dist:desktop": "pnpm --filter @finance/desktop dist",
         "lint": "eslint .",
         "typecheck": "pnpm -r typecheck",
         "test": "pnpm -r test",

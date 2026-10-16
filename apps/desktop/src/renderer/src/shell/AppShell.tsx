@@ -10,8 +10,9 @@ import { useReferenceMonth } from './useReferenceMonth.ts';
 
 /**
  * Shell do desktop (desktop-mvp-plan Fase 4; brief D1): barra lateral fixa à esquerda e, à
- * direita, a barra superior presa ao topo sobre a tela da rota. Só a área de conteúdo rola,
- * para que menu e mês de referência fiquem sempre à mão em tabelas longas.
+ * direita, a barra superior sobre a tela da rota. Só a tela rola, abaixo da barra, para que menu e
+ * mês de referência fiquem sempre à mão em tabelas longas — e para que o cabeçalho fixo das
+ * listagens grude no topo da área que rola sem precisar saber a altura da barra.
  *
  * @return O layout com a tela da rota atual.
  */
@@ -51,11 +52,17 @@ function ShellLayout(): ReactNode {
     return (
         <div className="flex h-full">
             <Sidebar />
-            <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
+            <div className="flex min-w-0 flex-1 flex-col">
                 <TopBar showMonth={showMonth} />
-                <main className="flex flex-1 flex-col gap-5 px-8 py-6">
-                    <Outlet />
-                </main>
+                {/* Só a tela rola, abaixo da barra: o cabeçalho fixo das listagens gruda no topo
+                    desta área, e não por baixo da barra (desktop-mvp-plan Fase 13.3). A tela em
+                    painéis (`PaneLayout`) não cresce com o conteúdo: ocupa a área, e cada painel
+                    rola sozinho. */}
+                <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+                    <main className="flex flex-1 flex-col gap-5 px-8 py-6 has-[[data-pane-layout]]:min-h-0">
+                        <Outlet />
+                    </main>
+                </div>
             </div>
         </div>
     );

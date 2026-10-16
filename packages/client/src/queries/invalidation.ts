@@ -17,6 +17,7 @@ const TRANSACTION_CONTENT: readonly ReadRoute[] = [
     'invoices.get',
     'reports.categoryTransactions',
     'reports.tagTransactions',
+    'reports.entriesWithoutPartner',
     'recurrences.occurrences',
     'goals.contributions',
 ];
@@ -80,8 +81,12 @@ const MONEY: readonly ReadRoute[] = [
     'reports.accountFlow',
     'reports.byTag',
     'reports.tagTransactions',
+    'reports.byPartner',
+    'reports.entriesWithoutPartner',
     // O uso de cada tag (contagem, total, último uso) sai dos lançamentos.
     'tags.list',
+    // Quantos lançamentos cada sócio pagou, o número do aviso de remoção do cadastro.
+    'partners.list',
     // O progresso de cada meta é a soma das transações vinculadas pagas (database-design §4.11):
     // lançar, pagar, excluir ou reabrir a fatura muda o que já conta.
     'goals.list',
@@ -130,6 +135,9 @@ const INVALIDATIONS: Readonly<Record<WriteRoute, readonly ReadRoute[]>> = {
     'tags.update': ['tags.list', 'reports.byTag'],
     // Excluir a tag a tira dos lançamentos, que continuam existindo, e do relatório por tag.
     'tags.delete': ['tags.list', 'reports.byTag', ...TRANSACTION_CONTENT],
+    // Sócio não mexe em saldo: muda a lista, a divisão do relatório por sócio e, quando alguém é
+    // removido, o sócio dos lançamentos e das séries que ele pagou, que ficam sem sócio.
+    'partners.save': ['partners.list', 'reports.byPartner', 'recurrences.list', ...TRANSACTION_CONTENT],
     // Anotação é uma lista à parte: não toca em dinheiro nem em cadastro.
     'notes.create': ['notes.list'],
     'notes.update': ['notes.list'],
@@ -137,13 +145,21 @@ const INVALIDATIONS: Readonly<Record<WriteRoute, readonly ReadRoute[]>> = {
     // Criar e editar mudam só a meta: as transações vinculadas continuam as mesmas. As opções
     // do campo "Meta" só mudam aqui, e não com o dinheiro: por isso ficam fora do `MONEY`.
     'goals.create': ['goals.list', 'goals.options'],
-    'goals.update': ['goals.list', 'goals.options'],
+    // Trocar para a meta vinculada a conta tira a meta dos lançamentos e das séries, como excluir;
+    // e ela deixa de ser opção do campo "Meta" (desktop-mvp-plan Fase 13.3).
+    'goals.update': ['goals.list', 'goals.options', 'recurrences.list', ...TRANSACTION_CONTENT],
+    // Arquivar só muda a lista de Metas e as escolhas do campo "Meta": os vínculos ficam
+    // (desktop-mvp-plan Fase 13.4).
+    'goals.archive': ['goals.list', 'goals.options'],
+    'goals.unarchive': ['goals.list', 'goals.options'],
     // Excluir tira a meta dos lançamentos e das séries, que continuam existindo.
     'goals.delete': ['goals.list', 'goals.options', 'recurrences.list', ...TRANSACTION_CONTENT],
     'transactions.create': MONEY,
     'transactions.update': MONEY,
     'transactions.delete': MONEY,
     'transactions.setPaid': MONEY,
+    // O sócio que pagou não mexe em saldo: muda só a transação e a divisão do relatório por sócio.
+    'transactions.setPartner': ['transactions.get', 'transactions.listByPeriod', 'recurrences.occurrences', 'reports.byPartner', 'reports.entriesWithoutPartner', 'partners.list'],
     // O complemento emite ocorrências: mexe em extratos, faturas e relatórios dos meses à frente.
     'recurrences.topUp': MONEY,
     // A importação cria cadastros, lançamentos, séries e pagamentos de fatura em qualquer perfil.

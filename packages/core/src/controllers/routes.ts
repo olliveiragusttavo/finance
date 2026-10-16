@@ -22,10 +22,12 @@ import type { CardImpactResponse } from '../dto/reports/CardImpactResponse.ts';
 import type { CategoryReportResponse } from '../dto/reports/CategoryReportResponse.ts';
 import type { CategoryTransactionsResponse } from '../dto/reports/CategoryTransactionsResponse.ts';
 import type { MonthSummaryResponse } from '../dto/reports/MonthSummaryResponse.ts';
+import type { EntriesWithoutPartnerResponse, PartnerReportResponse } from '../dto/reports/PartnerReportResponse.ts';
 import type { TagReportResponse, TagTransactionsResponse } from '../dto/reports/TagReportResponse.ts';
 import type { NoteResponse } from '../dto/notes/NoteResponse.ts';
 import type { ProfileInvoiceResponse, StatementResponse } from '../dto/statements/StatementResponse.ts';
 import type { TagResponse, TagUsageResponse } from '../dto/tags/TagResponse.ts';
+import type { PartnerResponse } from '../dto/partners/PartnerResponse.ts';
 import type { GoalContributionResponse, GoalOptionResponse, GoalProgressResponse, GoalResponse } from '../dto/goals/GoalResponse.ts';
 import type { OccurrencePreviewResponse, RecurrenceResponse } from '../dto/recurrences/RecurrenceResponse.ts';
 import type { SeriesPlanResponse } from '../dto/recurrences/SeriesPlanResponse.ts';
@@ -54,7 +56,9 @@ import type {
     cardImpactRequest,
     categoryReportRequest,
     categoryTransactionsRequest,
+    entriesWithoutPartnerRequest,
     monthSummaryRequest,
+    partnerReportRequest,
     tagReportRequest,
     tagTransactionsRequest,
 } from '../requests/reportRequests.ts';
@@ -70,12 +74,14 @@ import type {
 } from '../requests/recurrenceRequests.ts';
 import type { getStatementRequest, profileInvoicesRequest } from '../requests/statementRequests.ts';
 import type { createTagRequest, listTagsRequest, renameTagRequest, tagIdRequest } from '../requests/tagRequests.ts';
+import type { listPartnersRequest, savePartnersRequest } from '../requests/partnerRequests.ts';
 import type { createGoalRequest, goalIdRequest, goalOptionsRequest, listGoalsRequest, updateGoalRequest } from '../requests/goalRequests.ts';
 import type {
     createTransactionRequest,
     deleteTransactionRequest,
     listTransactionsRequest,
     setPaidRequest,
+    setPartnerRequest,
     transactionIdRequest,
     updateTransactionRequest,
 } from '../requests/transactionRequests.ts';
@@ -118,6 +124,8 @@ export interface CoreRoutes {
     'tags.create': { input: z.input<typeof createTagRequest>; output: TagResponse };
     'tags.update': { input: z.input<typeof renameTagRequest>; output: TagResponse };
     'tags.delete': { input: z.input<typeof tagIdRequest>; output: null };
+    'partners.list': { input: z.input<typeof listPartnersRequest>; output: readonly PartnerResponse[] };
+    'partners.save': { input: z.input<typeof savePartnersRequest>; output: readonly PartnerResponse[] };
     'notes.list': { input: z.input<typeof listNotesRequest>; output: readonly NoteResponse[] };
     'notes.create': { input: z.input<typeof createNoteRequest>; output: NoteResponse };
     'notes.update': { input: z.input<typeof rewriteNoteRequest>; output: NoteResponse };
@@ -127,6 +135,8 @@ export interface CoreRoutes {
     'goals.contributions': { input: z.input<typeof goalIdRequest>; output: readonly GoalContributionResponse[] };
     'goals.create': { input: z.input<typeof createGoalRequest>; output: GoalResponse };
     'goals.update': { input: z.input<typeof updateGoalRequest>; output: GoalResponse };
+    'goals.archive': { input: z.input<typeof goalIdRequest>; output: GoalResponse };
+    'goals.unarchive': { input: z.input<typeof goalIdRequest>; output: GoalResponse };
     'goals.delete': { input: z.input<typeof goalIdRequest>; output: null };
     'transactions.create': { input: z.input<typeof createTransactionRequest>; output: TransactionResponse };
     'transactions.update': { input: z.input<typeof updateTransactionRequest>; output: TransactionResponse };
@@ -134,6 +144,7 @@ export interface CoreRoutes {
     'transactions.get': { input: z.input<typeof transactionIdRequest>; output: TransactionResponse };
     'transactions.listByPeriod': { input: z.input<typeof listTransactionsRequest>; output: readonly TransactionResponse[] };
     'transactions.setPaid': { input: z.input<typeof setPaidRequest>; output: TransactionResponse };
+    'transactions.setPartner': { input: z.input<typeof setPartnerRequest>; output: TransactionResponse };
     'recurrences.list': { input: z.input<typeof listRecurrencesRequest>; output: readonly RecurrenceResponse[] };
     'recurrences.occurrences': { input: z.input<typeof recurrenceIdRequest>; output: readonly TransactionResponse[] };
     'recurrences.preview': { input: z.input<typeof previewRecurrenceRequest>; output: readonly OccurrencePreviewResponse[] };
@@ -159,6 +170,8 @@ export interface CoreRoutes {
     'reports.accountFlow': { input: z.input<typeof accountFlowRequest>; output: AccountFlowResponse };
     'reports.byTag': { input: z.input<typeof tagReportRequest>; output: TagReportResponse };
     'reports.tagTransactions': { input: z.input<typeof tagTransactionsRequest>; output: TagTransactionsResponse };
+    'reports.byPartner': { input: z.input<typeof partnerReportRequest>; output: PartnerReportResponse };
+    'reports.entriesWithoutPartner': { input: z.input<typeof entriesWithoutPartnerRequest>; output: EntriesWithoutPartnerResponse };
     'imports.run': { input: z.input<typeof runImportRequest>; output: ImportResponse };
 }
 

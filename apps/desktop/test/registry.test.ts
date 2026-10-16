@@ -16,7 +16,7 @@ import {
 import { readNameForm } from '../src/renderer/src/registry/nameForm.ts';
 import { filterNotes, noteTitle, readNoteForm } from '../src/renderer/src/registry/noteForm.ts';
 import { emptyProfileForm, PROFILE_FIELDS, readProfileForm } from '../src/renderer/src/registry/profileForm.ts';
-import { categoryCounter, openKind, parseRegistrySearch, REGISTRY_KINDS } from '../src/renderer/src/registry/registryKinds.ts';
+import { categoryCounter, openKind, parseRegistrySearch, registryKindsFor } from '../src/renderer/src/registry/registryKinds.ts';
 
 /** Id de conta válido no formato do núcleo. */
 const ACCOUNT_ID = '11111111-1111-4111-8111-111111111111';
@@ -237,8 +237,20 @@ describe('lista lateral de Cadastros', () => {
     });
 
     it('tem os tipos do mockup, na ordem dele', () => {
-        expect(REGISTRY_KINDS.map((item) => item.label)).toEqual(['Contas', 'Cartões', 'Categorias', 'Tags', 'Perfis', 'Anotações']);
+        expect(registryKindsFor('business').map((item) => item.label)).toEqual(['Contas', 'Cartões', 'Categorias', 'Tags', 'Sócios', 'Perfis', 'Anotações']);
         expect(openKind(parseRegistrySearch({ kind: 'notes' }))).toBe('notes');
+        expect(openKind(parseRegistrySearch({ kind: 'partners' }))).toBe('partners');
+    });
+
+    it('Regra de negócio (Perfis): Sócios só aparece em perfil empresarial', () => {
+        expect(registryKindsFor('personal').map((item) => item.label)).toEqual(['Contas', 'Cartões', 'Categorias', 'Tags', 'Perfis', 'Anotações']);
+    });
+
+    it('a anotação pedida pela URL só vale em Anotações (a Visão geral leva a ela, Fase 13.2)', () => {
+        expect(parseRegistrySearch({ kind: 'notes', note: 'n1' })).toEqual({ kind: 'notes', note: 'n1' });
+        expect(parseRegistrySearch({ kind: 'tags', note: 'n1' })).toEqual({ kind: 'tags' });
+        expect(parseRegistrySearch({ kind: 'notes', note: '' })).toEqual({ kind: 'notes' });
+        expect(parseRegistrySearch({ note: 'n1' })).toEqual({});
     });
 
     it('o contador de categorias segue o mockup (8 · 17 sub)', () => {

@@ -36,22 +36,22 @@ describe('cadastro de metas (mockup DesktopMetas)', () => {
             { name: 'Viagem Floripa', value: 4000, targetDate: '2027-01-15', saved: 700 },
         ]);
 
-        const edited = await world.ok('goals.update', { id: goalId, name: 'Viagem', value: 5000, targetDate: null });
-        expect(edited).toMatchObject({ name: 'Viagem', value: { amount: 5000, currency: 'BRL' }, targetDate: null });
+        const edited = await world.ok('goals.update', { id: goalId, name: 'Viagem', value: 5000, targetDate: null, funding: { kind: 'transactions' } });
+        expect(edited).toMatchObject({ name: 'Viagem', value: { amount: 5000, currency: 'BRL' }, targetDate: null, funding: { kind: 'transactions' } });
         const [, trip] = await world.ok('goals.list', { profileId, period: '2026-10' });
         expect(trip).toMatchObject({ name: 'Viagem', saved: { amount: 700 }, linkedCount: 1 });
     });
 
-    it('as opções do campo "Meta" trazem só id e nome, por nome, e acompanham criar, editar e excluir', async () => {
+    it('as opções do campo "Meta" trazem id, nome e os estados, por nome, e acompanham criar, editar e excluir', async () => {
         const { world, profileId, goalId } = await setup();
         const reserve = await world.ok('goals.create', { profileId, name: 'Reserva de emergência', value: 30000 });
         expect(await world.ok('goals.options', { profileId })).toEqual([
-            { id: reserve.id, name: 'Reserva de emergência' },
-            { id: goalId, name: 'Viagem Floripa' },
+            { id: reserve.id, name: 'Reserva de emergência', reached: false, archived: false },
+            { id: goalId, name: 'Viagem Floripa', reached: false, archived: false },
         ]);
-        await world.ok('goals.update', { id: goalId, name: 'Carro', value: 5000, targetDate: null });
+        await world.ok('goals.update', { id: goalId, name: 'Carro', value: 5000, targetDate: null, funding: { kind: 'transactions' } });
         await world.ok('goals.delete', { id: reserve.id });
-        expect(await world.ok('goals.options', { profileId })).toEqual([{ id: goalId, name: 'Carro' }]);
+        expect(await world.ok('goals.options', { profileId })).toEqual([{ id: goalId, name: 'Carro', reached: false, archived: false }]);
         expect((await world.failure('goals.options', { profileId: '00000000-0000-4000-8000-0000000000ff' })).code).toBe('NOT_FOUND');
     });
 
@@ -59,7 +59,7 @@ describe('cadastro de metas (mockup DesktopMetas)', () => {
         const { world, profileId, goalId } = await setup();
         expect((await world.failure('goals.create', { profileId, name: 'Carro', value: 0 })).code).toBe('VALIDATION_FAILED');
         expect((await world.failure('goals.create', { profileId, name: 'Carro', value: -1 })).code).toBe('VALIDATION_FAILED');
-        expect((await world.failure('goals.update', { id: goalId, name: '  ', value: 100, targetDate: null })).code).toBe('VALIDATION_FAILED');
+        expect((await world.failure('goals.update', { id: goalId, name: '  ', value: 100, targetDate: null, funding: { kind: 'transactions' } })).code).toBe('VALIDATION_FAILED');
         expect((await world.failure('goals.create', { profileId, name: 'Carro', value: 100, targetDate: '2026-02-30' })).code).toBe('VALIDATION_FAILED');
     });
 

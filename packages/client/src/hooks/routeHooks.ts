@@ -81,6 +81,14 @@ export function useTags(input: CoreInput<'tags.list'> | null): Query<'tags.list'
 }
 
 /**
+ * @param input Perfil empresarial; `null` deixa a consulta parada (perfil pessoal, que o núcleo recusa).
+ * @return Os sócios do perfil, maior participação primeiro, com os lançamentos que cada um pagou.
+ */
+export function usePartners(input: CoreInput<'partners.list'> | null): Query<'partners.list'> {
+    return useCoreQuery('partners.list', input);
+}
+
+/**
  * @param input Perfil; `null` deixa a consulta parada.
  * @return As anotações do perfil, da editada mais recentemente para a mais antiga.
  */
@@ -333,4 +341,20 @@ export function useTagReport(input: CoreInput<'reports.byTag'> | null): Query<'r
  */
 export function useTagTransactions(input: CoreInput<'reports.tagTransactions'> | null): Query<'reports.tagTransactions'> {
     return useCoreQuery('reports.tagTransactions', input);
+}
+
+/**
+ * @param input Perfil empresarial e mês; `null` deixa a consulta parada (perfil pessoal).
+ * @return Quanto cada sócio pagou e deveria pagar, as despesas sem sócio e o acerto.
+ */
+export function usePartnerReport(input: CoreInput<'reports.byPartner'> | null): Query<'reports.byPartner'> {
+    return useCoreQuery('reports.byPartner', input);
+}
+
+/**
+ * @param input Perfil empresarial e mês; `null` deixa a consulta parada.
+ * @return As despesas do mês sem sócio e o total delas.
+ */
+export function useEntriesWithoutPartner(input: CoreInput<'reports.entriesWithoutPartner'> | null): Query<'reports.entriesWithoutPartner'> {
+    return useCoreQuery('reports.entriesWithoutPartner', input);
 }

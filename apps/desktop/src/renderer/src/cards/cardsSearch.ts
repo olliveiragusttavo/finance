@@ -1,3 +1,4 @@
+import { REGISTRY_LIST_VIEWS, registryInView, registryViewOf, type RegistryListView } from '@finance/client';
 import type { CreditCardInPeriodResponse, CreditCardListResponse } from '@finance/core';
 import { z } from 'zod';
 import { parseShellSearch } from '../shell/referenceMonth.ts';
@@ -6,7 +7,8 @@ import { parseShellSearch } from '../shell/referenceMonth.ts';
  * Fatura aberta na tela Cartões (mockup `DesktopCartoes`; desktop-mvp-plan Fase 8). Os
  * parâmetros nasceram na Fase 7, porque o extrato da conta leva a uma fatura ("ver fatura").
  * Ficam na URL pelo mesmo motivo do mês de referência: voltar no histórico devolve a fatura que
- * estava aberta.
+ * estava aberta. A visualização da lista (ativos ou desativados, desktop-mvp-plan Fase 13.4) fica
+ * em `view`.
  */
 
 /** Parâmetros de busca próprios da tela Cartões. */
@@ -15,6 +17,8 @@ export interface CardsSearch {
     readonly card?: string;
     /** Competência `YYYY-MM` da fatura aberta, que pode não ser a do mês de referência. */
     readonly invoice?: string;
+    /** Visualização da lista; ausente segue o cartão pedido, ou mostra os ativos. */
+    readonly view?: RegistryListView;
 }
 
 /**
@@ -28,22 +32,40 @@ export function parseCardsSearch(search: Readonly<Record<string, unknown>>): Car
     const card = z.uuid().safeParse(search['card']);
     // A competência segue a mesma validação do mês de referência, inclusive a faixa de anos.
     const invoice = parseShellSearch({ period: search['invoice'] }).period;
+    const view = z.enum(REGISTRY_LIST_VIEWS).safeParse(search['view']);
     return {
         ...(card.success ? { card: card.data } : {}),
         ...(invoice === undefined ? {} : { invoice }),
+        ...(view.success ? { view: view.data } : {}),
     };
 }
 
 /**
- * Cartão cuja fatura a tela mostra. O cartão da URL pode não existir mais — excluído aqui
- * mesmo, ou em outro perfil depois da troca —, e então vale o primeiro, como na tela Contas.
+ * Cartões da lista lateral na visualização da URL. Sem `view`, o cartão pedido decide, como em
+ * Contas: o link para a fatura de um cartão desativado abre a lista dos desativados.
  *
  * @param list Cartões do perfil no mês.
  * @param search Busca já validada.
- * @return O cartão da URL, ou o primeiro da lista; `null` quando o perfil não tem cartão.
+ * @return A visualização e os cartões dela, na ordem do núcleo.
+ */
+export function creditCardListView(list: CreditCardListResponse, search: CardsSearch): { readonly view: RegistryListView; readonly creditCards: readonly CreditCardInPeriodResponse[] } {
+    const requested = list.creditCards.find((creditCard) => creditCard.id === search.card);
+    const view = search.view ?? (requested === undefined ? 'active' : registryViewOf(requested));
+    return { view, creditCards: list.creditCards.filter((creditCard) => registryInView(creditCard, view)) };
+}
+
+/**
+ * Cartão cuja fatura a tela mostra. O cartão da URL pode não existir mais — excluído aqui
+ * mesmo, ou em outro perfil depois da troca — ou não estar na visualização escolhida, e então
+ * vale o primeiro da lista, como na tela Contas.
+ *
+ * @param list Cartões do perfil no mês.
+ * @param search Busca já validada.
+ * @return O cartão da URL, ou o primeiro da visualização; `null` quando ela está vazia.
  */
 export function openCreditCard(list: CreditCardListResponse, search: CardsSearch): CreditCardInPeriodResponse | null {
-    return list.creditCards.find((creditCard) => creditCard.id === search.card) ?? list.creditCards[0] ?? null;
+    const { creditCards } = creditCardListView(list, search);
+    return creditCards.find((creditCard) => creditCard.id === search.card) ?? creditCards[0] ?? null;
 }
 
 /**

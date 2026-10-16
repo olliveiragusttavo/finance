@@ -19,6 +19,7 @@ import { TAG_REPORT_RANGES, type TagReportRange, type TagReportResponse, type Ta
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
 import { Bar, BarChart, ReferenceLine, XAxis, YAxis } from 'recharts';
+import { DetailPane, ListPane, PaneLayout } from '@/components/PaneLayout';
 import { EmptyState, QueryState, Skeleton } from '@/components/states';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -68,39 +69,44 @@ export function TagReportScreen(): ReactNode {
     };
 
     return (
-        <div className="-mx-8 -my-6 flex flex-1">
-            <section aria-label="Lista de tags" className="flex w-95 shrink-0 flex-col border-r border-line bg-surface">
-                <div className="flex flex-col gap-2.5 px-5 pt-5 pb-3">
-                    <div className="flex flex-col gap-1">
-                        <span className="text-12 text-muted">Relatórios</span>
-                        <h1 className="text-20 font-semibold">Por tag</h1>
+        <PaneLayout>
+            <ListPane
+                label="Lista de tags"
+                width="w-95"
+                header={
+                    <div className="flex flex-col gap-2.5 px-5 pt-5 pb-3">
+                        <div className="flex flex-col gap-1">
+                            <span className="text-12 text-muted">Relatórios</span>
+                            <h1 className="text-20 font-semibold">Por tag</h1>
+                        </div>
+                        <label className="flex flex-col gap-1 text-13">
+                            <span className="text-muted">Período</span>
+                            <Select value={range} onValueChange={changeRange}>
+                                <SelectTrigger aria-label="Período" className="w-full bg-surface">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {TAG_REPORT_RANGES.map((option) => (
+                                        <SelectItem key={option} value={option}>
+                                            {RANGE_LABELS[option]}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </label>
                     </div>
-                    <label className="flex flex-col gap-1 text-13">
-                        <span className="text-muted">Período</span>
-                        <Select value={range} onValueChange={changeRange}>
-                            <SelectTrigger aria-label="Período" className="w-full bg-surface">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {TAG_REPORT_RANGES.map((option) => (
-                                    <SelectItem key={option} value={option}>
-                                        {RANGE_LABELS[option]}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </label>
-                </div>
+                }
+            >
                 <QueryState query={report} loading={<Skeleton className="mx-5 h-40" />}>
                     {(data) => <TagList items={buildTagList(data)} openId={openTag(data, search.tag)?.tagId ?? null} />}
                 </QueryState>
-            </section>
-            <section aria-label="Tag aberta" className="flex min-w-0 flex-1 flex-col gap-5 px-8 py-6">
+            </ListPane>
+            <DetailPane label="Tag aberta">
                 <QueryState query={report} loading={<DetailSkeleton />}>
                     {(data) => <TagReportBody report={data} tagId={search.tag} range={range} hasTags={(tags.data?.length ?? 1) > 0} />}
                 </QueryState>
-            </section>
-        </div>
+            </DetailPane>
+        </PaneLayout>
     );
 }
 

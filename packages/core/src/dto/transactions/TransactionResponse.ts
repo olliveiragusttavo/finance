@@ -21,6 +21,8 @@ export interface TransactionResponse {
     readonly destinationAccountId: string | null;
     readonly partnerId: string | null;
     readonly goalId: string | null;
+    /** A transferência vinculada retira dinheiro da meta, em vez de guardar. */
+    readonly goalWithdrawal: boolean;
     readonly recurrenceId: string | null;
     /** Número da ocorrência na série (a 1ª é 1); `null` num lançamento avulso. */
     readonly occurrence: number | null;
@@ -62,6 +64,7 @@ export function toTransactionResponse(transaction: Transaction): TransactionResp
         destinationAccountId: transaction.destinationAccountId,
         partnerId: transaction.partnerId,
         goalId: transaction.goalId,
+        goalWithdrawal: transaction.goalWithdrawal,
         recurrenceId: transaction.recurrenceId,
         occurrence: transaction.occurrence,
         name: transaction.name,

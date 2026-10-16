@@ -1,5 +1,5 @@
 import type { Goal } from '../../domain/goal/Goal.ts';
-import type { GoalContributionView, GoalWithProgress } from '../../services/goal/GoalViews.ts';
+import type { GoalContributionView, GoalOptionView, GoalWithProgress } from '../../services/goal/GoalViews.ts';
 import { toMoneyResponse, type MoneyResponse } from '../shared/MoneyResponse.ts';
 import { toTransactionResponse, type TransactionResponse } from '../transactions/TransactionResponse.ts';
 
@@ -8,25 +8,36 @@ export interface GoalResponse {
     readonly id: string;
     readonly profileId: string;
     readonly name: string;
+    /**
+     * De onde vem o progresso: os lançamentos vinculados, ou o saldo consolidado de hoje de uma
+     * conta de investimento (database-design §4.11).
+     */
+    readonly funding: { readonly kind: 'transactions' } | { readonly kind: 'account'; readonly accountId: string };
     /** Valor-alvo. */
     readonly value: MoneyResponse;
     /** Data-alvo `YYYY-MM-DD`; `null` numa meta sem prazo. */
     readonly targetDate: string | null;
+    /** Arquivada: fora da lista padrão de Metas e das escolhas de lançamentos novos (desktop-mvp-plan Fase 13.4). */
+    readonly archived: boolean;
 }
 
 /**
- * Meta como opção do campo "Meta" do lançamento: só o que o Select mostra. Existe à parte do
- * `GoalProgressResponse` para que o formulário não meça o progresso de todas as metas só para
- * listar os nomes (revisão de 2026-10-08, item 5).
+ * Meta como opção do campo "Meta" do lançamento: só o que o seletor mostra e agrupa. Existe à
+ * parte do `GoalProgressResponse` para que o formulário não meça o ritmo de todas as metas só
+ * para listar os nomes (revisão de 2026-10-08, item 5).
  */
 export interface GoalOptionResponse {
     readonly id: string;
     readonly name: string;
+    /** Atingida: vai para o grupo à parte (desktop-mvp-plan Fase 13.4). */
+    readonly reached: boolean;
+    /** Arquivada: só aparece na edição do lançamento que já está vinculado a ela. */
+    readonly archived: boolean;
 }
 
 /** Meta na lista de Metas, com o progresso e o ritmo no mês de referência (mockup `DesktopMetas`). */
 export interface GoalProgressResponse extends GoalResponse {
-    /** Soma das transações vinculadas pagas até hoje. */
+    /** Soma das transações vinculadas pagas até hoje, ou o saldo consolidado de hoje da conta vinculada. */
     readonly saved: MoneyResponse;
     /** Quanto falta para o alvo; zero com a meta atingida. */
     readonly remaining: MoneyResponse;
@@ -68,15 +79,23 @@ export interface GoalContributionResponse {
  * @return A meta serializável, sem o progresso.
  */
 export function toGoalResponse(goal: Goal): GoalResponse {
-    return { id: goal.id, profileId: goal.profileId, name: goal.name, value: toMoneyResponse(goal.target), targetDate: goal.targetDate?.toString() ?? null };
+    return {
+        id: goal.id,
+        profileId: goal.profileId,
+        name: goal.name,
+        funding: goal.funding.kind === 'account' ? { kind: 'account', accountId: goal.funding.accountId } : { kind: 'transactions' },
+        value: toMoneyResponse(goal.target),
+        targetDate: goal.targetDate?.toString() ?? null,
+        archived: goal.archived,
+    };
 }
 
 /**
- * @param goals Metas do perfil, na ordem do Repository (por nome).
- * @return As opções do Select, na mesma ordem.
+ * @param options Metas do perfil com o progresso de hoje, na ordem do Repository (por nome).
+ * @return As opções do seletor, na mesma ordem.
  */
-export function toGoalOptionResponses(goals: readonly Goal[]): readonly GoalOptionResponse[] {
-    return goals.map((goal) => ({ id: goal.id, name: goal.name }));
+export function toGoalOptionResponses(options: readonly GoalOptionView[]): readonly GoalOptionResponse[] {
+    return options.map(({ goal, reached }) => ({ id: goal.id, name: goal.name, reached, archived: goal.archived }));
 }
 
 /**

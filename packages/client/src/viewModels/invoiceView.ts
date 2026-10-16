@@ -240,26 +240,31 @@ export interface LimitUsage {
     readonly share: number | null;
     /** Se o valor a pagar passou do limite. */
     readonly exceeded: boolean;
+    /** `R$ 2.449,75`: quanto do limite está usado, ao lado do percentual (pedido do usuário). */
+    readonly usedText: string;
     /** `de R$ 8.000,00`. */
     readonly limitText: string;
 }
 
 /**
- * Regra de negócio (Cartões, desktop-mvp-plan §5): o limite usado é o valor a pagar somado de
- * todas as faturas em aberto do cartão, que o núcleo entrega pronto em `limitUsed`; aqui só
- * vira proporção. Cartão com limite zero não tem proporção — dividir daria ∞ —, e a tela mostra
- * o traço.
+ * Regra de negócio (Cartões, desktop-mvp-plan §5 e Fase 13.5): o limite usado é o valor a pagar
+ * das faturas em aberto até a aberta hoje, mais o já comprometido nas seguintes, que o núcleo
+ * entrega pronto em `limitUsed`; aqui só vira texto e proporção. O valor vai junto do
+ * percentual, porque "31%" sozinho não diz quanto ainda cabe no cartão. Cartão com limite zero
+ * não tem proporção — dividir daria ∞ —, e a tela mostra o traço no percentual, mas o valor usado
+ * continua.
  *
  * @param creditCard Limite e limite usado do cartão, como `creditCards.list` os devolve.
- * @return O percentual, a proporção da barra e o limite.
+ * @return O percentual, a proporção da barra, o valor usado e o limite.
  */
 export function describeLimitUsage(creditCard: Pick<CreditCardResponse, 'limit'> & { readonly limitUsed: MoneyResponse }): LimitUsage {
     const limitText = `de ${formatMoney(creditCard.limit)}`;
+    const usedText = formatMoney(creditCard.limitUsed);
     if (creditCard.limit.amount <= 0) {
-        return { percentText: '—', share: null, exceeded: creditCard.limitUsed.amount > 0, limitText };
+        return { percentText: '—', share: null, exceeded: creditCard.limitUsed.amount > 0, usedText, limitText };
     }
     const ratio = creditCard.limitUsed.amount / creditCard.limit.amount;
-    return { percentText: formatPercent(ratio, { sign: 'negative', decimals: 0 }), share: Math.min(Math.max(ratio, 0), 1), exceeded: ratio > 1, limitText };
+    return { percentText: formatPercent(ratio, { sign: 'negative', decimals: 0 }), share: Math.min(Math.max(ratio, 0), 1), exceeded: ratio > 1, usedText, limitText };
 }
 
 /** O que a confirmação do pagamento mostra (mockup `MobilePagarFatura`). */

@@ -1,6 +1,6 @@
 # Plano do MVP Desktop — CRUD e primeiros relatórios
 
-**Status:** Em andamento — Fases 0 a 13.1 concluídas (ficaram pendentes só o `Ctrl K` da Fase 4, a pendência da Fase 9.2 que depende da sincronização, o XLSX da Fase 13.1 e a decisão da Fase 11.1 sobre a data dos lançamentos de conta em Transações). Primeira entrega com tela do projeto: o app desktop
+**Status:** Em andamento — Fases 0 a 13.5 concluídas (ficaram pendentes só o `Ctrl K` da Fase 4, a pendência da Fase 9.2 que depende da sincronização, o XLSX da Fase 13.1 e a decisão da Fase 11.1 sobre a data dos lançamentos de conta em Transações). Primeira entrega com tela do projeto: o app desktop
 (Electron) com os cadastros e lançamentos básicos e os dois primeiros relatórios
 personalizados, que são a motivação original do projeto ([README](../../README.md#motivação)).
 O mobile fica inteiro para depois.
@@ -29,7 +29,7 @@ categoria/subcategoria** e **quanto as faturas do cartão pesam no saldo do mês
 |---|---|---|
 | Primeiro uso | `DesktopPrimeiroUso` | Criar perfil e primeira conta. "Entrar num grupo" aparece desabilitado |
 | Shell | todas (barra lateral e superior) | Navegação, mês de referência fixo, seletor de perfil, tema claro/escuro, "+ Lançamento" |
-| Cadastros | `DesktopCadastros`, `DesktopTags`, `DesktopAnotacoes` | Perfis, contas, cartões, categorias e subcategorias, tags e anotações |
+| Cadastros | `DesktopCadastros`, `DesktopTags`, `DesktopAnotacoes`, `DesktopSocios` | Perfis, contas, cartões, categorias e subcategorias, tags, anotações e, no perfil empresarial, sócios (Fase 13.7) |
 | Contas | `DesktopContas` | Lista com consolidado e previsto → extrato do mês |
 | Cartões | `DesktopCartoes` | Lista com fatura do mês → detalhe da fatura, pagar, pagamento parcial, reabrir, próximas faturas |
 | Transações | `DesktopTransacoes` | Tabela do mês, filtros, diálogo de criação/edição, marcar pago, excluir, atalhos |
@@ -40,6 +40,7 @@ categoria/subcategoria** e **quanto as faturas do cartão pesam no saldo do mês
 | **Impacto do cartão** | `DesktopRelCartao` | Faturas por mês e cartão, extrato onde foram pagas, peso nas entradas |
 | Fluxo por conta (Fase 12.1) | `DesktopRelFluxo` | Extratos encadeados de uma conta, ou das contas do total somadas, nos 3 meses antes e 1 depois do de referência |
 | Por tag (Fase 12.2) | `DesktopRelTag` | Total líquido por tag no mês ou em todo o período, divisão por categoria e lançamentos da tag |
+| Por sócio (Fases 13.6 e 13.8) | `DesktopRelSocio` | Só em perfil empresarial: aportou × deveria pela participação no total de aportes, acerto e entradas do mês sem sócio, atribuíveis na própria tela |
 | Ajustes | `DesktopAjustes` | Tema, exportar cópia do banco, local do arquivo, atalhos, versões |
 
 ### Fora do escopo (próximas entregas)
@@ -47,10 +48,11 @@ categoria/subcategoria** e **quanto as faturas do cartão pesam no saldo do mês
 - **Mobile inteiro** (React Native / Expo).
 - **Sincronização e Dispositivos** (`DesktopDispositivos`): o indicador da barra lateral
   mostra só "Dados só neste aparelho".
-- Sócios, anexos e o relatório D7 (sócio). Tags e anotações entraram em Cadastros (Fase 6),
-  Metas, na Fase 9.3, e os relatórios D5 (fluxo por conta) e D8 (tag), nas Fases 12.1 e 12.2.
+- Anexos. Tags e anotações entraram em Cadastros (Fase 6), Metas, na Fase 9.3, os relatórios
+  D5 (fluxo por conta) e D8 (tag), nas Fases 12.1 e 12.2, o D7 (sócio), na Fase 13.6, e o
+  cadastro de sócios, na Fase 13.7.
 - ~~Importação do histórico do app atual~~ — entrou na Fase 13.1, a pedido.
-- Instaladores de Windows e macOS (o MVP empacota para Linux).
+- Instalador de macOS (o MVP empacota para Linux e, a pedido, para Windows — Fase 14).
 
 ---
 
@@ -59,7 +61,7 @@ categoria/subcategoria** e **quanto as faturas do cartão pesam no saldo do mês
 | Pergunta | Decisão | Por quê |
 |---|---|---|
 | Bundler do Electron | **electron-vite** (main, preload, utility e renderer num só build) | O design pede Vite no renderer ([desktop-shell §4.1](desktop-shell-design.md#41-o-critério-o-que-o-mobile-também-usa)); o electron-vite resolve os quatro alvos com HMR, sem montar quatro configs à mão |
-| Empacotamento | **electron-builder**, alvo AppImage/deb | É o caminho mais curto para Linux, onde o projeto é desenvolvido. O `better-sqlite3` 13 é N-API (com binários prontos no pacote), e o mesmo `.node` carrega no Node e no Electron: não há recompilação para o ABI do Electron (Fase 3.3) |
+| Empacotamento | **electron-builder**, alvos deb (Ubuntu) e NSIS (Windows) | É o caminho mais curto para Linux, onde o projeto é desenvolvido. O `better-sqlite3` 13 é N-API (com binários prontos no pacote, inclusive o do Windows), e o mesmo `.node` carrega no Node e no Electron: não há recompilação para o ABI do Electron (Fase 3.3), e o `.exe` sai do Linux — com o Wine, que o NSIS usa para montar o desinstalador |
 | Versão do Tailwind | **Tailwind v4**, com o "preset" como CSS gerado (`@theme`) | É a versão do shadcn/ui atual; o NativeWind 5 lê o mesmo CSS. Os tokens são dados, então uma saída em JS para o NativeWind 4 sai do mesmo gerador se o mobile precisar |
 | Roteamento | **TanStack Router** com histórico em hash | Rotas e *search params* tipados (mês de referência, filtros, drill-down); hash porque o app é servido de `file://` |
 | Dados na UI | **TanStack Query** dentro de `packages/client` | Já decidido ([desktop-shell §4.2](desktop-shell-design.md#42-o-que-é-compartilhado-é-a-camada-headless)) |
@@ -146,6 +148,27 @@ Decididas antes da Fase 12.2, que trouxe o relatório para dentro do MVP.
 | T4 | Por categoria | Total líquido de cada categoria da tag. A participação é sobre a soma das categorias com gasto líquido; a categoria em que as receitas superam as despesas mostra o valor como entrada (+) e não tem participação |
 | T5 | Lançamentos | Os da tag no período, com a mesma fonte e o mesmo critério do total: a lista soma o total líquido. Contas e cartões desativados entram |
 
+### 3.6 Por sócio
+
+Decididas antes da Fase 13.6, que trouxe o relatório para dentro do MVP, e revistas na Fase 13.8,
+que trocou as despesas pelos aportes. Só em perfil empresarial. Regras completas em
+[reports-design.md §8](reports-design.md#8-por-sócio-reportsbypartner-reportsentrieswithoutpartner).
+
+| # | Pergunta | Regra |
+|---|---|---|
+| P1 | Período | Os aportes de **todos os períodos**; o mês de referência só recorta os indicadores do mês e a lista de entradas sem sócio |
+| P2 | O que entra? | **Aportes**: receitas do perfil e transferências que chegam de outro perfil, com sócio. Toda despesa é paga pela empresa e fica fora |
+| P3 | "Deveria ter aportado" | Total de aportes com sócio × participação. Entradas sem sócio (receita de serviço) ficam fora da divisão. A sobra de centavo vai para os maiores restos |
+| P4 | Acerto ("Para equilibrar os aportes") | Quem aportou a menos transfere para quem aportou a mais, o maior devedor primeiro para o maior credor. Sem acerto quando as participações não somam 100% — a tela avisa |
+| P5 | Entradas sem sócio | As do mês sem sócio vivo, pelo mesmo critério das somas: a lista soma o indicador. "Quem aportou" grava só aquele lançamento |
+
+---|---|---|
+| P1 | Período | Regra-mestra da [§3.1](#31-regra-mestra-o-período-é-o-do-pagamento), só o mês de referência |
+| P2 | Quais tipos entram? | **Só despesas** ("Despesas do mês" do mockup): estorno abate (R2), encargos pelo efeito no saldo (R3). Quem pagou é o sócio gravado na transação; receitas, transferências e investimentos ficam fora |
+| P3 | "Deveria pagar" | Despesas **com sócio** × participação. As sem sócio ficam numa linha própria, **fora da divisão**, até serem atribuídas. A sobra de centavo da divisão vai para os maiores restos, e a divisão soma a base |
+| P4 | Acerto ("Para equilibrar o mês") | Quem pagou a menos transfere para quem pagou a mais, o maior devedor primeiro para o maior credor. Sem acerto quando as participações não somam 100% — a tela avisa |
+| P5 | Lançamentos sem sócio | Os do mês sem sócio vivo, pelo mesmo critério das somas: a lista soma o indicador. "Quem pagou" grava só aquele lançamento |
+
 ---
 
 ## 4. Arquitetura da entrega
@@ -175,10 +198,10 @@ Nenhuma decisão de produto está aberta. Ficaram decididas:
 | Decisão | Regra |
 |---|---|
 | Período dos relatórios | Mês do pagamento ([§3.1](#31-regra-mestra-o-período-é-o-do-pagamento)) |
-| Itens do menu sem tela no MVP (Dispositivos, Por sócio) | Aparecem no menu normalmente e levam a uma **tela em branco**, já com a rota e o mês de referência; "Por sócio" continua só no perfil empresarial. Fluxo por conta e Por tag saíram da lista nas Fases 12.1 e 12.2 |
+| Itens do menu sem tela no MVP (Dispositivos) | Aparecem no menu normalmente e levam a uma **tela em branco**, já com a rota e o mês de referência. Fluxo por conta, Por tag e Por sócio saíram da lista nas Fases 12.1, 12.2 e 13.6; "Por sócio" continua só no perfil empresarial |
 | Excluir conta ou cartão | Ver [§5.1](#51-desativar-e-excluir-conta-ou-cartão) |
 | Trocar a moeda do perfil | Só enquanto o perfil não tem lançamentos: a moeda é a unidade de todo valor gravado e a troca não converte nada (database-design §4.1). Renomear continua livre |
-| Limite usado do cartão | Valor a pagar somado de **todas** as faturas em aberto do cartão, futuras de parcelas incluídas; fatura credora conta zero |
+| Limite usado do cartão | Valor a pagar somado das faturas em aberto até a **fatura aberta hoje**; das faturas depois dela, só o comprometido (parcelas e compras lançadas adiante), sem as ocorrências de séries fixas (Fase 13.5); fatura credora conta zero |
 
 Pendência técnica: o backup `VACUUM INTO` antes de migrar
 ([backend-design §4.6](backend-design.md#46-backup-antes-de-migrar)) precisa existir antes
@@ -648,12 +671,250 @@ de mapeamento, o arquivo com coluna de tipo e as `#palavras` como tags.
 - Parcelamentos são separados também pelo total de parcelas e pela data da compra: o arquivo real tem 32 séries, e não as 30 do mockup (duas compras com o mesmo nome em totais diferentes).
 - O arquivo também pode ser arrastado para a etapa Arquivo; o conteúdo vem do próprio arrastar, sem caminho.
 
+### Fase 13.2 — Melhorias antes do empacotamento
+
+Entrou depois da Fase 13.1, a pedido, antes da fase final. **Decisões** (perguntadas antes do
+código):
+
+- **Mover entre perfis** pelo campo **"Perfil"** no próprio formulário de lançamento (e não
+  num diálogo à parte): trocar o perfil esvazia conta ou cartão, fatura, destino, categoria,
+  tags e meta, que passam a ser escolhidos entre os do outro perfil; voltar ao perfil original
+  devolve as escolhas. Só aparecem perfis da **mesma moeda**. Numa ocorrência de série, a
+  **série inteira** vai junto ("todas", direto para a revisão, sem a escolha do escopo). Regras
+  em [database-design.md §4.13](database-design.md#413-transactions) ("Mover para outro perfil")
+  e §4.12 ("Pertence diretamente ao perfil").
+- **"Somente esta"** grava direto do diálogo de escopo, sem o diálogo de revisão, na edição e
+  na exclusão: o botão vira "Salvar"/"Excluir"; "esta e as futuras" e "todas" continuam com
+  "Continuar" e a revisão.
+- **Atalho de pagar:** a situação "Pendente"/"Pago" é um **botão** na linha — o atalho de mouse
+  do `P` —, onde marcar pago vale (não na compra do cartão nem na transferência recebida de
+  outro perfil).
+- **Listagem única** em Transações, no extrato de Contas e na fatura de Cartões: o mesmo
+  componente, o mesmo teclado (`↑↓`, `Enter`, `P`, `Del`), o mesmo menu de contexto, o "⋯" e a
+  ordenação por coluna. As colunas se adaptam: "Conta / fatura" só em Transações; a fatura não
+  tem a situação, que é a da fatura. O valor continua o de cada tela (efeito no perfil, efeito
+  nesta conta, quanto soma à fatura). A coluna do extrato passou a ter Valor antes de Situação,
+  como em Transações, e ganhou "Rec.".
+- **Seletor com busca** (`Combobox`) em toda escolha de **cadastro** nos formulários — perfil,
+  conta ou cartão, conta de destino, categoria, tags, meta, conta pagadora, conta do pagamento
+  parcial e destino ao mover lançamentos. Listas curtas e fixas (tipo de conta, as quatro
+  moedas, frequência, as faturas sugeridas) continuam no `Select`, e a importação continua com o
+  seletor nativo das tabelas de revisão.
+- **Visão geral** ganhou dois blocos, sem mockup: **Metas** (nome, percentual, barra e "quanto
+  de quanto · prazo", como na lista de Metas) e **Anotações** (só o título das 6 mais recentes,
+  com "Ver todas"); o título abre a anotação no editor de Cadastros pelo *search param* `note`
+  de `/registry`.
+
+**Núcleo**
+- [x] `profileId` opcional em `transactions.update` (`TransactionComposer.resolveOwner`), regras
+  `transaction-move-currency-mismatch` e `recurrence-move-requires-all`; a série movida grava
+  `profile_id` na regra e leva as referências do perfil para todas as ocorrências
+  (`profileReferencesOf`)
+- [x] Testes: `test/services/moveProfile.test.ts` (avulsa na conta e no cartão, referência que
+  ficou no perfil antigo, outra moeda, transferência que vira interna, série em "somente esta" e
+  "esta e as futuras" recusada, série inteira com ocorrência de subcategoria própria e o plano,
+  complemento no perfil de destino)
+
+**Client e desktop**
+- [x] View-model `movementList.ts` (`movementsFromTransactions`, `movementsFromStatement`,
+  `movementsFromInvoice`, `compareMovementRows`, `movementPermissions`); a linha do extrato
+  ganhou a data de caixa crua (`cashDate`). `overviewNotes` no `overviewView.ts`
+- [x] `MovementGrid.tsx` no lugar da `TransactionGrid.tsx`, e `useTransactionActions.tsx` com
+  editar, pagar, excluir e abrir a fatura, usados pelas três telas
+- [x] `Combobox.tsx` (escolha única e múltipla, com grupos), sobre o qual ficaram o
+  `SubCategoryPicker` e o `TagPicker`
+- [x] Formulário: campo "Perfil", cadastros relidos do perfil escolhido; escopo "somente esta"
+  sem revisão no formulário e na exclusão; atalhos de Ajustes num grupo só
+- [x] Testes: `client` (`test/movementList.test.ts`), desktop (`test/transactions.test.ts`:
+  perfil no envio; `test/registry.test.ts`: `note` na URL) e ponta a ponta
+  (`e2e/movements.spec.ts`: situação e edição no extrato, "somente esta" sem revisão, mover de
+  perfil, blocos da Visão geral; os demais specs seguiram a ordem nova das colunas e o seletor
+  com busca)
+
+### Fase 13.3 — Tipos de meta e retirada
+
+Entrou depois da Fase 13.2, a pedido: guardar numa poupança e retirar para um imprevisto
+precisa descontar da meta, e uma meta pode ser simplesmente o saldo de uma conta de
+investimento. Regras em [database-design.md §4.11](database-design.md#411-goals). **Decisões**
+(perguntadas antes do código):
+
+- A meta tem um **tipo**, escolhido no formulário de criação e de edição: **por lançamentos**
+  (como até aqui) ou **saldo de uma conta**.
+- Na meta por lançamentos, a transferência vinculada tem **"Guardar na meta" / "Retirar da
+  meta"**; a retirada desconta do progresso e aparece negativa, com a etiqueta "retirada", na
+  tabela das vinculadas. **Só a transferência retira**; a receita sempre guarda.
+- Na meta vinculada a conta, o progresso é o **saldo consolidado de hoje**; ritmo e projeção
+  saem da variação mensal do consolidado. Só **contas de investimento**, e a mesma conta pode
+  servir a várias metas. O detalhe troca a tabela das vinculadas pelo link para o extrato.
+- Trocar para a vinculada a conta **desfaz os vínculos**, com o aviso de quantos antes de
+  salvar. Excluir a conta exclui a meta, e o alerta da exclusão a conta.
+
+**Núcleo**
+- [x] Migration `0005` (`goals.kind`, `goals.account_id`, `goal_withdrawal` em `transactions` e
+  `recurrences`); `pnpm embed:migrations`
+- [x] Domínio: `GoalFunding` na meta, `goalWithdrawal` na transação e no modelo da série
+  (`withdrawsFromGoal`, exportada para o formulário); o cálculo do progresso ganhou o saldo
+  inicial fora da média (`startingBalance`) e vínculos sem transação (os meses da conta)
+- [x] Regras `goal-withdrawal-requires-transfer`, `goal-funded-by-account`,
+  `goal-account-not-investment` e `account-type-funds-goal` (a conta que é o saldo de uma meta não
+  deixa de ser de investimento; o erro vai para o campo "Tipo" do diálogo da conta); `goals.options` só com as metas por lançamentos; metas na
+  exclusão em cadeia da conta (`goals` no `accounts.deletionImpact`)
+- [x] Testes: `test/services/goalFunding.test.ts` (retirada no guardado e no mês passado, receita
+  recusada, marca descartada sem meta, série de retirada, saldo consolidado de hoje e do fim de um
+  mês passado, lançamento recusado e fora das opções, conta corrente recusada, troca de tipo
+  desfazendo vínculos, exclusão da conta, troca do tipo da conta recusada com meta vinculada,
+  inclusive arquivada)
+
+**Client e desktop**
+- [x] `describeGoalFunding`, `describeGoalFundingChange`, a retirada nas vinculadas e a meta no
+  alerta da exclusão da conta; `goals.update` invalida
+  também o conteúdo de transação e as séries
+- [x] Formulário da meta com o tipo e a conta (`goalForm.ts`), detalhe com a origem do progresso
+  e o link para o extrato; "Guardar/Retirar" no lançamento
+- [x] Testes: `client` (`test/goalView.test.ts`, `test/deletionImpact.test.ts`), desktop
+  (`test/goals.test.ts`, `test/transactions.test.ts`) e ponta a ponta (`e2e/goals.spec.ts`: meta
+  vinculada ao Tesouro pelo diálogo e a transferência de retirada pelo lançamento)
+
+**Ajustes pedidos depois** (mesma rodada)
+- [x] As vinculadas da meta usam a listagem comum de movimentos (`MovementGrid`, via
+  `movementsFromGoalContributions`), no lugar da tabela só de leitura: editar, marcar pago e
+  excluir como em Transações. Colunas: data do pagamento, nome, categoria, conta e valor — sem a
+  situação, porque só as pagas contam; o total é o guardado
+- [x] Filtros de Transações com busca (`Combobox`) em conta ou cartão, categoria e tag; a situação,
+  lista curta e fixa, continua no `Select`
+- [x] Cabeçalho da listagem fixo no topo ao rolar: a barra superior saiu da área que rola
+  (`AppShell`), a tabela perdeu a rolagem horizontal do contêiner e as seções em volta recortam
+  com `overflow-clip`, que não prende o `sticky`
+- [x] Telas em painéis (Contas, Cartões, Metas, Cadastros, Fluxo por conta e Por tag) com rolagem
+  separada por painel (`PaneLayout`): a lista lateral rola sozinha, com o cabeçalho e o rodapé
+  dos totais (consolidado e previsto das contas, faturas dos cartões) fixos; o detalhe rola à
+  parte, e o cabeçalho fixo das listagens gruda no topo dele
+
+### Fase 13.4 — Visualizações das listas e metas arquivadas
+
+Entrou depois da Fase 13.3, a pedido. Regras em
+[database-design.md §4.11](database-design.md#411-goals). **Decisões** (perguntadas antes do
+código):
+
+- Metas ganham o estado **arquivada** ("Arquivar meta"/"Reativar meta" no "⋯" do detalhe). No
+  campo "Meta" do lançamento, a arquivada **só aparece na edição do lançamento já vinculado**,
+  marcada "(arquivada)", como a conta desativada.
+- A lista de Metas tem três **visualizações**: ativas (padrão), atingidas e arquivadas; a meta
+  atingida e arquivada aparece **nas duas**. No campo "Meta", as atingidas ficam num **grupo à
+  parte**.
+- Contas e Cartões ganham a mesma escolha entre **ativos e desativados**; o estado continua se
+  chamando "desativado" (não foi renomeado para "arquivado"). Os totais do rodapé continuam os
+  do perfil inteiro.
+- A visualização fica na URL (`view`). Sem ela, a conta, o cartão ou a meta pedida por um link
+  abre a lista em que aparece — o "Ver extrato da conta" de uma conta desativada abre as
+  desativadas.
+
+**Núcleo**
+- [x] Migration `0006` (`goals.archived_at`); `pnpm embed:migrations`
+- [x] `Goal.archive`/`unarchive`, rotas `goals.archive`/`goals.unarchive`, `archived` no
+  `GoalResponse`; `goals.options` com `reached` e `archived`; regra `goal-archived`
+- [x] Testes: `test/services/goalArchive.test.ts`
+
+**Client e desktop**
+- [x] `listViews.ts` (`goalInView`, `registryInView`, `goalChoices`...), invalidação das rotas
+  novas e a mensagem da regra
+- [x] `ListViewSwitch` nas listas de Contas, Cartões e Metas; `view` em `accountsSearch.ts`,
+  `cardsSearch.ts` e `goalsSearch.ts`; etiqueta "Arquivada" na lista e no detalhe; o resumo das
+  metas da Visão geral mostra só as ativas, como a visualização padrão de Metas
+- [x] Testes: `client` (`test/listViews.test.ts`), desktop (`test/accounts.test.ts`,
+  `test/cards.test.ts`, `test/goals.test.ts`) e ponta a ponta (`e2e/goals.spec.ts`,
+  `e2e/accounts.spec.ts`)
+
+### Fase 13.5 — Limite usado sem as séries fixas futuras
+
+Entrou depois da Fase 13.4, a pedido: as séries fixas no cartão (assinaturas) são gravadas 12
+meses à frente ([database-design.md §4.12](database-design.md#412-recurrences)) e inflavam o
+limite usado com um ano de cobranças que ainda não aconteceram.
+
+- [x] Regra: o limite usado soma inteiras as faturas em aberto até a **fatura aberta hoje** (a
+  que recebe uma compra feita hoje, pelo dia de fechamento); das faturas depois dela, só o já
+  comprometido — parcelas e compras avulsas lançadas adiante —, sem as ocorrências de séries
+  fixas (`BalanceLedgerRepository.committedInvoiceTypeTotals`, `CreditCardService.limitUsed`)
+- [x] Teste: `test/services/creditCards.test.ts` (assinatura, parcelas e compra adiante)
+
+### Fase 13.6 — Por sócio
+
+Entrou depois da Fase 13.5, a pedido: D7 estava fora do escopo (§1). O cadastro de sócios ainda
+não existe (o mockup está em preparação), e o relatório lê os sócios já gravados. Regras na
+[§3.6](#36-por-sócio) e em [reports-design.md §8](reports-design.md#8-por-sócio-reportsbypartner-reportsentrieswithoutpartner).
+
+**Núcleo**
+- [x] Domínio `Partner` (só `restore`, por enquanto) e `PartnerRepository.listByProfile`
+- [x] Domínio `PartnerReport`: divisão pela participação em centavos inteiros (maior resto), diferença e acerto (P3, P4), funções puras
+- [x] Rota `reports.byPartner` (perfil empresarial, mês): despesas, base com sócio, sem sócio, cada sócio e o acerto — somas no SQL sobre a `REPORT_SOURCES_CTE`, que passou a trazer o `partner_id`
+- [x] Rota `reports.expensesWithoutPartner`: as despesas sem sócio e o total (P5). As duas recusam perfil pessoal com `partner-requires-business-profile`
+- [x] Rota `transactions.setPartner` (id, sócio ou `null`): troca só o sócio, como `setPaid`; confere perfil empresarial e posse pelo `TransactionComposer.assertPartner`
+- [x] Testes de mesa (`test/services/reports.partner.test.ts`)
+
+**Client e desktop**
+- [x] Rotas no mapa de invalidação (`MONEY` e `TRANSACTION_CONTENT`; `setPartner` invalida só as transações e o relatório por sócio) e hooks `usePartnerReport`, `useExpensesWithoutPartner`
+- [x] View-model `partnerReport.ts`: indicadores, tabela com a diferença por seta, sinal e palavras (decisão de interface 7), barras pagou × deveria, acerto e o aviso de participações fora de 100%
+- [x] Tela `PartnerReportScreen.tsx` no lugar da tela em branco. **Decisões:** o "Ver tabela" do gráfico virou a alternância Gráfico/Tabela dos outros relatórios; a escolha de "Quem pagou" grava na hora, sem botão por linha; com mais de dois sócios o acerto lista uma transferência por linha; sem sócios cadastrados a tela explica e a coluna "Quem pagou" fica vazia
+- [x] Testes: `client` (`test/partnerReport.test.ts`, `test/invalidation.test.ts`) e ponta a ponta (`e2e/partnerReport.spec.ts`, que semeava os sócios direto no banco até a Fase 13.7 trazer a rota `partners.save`)
+
+### Fase 13.7 — Cadastro de sócios
+
+Entrou depois da Fase 13.6, a pedido, com o mockup `DesktopSocios` (Cadastros › Sócios, só em
+perfil empresarial). Regras na decisão de interface 10 dos mockups e em
+[database-design.md §4.2](database-design.md#42-partners).
+
+| # | Pergunta | Regra |
+|---|---|---|
+| S1 | Como grava? | A **lista inteira** de uma vez (`partners.save`): cria os novos, regrava os editados e remove os que saíram, numa transação só. Sócio a sócio, cada passo de uma redivisão (60/40 → 50/50) seria recusado pela soma |
+| S2 | Soma das participações | Precisa dar **100%** para salvar, conferida em centésimos inteiros (até duas casas decimais: 33,33 + 33,33 + 33,34). Recusa com `partner-shares-not-100`. A **lista vazia** é aceita: é o estado de todo perfil empresarial novo, e remover todos precisa ter volta |
+| S3 | Nome | De 1 a 100 caracteres, aparado; **pode repetir** (duas pessoas com o mesmo nome) |
+| S4 | Remover sócio | Soft delete; os lançamentos e as séries que ele pagou ficam **sem sócio atribuído** (o vínculo é apagado, e não só ignorado, para que editar o lançamento não esbarre num sócio excluído). A tela avisa quantos antes de salvar |
+| S5 | Perfil pessoal | `partners.list` e `partners.save` recusam com `partner-requires-business-profile`; o tipo Sócios some da lista lateral |
+| S6 | Participação no histórico | A participação atual vale para todo o histórico (decisão 10 dos mockups, "regra a confirmar") |
+
+**Núcleo**
+- [x] Domínio `Partner.create`/`revise` (nome até 100, participação de 0 a 100 com até duas casas), `assertSharesComplete` (S2) e `byLargestShare`, que passou a ser a ordem do cadastro e do relatório
+- [x] `PartnerRepository`: `save`, `softDelete` (S4, tira o sócio de `transactions` e `recurrences`) e `transactionCounts`
+- [x] `PartnerService` e rotas `partners.list` (maior participação primeiro, com os lançamentos de cada um) e `partners.save` (S1); só regrava o sócio que mudou
+- [x] `allocateByShares` exportada, para a prévia da tela dividir pela mesma conta do relatório
+- [x] Testes: `test/services/partners.test.ts`
+
+**Client e desktop**
+- [x] Rotas no mapa de invalidação (`partners.save` invalida a lista, o relatório por sócio, as séries e o conteúdo das transações; `partners.list` entrou no `MONEY` e no `setPartner`, pela contagem de lançamentos) e hook `usePartners`
+- [x] View-model `partnerRoster.ts`: soma ao vivo, barra de divisão, "Pagou" e "Deveria pagar" do mês com a participação digitada, avisos de soma e de remoção, e a entrada da gravação
+- [x] Seção `PartnersSection.tsx` em Cadastros, e "Editar sócios e participações" no relatório por sócio, como no mockup `DesktopRelSocio` revisto. **Decisões:** "Pagou" e "Deveria pagar" são do mês de referência, que continua escondido em Cadastros (Fase 4) — o cabeçalho da coluna diz o mês; as cores `--s1` a `--s4` do mockup são os tokens `accent`, `out`, `muted` e `dot` (mesmos valores nos dois temas), e a cor de cada sócio não muda quando outro sai
+- [x] Testes: `client` (`test/partnerRoster.test.ts`, `test/invalidation.test.ts`), `desktop` (`test/registry.test.ts`) e ponta a ponta (`e2e/partners.spec.ts`)
+
+### Fase 13.8 — Aportes no lugar das despesas
+
+Entrou depois da Fase 13.7, a pedido: toda despesa de um perfil empresarial é paga com o dinheiro
+da empresa, e o sócio aparece no dinheiro que **entra** — a receita do perfil empresarial e a
+transferência que chega a ele de outro perfil. O relatório por sócio passou a dividir o total de
+aportes de todos os períodos pela participação (§3.6; reports-design §8). **Diverge** do mockup
+`DesktopRelSocio`, desenhado sobre as despesas do mês, por decisão do usuário. A receita de serviço
+fica sem sócio e fora da divisão: é lucro, cuja distribuição pela participação fica para depois.
+
+**Núcleo**
+- [x] `TransactionComposer.assertPartner`: sócio só em aporte — receita de perfil empresarial ou transferência para um perfil empresarial vinda de outro, com o sócio do perfil de destino; o resto recusa com `partner-requires-contribution`. Vale para criar, editar, séries e `transactions.setPartner`
+- [x] Despesa com sócio já gravada: fica como está, não conta como aporte e mantém o sócio na edição enquanto perfil e destino não mudam (decisão do usuário: recusar só o sócio novo, sem limpar o histórico)
+- [x] `PARTNER_ENTRIES_CTE` (receitas e transferências recebidas, pelo efeito no saldo), `ReportRepository.contributionTotalsByPartner` (todos os períodos e o mês) e `buildPartnerReport` sobre os aportes
+- [x] Rota `reports.expensesWithoutPartner` renomeada para `reports.entriesWithoutPartner` (`TransactionRepository.listEntriesWithoutPartner`)
+- [x] Testes: `test/services/reports.partner.test.ts` reescrito sobre os aportes; `test/services/partners.test.ts` com receitas
+
+**Client e desktop**
+- [x] View-model `partnerReport.ts`: indicadores "Total de aportes", "Aportes em <mês>" e "Entradas sem sócio em <mês>"; a linha "Sem sócio atribuído" saiu da tabela, que só divide aportes; lista com a transferência recebida e o total. `partnerRoster.ts`: "Aportou" e "Deveria ter aportado"
+- [x] Formulário de lançamento: campo "Sócio que aportou" (`contributionProfileId`), só na receita de perfil empresarial e na transferência para um perfil empresarial, com os sócios do perfil de destino ("Sócio que aportou em Estúdio GO")
+- [x] Testes: `client` (`test/partnerReport.test.ts`, `test/partnerRoster.test.ts`, `test/invalidation.test.ts`), `desktop` (`test/transactions.test.ts`) e ponta a ponta (`e2e/partnerReport.spec.ts`, com o Pix do perfil pessoal e o sócio escolhido no formulário; `e2e/partners.spec.ts`)
+
 ### Fase 14 — Empacotamento e validação
 
-- [ ] electron-builder: AppImage e deb, ícone, nome, versão a partir do `package.json`; `better-sqlite3` fora do `asar` (`asarUnpack`), porque o `.node` não carrega de dentro do arquivo
-- [ ] Build empacotado abre um banco existente, migra com backup e funciona sem a árvore do repositório
-- [ ] Rodada de uso real: lançar um mês verdadeiro e conferir os dois relatórios contra o extrato do banco e a fatura do cartão
-- [ ] `change-validator` sobre a entrega e atualização do README (Status) e do `desktop-shell-design.md` (próximos passos)
+- [x] electron-builder (`apps/desktop/electron-builder.yml`): `.deb` para Ubuntu (`pnpm dist:linux`) e instalador NSIS para Windows (`pnpm dist:win`; no Linux, exige o Wine), nome "Finanças" e versão (1.0.0) a partir do `package.json`; `better-sqlite3` fora do `asar` (`asarUnpack`), porque o `.node` não carrega de dentro do arquivo, e só com o binário pronto do sistema do instalador. O AppImage saiu do escopo, a pedido: o alvo é o Ubuntu
+  - `dependencies` do desktop ficou só com o `better-sqlite3`, o único módulo que o app carrega do disco; o resto entra no bundle do electron-vite, e o `asar` leva ~4 MB em vez da árvore inteira do renderer
+  - A pasta de dados continua `userData` com o `name` do `package.json` (`~/.config/@finance/desktop`, `%APPDATA%\@finance\desktop`), a mesma do desenvolvimento: o app instalado abre o banco já usado
+  - Achado: o executável fica em `/opt/Finanças`, e o Electron sai sem aviso quando o caminho do próprio executável tem acento e o locale é `C` (só em container; a sessão desktop é UTF-8). O teste do pacote roda com `LANG=C.UTF-8`
+- [ ] Ícone do app (adiado, a pedido)
+- [x] Build empacotado abre um banco existente, migra com backup e funciona sem a árvore do repositório: `pnpm test:packaged` gera o `.deb`, extrai numa pasta temporária fora do repositório e abre um banco parado na penúltima migration, com perfil; confere o backup `pre-v{N-1}`, o `user_version` final, a versão em Ajustes e a reabertura (`e2e/packaged.spec.ts`). O `.exe` não tem teste automatizado: conferir à mão num Windows
+- [X] Rodada de uso real: lançar um mês verdadeiro e conferir os dois relatórios contra o extrato do banco e a fatura do cartão
 
 ---
 
@@ -669,7 +930,7 @@ de mapeamento, o arquivo com coluna de tipo e as `#palavras` como tags.
 
 | Risco | Mitigação |
 |---|---|
-| Recompilar `better-sqlite3` para o Electron quebrar no CI ou no empacotamento | Resolvido na Fase 3.3: o binário N-API do pacote carrega no Electron sem recompilar, e o teste de fumaça cobre. Resta tirar o `.node` do `asar` no empacotamento (Fase 14) |
+| Recompilar `better-sqlite3` para o Electron quebrar no CI ou no empacotamento | Resolvido na Fase 3.3: o binário N-API do pacote carrega no Electron sem recompilar, e o teste de fumaça cobre. Na Fase 14, o `.node` saiu do `asar` e o `pnpm test:packaged` cobre o `.deb` |
 | Regra de período mudar no refinamento dos relatórios | O mês de pagamento é uma expressão SQL única (Fase 2.1); os testes de mesa documentam a regra atual |
 | Exclusão em cadeia apagar mais (ou menos) do que o alerta mostrou | `deletionImpact` e a exclusão usam as mesmas consultas; teste confere que o que foi apagado é exatamente o que foi contado |
 | Invalidação incompleta deixar saldo velho na tela | Mapa de invalidação centralizado e testado (Fase 3.2), não `invalidateQueries` espalhado |
