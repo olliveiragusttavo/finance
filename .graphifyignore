@@ -1,0 +1,7 @@
+# Arquivos que o graphify não deve mapear (sintaxe do .gitignore; o .gitignore já é
+# respeitado). Ficam de fora o que não é código nem regra de negócio e só incharia o
+# grafo: mockups HTML, diagramas, lockfile e a configuração do container.
+docs/design/mockups/
+docs/drawio/
+pnpm-lock.yaml
+.devcontainer/

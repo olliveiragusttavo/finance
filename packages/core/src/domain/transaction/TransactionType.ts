@@ -7,14 +7,41 @@ export const TRANSACTION_TYPES: readonly TransactionType[] = ['income', 'expense
 
 /**
  * Regra de negócio (Transferência): só transferências e investimentos têm conta de
- * destino — são os tipos que movem dinheiro entre duas contas do perfil
- * (database-design §4.13).
+ * destino — são os tipos que movem dinheiro entre duas contas (database-design §4.13). O
+ * investimento fica no perfil; a transferência pode chegar a uma conta de outro perfil
+ * (`TransactionComposer.requireDestination`).
  *
  * @param type Tipo da transação.
  * @return `true` quando o tipo leva dinheiro a uma conta de destino.
  */
 export function movesToDestination(type: TransactionType): boolean {
     return type === 'transference' || type === 'investment';
+}
+
+/**
+ * Regra de negócio (Metas): a meta é um objetivo de guardar um valor, e só receita e
+ * transferência podem ser vinculadas a ela — são os lançamentos que juntam dinheiro
+ * (desktop-mvp-plan Fase 9.3, decisão perguntada). Fica ao lado de `movesToDestination` para
+ * que o formulário mostre o campo "Meta" pela mesma regra que o núcleo aplica.
+ *
+ * @param type Tipo da transação.
+ * @return `true` quando o tipo pode alimentar uma meta.
+ */
+export function feedsGoal(type: TransactionType): boolean {
+    return type === 'income' || type === 'transference';
+}
+
+/**
+ * Regra de negócio (Metas, desktop-mvp-plan Fase 13.3): só a transferência pode **retirar**
+ * dinheiro da meta — tirar da reserva para um imprevisto é mover dinheiro de uma conta para
+ * outra; a receita sempre guarda. Exportada para que o formulário mostre "Guardar/Retirar" pela
+ * mesma regra que o núcleo aplica.
+ *
+ * @param type Tipo da transação.
+ * @return `true` quando o vínculo com a meta pode ser de retirada.
+ */
+export function withdrawsFromGoal(type: TransactionType): boolean {
+    return type === 'transference';
 }
 
 /**

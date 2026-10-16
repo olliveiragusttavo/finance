@@ -1,5 +1,5 @@
 import { LocalDate } from '../../domain/shared/LocalDate.ts';
-import type { YearMonth } from '../../domain/shared/YearMonth.ts';
+import { YearMonth } from '../../domain/shared/YearMonth.ts';
 
 /**
  * Chave ordenável de uma competência (`year * 100 + month`), comparada com a mesma
@@ -26,4 +26,185 @@ export function monthBounds(period: YearMonth): { readonly start: string; readon
         start: LocalDate.of(period.year, period.month, 1).toString(),
         end: LocalDate.of(period.year, period.month, period.lengthInDays()).toString(),
     };
+}
+
+/**
+ * Competência de volta a partir da chave de `periodKey`.
+ *
+ * @param key Chave numérica `year * 100 + month` lida do banco.
+ * @return A competência.
+ * @throws {InvalidValueError} Quando a chave não forma um mês válido.
+ */
+export function periodFromKey(key: number): YearMonth {
+    return YearMonth.of(Math.floor(key / 100), key % 100);
+}
+
+/**
+ * Data de caixa de uma transação em SQL — a mesma regra de `Transaction.cashDate`: a data
+ * de pagamento quando paga, o vencimento enquanto em aberto.
+ * Regra de negócio (Extrato): é esta data que decide o mês do extrato, na origem e no
+ * destino de uma transferência (database-design §4.6). Fica num lugar só porque o
+ * recálculo e a listagem do extrato precisam concordar sobre o mês de cada entrada.
+ *
+ * @param transaction Alias da tabela `transactions`.
+ * @return A expressão da data, texto ISO `YYYY-MM-DD`.
+ */
+export function cashDateSql(transaction: string): string {
+    return `(CASE WHEN ${transaction}.paid = 1 AND ${transaction}.payment_date IS NOT NULL THEN ${transaction}.payment_date ELSE ${transaction}.due_date END)`;
+}
+
+/**
+ * Mês de vencimento de uma fatura, a mesma regra de `BillingCycle.dueDateOf` em SQL: a
+ * fatura vence no mês dela quando o fechamento vem antes do vencimento **depois** do ajuste
+ * de dia inexistente para o último dia do mês; senão, no mês seguinte. Como fechamento e
+ * vencimento são limitados ao mesmo último dia, "fechamento ajustado < vencimento ajustado"
+ * equivale a `closing < due AND closing < último dia`. Um teste confere a equivalência com o
+ * domínio para todos os pares de dias.
+ *
+ * @param invoice Alias da tabela `invoices`.
+ * @param card Alias da tabela `credit_cards`.
+ * @return A expressão da chave do mês de vencimento.
+ */
+export function invoiceDueKeySql(invoice: string, card: string): string {
+    const lastDay = `CAST(strftime('%d', date(printf('%04d-%02d-01', ${invoice}.year, ${invoice}.month), '+1 month', '-1 day')) AS INTEGER)`;
+    const sameMonth = `(${invoice}.year * 100 + ${invoice}.month)`;
+    const nextMonth = `(CASE WHEN ${invoice}.month = 12 THEN (${invoice}.year + 1) * 100 + 1 ELSE ${sameMonth} + 1 END)`;
+    return `(CASE WHEN ${card}.closing_date < ${card}.due_date AND ${card}.closing_date < ${lastDay} THEN ${sameMonth} ELSE ${nextMonth} END)`;
+}
+
+/**
+ * Fonte única do **mês de pagamento** de todos os relatórios — o único lugar a mudar quando a
+ * regra for refinada (desktop-mvp-plan §8).
+ * Regra de negócio (Relatórios — reports-design §2): todo relatório agrupa pelo mês em que o
+ * dinheiro de fato sai ou entra na conta (regime de caixa):
+ *
+ * - transação de conta: mês do **extrato** em que ela está, que é o do `payment_date`
+ *   quando paga e o do `due_date` em aberto (`Transaction.cashDate`) — ler o extrato, e não
+ *   repetir a regra das datas, garante que relatório e extrato concordem por construção;
+ * - compra no cartão com fatura paga: mês do **extrato** em que a fatura foi paga;
+ * - compra no cartão com fatura em aberto: mês do **vencimento** da fatura.
+ *
+ * São duas CTEs encadeadas, e não uma expressão solta, porque o critério da compra no
+ * cartão depende da fatura: `report_invoices` dá o mês de pagamento de cada fatura (o
+ * impacto do cartão lê só ela) e `report_transactions` aplica o critério a cada transação.
+ * Filtram o perfil (`:profileId`), o soft delete de toda tabela envolvida e o arco exclusivo
+ * íntegro, pelos mesmos motivos do `SqliteBalanceLedgerRepository`. Uma fatura cujo extrato
+ * de pagamento foi excluído volta a contar como em aberto, como no saldo.
+ *
+ * Uso: `WITH ${REPORT_SOURCES_CTE} SELECT ... FROM report_transactions rt ...`.
+ */
+export const REPORT_SOURCES_CTE = `
+    report_invoices AS (
+        SELECT i.id, i.credit_card_id, i.year, i.month, i.balance,
+            ps.id IS NOT NULL AS paid,
+            CASE WHEN ps.id IS NOT NULL THEN ps.year * 100 + ps.month ELSE ${invoiceDueKeySql('i', 'c')} END AS payment_key
+        FROM invoices i
+        JOIN credit_cards c ON c.id = i.credit_card_id AND c.deleted_at IS NULL
+        LEFT JOIN bank_statements ps ON ps.id = i.bank_statement_id AND ps.deleted_at IS NULL
+        WHERE i.deleted_at IS NULL AND c.profile_id = :profileId
+    ),
+    report_transactions AS (
+        SELECT t.id, t.type, t.value, t.charges, t.sub_category_id, t.invoice_id, t.destination_account_id, t.partner_id,
+            CASE
+                WHEN t.invoice_id IS NOT NULL THEN ri.payment_key
+                ELSE bs.year * 100 + bs.month
+            END AS payment_key
+        FROM transactions t
+        LEFT JOIN bank_statements bs ON bs.id = t.bank_statement_id AND bs.deleted_at IS NULL
+        LEFT JOIN accounts a ON a.id = bs.account_id AND a.deleted_at IS NULL AND a.profile_id = :profileId
+        LEFT JOIN report_invoices ri ON ri.id = t.invoice_id
+        WHERE t.deleted_at IS NULL
+            AND ((a.id IS NOT NULL AND t.invoice_id IS NULL) OR (ri.id IS NOT NULL AND t.bank_statement_id IS NULL))
+    )
+`;
+
+/**
+ * Transferências que atravessam a fronteira do perfil (`:profileId`), já com o sentido que
+ * têm para ele: `type` é `:income` na que chega de outro perfil e `:expense` na que sai para
+ * outro perfil.
+ * Regra de negócio (Relatórios — transferência entre perfis): dentro do perfil a
+ * transferência soma zero e fica fora (reports-design R2/C3), mas entre perfis o dinheiro de
+ * fato sai de um e entra no outro, então cada perfil a vê como saída ou entrada. Os
+ * encargos são custo da origem (database-design §4.13, Encargos): a saída leva valor e
+ * encargos; a entrada, só o valor.
+ *
+ * A saída vem de `report_transactions`, que já recortou a origem pelo perfil. A entrada não
+ * pode vir de lá — a origem dela é de outro perfil —, então repete o recorte do lado do
+ * destino: extrato e as duas contas vivos. As duas pernas usam o mês do extrato de origem,
+ * que é o da data de caixa (`Transaction.cashDate`), o mesmo em que a transferência entra no
+ * destino; a transferência entre perfis sempre sai de uma conta
+ * (`TransactionComposer.requireDestination`).
+ *
+ * Uso: `WITH ${REPORT_SOURCES_CTE}, ${CROSS_PROFILE_TRANSFERS_CTE} SELECT ... FROM
+ * cross_profile_transfers cpt ...`, com `:transference`, `:income` e `:expense` nos parâmetros.
+ */
+export const CROSS_PROFILE_TRANSFERS_CTE = `
+    cross_profile_transfers AS (
+        SELECT rt.payment_key, :expense AS type, rt.value, rt.charges
+        FROM report_transactions rt
+        JOIN accounts da ON da.id = rt.destination_account_id AND da.deleted_at IS NULL
+        WHERE rt.type = :transference AND rt.invoice_id IS NULL AND da.profile_id <> :profileId
+        UNION ALL
+        SELECT bs.year * 100 + bs.month AS payment_key, :income AS type, t.value, 0 AS charges
+        FROM transactions t
+        JOIN bank_statements bs ON bs.id = t.bank_statement_id AND bs.deleted_at IS NULL
+        JOIN accounts oa ON oa.id = bs.account_id AND oa.deleted_at IS NULL
+        JOIN accounts da ON da.id = t.destination_account_id AND da.deleted_at IS NULL
+        WHERE t.deleted_at IS NULL AND t.type = :transference AND t.invoice_id IS NULL
+            AND da.profile_id = :profileId AND oa.profile_id <> :profileId
+    )
+`;
+
+/**
+ * Entradas de um perfil empresarial (`:profileId`) que podem ser aporte de sócio, com o mês de
+ * pagamento e o efeito no saldo de cada uma.
+ * Regra de negócio (Sócios — aportes, reports-design §8): toda despesa é paga com o dinheiro da
+ * empresa, e o sócio aparece no dinheiro que entra — a **receita** do perfil, pelo que entra na
+ * conta (valor menos encargos, o `originEffect`), e a **transferência que chega de outro perfil**,
+ * pelo valor (os encargos são da origem). A transferência entre contas do próprio perfil não é
+ * entrada: o dinheiro já era da empresa.
+ *
+ * A receita vem de `report_transactions`, que já recortou o perfil e o mês de pagamento. A
+ * transferência é uma linha do perfil de origem e repete o recorte do lado do destino, como a
+ * `CROSS_PROFILE_TRANSFERS_CTE`. O `partner_id` é o da própria transação: na transferência, um
+ * sócio do perfil de destino (`TransactionComposer.assertPartner`).
+ *
+ * Uso: `WITH ${REPORT_SOURCES_CTE}, ${PARTNER_ENTRIES_CTE} SELECT ... FROM partner_entries pe ...`,
+ * com `:income` e `:transference` nos parâmetros.
+ */
+export const PARTNER_ENTRIES_CTE = `
+    partner_entries AS (
+        SELECT rt.id, rt.payment_key, rt.partner_id, rt.value - rt.charges AS amount
+        FROM report_transactions rt
+        WHERE rt.type = :income
+        UNION ALL
+        SELECT t.id, bs.year * 100 + bs.month AS payment_key, t.partner_id, t.value AS amount
+        FROM transactions t
+        JOIN bank_statements bs ON bs.id = t.bank_statement_id AND bs.deleted_at IS NULL
+        JOIN accounts oa ON oa.id = bs.account_id AND oa.deleted_at IS NULL
+        JOIN accounts da ON da.id = t.destination_account_id AND da.deleted_at IS NULL
+        WHERE t.deleted_at IS NULL AND t.type = :transference AND t.invoice_id IS NULL
+            AND da.profile_id = :profileId AND oa.profile_id <> :profileId
+    )
+`;
+
+/**
+ * Placeholders nomeados para uma lista de competências num `IN (...)`. Existe porque a porta
+ * `Database` só aceita parâmetros escalares, e montar o texto com os valores abriria espaço
+ * para SQL montado à mão.
+ *
+ * @param periods Competências da lista; não pode ser vazia.
+ * @param prefix Prefixo dos nomes dos parâmetros, para não colidir com outros da consulta.
+ * @return O trecho `:p0, :p1, ...` e os parâmetros com as chaves de cada competência.
+ * @throws {Error} Quando a lista é vazia — `IN ()` é erro de sintaxe no SQLite.
+ */
+export function periodListSql(periods: readonly YearMonth[], prefix = 'period'): { readonly sql: string; readonly params: Readonly<Record<string, number>> } {
+    if (periods.length === 0) {
+        throw new Error('periodListSql exige ao menos uma competência');
+    }
+    const params: Record<string, number> = {};
+    periods.forEach((period, index) => {
+        params[`${prefix}${index}`] = periodKey(period);
+    });
+    return { sql: Object.keys(params).map((name) => `:${name}`).join(', '), params };
 }

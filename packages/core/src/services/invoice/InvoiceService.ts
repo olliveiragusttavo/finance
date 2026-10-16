@@ -3,6 +3,7 @@ import type { Invoice } from '../../domain/invoice/Invoice.ts';
 import { BusinessRuleViolation, NotFoundError } from '../../domain/shared/errors.ts';
 import type { CreditCardId, InvoiceId } from '../../domain/shared/ids.ts';
 import type { LocalDate } from '../../domain/shared/LocalDate.ts';
+import type { YearMonth } from '../../domain/shared/YearMonth.ts';
 import type { AccountRepository } from '../../repositories/AccountRepository.ts';
 import type { CreditCardRepository } from '../../repositories/CreditCardRepository.ts';
 import type { InvoiceRepository } from '../../repositories/InvoiceRepository.ts';
@@ -12,6 +13,7 @@ import type { BalanceRecalculationService } from '../balance/BalanceRecalculatio
 import type { ImpactCalculator } from '../balance/ImpactCalculator.ts';
 import type { StatementConsolidationService } from '../statement/StatementConsolidationService.ts';
 import type { UnitOfWork } from '../UnitOfWork.ts';
+import { invoiceCycle, type InvoiceCycle } from './InvoiceCycle.ts';
 import type { InvoiceSuggestion, InvoiceView } from './InvoiceViews.ts';
 
 /**
@@ -48,14 +50,21 @@ export class InvoiceService {
      *
      * @param creditCardId Cartão da compra.
      * @param purchaseDate Data da compra.
-     * @return A competência sugerida e a fatura, se já existir.
+     * @return A competência sugerida com o fechamento e o vencimento dela, e a fatura, se já existir.
      * @throws {NotFoundError} Quando o cartão não existe.
      */
     public suggest(creditCardId: CreditCardId, purchaseDate: LocalDate): InvoiceSuggestion {
         return this.unitOfWork.run(() => {
             const creditCard = this.requireCard(creditCardId);
-            const period = creditCard.billingCycle.suggestedInvoicePeriod(purchaseDate);
-            return { creditCard, period, invoice: this.invoices.findByPeriod(creditCardId, period) };
+            const { billingCycle } = creditCard;
+            const period = billingCycle.suggestedInvoicePeriod(purchaseDate);
+            return {
+                creditCard,
+                period,
+                closingDate: billingCycle.closingDateOf(period),
+                dueDate: billingCycle.dueDateOf(period),
+                invoice: this.invoices.findByPeriod(creditCardId, period),
+            };
         });
     }
 
@@ -79,6 +88,29 @@ export class InvoiceService {
     }
 
     /**
+     * A fatura de um mês e as próximas do cartão — "Próximas faturas" (mockup
+     * `DesktopCartoes`). O mês pedido vem sempre, mesmo sem linha, porque a tela mostra a
+     * fatura do mês com fechamento e vencimento ainda que nada tenha caído nela; os meses
+     * seguintes vêm só quando têm fatura (parcelas e compras já lançadas).
+     *
+     * @param creditCardId Cartão consultado.
+     * @param from Mês de referência da tela.
+     * @return A competência pedida e as faturas existentes depois dela, em ordem cronológica.
+     * @throws {NotFoundError} Quando o cartão não existe.
+     */
+    public listByCard(creditCardId: CreditCardId, from: YearMonth): readonly InvoiceCycle[] {
+        return this.unitOfWork.run(() => {
+            const creditCard = this.requireCard(creditCardId);
+            const invoices = this.invoices.listByCard(creditCardId);
+            const later = invoices.filter((invoice) => from.isBefore(invoice.period));
+            return [
+                invoiceCycle(creditCard, from, invoices.find((invoice) => invoice.period.equals(from)) ?? null),
+                ...later.map((invoice) => invoiceCycle(creditCard, invoice.period, invoice)),
+            ];
+        });
+    }
+
+    /**
      * Paga a fatura inteira.
      * Regra de negócio (Fatura): pagar vincula a fatura ao extrato do mês do pagamento da
      * conta que quita o cartão; a fatura sai do previsto do vencimento e entra, no
@@ -97,17 +129,32 @@ export class InvoiceService {
             if (invoice.isPaid()) {
                 throw new BusinessRuleViolation('invoice-already-paid', 'a fatura já está paga; reabra antes de pagar de novo', { invoiceId });
             }
-            const creditCard = this.requireCard(invoice.creditCardId);
-            const account = this.accounts.findById(creditCard.accountId);
-            if (account === null) {
-                throw new NotFoundError('Account', creditCard.accountId);
-            }
-            const statement = this.consolidation.ensureStatement(account, paymentDate.period);
-            const paid = invoice.pay({ statementId: statement.id, period: statement.period });
-            this.invoices.savePayment(paid);
-            this.recalculation.apply(this.impacts.ofInvoice(invoice, creditCard).merge(this.impacts.ofInvoice(paid, creditCard)));
+            this.recalculation.apply(this.markPaid(invoice, this.requireCard(invoice.creditCardId), paymentDate));
             return this.requireInvoice(invoiceId);
         });
+    }
+
+    /**
+     * Paga a fatura sem recalcular, devolvendo o impacto para quem compõe um caso de uso maior.
+     * Existe para a importação, que paga centenas de faturas do histórico (import-design §5.4) e
+     * recalcula tudo uma vez só, no fim — um recálculo por fatura refaria a cadeia de extratos da
+     * conta pagadora a cada uma.
+     *
+     * @param invoice Fatura em aberto a pagar.
+     * @param creditCard Cartão dono da fatura.
+     * @param paymentDate Data do pagamento; decide o extrato que absorve a fatura.
+     * @return O impacto do pagamento (mês do vencimento e mês do pagamento).
+     * @throws {NotFoundError} Quando a conta pagadora não existe.
+     */
+    public markPaid(invoice: Invoice, creditCard: CreditCard, paymentDate: LocalDate): BalanceImpact {
+        const account = this.accounts.findById(creditCard.accountId);
+        if (account === null) {
+            throw new NotFoundError('Account', creditCard.accountId);
+        }
+        const statement = this.consolidation.ensureStatement(account, paymentDate.period);
+        const paid = invoice.pay({ statementId: statement.id, period: statement.period, date: paymentDate });
+        this.invoices.savePayment(paid);
+        return this.impacts.ofInvoice(invoice, creditCard).merge(this.impacts.ofInvoice(paid, creditCard));
     }
 
     /**

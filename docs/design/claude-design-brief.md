@@ -164,13 +164,15 @@ Cada uma destas regras precisa aparecer no mockup de algum jeito.
    perfil.
 8. **Parcelamento.** "Valor total" divide e joga a diferença do arredondamento na
    **primeira** parcela (R$ 1.000,00 em 3x = 333,34 + 333,33 + 333,33). O formulário
-   deve mostrar a prévia das parcelas e em qual fatura/mês cada uma cai. Séries finitas
-   aparecem inteiras logo após a criação; séries fixas sem fim aparecem 12 meses à
-   frente.
+   deve mostrar a prévia das parcelas e em qual fatura/mês cada uma cai. Parcelamentos
+   aparecem inteiros logo após a criação; séries fixas, com ou sem data de fim, aparecem
+   até 12 meses à frente.
 9. **Editar/excluir transação recorrente pergunta o escopo:** **Somente esta** |
-   **Esta e as futuras** | **Todas**. Se o conjunto incluir ocorrências **já pagas**,
-   confirmar dizendo exatamente quantas e quais meses terão o saldo alterado (nada de
-   aviso genérico).
+   **Esta e as futuras** | **Todas**. Toda criação, edição e exclusão de uma série é
+   confirmada num diálogo de revisão que diz exatamente quais ocorrências serão
+   excluídas, criadas e alteradas, quais estão **pagas** e quais meses terão o saldo
+   alterado (nada de aviso genérico). Regras completas em
+   [database-design.md §4.12](../plans/database-design.md#412-recurrences).
 10. **Histórico é editável.** Editar um mês passado recalcula aquele mês e todos os
     seguintes da conta.
 11. **Cartão com fechamento em dia inexistente** (ex.: 31) fecha no último dia do mês.
@@ -257,7 +259,6 @@ A lista definitiva de relatórios do desktop ainda é um passo pendente do proje
 | **Convite expirado / 3 tentativas erradas** | Pareamento | Gerar novo convite. |
 | **Rede bloqueia descoberta** | Pareamento | Opção de digitar o endereço local do outro aparelho. |
 | **Conta revivida pela sincronização** | Aviso | "A conta X tinha sido excluída em outro aparelho, mas recebeu lançamentos aqui; ela foi restaurada." |
-| **Ocorrência desvinculada da recorrência** | Aviso | Conflito raro de sincronização; as duas transações foram mantidas. |
 | **Operação longa** | Tela cheia | Barra/animação de progresso para: atualização do banco (migration), recebimento dos dados no pareamento, primeira sincronização, importação de histórico, exportação. |
 | **Erro na atualização do banco** | Tela cheia | Modo de erro com opção de restaurar o backup automático. |
 | **Banco mais novo que o app** | Tela cheia | Bloqueio: "Atualize o app para abrir estes dados." |

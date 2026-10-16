@@ -8,6 +8,7 @@ export type ErrorCode =
     | 'VALIDATION_FAILED'
     | 'NOT_FOUND'
     | 'BUSINESS_RULE_VIOLATION'
+    | 'CONFLICT'
     | 'SCHEMA_NEWER_THAN_APP'
     | 'INTERNAL';
 
@@ -72,6 +73,45 @@ export class NotFoundError extends DomainError {
 }
 
 /**
+ * Conjunto fechado das regras que o núcleo recusa com `BUSINESS_RULE_VIOLATION`. É fechado
+ * pelo mesmo motivo do `ErrorCode`: a UI escolhe a mensagem de cada regra num mapa
+ * exaustivo, e uma regra nova precisa quebrar a compilação do `client` em vez de cair na
+ * mensagem genérica sem ninguém perceber.
+ */
+export type BusinessRule =
+    | 'account-disabled'
+    | 'account-type-funds-goal'
+    | 'credit-card-disabled'
+    | 'cross-profile-transfer-currency-mismatch'
+    | 'cross-profile-transfer-requires-account'
+    | 'destination-equals-origin'
+    | 'destination-not-allowed'
+    | 'destination-required'
+    | 'goal-account-not-investment'
+    | 'goal-archived'
+    | 'goal-funded-by-account'
+    | 'goal-requires-saving-type'
+    | 'goal-withdrawal-requires-transfer'
+    | 'invoice-already-paid'
+    | 'invoice-not-paid'
+    | 'move-target-deleted'
+    | 'partner-requires-business-profile'
+    | 'partner-requires-contribution'
+    | 'partner-shares-not-100'
+    | 'profile-currency-locked'
+    | 'recurrence-change-requires-scope'
+    | 'recurrence-daily-date-single-only'
+    | 'recurrence-end-before-occurrence'
+    | 'recurrence-end-before-start'
+    | 'recurrence-installments-below-occurrence'
+    | 'recurrence-move-requires-all'
+    | 'recurrence-scope-requires-series'
+    | 'reference-outside-profile'
+    | 'sub-category-in-use'
+    | 'transaction-move-currency-mismatch'
+    | 'transaction-type-locked';
+
+/**
  * Uma regra de negócio que relaciona colunas ou linhas foi violada — o tipo de regra que
  * o banco deliberadamente não garante (database-design §3.10) e que, por isso, precisa de
  * um único ponto de controle na camada Service.
@@ -80,13 +120,32 @@ export class BusinessRuleViolation extends DomainError {
     public readonly code = 'BUSINESS_RULE_VIOLATION';
 
     /**
-     * @param rule Identificador estável da regra violada (ex.: `transfer-destination-required`);
-     * é o que a UI usa para escolher a mensagem, por isso não muda com o texto.
+     * @param rule Identificador estável da regra violada (ex.: `destination-required`); é o
+     * que a UI usa para escolher a mensagem, por isso não muda com o texto.
      * @param message Descrição técnica da violação, para log.
      * @param details Dados extras da violação para a UI detalhar a mensagem.
      */
-    public constructor(rule: string, message: string, details: ErrorDetails = {}) {
+    public constructor(rule: BusinessRule, message: string, details: ErrorDetails = {}) {
         super(message, { rule, ...details });
+    }
+}
+
+/**
+ * O nome escolhido já está em uso por outro cadastro vivo do mesmo escopo (categoria no
+ * perfil, subcategoria na categoria). Tem código próprio, e não `BUSINESS_RULE_VIOLATION`,
+ * porque a UI trata de um jeito específico — aponta o campo do nome e sugere outro —, e
+ * porque sem esta checagem o usuário receberia o `SQLITE_CONSTRAINT` do índice único como
+ * erro genérico (database-design §3.11).
+ */
+export class NameConflictError extends DomainError {
+    public readonly code = 'CONFLICT';
+
+    /**
+     * @param entity Cadastro em que o nome colidiu; diz à UI qual mensagem mostrar.
+     * @param name Nome recusado, como o usuário digitou, para a mensagem citar.
+     */
+    public constructor(entity: string, name: string) {
+        super(`Já existe ${entity} com o nome "${name}"`, { entity, field: 'name', name });
     }
 }
 

@@ -86,6 +86,59 @@ export class LocalDate {
     }
 
     /**
+     * Dias desde 1970-01-01 no calendário gregoriano proleptico, sem `Date`: um `Date` montado no
+     * fuso do aparelho muda o dia perto da meia-noite (backend-design §5.7). Algoritmo
+     * `days_from_civil` de Howard Hinnant, só aritmética inteira.
+     *
+     * @return O número do dia.
+     */
+    public toEpochDay(): number {
+        const year = this.period.month <= 2 ? this.period.year - 1 : this.period.year;
+        const era = Math.floor(year / 400);
+        const yearOfEra = year - era * 400;
+        const shiftedMonth = (this.period.month + 9) % 12;
+        const dayOfYear = Math.floor((153 * shiftedMonth + 2) / 5) + this.day - 1;
+        const dayOfEra = yearOfEra * 365 + Math.floor(yearOfEra / 4) - Math.floor(yearOfEra / 100) + dayOfYear;
+        return era * 146097 + dayOfEra - 719468;
+    }
+
+    /**
+     * Inverso de `toEpochDay` (`civil_from_days`).
+     *
+     * @param epochDay Dias desde 1970-01-01.
+     * @return A data.
+     * @throws {InvalidValueError} Quando o ano sai da faixa aceita.
+     */
+    public static ofEpochDay(epochDay: number): LocalDate {
+        const shifted = epochDay + 719468;
+        const era = Math.floor(shifted / 146097);
+        const dayOfEra = shifted - era * 146097;
+        const yearOfEra = Math.floor((dayOfEra - Math.floor(dayOfEra / 1460) + Math.floor(dayOfEra / 36524) - Math.floor(dayOfEra / 146096)) / 365);
+        const dayOfYear = dayOfEra - (365 * yearOfEra + Math.floor(yearOfEra / 4) - Math.floor(yearOfEra / 100));
+        const shiftedMonth = Math.floor((5 * dayOfYear + 2) / 153);
+        const day = dayOfYear - Math.floor((153 * shiftedMonth + 2) / 5) + 1;
+        const month = shiftedMonth < 10 ? shiftedMonth + 3 : shiftedMonth - 9;
+        return LocalDate.of(yearOfEra + era * 400 + (month <= 2 ? 1 : 0), month, day);
+    }
+
+    /**
+     * @param days Dias a andar; negativo volta.
+     * @return A data deslocada.
+     */
+    public plusDays(days: number): LocalDate {
+        return LocalDate.ofEpochDay(this.toEpochDay() + days);
+    }
+
+    /**
+     * @return O dia da semana ISO: 1 = segunda … 7 = domingo. A semana começa na segunda, como
+     * no calendário brasileiro de trabalho e na ISO 8601.
+     */
+    public dayOfWeek(): number {
+        // 1970-01-01 foi uma quinta-feira (4).
+        return ((this.toEpochDay() + 3) % 7 + 7) % 7 + 1;
+    }
+
+    /**
      * @return A data no formato `YYYY-MM-DD`, que ordena corretamente como texto e é a
      * forma persistida.
      */

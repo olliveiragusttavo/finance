@@ -14,7 +14,7 @@ import type { UnitOfWork } from '../UnitOfWork.ts';
 import type { BalanceImpact } from './BalanceImpact.ts';
 
 /** Primeira competência que o schema aceita; recalcular dela em diante é recalcular tudo. */
-const BEGINNING_OF_TIME = YearMonth.of(1900, 1);
+export const BEGINNING_OF_TIME = YearMonth.of(1900, 1);
 
 /**
  * A rotina de recálculo de saldos — **uma** rotina, chamada pelo lançamento, pelo

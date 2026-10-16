@@ -22,7 +22,8 @@ export class ImpactCalculator {
 
     /**
      * @param transaction Estado da transação (antes ou depois da escrita).
-     * @return O contêiner de origem e, se houver, a conta de destino no mês do `due_date`.
+     * @return O contêiner de origem e, se houver, a conta de destino no mês da data de caixa
+     * (`Transaction.cashDate`).
      */
     public ofTransaction(transaction: Transaction): BalanceImpact {
         let impact = BalanceImpact.none();
@@ -36,7 +37,7 @@ export class ImpactCalculator {
                 : this.ofInvoice(invoice, creditCard);
         }
         if (transaction.destinationAccountId !== null) {
-            impact = impact.withAccount(transaction.destinationAccountId, transaction.dueDate.period);
+            impact = impact.withAccount(transaction.destinationAccountId, transaction.cashDate().period);
         }
         return impact;
     }

@@ -53,6 +53,28 @@ export class YearMonth {
     }
 
     /**
+     * Anda um número qualquer de meses, para frente ou para trás. Existe para o calendário das
+     * recorrências, que calcula a ocorrência *n* direto a partir da de referência em vez de
+     * avançar mês a mês — o que acumularia o "último dia do mês" de um mês curto.
+     *
+     * @param months Meses a andar; negativo volta.
+     * @return A competência deslocada.
+     * @throws {InvalidValueError} Quando o resultado sai da faixa de anos aceita.
+     */
+    public plusMonths(months: number): YearMonth {
+        const index = this.year * 12 + (this.month - 1) + months;
+        return YearMonth.of(Math.floor(index / 12), (index % 12 + 12) % 12 + 1);
+    }
+
+    /**
+     * @param other Outra competência.
+     * @return Quantos meses `other` está depois desta; negativo quando está antes.
+     */
+    public monthsUntil(other: YearMonth): number {
+        return (other.year * 12 + other.month) - (this.year * 12 + this.month);
+    }
+
+    /**
      * @return A competência anterior, voltando o ano em janeiro.
      */
     public previous(): YearMonth {

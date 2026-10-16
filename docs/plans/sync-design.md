@@ -214,7 +214,7 @@ por qualquer escrita sincronizada posterior na mesma célula. Aceito e documenta
 | Coluna | Regra |
 |---|---|
 | `accounts.balance`, `accounts.projected_balance`, `bank_statements.opening_balance`, `closing_balance`, `projected_opening_balance`, `projected_closing_balance`, `invoices.balance` | **Não sincronizadas.** Caches derivados ([database-design.md §3.7](database-design.md#37-dinheiro)); uma linha recebida é gravada com `0` e recalculada após a aplicação ([§5.9](#59-após-a-aplicação)). Mesclar dois caches seria mesclar duas respostas em vez dos fatos por trás delas. |
-| `recurrences.materialized_through` | **Sincronizada, mesclada como máximo**, e não por last-writer-wins. A marca d'água só avança; ficar com a maior das duas nunca pode reemitir uma ocorrência. |
+| `recurrences.materialized_count` | **Sincronizada, mesclada como máximo**, e não por last-writer-wins. A marca d'água só avança; ficar com a maior das duas nunca pode reemitir uma ocorrência. (Era `materialized_through`, uma data, até a migration `0004` — database-design §4.12.) |
 
 Todo o resto — `created_at`, `updated_at` e `accounts.opening_balance`, que é dado do
 usuário e não cache, incluídos — sincroniza como uma célula comum.
@@ -239,7 +239,8 @@ colidindo.
 |---|---|
 | `bank_statements` | `account_id`, `year`, `month` |
 | `invoices` | `credit_card_id`, `year`, `month` |
-| `transactions` emitidas por uma recorrência | `recurrence_id`, `due_date` **como gerado** |
+| `transactions` emitidas por uma recorrência | `recurrence_id`, número da ocorrência (`occurrence`) |
+| `recurrences_tags` | `recurrence_id`, `tag_id` |
 | `transactions_tags` | `transaction_id`, `tag_id` |
 | Dados padrão semeados no primeiro uso (categorias, subcategorias) | `profile_id`, uma chave de semente estável |
 
@@ -252,10 +253,20 @@ Consequências:
 - **Recriar uma linha com soft delete significa revivê-la.** Recriar o extrato de março
   deriva o id antigo, então a Service limpa `deleted_at` na linha existente em vez de
   inserir.
-- O id de uma ocorrência vem da data de vencimento com que ela foi **gerada**. Mover essa
-  ocorrência para outra data depois não muda sua identidade — um id nunca é recalculado.
+- O id de uma ocorrência vem do **número** dela na série, e não da data: a data de uma
+  série muda ("esta e as futuras" troca o dia âncora — database-design §4.12), e dois
+  dispositivos, um trocando o dia e o outro completando a série offline, gerariam a mesma
+  ocorrência com datas diferentes. Mover uma ocorrência para outra data não muda sua
+  identidade — um id nunca é recalculado. (A chave era a data como gerada até a Fase 9.1
+  do desktop-mvp-plan, antes de existir qualquer ocorrência gravada.)
 - Dois dispositivos rodando o top-up de recorrências offline agora emitem as **mesmas**
   ocorrências com os mesmos ids; elas são mescladas em vez de colidir.
+- **Pendência — série encerrada por mudança de periodicidade ou de tipo.** Essa mudança
+  encerra a regra e cria outra, com id aleatório (database-design §4.12). Um dispositivo
+  que completou a regra antiga offline traz, ao sincronizar, ocorrências dela além do novo
+  término, que ficam vivas em duplicidade com as da regra nova. A correção prevista é a
+  mesclagem da regra excluir as ocorrências vivas com número além do término; fica para a
+  implementação da sincronização (desktop-mvp-plan Fase 9.2).
 - **Esta regra é barata agora e cara depois.** Uma vez que existam linhas com ids
   aleatórios — especialmente após a importação do histórico —, adotá-la significa
   reescrever ids e toda chave estrangeira que aponta para eles. Ela vale desde a primeira
@@ -275,11 +286,13 @@ aponta para ela é redirecionado para a sobrevivente. Como o "menor id" é decid
 pelos ids, todo dispositivo chega à mesma sobrevivente por conta própria, e suas
 correções convergem. Renomeações que colidem são resolvidas da mesma forma.
 
-A mesma regra cobre o único caso residual para transações: duas ocorrências vivas da
-mesma recorrência na mesma data de vencimento, alcançável apenas movendo ocorrências
-concorrentemente uma sobre a outra. Nesse caso, mesclar perderia dados financeiros,
-então a ocorrência perdedora é, em vez disso, **desvinculada** da sua recorrência
-(`recurrence_id = NULL`) — as duas transações sobrevivem — e o usuário é notificado.
+Transações não têm caso residual. Duas ocorrências vivas da mesma recorrência na mesma
+data de vencimento são permitidas desde a migration `0004`, que removeu o índice único por
+`(recurrence_id, due_date)` (database-design §4.12), e a unicidade que ficou —
+`(recurrence_id, occurrence)` — nunca colide entre aparelhos, porque a mesma chave deriva
+o mesmo id ([§5.6](#56-linhas-identificadas-pelo-conteúdo-recebem-ids-determinísticos)) e as
+duas versões são mescladas numa linha só. (Até a `0004`, a colisão pela data era resolvida
+**desvinculando** a ocorrência perdedora da sua recorrência; esse caso deixou de existir.)
 
 ### 5.8 Filhos vivos sob pais excluídos
 
@@ -545,13 +558,16 @@ Reunidas em um só lugar:
 1. ~~Escolher a biblioteca do canal e a implementação de PAKE.~~ Decidido: Noise KK
    sobre `@noble`, com CPace no código digitado
    ([mobile-shell-design.md §5.1](mobile-shell-design.md#51-protocolo-e-criptografia-ficam-no-núcleo)).
-2. **Fixar o namespace do UUID v5** — uma constante, gerada uma vez, commitada, nunca
-   alterada.
+2. ~~**Fixar o namespace do UUID v5**~~ — feito: `APP_UUID_NAMESPACE`, em
+   `packages/core/src/domain/shared/DeterministicIds.ts`, gerado uma vez e nunca alterado.
 3. **Escrever a migration de sincronização** (`sync_rows`, `sync_cells`, `sync_members`,
    `sync_vector`, `sync_state`) quando a sincronização for implementada, e adicionar as
    tabelas ao diagrama.
 4. **Testes de convergência antes de existir qualquer transporte:** operações aleatórias
    em várias réplicas em memória, trocadas em ordens e partições aleatórias, precisam
    terminar idênticas byte a byte em todas as tabelas de domínio; além de testes
-   direcionados para divergência de relógio, colisões de nomes, filhos órfãos, colisões
-   de ocorrências e uma linha com soft delete que precisa continuar excluída.
+   direcionados para divergência de relógio, colisões de nomes, filhos órfãos, a mesma
+   ocorrência de recorrência gerada em dois aparelhos (inclusive com o dia da série
+   trocado em um deles), a série recomeçada com a regra antiga completada offline
+   ([§5.6](#56-linhas-identificadas-pelo-conteúdo-recebem-ids-determinísticos)) e uma linha
+   com soft delete que precisa continuar excluída.

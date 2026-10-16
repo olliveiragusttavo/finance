@@ -28,9 +28,10 @@ export interface StatementRow {
  * metade dos bugs previstos mora no SQL — o `deleted_at IS NULL` esquecido, o `SUM` no
  * contêiner errado — e um mock os esconderia (backend-design §5.4).
  *
- * Os cadastros que ainda não têm Service (perfil, conta, cartão, categoria) são semeados
- * por SQL direto; as leituras de conferência também vão direto às tabelas, para que a
- * asserção não dependa do código que está sendo testado.
+ * Os cadastros (perfil, conta, cartão, categoria) são semeados por SQL direto mesmo tendo
+ * Service, para que um teste de saldo não falhe por causa de um defeito no cadastro — os
+ * testes dos cadastros usam as rotas. As leituras de conferência também vão direto às
+ * tabelas, para que a asserção não dependa do código que está sendo testado.
  */
 export class TestWorld {
     public readonly clock: FixedClock;
@@ -47,7 +48,7 @@ export class TestWorld {
         this.clock = new FixedClock(today);
         this.currency = currency;
         this.database = BetterSqliteDatabase.open(':memory:');
-        openDatabase(this.database);
+        openDatabase(this.database, { backups: null, clock: this.clock });
         this.core = createCore({
             database: this.database,
             clock: this.clock,
@@ -132,14 +133,79 @@ export class TestWorld {
     }
 
     /**
+     * Subcategoria com nomes escolhidos, reaproveitando a categoria quando já existe uma com
+     * o mesmo nome no perfil. Existe para os testes de relatório, que conferem a árvore
+     * categoria → subcategoria pelos nomes que um humano leria na tela.
+     *
+     * @param profileId Perfil dono.
+     * @param categoryName Nome da categoria; criada na primeira vez.
+     * @param subCategoryName Nome da subcategoria nova.
+     * @return Os ids da categoria e da subcategoria.
+     */
+    public namedSubCategory(profileId: string, categoryName: string, subCategoryName: string): { readonly categoryId: string; readonly subCategoryId: string } {
+        const now = this.clock.now();
+        const existing = this.database.get(
+            'SELECT id FROM transaction_categories WHERE profile_id = :profileId AND name = :name AND deleted_at IS NULL',
+            { profileId, name: categoryName },
+        )?.['id'];
+        const categoryId = typeof existing === 'string' ? existing : this.ids.random();
+        if (typeof existing !== 'string') {
+            this.database.run(
+                'INSERT INTO transaction_categories (id, profile_id, name, updated_at) VALUES (:id, :profileId, :name, :now)',
+                { id: categoryId, profileId, name: categoryName, now },
+            );
+        }
+        const subCategoryId = this.ids.random();
+        this.database.run(
+            'INSERT INTO transaction_sub_categories (id, category_id, name, updated_at) VALUES (:id, :categoryId, :name, :now)',
+            { id: subCategoryId, categoryId, name: subCategoryName, now },
+        );
+        return { categoryId, subCategoryId };
+    }
+
+    /**
+     * @param creditCardId Cartão.
+     * @param period Competência `YYYY-MM`.
+     * @return O id da fatura viva do mês.
+     * @throws {Error} Quando o mês ainda não tem fatura — o teste montou o cenário errado.
+     */
+    public invoiceId(creditCardId: string, period: string): string {
+        const [year, month] = period.split('-').map(Number);
+        const id = this.database.get(
+            'SELECT id FROM invoices WHERE credit_card_id = :creditCardId AND year = :year AND month = :month AND deleted_at IS NULL',
+            { creditCardId, year: year ?? 0, month: month ?? 0 },
+        )?.['id'];
+        if (typeof id !== 'string') {
+            throw new Error(`o cartão ${creditCardId} não tem fatura em ${period}`);
+        }
+        return id;
+    }
+
+    /**
+     * Paga a fatura de um mês pela rota real, para que os relatórios leiam o vínculo com o
+     * extrato gravado pelo código de produção.
+     *
+     * @param creditCardId Cartão.
+     * @param period Competência da fatura, `YYYY-MM`.
+     * @param paymentDate Data do pagamento; decide o extrato (e o mês) em que a fatura pesa.
+     * @return A fatura paga.
+     */
+    public async payInvoice(creditCardId: string, period: string, paymentDate: string): Promise<CoreOutput<'invoices.pay'>> {
+        return this.ok('invoices.pay', { invoiceId: this.invoiceId(creditCardId, period), paymentDate });
+    }
+
+    /**
+     * Semeia o sócio direto no banco: o cadastro de sócios ainda não tem rota.
+     *
      * @param profileId Perfil empresarial dono.
+     * @param options Nome e participação (0 a 100); sem eles, "Sócio" com 100%.
      * @return O id do sócio semeado.
      */
-    public partner(profileId: string): string {
+    public partner(profileId: string, options: { readonly name?: string; readonly percentage?: number } = {}): string {
         const id = this.ids.random();
         this.database.run(
-            "INSERT INTO partners (id, profile_id, name, percentage, updated_at) VALUES (:id, :profileId, 'Sócio', 100, :now)",
-            { id, profileId, now: this.clock.now() },
+            'INSERT INTO partners (id, profile_id, name, percentage, updated_at) VALUES (:id, :profileId, :name, :percentage, :now)',
+            { id, profileId, name: options.name ?? 'Sócio', percentage: options.percentage ?? 100, now: this.clock.now() },
         );
         return id;
     }
@@ -172,6 +238,37 @@ export class TestWorld {
             throw new Error(`${route} deveria falhar, mas devolveu ${JSON.stringify(result.data)}`);
         }
         return result.error;
+    }
+
+    /**
+     * Monta a edição de uma transação sem mudança nenhuma, para o teste sobrepor só o que quer
+     * mudar ou recusar — a edição exige todos os campos explícitos (`updateTransactionRequest`).
+     *
+     * @param id Transação como está gravada.
+     * @return A entrada completa de `transactions.update`.
+     */
+    public async editInput(id: string): Promise<CoreInput<'transactions.update'>> {
+        const fresh = await this.ok('transactions.get', { id });
+        const { container } = fresh;
+        return {
+            id: fresh.id,
+            type: fresh.type,
+            source: container.kind === 'statement' ? { kind: 'account', accountId: container.accountId } : { kind: 'creditCard', creditCardId: container.creditCardId, invoicePeriod: container.period },
+            subCategoryId: fresh.subCategoryId,
+            destinationAccountId: fresh.destinationAccountId,
+            partnerId: fresh.partnerId,
+            goalId: fresh.goalId,
+            goalWithdrawal: fresh.goalWithdrawal,
+            name: fresh.name,
+            description: fresh.description,
+            value: fresh.value.amount,
+            charges: fresh.charges.amount,
+            originCurrency: fresh.originCurrency,
+            conversionRate: fresh.conversionRate,
+            dueDate: fresh.dueDate,
+            paymentDate: fresh.paymentDate,
+            tagIds: [...fresh.tagIds],
+        };
     }
 
     /**
@@ -223,12 +320,72 @@ export class TestWorld {
             destinationAccountId: null,
             partnerId: null,
             goalId: null,
+            goalWithdrawal: false,
             originCurrency: null,
             conversionRate: 1,
             dueDate: '2026-03-10',
             paymentDate: null,
+            tagIds: [],
             ...overrides,
         });
+    }
+
+    /**
+     * Edita uma transação partindo do que ela é hoje, para que o teste diga só o que muda — os
+     * escopos de série aplicam às outras ocorrências justamente o que mudou.
+     *
+     * @param transaction Transação como o núcleo a devolveu.
+     * @param overrides Campos que mudam, o escopo e a série.
+     * @return A transação editada.
+     */
+    public async edit(transaction: CoreOutput<'transactions.get'>, overrides: Partial<UpdateInput>): Promise<CoreOutput<'transactions.update'>> {
+        return this.ok('transactions.update', TestWorld.editInput(transaction, overrides));
+    }
+
+    /**
+     * Edição que deve ser recusada, montada como em `edit`, para que o teste de uma regra diga
+     * só o campo que a viola em vez de repetir a transação inteira.
+     *
+     * @param transaction Transação como o núcleo a devolveu.
+     * @param overrides Campos que mudam, o escopo e a série.
+     * @return O erro devolvido.
+     */
+    public async editFailure(transaction: CoreOutput<'transactions.get'>, overrides: Partial<UpdateInput>): Promise<CoreError> {
+        return this.failure('transactions.update', TestWorld.editInput(transaction, overrides));
+    }
+
+    /**
+     * Entrada completa da edição a partir da transação como está, compartilhada por `edit` e
+     * `editFailure` para que as duas montem a mesma chamada.
+     *
+     * @param transaction Transação como o núcleo a devolveu.
+     * @param overrides Campos que mudam, o escopo e a série.
+     * @return A entrada de `transactions.update`.
+     */
+    private static editInput(transaction: CoreOutput<'transactions.get'>, overrides: Partial<UpdateInput>): UpdateInput {
+        const { container } = transaction;
+        return {
+            id: transaction.id,
+            type: transaction.type,
+            source: container.kind === 'statement'
+                ? { kind: 'account', accountId: container.accountId }
+                : { kind: 'creditCard', creditCardId: container.creditCardId, invoicePeriod: container.period },
+            subCategoryId: transaction.subCategoryId,
+            destinationAccountId: transaction.destinationAccountId,
+            partnerId: transaction.partnerId,
+            goalId: transaction.goalId,
+            goalWithdrawal: transaction.goalWithdrawal,
+            name: transaction.name,
+            description: transaction.description,
+            value: transaction.value.amount,
+            charges: transaction.charges.amount,
+            originCurrency: transaction.originCurrency,
+            conversionRate: transaction.conversionRate,
+            dueDate: transaction.dueDate,
+            paymentDate: transaction.paymentDate,
+            tagIds: [...transaction.tagIds],
+            ...overrides,
+        };
     }
 
     /**

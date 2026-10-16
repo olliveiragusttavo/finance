@@ -1,7 +1,29 @@
 import type { AccountType } from '../../domain/account/Account.ts';
 import type { ProfileType } from '../../domain/profile/Profile.ts';
+import type { InstallmentValueType, RecurrenceTerms } from '../../domain/recurrence/Recurrence.ts';
+import type { RecurrenceFrequency } from '../../domain/recurrence/RecurrenceSchedule.ts';
 import { CorruptRowError } from '../../domain/shared/errors.ts';
 import type { TransactionType } from '../../domain/transaction/TransactionType.ts';
+
+/** `recurrences.type` (database-design §4.12). */
+export const RECURRENCE_KIND_CODE: Readonly<Record<RecurrenceTerms['kind'], number>> = {
+    installments: 1,
+    fixed: 2,
+};
+
+/** `recurrences.recurrence` — o intervalo entre ocorrências. */
+export const RECURRENCE_FREQUENCY_CODE: Readonly<Record<RecurrenceFrequency, number>> = {
+    daily: 1,
+    weekly: 2,
+    monthly: 3,
+    yearly: 4,
+};
+
+/** `recurrences.value_type` — só nas parceladas. */
+export const INSTALLMENT_VALUE_TYPE_CODE: Readonly<Record<InstallmentValueType, number>> = {
+    total: 1,
+    perInstallment: 2,
+};
 
 /**
  * Códigos inteiros dos enums no schema (database-design §3.9). O domínio usa literais de

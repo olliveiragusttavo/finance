@@ -1,7 +1,15 @@
-import type { AccountId, BankStatementId, InvoiceId, ProfileId, RecurrenceId, TransactionId } from '../domain/shared/ids.ts';
+import type { CategoryScope } from '../domain/report/CategoryScope.ts';
+import type { AccountId, BankStatementId, GoalId, InvoiceId, ProfileId, RecurrenceId, TagId, TransactionId } from '../domain/shared/ids.ts';
 import type { LocalDate } from '../domain/shared/LocalDate.ts';
 import type { YearMonth } from '../domain/shared/YearMonth.ts';
 import type { Transaction } from '../domain/transaction/Transaction.ts';
+import type { Timestamp } from '../ports/Clock.ts';
+
+/** Quando a linha foi criada e quando foi escrita pela última vez, em UTC. */
+export interface RowStamps {
+    readonly createdAt: Timestamp;
+    readonly updatedAt: Timestamp;
+}
 
 /** Acesso às transações. Toda leitura considera só transações vivas. */
 export interface TransactionRepository {
@@ -34,12 +42,28 @@ export interface TransactionRepository {
     softDelete(id: TransactionId): void;
 
     /**
-     * @param recurrenceId Recorrência da série.
-     * @param dueDate Data de vencimento procurada.
-     * @param excluding Transação a desconsiderar — a própria ocorrência sendo editada.
-     * @return `true` quando outra ocorrência viva da série já vence nessa data.
+     * Carimbos das ocorrências, à parte da entidade porque só o diálogo de revisão os usa: dizer
+     * quais ocorrências foram editadas à mão depois de criadas (database-design §4.12).
+     *
+     * @param recurrenceId Série consultada.
+     * @return Os carimbos de cada ocorrência viva da série, por id.
      */
-    hasOccurrenceOn(recurrenceId: RecurrenceId, dueDate: LocalDate, excluding: TransactionId): boolean;
+    listOccurrenceStamps(recurrenceId: RecurrenceId): ReadonlyMap<TransactionId, RowStamps>;
+
+    /**
+     * @param recurrenceId Série consultada.
+     * @return As ocorrências vivas da série, por data de vencimento e número — os escopos
+     * "esta e as futuras" e "todas" são recortes desta lista (database-design §4.12).
+     */
+    listOccurrences(recurrenceId: RecurrenceId): readonly Transaction[];
+
+    /**
+     * Transações de uma meta numa leitura só, para a tabela do detalhe não buscar uma por uma.
+     *
+     * @param goalId Meta consultada.
+     * @return As transações vivas vinculadas à meta, pagas ou não, em qualquer ordem.
+     */
+    listByGoal(goalId: GoalId): readonly Transaction[];
 
     /**
      * @param statementId Extrato de origem.
@@ -55,16 +79,53 @@ export interface TransactionRepository {
 
     /**
      * @param accountId Conta de destino.
-     * @param period Mês do `due_date`.
+     * @param period Mês da data de caixa — pagamento, ou vencimento em aberto.
      * @return As transferências e investimentos vivos que chegam à conta naquele mês.
      */
     listIncoming(accountId: AccountId, period: YearMonth): readonly Transaction[];
 
     /**
-     * @param profileId Perfil dono.
+     * @param profileId Perfil consultado.
      * @param from Primeira data incluída.
      * @param to Última data incluída.
-     * @return As transações vivas do perfil com `due_date` no intervalo, por data.
+     * @return As transações vivas do perfil com `due_date` no intervalo, por data, mais as
+     * transferências de outros perfis que chegam a uma conta dele (com o `profileId` da origem).
      */
     listByProfileBetween(profileId: ProfileId, from: LocalDate, to: LocalDate): readonly Transaction[];
+
+    /**
+     * Lista do drill-down do relatório por categoria. Não reaproveita o
+     * `listByProfileBetween`, que filtra por `due_date`: a lista precisa somar exatamente o
+     * valor da linha do relatório, então usa o mesmo mês de pagamento (reports-design §2).
+     *
+     * @param profileId Perfil dono.
+     * @param period Mês de pagamento.
+     * @param scope Categoria inteira ou uma subcategoria.
+     * @return As despesas vivas do escopo que pesam no mês, por data.
+     */
+    listExpensesByPaymentPeriod(profileId: ProfileId, period: YearMonth, scope: CategoryScope): readonly Transaction[];
+
+    /**
+     * Lista de lançamentos do relatório por tag, com o mesmo mês de pagamento e os mesmos tipos
+     * das somas da tag (`ReportRepository.tagTotalsByCategory`), para que a lista some o total
+     * (desktop-mvp-plan §3.5, T5).
+     *
+     * @param profileId Perfil dono.
+     * @param tagId Tag consultada.
+     * @param period Mês de pagamento; `null` para todos, futuros incluídos.
+     * @return As receitas e despesas vivas com a tag, por data.
+     */
+    listIncomeAndExpensesByTag(profileId: ProfileId, tagId: TagId, period: YearMonth | null): readonly Transaction[];
+
+    /**
+     * Lista "Entradas sem sócio" do relatório por sócio, com o mesmo mês de pagamento e o mesmo
+     * critério de "sem sócio" das somas (`ReportRepository.contributionTotalsByPartner`), para que
+     * a lista some o valor do indicador.
+     *
+     * @param profileId Perfil empresarial.
+     * @param period Mês de pagamento.
+     * @return As receitas do perfil e as transferências que chegam a ele de outro perfil, vivas,
+     * do mês e sem sócio vivo do perfil, por data. As transferências são linhas do perfil de origem.
+     */
+    listEntriesWithoutPartner(profileId: ProfileId, period: YearMonth): readonly Transaction[];
 }

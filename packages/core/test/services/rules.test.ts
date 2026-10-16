@@ -12,13 +12,13 @@ function setup(): { world: TestWorld; profileId: string; accountId: string; base
 }
 
 describe('ponto de controle das regras de negócio (database-design §3.10)', () => {
-    it('recusa sócio pagador num perfil pessoal', async () => {
+    it('recusa sócio numa receita de perfil pessoal', async () => {
         const { world, accountId, base } = setup();
         const business = world.profile({ type: 'business' });
         const error = await world.failure('transactions.create', {
             ...base,
             source: { kind: 'account', accountId },
-            type: 'expense',
+            type: 'income',
             name: 'Aluguel',
             value: 100,
             dueDate: '2026-03-10',
@@ -28,13 +28,13 @@ describe('ponto de controle das regras de negócio (database-design §3.10)', ()
         expect(error.details['rule']).toBe('partner-requires-business-profile');
     });
 
-    it('aceita sócio pagador do próprio perfil empresarial', async () => {
+    it('aceita o sócio que aportou numa receita do próprio perfil empresarial', async () => {
         const world = new TestWorld();
         const profileId = world.profile({ type: 'business' });
         const accountId = world.account(profileId);
         const created = await world.create(
             { profileId, subCategoryId: world.subCategory(profileId) },
-            { source: { kind: 'account', accountId }, partnerId: world.partner(profileId) },
+            { source: { kind: 'account', accountId }, type: 'income', partnerId: world.partner(profileId) },
         );
         expect(created.partnerId).not.toBeNull();
     });
@@ -76,41 +76,27 @@ describe('ponto de controle das regras de negócio (database-design §3.10)', ()
         expect(error.details['rule']).toBe('destination-not-allowed');
     });
 
-    it('recusa mover uma ocorrência de recorrência para a data de outra ocorrência da série', async () => {
+    it('Regra de negócio (Transação, database-design §4.13): o tipo do lançamento não muda na edição', async () => {
         const { world, profileId, accountId, base } = setup();
+        const savingsId = world.account(profileId);
         const source = { kind: 'account', accountId } as const;
-        const first = await world.create(base, { source, dueDate: '2026-03-05' });
-        const second = await world.create(base, { source, dueDate: '2026-03-06' });
-        // A recorrência e o vínculo são semeados por SQL: o serviço de recorrências ainda
-        // não existe, mas a edição "somente esta" de uma ocorrência já precisa da regra.
-        const recurrenceId = world.ids.random();
-        world.database.run(
-            `INSERT INTO recurrences (id, profile_id, type, recurrence, materialized_through, updated_at)
-            VALUES (:recurrenceId, :profileId, 2, 3, '2026-12-31', :now)`,
-            { recurrenceId, profileId, now: world.clock.now() },
-        );
-        world.database.run('UPDATE transactions SET recurrence_id = :recurrenceId WHERE id IN (:first, :second)', { recurrenceId, first: first.id, second: second.id });
-
-        const result = await world.core.call('transactions.update', {
-            id: second.id,
-            subCategoryId: base.subCategoryId,
-            source,
-            type: 'expense',
-            name: 'Lançamento',
-            value: 100,
-            charges: 0,
-            description: null,
-            destinationAccountId: null,
-            partnerId: null,
-            goalId: null,
-            originCurrency: null,
-            conversionRate: 1,
-            dueDate: '2026-03-05',
-            paymentDate: null,
-        });
-        expect(result.ok ? null : result.error.details['rule']).toBe('recurrence-occurrence-date-taken');
-        // A mesma edição numa data livre continua permitida.
-        expect((await world.update(base, second.id, { source, dueDate: '2026-03-07' })).dueDate).toBe('2026-03-07');
+        const types = ['income', 'expense', 'transference', 'investment'] as const;
+        /**
+         * @param type Tipo do lançamento.
+         * @return A conta de destino que o tipo exige; `null` nos que não têm destino.
+         */
+        const destinationOf = (type: (typeof types)[number]): string | null => (type === 'transference' || type === 'investment' ? savingsId : null);
+        for (const type of types) {
+            const created = await world.create(base, { source, type, destinationAccountId: destinationOf(type) });
+            for (const other of types.filter((candidate) => candidate !== type)) {
+                expect(await world.editFailure(created, { type: other, destinationAccountId: destinationOf(other) })).toMatchObject({
+                    code: 'BUSINESS_RULE_VIOLATION',
+                    details: { rule: 'transaction-type-locked', field: 'type' },
+                });
+            }
+            // O resto continua editável, e o tipo gravado fica como estava.
+            expect(await world.edit(created, { name: 'Renomeado' })).toMatchObject({ type, name: 'Renomeado' });
+        }
     });
 
     it('recusa pagar uma fatura já paga', async () => {

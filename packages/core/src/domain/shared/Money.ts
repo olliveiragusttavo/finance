@@ -2,6 +2,21 @@ import type { Currency } from './Currency.ts';
 import { InvalidValueError } from './errors.ts';
 
 /**
+ * Maior valor absoluto que um valor monetário digitado pode ter: 1 trilhão
+ * (`1.000.000.000.000,00`). Nenhuma finança pessoal chega perto disso, e o teto protege a
+ * precisão: com os centavos são 15 dígitos significativos, exatamente o que o
+ * `roundHalfAwayFromZero` lê com `toPrecision(15)`; acima disso o arredondamento passaria a
+ * perder centavos. Também barra o texto com centenas de dígitos que o `Number` vira
+ * `Infinity`.
+ * Regra de negócio (Dinheiro): todo valor informado pelo usuário fica entre −1 trilhão e
+ * 1 trilhão, inclusive.
+ *
+ * Vale nas fronteiras de entrada (`moneyField` e `parseMoneyInput`), não no `Money.of`:
+ * somas e saldos acumulados são derivados e não podem lançar erro por passar do teto.
+ */
+export const MONEY_MAX_AMOUNT = 1_000_000_000_000;
+
+/**
  * Valor monetário imutável na moeda do perfil. Nenhum `number` solto representa dinheiro
  * fora do Repository (backend-design §3.3): é aqui que vivem o arredondamento, a
  * comparação com epsilon e a proibição de somar moedas diferentes, num único lugar.
@@ -90,6 +105,28 @@ export class Money {
      */
     public rounded(): Money {
         return Money.of(roundHalfAwayFromZero(this.amount, this.currency.minorUnits), this.currency);
+    }
+
+    /**
+     * Divide em partes iguais na precisão da moeda.
+     * Regra de negócio (Parcelamento, database-design §4.12): cada parte é arredondada e **a
+     * diferença do arredondamento vai para a primeira**, para que a soma das partes seja sempre
+     * exatamente o total — R$ 1.000,00 em 3 é `333,34 + 333,33 + 333,33`. Trabalha em unidades
+     * menores inteiras, e não em float, para que o resto não sofra erro binário.
+     *
+     * @param parts Quantidade de partes, inteira e positiva.
+     * @return As partes, a primeira com o resto.
+     * @throws {InvalidValueError} Quando `parts` não é um inteiro positivo.
+     */
+    public split(parts: number): readonly Money[] {
+        if (!Number.isInteger(parts) || parts < 1) {
+            throw new InvalidValueError('parts', `quantidade de partes inválida: ${parts}`);
+        }
+        const scale = 10 ** this.currency.minorUnits;
+        const total = Math.round(roundHalfAwayFromZero(this.amount, this.currency.minorUnits) * scale);
+        const share = Math.trunc(total / parts);
+        const remainder = total - share * parts;
+        return Array.from({ length: parts }, (_, index) => Money.of((index === 0 ? share + remainder : share) / scale, this.currency));
     }
 
     /**

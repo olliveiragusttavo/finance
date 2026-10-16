@@ -29,9 +29,42 @@ RUN apt-get update \
         fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
 
+# Wine para gerar o instalador do Windows (`pnpm dist:win`): o electron-builder monta o
+# desinstalador do NSIS executando o próprio instalador. O stub do NSIS é 32-bit, por isso
+# entra também o wine32 (arquitetura i386); só com o wine64 a execução falha.
+RUN dpkg --add-architecture i386 \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends wine wine32 wine64 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Prefixo do Wine no home do container, fora do repositório; ele é criado no primeiro
+# `dist:win`. WINEDEBUG=-all tira os avisos do Wine, que soterram a saída do electron-builder.
+# LANG=C.UTF-8 porque a imagem vem sem locale (POSIX) e o makensis aborta com "main argv
+# conversion failed" ao receber argumento não ASCII, como o productName "Finanças".
+ENV WINEPREFIX=/home/node/.wine \
+    WINEDEBUG=-all \
+    LANG=C.UTF-8
+
 # O pnpm vem pelo corepack, que lê a versão exata do campo packageManager do
 # package.json — assim a versão fica num lugar só e não diverge da usada fora do container.
 RUN corepack enable pnpm
+
+# graphify: mapa de relacionamentos do código para análise de impacto em refatorações,
+# acionado só pelo comando /impacto (.claude/commands/impacto.md). Instalado com o uv
+# sobre o Python 3.11 da imagem, ambos com versão fixa, como o pnpm.
+#
+# A saída fica no home do container, fora do repositório e fora dos volumes: o grafo
+# (vários MB de JSON e HTML) não pode cair em buscas do Claude no projeto, e deve morrer
+# junto com o container em vez de ficar gravado no host. Sem saída é só regerar.
+# NO_AUTO_REFRESH impede o graphify de regravar skills nas pastas de configuração que
+# detectar, porque o ~/.claude é montado do host; NO_TIPS tira dicas da saída do CLI,
+# que o Claude leria como tokens inúteis.
+COPY --from=ghcr.io/astral-sh/uv:0.12.24 /uv /usr/local/bin/uv
+RUN UV_TOOL_DIR=/opt/uv-tools UV_TOOL_BIN_DIR=/usr/local/bin UV_PYTHON_DOWNLOADS=never \
+    uv tool install --no-cache graphifyy==0.9.82
+ENV GRAPHIFY_OUT=/home/node/.cache/graphify \
+    GRAPHIFY_NO_AUTO_REFRESH=1 \
+    GRAPHIFY_NO_TIPS=1
 
 # O usuário node da imagem já tem UID 1000, igual ao do host: os arquivos criados pelo
 # container no repositório montado ficam com o dono certo, sem precisar de chown.

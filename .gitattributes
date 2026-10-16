@@ -1,2 +1,7 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# O checksums.lock trava o hash dos bytes de cada migration (backend-design §4.3). Sem LF
+# fixo, um checkout com CRLF mudaria o hash e quebraria o teste de imutabilidade.
+*.sql text eol=lf
+db/migrations/checksums.lock text eol=lf

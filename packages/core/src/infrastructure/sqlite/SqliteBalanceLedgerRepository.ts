@@ -8,14 +8,14 @@ import type {
 } from '../../domain/balance/MonthlyMovement.ts';
 import { BillingCycle } from '../../domain/creditCard/BillingCycle.ts';
 import type { Currency } from '../../domain/shared/Currency.ts';
-import type { AccountId, InvoiceId } from '../../domain/shared/ids.ts';
+import { InvoiceId, type AccountId, type CreditCardId } from '../../domain/shared/ids.ts';
 import { LocalDate } from '../../domain/shared/LocalDate.ts';
 import { Money } from '../../domain/shared/Money.ts';
 import { YearMonth } from '../../domain/shared/YearMonth.ts';
 import type { Database } from '../../ports/Database.ts';
 import type { BalanceLedgerRepository } from '../../repositories/BalanceLedgerRepository.ts';
 import { decodeEnum, TRANSACTION_TYPE_CODE } from './enumCodes.ts';
-import { periodKey } from './periodSql.ts';
+import { cashDateSql, periodKey } from './periodSql.ts';
 import { RowReader } from './RowReader.ts';
 
 /**
@@ -71,6 +71,49 @@ export class SqliteBalanceLedgerRepository implements BalanceLedgerRepository {
     }
 
     /**
+     * Regra de negócio (Cartão de crédito, desktop-mvp-plan Fase 13.5): a série fixa é gravada 12
+     * meses à frente (database-design §4.12), mas a ocorrência futura não é compra feita — o banco
+     * não reserva limite para a assinatura do ano que vem. A ocorrência de parcelamento é: a
+     * compra já aconteceu e o limite fica preso até a última parcela.
+     *
+     * @param creditCardId Cartão consultado.
+     * @param after Competência a partir da qual (exclusive) as faturas entram.
+     * @param currency Moeda do perfil.
+     * @return As somas por tipo de cada fatura posterior, sem as ocorrências de séries fixas.
+     */
+    public committedInvoiceTypeTotals(creditCardId: CreditCardId, after: YearMonth, currency: Currency): ReadonlyMap<InvoiceId, readonly InvoiceTypeTotals[]> {
+        const rows = this.database.all(
+            `SELECT t.invoice_id, t.type, SUM(t.value) AS value, SUM(t.charges) AS charges
+            FROM transactions t
+            JOIN invoices i ON i.id = t.invoice_id AND i.deleted_at IS NULL
+            LEFT JOIN recurrences r ON r.id = t.recurrence_id AND r.deleted_at IS NULL
+            WHERE i.credit_card_id = :creditCardId AND i.year * 100 + i.month > :after
+                AND t.bank_statement_id IS NULL AND t.deleted_at IS NULL
+                AND (r.id IS NULL OR r.type <> 2)
+            GROUP BY t.invoice_id, t.type`,
+            { creditCardId, after: periodKey(after) },
+        );
+        const totals = new Map<InvoiceId, InvoiceTypeTotals[]>();
+        for (const row of rows) {
+            const reader = new RowReader('transactions', row);
+            const invoiceId = InvoiceId(reader.text('invoice_id'));
+            const item = {
+                type: decodeEnum(TRANSACTION_TYPE_CODE, reader.number('type'), 'transactions'),
+                value: Money.of(reader.number('value'), currency),
+                charges: Money.of(reader.number('charges'), currency),
+            };
+            // `push` no array local, como em `linksByGoal`: a mutação não escapa do método.
+            const known = totals.get(invoiceId);
+            if (known === undefined) {
+                totals.set(invoiceId, [item]);
+            } else {
+                known.push(item);
+            }
+        }
+        return totals;
+    }
+
+    /**
      * @param accountId Conta recalculada.
      * @param from Primeira competência considerada.
      * @param currency Moeda do perfil.
@@ -100,9 +143,11 @@ export class SqliteBalanceLedgerRepository implements BalanceLedgerRepository {
     }
 
     /**
-     * Transferências e investimentos que chegam à conta caem no mês do `due_date`, não no
-     * mês do contêiner de origem — a transferência é uma linha só, com uma data só
-     * (database-design §4.13).
+     * Transferências e investimentos que chegam à conta caem no mês da **data de caixa**
+     * (`cashDateSql`: pagamento, ou vencimento em aberto), a mesma que decide o extrato da
+     * origem — a transferência é uma linha só, com uma data só dos dois lados
+     * (database-design §4.13). Não usa o mês do contêiner de origem porque a origem pode ser
+     * uma fatura (pagamento parcial), cujo mês não é o do pagamento.
      *
      * @param accountId Conta de destino.
      * @param from Primeira competência considerada.
@@ -112,21 +157,21 @@ export class SqliteBalanceLedgerRepository implements BalanceLedgerRepository {
     private incomingTotals(accountId: AccountId, from: YearMonth, currency: Currency): IncomingTotals[] {
         return this.database
             .all(
-                `SELECT CAST(substr(t.due_date, 1, 4) AS INTEGER) AS due_year, CAST(substr(t.due_date, 6, 2) AS INTEGER) AS due_month,
+                `SELECT CAST(substr(${cashDateSql('t')}, 1, 4) AS INTEGER) AS cash_year, CAST(substr(${cashDateSql('t')}, 6, 2) AS INTEGER) AS cash_month,
                     t.paid, SUM(t.value) AS value
                 FROM transactions t
                 LEFT JOIN bank_statements bs ON bs.id = t.bank_statement_id AND bs.deleted_at IS NULL
                 LEFT JOIN invoices i ON i.id = t.invoice_id AND i.deleted_at IS NULL
                 WHERE t.destination_account_id = :accountId AND t.type IN (3, 4) AND t.deleted_at IS NULL
-                    AND t.due_date >= :fromDate
+                    AND ${cashDateSql('t')} >= :fromDate
                     AND ((bs.id IS NOT NULL AND t.invoice_id IS NULL) OR (i.id IS NOT NULL AND t.bank_statement_id IS NULL))
-                GROUP BY due_year, due_month, t.paid`,
+                GROUP BY cash_year, cash_month, t.paid`,
                 { accountId, fromDate: LocalDate.of(from.year, from.month, 1).toString() },
             )
             .map((row) => {
                 const reader = new RowReader('transactions', row);
                 return {
-                    period: YearMonth.of(reader.number('due_year'), reader.number('due_month')),
+                    period: YearMonth.of(reader.number('cash_year'), reader.number('cash_month')),
                     paid: reader.boolean('paid'),
                     value: Money.of(reader.number('value'), currency),
                 };

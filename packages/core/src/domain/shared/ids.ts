@@ -20,10 +20,15 @@ export type CreditCardId = Brand<Uuid, 'CreditCardId'>;
 export type BankStatementId = Brand<Uuid, 'BankStatementId'>;
 export type InvoiceId = Brand<Uuid, 'InvoiceId'>;
 export type TransactionId = Brand<Uuid, 'TransactionId'>;
+export type CategoryId = Brand<Uuid, 'CategoryId'>;
 export type SubCategoryId = Brand<Uuid, 'SubCategoryId'>;
 export type PartnerId = Brand<Uuid, 'PartnerId'>;
 export type GoalId = Brand<Uuid, 'GoalId'>;
 export type RecurrenceId = Brand<Uuid, 'RecurrenceId'>;
+export type TagId = Brand<Uuid, 'TagId'>;
+export type TransactionTagId = Brand<Uuid, 'TransactionTagId'>;
+export type RecurrenceTagId = Brand<Uuid, 'RecurrenceTagId'>;
+export type NoteId = Brand<Uuid, 'NoteId'>;
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -64,7 +69,10 @@ export const CreditCardId = idParser<CreditCardId>('creditCardId');
 export const BankStatementId = idParser<BankStatementId>('bankStatementId');
 export const InvoiceId = idParser<InvoiceId>('invoiceId');
 export const TransactionId = idParser<TransactionId>('transactionId');
+export const CategoryId = idParser<CategoryId>('categoryId');
 export const SubCategoryId = idParser<SubCategoryId>('subCategoryId');
 export const PartnerId = idParser<PartnerId>('partnerId');
 export const GoalId = idParser<GoalId>('goalId');
 export const RecurrenceId = idParser<RecurrenceId>('recurrenceId');
+export const TagId = idParser<TagId>('tagId');
+export const NoteId = idParser<NoteId>('noteId');

@@ -346,6 +346,21 @@ Toda abertura do banco passa por um único caminho, nesta ordem:
    ([database-design.md §4.12](database-design.md#412-recurrences)), que não pode rodar
    antes de o banco estar pronto.
 
+No desktop, qualquer falha da sequência bloqueia a abertura — inclusive a falha ao montar
+o núcleo ou ao rodar a verificação de integridade (os desvios encontrados por ela só vão
+para o log). A exceção é a falha de uma **série** no complemento de recorrências: cada série
+é complementada na própria transação, e a que falha é desfeita sozinha e vai para o log
+(`recurrences.top-up-partial`), sem bloquear. O banco continua íntegro — só a previsão
+daquela série fica incompleta —, e bloquear repetiria a mesma falha em toda abertura, sem o
+usuário chegar à tela para corrigir a série. O complemento que nem consegue rodar continua
+bloqueando, como qualquer etapa. A restauração do backup copia a cópia para um arquivo provisório antes de
+tirar o banco do lugar, desfaz as etapas se uma falhar e grava uma marca
+(`restore-pending.json`) enquanto não termina: com a marca presente, a abertura bloqueia
+em vez de criar um banco vazio no lugar do que saiu. A primeira migration que falha também
+grava uma marca (`migration-failed.json`) com o backup daquela tentativa: as aberturas
+seguintes oferecem esse backup, e não o novo — gravado depois das migrations que passaram, que
+a versão anterior do app recusaria —, e a rotação não o apaga até a migration passar.
+
 Uma transação por migration, e não uma para todas: um aparelho que pula da versão 3
 para a 9 e falha na 7 fica na 6, utilizável pela versão anterior do app, em vez de
 voltar à 3.
@@ -353,8 +368,11 @@ voltar à 3.
 ### 4.6 Backup antes de migrar
 
 Antes de aplicar qualquer migration, o app grava uma cópia consistente com
-`VACUUM INTO` em `backups/pre-v{versão}-{data}.sqlite`, ao lado do banco. Guardam-se as
-**três** mais recentes. É a mesma operação usada no snapshot de pareamento
+`VACUUM INTO` em `backups/pre-v{versão}-{data}-{hora}.sqlite`, ao lado do banco. Guardam-se as
+**três** mais recentes. A hora (UTC, `HHMMSS`) entra no nome porque o `VACUUM INTO` não
+sobrescreve arquivo existente: duas tentativas de migrar no mesmo dia colidiriam. Banco
+novo (versão 0) não é copiado — não há dado a preservar. A pasta entra no núcleo pela
+porta `BackupDirectory`, e uma falha na cópia impede a migration (`MigrationBackupError`). É a mesma operação usada no snapshot de pareamento
 ([sync-design.md §6.4](sync-design.md#64-entrando-no-grupo-um-novo-dispositivo-começa-vazio)).
 
 Sem DBA, o backup automático é o único `down` que existe. O custo é espaço em disco
@@ -640,20 +658,25 @@ cobertura de linhas é exigida: o mutation testing mede o que ela fingiria medir
    (§4.13); saldo anterior ao primeiro extrato em `accounts.opening_balance` (§4.4).
    Nenhuma regra pendente.
 2. ~~**Montar o monorepo**~~ — feito: `packages/core` e `packages/sqlite-better`, com
-   lint (regras de fronteira incluídas), tipos e Vitest. Falta o CI rodando a suíte nos
-   dois fusos da [§5.7](#57-tempo-e-fuso-horário).
+   lint (regras de fronteira incluídas), tipos e Vitest, e o CI (GitHub Actions) rodando
+   `pnpm check` nos dois fusos da [§5.7](#57-tempo-e-fuso-horário).
 3. ~~**Implementar as portas, o adaptador `better-sqlite3` e o runner de migrations**~~ —
-   feito, com a suíte de contrato e os testes de migration. Pendentes no runner: o backup
-   com `VACUUM INTO` ([§4.6](#46-backup-antes-de-migrar)), o `checksums.lock`
-   ([§4.3](#43-migrations-são-somente-para-a-frente-e-imutáveis)) e o tratamento de
-   `foreign_keys` para reconstrução de tabelas ([§4.7](#47-mudanças-que-o-alter-table-não-faz)).
-4. ~~**Implementar `Money` e o domínio puro de datas**~~ — feito para a fatura de uma
-   compra e o vencimento; falta a expansão de recorrências e a divisão de parcelas.
+   feito, com a suíte de contrato, os testes de migration, o backup com `VACUUM INTO`
+   ([§4.6](#46-backup-antes-de-migrar)) e o `checksums.lock`
+   ([§4.3](#43-migrations-são-somente-para-a-frente-e-imutáveis)). Pendente no runner: o
+   tratamento de `foreign_keys` para reconstrução de tabelas
+   ([§4.7](#47-mudanças-que-o-alter-table-não-faz)).
+4. ~~**Implementar `Money` e o domínio puro de datas**~~ — feito: a fatura de uma compra,
+   o vencimento, a expansão de recorrências (`RecurrenceSchedule`) e a divisão de parcelas
+   (`Money.split`), na Fase 9.1 do [desktop-mvp-plan.md](desktop-mvp-plan.md#fase-91--recorrências).
 5. ~~**Implementar a rotina de recálculo**~~ — feita (`BalanceRecalculationService`), com
-   testes de mesa e teste de propriedade contra um oráculo independente. Falta a
-   **verificação de integridade** (desvio de saldo, órfãs, anexos ausentes).
-6. ~~Os Services de lançamento~~ — CRUD de transações (escopo "somente esta"), consolidação
-   de extrato, pagamento e reabertura de fatura e saldo do perfil, expostos pelo mapa de
-   rotas. Faltam o serviço de recorrências (escopos "esta e as futuras" e "todas"), os
-   cadastros (perfil, conta, cartão, categorias, tags), anexos e o Stryker
-   ([§5.11](#511-mutation-testing-no-núcleo-de-saldos)).
+   testes de mesa e teste de propriedade contra um oráculo independente. A
+   **verificação de integridade** cobre o desvio de saldo (rota `integrity.verifyBalances`,
+   que roda o recálculo numa transação desfeita e só relata); faltam órfãs e anexos ausentes.
+6. ~~Os Services de lançamento~~ — CRUD de transações, consolidação de extrato, pagamento
+   e reabertura de fatura e saldo do perfil, expostos pelo mapa de rotas. Os cadastros
+   (perfil, conta, cartão, categorias, tags) entraram nas Fases 1 e 6 do
+   [desktop-mvp-plan.md](desktop-mvp-plan.md), e o serviço de recorrências
+   (`RecurrenceService`, com os escopos "somente esta", "esta e as futuras" e "todas", o
+   complemento na abertura e o plano do diálogo de revisão) nas Fases 9.1 e 9.2. Faltam
+   anexos e o Stryker ([§5.11](#511-mutation-testing-no-núcleo-de-saldos)).

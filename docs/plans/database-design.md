@@ -3,7 +3,8 @@
 **Status:** Design concluído — motor escolhido (SQLite), contrato físico especificado
 (tipos, restrições, ações de chave estrangeira, índices).
 **DDL:** [db/migrations/0001_initial_schema.sql](../../db/migrations/0001_initial_schema.sql)
-— uma transcrição da §4; validada contra o SQLite 3.46.
+— uma transcrição da §4; validada contra o SQLite 3.46 — e as migrations seguintes em
+[db/migrations/](../../db/migrations/) ([§6](#6-próximos-passos)).
 **Fonte da verdade visual:** [docs/drawio/project.drawio](../drawio/project.drawio)
 **Sincronização:** [docs/plans/sync-design.md](sync-design.md) — como este schema é
 replicado entre dispositivos.
@@ -67,6 +68,12 @@ erDiagram
     transactions ||--o{ transactions_tags : "tem"
     tags ||--o{ transactions_tags : "tem"
     transactions ||--o{ attachments : "tem"
+
+    recurrences }o--o| accounts : "origem ou destino do modelo"
+    recurrences }o--o| credit_cards : "origem do modelo"
+    recurrences }o--|| transaction_sub_categories : "classifica o modelo"
+    recurrences ||--o{ recurrences_tags : "tem"
+    tags ||--o{ recurrences_tags : "tem"
 
     goals ||--o{ transactions : "alimentada por"
 ```
@@ -206,7 +213,7 @@ offline, sem coordenação e sem colisão.
 - **Exceto linhas identificadas pelo conteúdo, que recebem uma versão 5 determinística**
   — um hash de um namespace fixo da aplicação e da chave natural da linha:
   `bank_statements` e `invoices` (dono, ano, mês), transações emitidas por uma
-  recorrência (`recurrence_id`, `due_date` gerado), pares de `transactions_tags` e dados
+  recorrência (`recurrence_id`, número da ocorrência), pares de `transactions_tags` e de `recurrences_tags` e dados
   padrão semeados no primeiro uso. Dois dispositivos offline criando "o extrato de
   março" derivam então o mesmo id, e a sincronização mescla uma única linha em vez de
   colidir em um índice único parcial. Recriar uma linha desse tipo que sofreu soft
@@ -233,7 +240,7 @@ tabela na [§4](#4-tabelas) e das caixas do diagrama:
 | Coluna | Tipo | Restrições | Notas |
 |---|---|---|---|
 | `id` | TEXT | NN, `PRIMARY KEY`, `CHECK (length(id) = 36)` | uuid — [§3.5](#35-chaves-primárias-são-uuids) |
-| `created_at` | TEXT | NN, timestamp, `DEFAULT (strftime('%Y-%m-%d %H:%M:%S', 'now'))` | UTC. O banco preenche; a aplicação nunca escreve nela |
+| `created_at` | TEXT | NN, timestamp, `DEFAULT (strftime('%Y-%m-%d %H:%M:%S', 'now'))` | UTC. O banco preenche; a aplicação nunca escreve nela. Única exceção: a ocorrência revivida recebe um novo, também pelo relógio do motor ([§4.12](#412-recurrences)) |
 | `updated_at` | TEXT | NN, timestamp | UTC. Carimbada pela aplicação em todo insert e update; sem trigger |
 | `deleted_at` | TEXT | null, timestamp | Marcador de soft delete. Uma linha está viva quando `deleted_at IS NULL` |
 
@@ -335,7 +342,11 @@ exclui todos os registros associados a ele. O app é local-first e de usuário �
 a mesma pessoa precisa manter finanças pessoais e empresariais estritamente separadas;
 fazer do perfil a raiz dá essa separação sem multi-tenancy de verdade. Categorias, metas
 e tags, portanto, **não** são um vocabulário global compartilhado — um perfil pessoal e
-um empresarial mantêm cada um o seu.
+um empresarial mantêm cada um o seu. A única referência que atravessa essa fronteira é a
+conta de destino de uma **transferência**
+([§4.13](#413-transactions), "Transferência entre perfis"). Mover uma transação para outro
+perfil não cria referência entre perfis: ela troca todas as suas referências pelas do
+destino ([§4.13](#413-transactions), "Mover para outro perfil").
 
 Nem toda chave estrangeira cascateia, porém. A ação `ON DELETE` é escolhida pelo que o
 relacionamento *significa*, e é registrada por chave na [§4](#4-tabelas):
@@ -607,6 +618,19 @@ estrangeiro está fora do escopo.
 | `currency` | TEXT | NN, currency | ISO 4217. Apenas descritivo |
 | `consider_balance` | INTEGER | NN, `DEFAULT 1`, `CHECK (consider_balance IN (0, 1))` | bool — entra no saldo consolidado |
 | `type` | INTEGER | NN, `CHECK (type IN (1, 2))` | enum — `1: checking account`, `2: investment account` |
+| `disabled_at` | TEXT | null, timestamp | Desativação: nula = ativa. Migration `0002` — veja abaixo |
+
+#### Desativar não é excluir
+
+Regra de negócio (Contas): a ação padrão no lugar de excluir é **desativar**
+([desktop-mvp-plan.md §5.1](desktop-mvp-plan.md#51-desativar-e-excluir-conta-ou-cartão)).
+Uma conta desativada some das escolhas de lançamentos novos — origem, destino, conta
+pagadora de cartão —, mas continua em extratos, faturas, saldos e relatórios, e pode ser
+reativada. Editar um lançamento que já está nela continua permitido. É uma coluna própria, e
+não `deleted_at`, porque `deleted_at` significa "não existe mais" para toda leitura e para a
+sincronização ([§3.6](#36-colunas-presentes-em-todas-as-tabelas)); a conta desativada
+continua existindo. Guarda o instante UTC da primeira desativação, no formato de timestamp
+das demais colunas.
 
 #### Chaves estrangeiras
 
@@ -660,6 +684,7 @@ Regras de negócio (Cartão de crédito):
 | `limit_value` | REAL | NN | money — renomeada de `limit`, palavra-chave do SQLite |
 | `closing_date` | INTEGER | NN, `CHECK (closing_date BETWEEN 1 AND 31)` | Dia do mês em que a fatura fecha |
 | `due_date` | INTEGER | NN, `CHECK (due_date BETWEEN 1 AND 31)` | Dia do mês em que a fatura vence |
+| `disabled_at` | TEXT | null, timestamp | Desativação: nula = ativo. Mesma regra da conta ([§4.4](#44-accounts)); faturas e relatórios continuam |
 
 #### Chaves estrangeiras
 
@@ -710,7 +735,8 @@ mês sem movimento não tem linha.
 
 - As transações do extrato (`bank_statement_id`), com o efeito da [§4.13](#413-transactions).
 - As transferências e investimentos que **chegam** a esta conta
-  (`destination_account_id`), no mês do seu `due_date`.
+  (`destination_account_id`), no mês da sua data de caixa — a mesma regra do extrato da
+  origem ([§4.13](#413-transactions)).
 - As faturas pagas vinculadas a este extrato, pelo `balance` de cada uma.
 - No previsto, também as faturas em aberto dos cartões quitados por esta conta, no mês
   do vencimento ([§4.7](#47-invoices)).
@@ -781,6 +807,20 @@ nasce paga, porque registra um pagamento já feito. Excluí-la devolve o valor �
 fatura. Quando a fatura for paga por inteiro, o `balance` vinculado ao extrato já está
 líquido dos pagamentos parciais, sem contar nada duas vezes.
 
+#### O dia do pagamento é registro, não regra
+
+`bank_statement_id` guarda o **mês** do pagamento, que é o que decide a situação da fatura e
+o extrato em que ela pesa. O **dia** fica em `payment_date` (migration `0003`), gravado na
+mesma escrita do vínculo e apagado junto dele ao reabrir: o extrato da conta precisa dele
+para mostrar a fatura paga na data em que o dinheiro saiu, entre os outros movimentos do mês.
+Ele não decide nada — uma fatura sem vínculo vivo está em aberto mesmo com um dia sobrando,
+que o `ON DELETE SET NULL` do extrato pode deixar — e é nulo nas faturas pagas antes da
+migration, porque o dia nunca foi gravado e inventá-lo mostraria uma data que não aconteceu.
+Na sincronização é uma célula comum
+([sync-design.md §5.1](sync-design.md#51-a-unidade-de-merge-é-a-coluna-a-escrita-mais-recente-vence)):
+como pagar e reabrir escrevem as duas colunas na mesma transação, com o mesmo relógio, dois
+pagamentos concorrentes nunca deixam o vínculo de um com o dia do outro.
+
 #### `balance` tem o sinal do efeito na conta, e o vencimento decide o mês no previsto
 
 `balance` é a soma dos efeitos das transações da fatura e tem o **sinal do efeito na
@@ -800,6 +840,7 @@ mês em que o pagamento de fato aconteceu.
 |---|---|---|---|
 | `credit_card_id` | TEXT | NN, FK | |
 | `bank_statement_id` | TEXT | null, FK | O extrato do mês em que a fatura é paga |
+| `payment_date` | TEXT | null, date | Dia do pagamento; só vale junto do `bank_statement_id`. Migration `0003` — veja acima |
 | `month` | INTEGER | NN, `CHECK (month BETWEEN 1 AND 12)` | |
 | `year` | INTEGER | NN, `CHECK (year BETWEEN 1900 AND 9999)` | |
 | `balance` | REAL | NN | money — total da fatura com o sinal do efeito na conta, cache derivado |
@@ -908,8 +949,72 @@ diferenciar maiúsculas de minúsculas.
 
 ### 4.11 goals
 
-Uma meta de economia ou de gasto pertencente a um perfil, alimentada pelas transações
-vinculadas a ela (`transactions.goal_id`).
+Uma meta de economia pertencente a um perfil — um valor que se quer guardar. O rascunho original
+previa também metas de gasto; a implementação (desktop-mvp-plan Fase 9.3) ficou só com a de
+economia. Desde a Fase 13.3 (migration `0005`), a coluna `kind` diz de onde vem o progresso:
+
+- **Por lançamentos** (`kind = 1`, o padrão): alimentada pelas transações vinculadas a ela
+  (`transactions.goal_id`).
+- **Vinculada a uma conta** (`kind = 2`): o progresso é o saldo de uma conta de investimento
+  (`account_id`), e nenhuma transação se vincula a ela.
+
+#### Regras de negócio
+
+Decididas na Fase 9.3 do desktop-mvp-plan, a pedido do usuário:
+
+- **Só receitas e transferências** são vinculadas a uma meta (regra
+  `goal-requires-saving-type`, verificada nos invariantes da transação). Despesa é gasto, e o
+  investimento já tem destino próprio.
+- O progresso soma as vinculadas **pagas até hoje** — numa conta, pelo `payment_date`; num
+  cartão, pelo dia em que a fatura foi paga —, independente do mês de referência da tela. Uma
+  série fixa é gerada 12 meses à frente ([§4.12](#412-recurrences)), e somar o que ainda não
+  saiu da conta daria a meta por cumprida antes da hora.
+- O valor entra **com sinal** (o estorno desconta) e **sem encargos**.
+- O valor-alvo é maior que zero; a data-alvo é opcional.
+- Prazo, ritmo necessário e projeção contam a partir do **fim do mês de referência**, em meses
+  médios (dias ÷ 30,44); a média mensal vai do mês da 1ª contribuição até o de referência (ou
+  o atual, se o de referência for futuro), com mês sem aporte valendo zero.
+- Excluir a meta (soft delete) limpa `goal_id` das transações e dos modelos de recorrência na
+  mesma unidade de trabalho, porque o `SET NULL` não dispara num `UPDATE`
+  ([§3.6](#36-colunas-presentes-em-todas-as-tabelas)); as transações continuam.
+
+Decididas na Fase 13.3, a pedido do usuário:
+
+- **Retirada.** A transação vinculada tem `goal_withdrawal`: marcada, ela **retira** dinheiro
+  da meta — um imprevisto pago com a reserva — e o valor entra com o sinal invertido no
+  progresso. **Só a transferência** pode retirar (`goal-withdrawal-requires-transfer`); a receita
+  sempre guarda. Sem meta, a marca é descartada. O modelo da recorrência guarda a mesma marca,
+  copiada para as ocorrências ([§4.12](#412-recurrences)).
+- **Meta vinculada a uma conta.** O guardado é o **saldo consolidado de hoje** da conta. Para o
+  ritmo, a média e a projeção seguirem a mesma regra da meta por lançamentos, cada mês do
+  extrato da conta entra como a variação do consolidado, no último dia do mês (ou hoje, no mês
+  corrente), e o saldo inicial da conta como o que já estava guardado antes — fora da média
+  mensal, porque não foi guardado em mês nenhum. Um mês de referência passado mostra o saldo com
+  que a conta fechou. Meses depois do atual ficam fora.
+- Só **contas de investimento** do perfil são vinculadas (`goal-account-not-investment`), e uma
+  conta pode servir a mais de uma meta. A meta vinculada a conta não recebe lançamentos
+  (`goal-funded-by-account`) e não aparece no campo "Meta" do lançamento.
+- A conta de investimento que é o saldo de uma meta, ativa ou arquivada, **não muda de tipo**
+  (`account-type-funds-goal`): a meta passaria a medir o dinheiro do dia a dia como guardado e
+  ficaria impossível de editar sem trocar a conta. A edição da conta recusa e avisa; para mudar
+  o tipo, troca-se antes o tipo da meta. Desfazer o vínculo em silêncio foi descartado.
+- O tipo **se troca na edição**. Trocar para a meta vinculada a conta desfaz os vínculos das
+  transações e dos modelos de recorrência, que continuam existindo; o formulário avisa quantos
+  antes de salvar. Trocar de volta começa sem vínculo nenhum.
+- **Excluir a conta** vinculada exclui a meta junto, na exclusão em cadeia, e o alerta a conta
+  (desktop-mvp-plan §5.1). Desativar a conta não muda nada: o saldo continua existindo.
+
+Decididas na Fase 13.4, a pedido do usuário:
+
+- **Arquivar** (`archived_at`, migration `0006`) tira a meta de vista sem apagar nada: a tela
+  Metas mostra por padrão só as ativas, e a arquivada some das escolhas do campo "Meta" de
+  lançamentos novos (`goal-archived`), como a conta desativada. O lançamento que já estava
+  vinculado a ela continua editável sem perder o vínculo, e o progresso continua calculado.
+  Reativar desfaz. Editar a meta não desarquiva.
+- **Visualizações** da tela Metas: **ativas** (nem atingidas nem arquivadas, o padrão),
+  **atingidas** e **arquivadas**. A meta atingida e arquivada aparece nas duas últimas. "Atingida"
+  é o guardado de hoje igual ou acima do alvo — calculado, como o resto do progresso.
+- No campo "Meta" do lançamento, as atingidas ficam num **grupo à parte**, depois das ativas.
 
 #### O progresso é calculado, nunca armazenado
 
@@ -930,20 +1035,25 @@ necessária e nenhum desvio é possível.
 |---|---|---|---|
 | `profile_id` | TEXT | NN, FK | |
 | `name` | TEXT | NN, `CHECK (length(name) <= 45)` | |
+| `kind` | INTEGER | NN, default 1, `CHECK (kind IN (1, 2))` | 1 = por lançamentos, 2 = vinculada a conta (migration `0005`) |
+| `account_id` | TEXT | null, FK | Conta de investimento da meta vinculada; nula na por lançamentos — o arco é garantido na aplicação ([§3.10](#310-o-que-o-banco-garante-e-o-que-a-aplicação-garante)) |
 | `value` | REAL | NN | money — valor alvo |
 | `target_date` | TEXT | null, date | Renomeada de `date` ([§3.4](#34-nomenclatura)). Anulável: uma meta sem prazo (uma reserva de emergência) não tem data limite |
+| `archived_at` | TEXT | null, timestamp | Nula = ativa; preenchida = instante do primeiro arquivamento (migration `0006`) |
 
 #### Chaves estrangeiras
 
 | FK | Destino | Nulo? | On delete | Por quê |
 |---|---|---|---|---|
 | `profile_id` | profiles | NN | `CASCADE` | Propriedade |
+| `account_id` | accounts | null | `CASCADE` | O progresso é o saldo da conta: sem ela, a meta não mede nada. O soft delete da conta exclui a meta pela exclusão em cadeia |
 
 #### Índices
 
 | Índice | Colunas | Tipo |
 |---|---|---|
 | `idx_goals_profile_id` | `(profile_id)` | simples |
+| `idx_goals_account_id` | `(account_id)` | simples |
 
 ### 4.12 recurrences
 
@@ -966,6 +1076,18 @@ perfil**: uma regra cujas ocorrências tivessem todas sofrido soft delete ficari
 inalcançável, um hard delete de perfil deixaria todas as regras órfãs, e ocorrências
 ainda não materializadas precisam de um perfil onde ser emitidas, independentemente de
 qualquer linha existente.
+
+Regra de negócio (Recorrências): **mover uma ocorrência para outro perfil leva a série
+inteira** — a regra e todas as ocorrências vivas —, sempre no escopo "todas"; o Service recusa
+"somente esta" e "esta e as futuras" (`recurrence-move-requires-all`). A regra é do perfil e
+continua emitindo nele: tirar uma ocorrência sozinha deixaria a série dividida entre dois
+perfis, e o complemento seguiria emitindo no antigo. Na mudança, as referências que pertencem
+ao perfil (origem, destino, subcategoria, sócio, meta e tags) vão da editada para todas as
+outras ocorrências e para o modelo — inclusive as que a editada não mudou, porque uma ocorrência
+com subcategoria ou tags próprias, dadas em "somente esta", continuaria apontando para o perfil
+antigo. A regra é revista, e não recriada: o id, o calendário e a marca d'água continuam, e
+`profile_id` é gravado de novo. Mudar de perfil e mudar a série na mesma edição não cabe — uma
+vale para "todas" e a outra para "esta e as futuras".
 
 #### Uma regra materializa uma transação real por ocorrência
 
@@ -1003,45 +1125,111 @@ Qual das três precisa estar preenchida para cada `type` é uma regra da aplica�
 ([§3.10](#310-o-que-o-banco-garante-e-o-que-a-aplicação-garante)); as
 verificações abaixo apenas limitam cada valor quando presente.
 
-#### Séries finitas são materializadas por inteiro; as infinitas avançam aos poucos
+#### A regra guarda o modelo e o calendário da série
 
-- **Finitas** — `installments`, ou `fixed` com `end_at`: a **série inteira é gravada na
-  criação**, em uma única transação de banco. A quantidade é conhecida, o número de
-  linhas é limitado e trivial, e é o que o usuário espera — quem compra em 24x quer ver
-  24 lançamentos e a fatura em que cada um cai. A geração parcial faria uma fatura futura
-  parecer vazia até algum processo em segundo plano alcançá-la.
-- **Infinitas** — `fixed` com `end_at` nulo: as ocorrências são gravadas até um
-  **horizonte móvel de 12 meses**, estendido conforme o tempo passa. Doze cobre um ano
-  inteiro de previsão e é o mínimo que mostra pelo menos uma ocorrência de uma regra
-  `yearly`. O custo é desprezível — uma regra mensal são 12 linhas por ano.
+Desde a migration `0004` (desktop-mvp-plan Fase 9.1), a linha de `recurrences` guarda tudo
+o que ela emite — o **modelo** de cada ocorrência — e o **calendário** da série. É o que
+permite à regra emitir ocorrências que ainda não existem (séries sem fim) e regenerar as
+futuras quando o usuário muda a série, sem copiar de uma ocorrência existente: uma
+ocorrência editada em "somente esta" (um valor atípico num mês) nunca vaza para as
+seguintes.
 
-**`materialized_through` é a marca d'água** (watermark) que registra até onde a regra
-foi expandida. O complemento (top-up) gera ocorrências da marca d'água em diante até
-`today + 12 months` e, então, a avança. Ele roda na abertura do app e após qualquer
-edição de recorrência, e é o mesmo mecanismo para os dois casos — uma série finita
-simplesmente chega ao fim e para. Uma marca d'água, em vez de "existe uma linha para esta
-data?", porque:
+- **Modelo:** tipo, conta **ou** cartão de origem, conta de destino, subcategoria, sócio,
+  meta, nome, descrição, valor, encargos, moeda e taxa de origem — as mesmas colunas e
+  regras de `transactions` ([§4.13](#413-transactions)) — e as tags, em
+  `recurrences_tags`, com o mesmo desenho de `transactions_tags`
+  ([§4.14](#414-transactions_tags)). Regra de negócio (Recorrências): **tags e descrição
+  são copiadas para todas as ocorrências**.
+- **Fatura das compras no cartão:** `invoice_offset` guarda quantos meses a fatura
+  escolhida para a ocorrência está depois da sugerida pela data dela. Cada ocorrência cai
+  na fatura sugerida pela **própria** data mais esse deslocamento — então quem lançou a
+  1ª parcela numa fatura à frente da sugerida tem todas as parcelas deslocadas igual. Cair
+  numa fatura já paga a reabre, como em qualquer lançamento ([§4.7](#47-invoices)).
+- **Calendário:** `starts_on` é a data de uma ocorrência de referência, `starts_at` o
+  número dela na série (a 1ª é 1), e `anchor_day` o dia que a série procura: o dia do mês
+  (1–31) em `monthly` e `yearly`, o dia da semana ISO (1 = segunda … 7 = domingo) em
+  `weekly`, nulo em `daily`. A ocorrência *n* vence em:
+  - `daily`: `starts_on` + (*n* − `starts_at`) dias;
+  - `weekly`: o dia `anchor_day` da semana (segunda a domingo) de `starts_on` + 7 × (*n* − `starts_at`) dias;
+  - `monthly`: o dia `anchor_day` do mês de `starts_on` + (*n* − `starts_at`) meses;
+  - `yearly`: o dia `anchor_day` do mês de `starts_on`, (*n* − `starts_at`) anos depois.
+
+  Regra de negócio (Recorrências): **num mês que não tem o dia âncora, a ocorrência cai no
+  último dia do mês**, e a seguinte volta ao dia âncora — mensal no dia 31 vence em 31/01,
+  28/02 (29/02 no bissexto), 31/03; anual em 29/02 vence em 28/02 nos anos comuns. O dia
+  âncora fica numa coluna própria justamente para não se perder depois de um mês curto.
+
+#### Cada ocorrência tem um número, que também é a sua identidade
+
+`transactions.occurrence` é o número da ocorrência na série (1, 2, 3…), preenchido junto
+com `recurrence_id`. É ele que a tabela mostra ("3/12") e é ele — e não a data — a chave
+natural do id determinístico da ocorrência: `(recurrence_id, occurrence)`
+([sync-design.md §5.6](sync-design.md#56-linhas-identificadas-pelo-conteúdo-recebem-ids-determinísticos)).
+Pela data não serviria: a data de uma série pode mudar ("esta e as futuras" troca o dia), e
+dois aparelhos — um mudando o dia, o outro completando a série offline — gerariam a mesma
+ocorrência com datas, e portanto ids, diferentes. Pelo número, geram a mesma linha.
+
+Gerar de novo uma ocorrência cujo número já existiu e foi excluído deriva o id antigo e
+**revive** a linha (sync-design §5.6), com o conteúdo novo e um `created_at` novo,
+carimbado pelo relógio do motor como no insert: a linha revivida é uma ocorrência nova para
+o usuário, e o `created_at` antigo a faria parecer editada à mão no diálogo de revisão.
+
+Regra de negócio (Recorrências): **duas ocorrências da mesma série podem vencer no mesmo
+dia.** O calendário nunca gera duas na mesma data; a coincidência só aparece quando o
+usuário move uma ocorrência de propósito, e o banco não tem por que recusar. A proteção
+contra gerar a mesma ocorrência duas vezes é o número — o id determinístico e o índice
+`uq_transactions_recurrence_occurrence` —, não a data. O índice único por
+`(recurrence_id, due_date)` da `0001` foi removido na própria `0004`: além de redundante, ele
+fazia o complemento falhar na abertura do app quando a data da próxima ocorrência já estava
+ocupada por uma movida.
+
+#### Parceladas são gravadas inteiras; as fixas avançam por um horizonte
+
+- **Parceladas** (`installments`): a **série inteira é gravada na criação**, em uma única
+  transação de banco. A quantidade é conhecida e é o que o usuário espera — quem compra em
+  24x quer ver 24 lançamentos e a fatura em que cada um cai. A geração parcial faria uma
+  fatura futura parecer vazia até algum processo em segundo plano alcançá-la.
+- **Fixas** (`fixed`): as ocorrências são gravadas até um **horizonte móvel de 12 meses**
+  a partir de hoje, sem passar de `end_at` quando ele existe, e o horizonte é estendido
+  conforme o tempo passa. Doze cobre um ano inteiro de previsão e é o mínimo que mostra
+  pelo menos uma ocorrência de uma regra `yearly`. O custo é desprezível — uma regra
+  mensal são 12 linhas por ano. A fixa com fim usa o mesmo horizonte, e não a gravação
+  inteira: a regra é "trabalho limitado na criação", e uma fixa até 2099 emitiria
+  novecentas linhas.
+
+**`materialized_count` é a marca d'água** (watermark): quantas ocorrências a regra já
+emitiu. O complemento (top-up) emite a ocorrência de número `materialized_count + 1` em
+diante, enquanto ela vencer até `today + 12 months` (e até `end_at`), e então avança a
+marca. Ele roda na abertura do app, depois da verificação de integridade
+([backend-design.md §4.5](backend-design.md#45-a-sequência-de-abertura)), e logo após criar
+ou mudar uma série. Uma marca d'água, em vez de "existe uma linha para esta data?",
+porque:
 
 - É **inerentemente idempotente** — rodar o top-up duas vezes não grava nada na segunda,
   sem nenhuma varredura de `transactions`.
 - **Faz a exclusão valer.** Se o top-up procurasse uma linha viva, um usuário que
   excluísse o aluguel de abril o encontraria **recriado na próxima abertura**, porque o
   soft delete esconde a linha dessa consulta. Uma marca d'água que só avança nunca
-  revisita uma data pela qual já passou.
+  revisita um número pelo qual já passou.
 - É inspecionável — "até onde esta regra foi expandida" é uma coluna, não uma
   propriedade inferida.
 
 Consequências: o top-up escreve na abertura do app, então precisa ser transacional e não
 pode rodar antes de o banco estar pronto, e é uma escrita que a sincronização precisa
-reconciliar. Uma regra `fixed` com um `end_at` muito distante (o ano 2099) é finita no
-papel, mas cai no comportamento móvel em vez de emitir novecentas linhas — a regra é
-"trabalho limitado na criação". Dois dispositivos rodando o top-up offline emitem as
-mesmas ocorrências — mas o id de cada ocorrência é derivado de
-`(recurrence_id, due_date)` ([§3.5](#35-chaves-primárias-são-uuids)), então eles emitem
-as **mesmas linhas** e a sincronização as mescla. O índice único
-`uq_transactions_recurrence_due_date` da [§4.13](#413-transactions) continua sendo a
-rede de segurança, e a própria marca d'água é mesclada como o maior dos dois valores
-([sync-design.md §5.5](sync-design.md#55-colunas-que-nunca-sincronizam)).
+reconciliar. Cada série é complementada na **sua própria transação**: a que falha é
+desfeita sozinha e registrada no log, e as outras seguem
+([backend-design.md §4.5](backend-design.md#45-a-sequência-de-abertura)). Um número que já
+está vivo acima da marca d'água — chegado de outro aparelho antes da marca dele — é pulado,
+e não regravado. Dois aparelhos rodando o top-up offline emitem as **mesmas linhas** (mesmo
+número, mesmo id) e a sincronização as mescla; a marca d'água é mesclada como o maior dos
+dois valores ([sync-design.md §5.5](sync-design.md#55-colunas-que-nunca-sincronizam)).
+
+Regra de negócio (Recorrências): a série cuja conta ou cartão foi **desativado continua
+emitindo** — desativar não muda nenhum saldo, nem o previsto dos meses seguintes
+(desktop-mvp-plan §5.1). Para parar, exclui-se "esta e as futuras". Já a **exclusão** da
+conta ou do cartão de origem ou de destino exclui a regra junto, na mesma cadeia
+(desktop-mvp-plan §5.1). Excluir uma subcategoria movendo os lançamentos move também o
+modelo das regras; excluir uma tag a tira das regras.
 
 #### Editar uma transação recorrente pergunta o escopo ao usuário
 
@@ -1054,21 +1242,83 @@ adivinhar em silêncio reescreve dados que o usuário não pretendia tocar, o qu
 de finanças, significa números históricos errados.
 
 - Isso é responsabilidade da camada Service, e o retorno de materializar linhas reais: os
-  três escopos são apenas cláusulas `WHERE` diferentes sobre as linhas que compartilham
-  um `recurrence_id`.
-- **"Futuras" é definido por `due_date`**, nunca pela ordem de inserção ou pelo id.
-- Os escopos 2 e 3 também atualizam a própria linha de `recurrences`, já que a regra que
-  emite ocorrências ainda não materializadas precisa concordar com o que o usuário pediu.
-  Eles não precisam mover a marca d'água — o horizonte não muda. O escopo 1 deixa a regra
-  intocada.
+  três escopos são apenas cláusulas `WHERE` diferentes sobre as linhas vivas que
+  compartilham um `recurrence_id`.
+- **"Futuras" é definido pelo número da ocorrência** — a editada e as de número maior —,
+  na edição, na exclusão e na mudança da série. Nunca pela data: uma ocorrência movida em
+  "somente esta" para depois da editada continua sendo anterior a ela na série, e escolher
+  pela data o que sai e pelo número o que é recriado perdia lançamentos ou recriava um id
+  ainda vivo.
+- **Somente esta** grava só a ocorrência e deixa a regra intocada.
+- **Esta e as futuras** e **todas** aplicam **o que mudou** na ocorrência editada (origem,
+  destino, subcategoria, nome, descrição, valor, encargos, tags) a cada ocorrência
+  do escopo e ao modelo da regra. Só o que mudou, e não o formulário inteiro, porque cada
+  ocorrência pode ter algo próprio que o usuário não tocou: renomear a parcela 3 de
+  "1.000,00 em 3x" não pode copiar os 333,33 dela para a parcela 1, que tem 333,34, e quebrar
+  o total. Pago e data de pagamento continuam individuais: só a ocorrência editada recebe
+  os do formulário. Ao trocar a fatura de uma compra no cartão, o novo deslocamento da
+  editada vale para as demais.
+- **Trocar a data** nesses escopos muda o **dia âncora**, não o período: regra de negócio
+  (Recorrências) — cada ocorrência vai para o novo dia **dentro do mês em que já está**
+  (`monthly` e `yearly`, com o último dia do mês quando o dia não existe) ou para o novo
+  dia da semana **dentro da semana em que já está** (`weekly`). Só a editada recebe a data
+  inteira do formulário. Na `daily` não há dia âncora, e trocar a data só vale para
+  "somente esta". Regra de negócio (Recorrências): **trocar o dia não muda quais
+  ocorrências a série tem** — nada é criado nem apagado. Numa fixa com fim, o `end_at`
+  acompanha o dia novo: fica entre a data nova da última ocorrência e a véspera da
+  seguinte (ou como estava, se já estiver nesse intervalo). Mantido o fim digitado, o dia
+  novo podia deixar a última ocorrência gravada fora da série, trazer a seguinte para
+  dentro dela, ou pôr a 1ª depois do fim numa edição que nem mexeu no término.
+- **Mudar a série** vale sempre para a editada e as futuras: não há escolha de escopo, e o
+  Service recusa "somente esta" e "todas". As demais alterações do formulário feitas na
+  mesma edição também valem para a editada e as futuras. Há dois casos, conforme o que
+  mudou:
+  - **Quantidade de parcelas ou término de uma fixa — a regra continua.** Regra de negócio
+    (Recorrências): o calendário não muda, então só se cria ou se apaga o que a mudança
+    exige, e as demais ocorrências ficam intactas, com as edições feitas nelas. Aumentar as
+    parcelas cria os números novos; reduzir apaga as excedentes. Estender o término (ou
+    tirá-lo) cria as ocorrências até o novo fim, limitado ao horizonte de 12 meses;
+    encurtá-lo apaga as que passam do novo fim. As apagadas saem **mesmo pagas**. A nova
+    quantidade de parcelas não pode ser menor que o número da editada, nem o novo término
+    anterior à data dela. Numa parcelada, a série passa a valer por parcela
+    (`value_type = per_installment`). Regra de negócio (Parcelamento): se o valor foi
+    alterado no formulário, ele vale para as parcelas novas; se não foi, elas recebem o
+    **valor regular** da série — no "valor total", o de uma parcela sem o resto do
+    arredondamento; no "por parcela", o do modelo. O valor da ocorrência na tela podia ser o
+    da 1ª, com o resto do arredondamento, ou um valor próprio dado em "somente esta", e
+    copiá-lo faria a série somar mais que a compra.
+  - **Periodicidade ou tipo (parcelada ↔ fixa) — nasce uma regra nova.** Regra de negócio
+    (Recorrências): a regra atual é encerrada na anterior à editada (`end_at` = véspera da
+    data que o calendário dá à editada na fixa, `installments` = número da editada − 1 na
+    parcelada) — ou excluída,
+    quando a editada é a 1ª —, a editada e todas as futuras são excluídas, **mesmo pagas**,
+    e uma regra nova começa na editada, que vira a 1ª ocorrência dela com os dados do
+    formulário. As passadas ficam na regra antiga, sem vínculo com a nova: a sequência se
+    perde, e o diálogo de revisão diz isso antes. A fixa nova vai até o horizonte de 12
+    meses; a parcelada nova tem como total as parcelas restantes (quantidade do formulário −
+    número da editada + 1) quando já era parcelada, valendo por parcela, ou a quantidade
+    informada pelo usuário, com "total" ou "por parcela" escolhido como na criação, quando
+    era fixa. Uma regra nova, e não a regeneração da mesma, porque o calendário novo não
+    tem relação com a numeração antiga — e recriar até a contagem antiga gravava séries
+    de décadas (uma diária virando mensal).
 - A exclusão segue os mesmos três escopos, carimbando `deleted_at` em todo o conjunto
-  selecionado em uma única transação.
+  selecionado em uma única transação. "Esta e as futuras" também encerra a regra — numa
+  fixa, `end_at` passa a ser a véspera da data que o **calendário** dá à editada, e não da
+  data gravada nela, que pode ter sido movida em "somente esta"; numa parcelada,
+  `installments` passa a ser o número anterior ao dela e, no "valor total", o total passa a
+  ser a soma das parcelas que ficam — para que o top-up não emita mais nada e o painel não
+  mostre o total da compra inteira sobre menos parcelas. "Todas" exclui a regra.
 - Qualquer escopo que toque uma ocorrência passada altera um mês com saldo consolidado,
   então o recálculo roda de novo para cada mês afetado.
-- **Ocorrências já pagas não são protegidas.** O app precisa **confirmar antes de
-  executar** quando o conjunto selecionado contém linhas pagas, dizendo o que realmente
-  está em jogo — quantas ocorrências pagas, os saldos de quais meses vão mudar — em vez
-  de um aviso genérico. Valores passados neste sistema são mutáveis por design: uma
+- **Ocorrências já pagas não são protegidas.** O app **confirma antes de executar** toda
+  criação de uma série e toda edição e exclusão em "esta e as futuras" ou "todas" num
+  diálogo de revisão, que diz o que realmente está em jogo — as ocorrências que serão
+  excluídas, criadas e alteradas, quais estão pagas, os saldos de quais meses vão mudar — em
+  vez de um aviso genérico. "Somente esta" grava direto da escolha do escopo
+  (desktop-mvp-plan Fase 13.2): mexe numa linha só, a que o usuário está vendo, e a revisão
+  só repetia o que ele acabou de escolher. O
+  Service calcula essa lista executando a própria operação numa transação desfeita
+  (`UnitOfWork.rehearse`), para que ela nunca discorde do que é gravado. Valores passados neste sistema são mutáveis por design: uma
   ferramenta de finanças pessoais muitas vezes está *corrigindo* o histórico, e não
   apenas registrando-o. O custo é que um relatório gerado duas vezes pode legitimamente
   dar resultados diferentes, e `updated_at` é o único rastro de que um número passado foi
@@ -1083,20 +1333,42 @@ de finanças, significa números históricos errados.
 | `recurrence` | INTEGER | NN, `CHECK (recurrence IN (1, 2, 3, 4))` | enum — `1: daily`, `2: weekly`, `3: monthly`, `4: yearly` |
 | `installments` | INTEGER | null, `CHECK (installments IS NULL OR installments > 0)` | Número de partes — somente `type = 1` |
 | `value_type` | INTEGER | null, `CHECK (value_type IS NULL OR value_type IN (1, 2))` | enum — `1: total`, `2: per_installment` — somente `type = 1` |
-| `end_at` | TEXT | null, date | Quando a regra para de emitir — somente `type = 2` |
-| `materialized_through` | TEXT | NN, date | Marca d'água; só avança. Sempre preenchida, já que a criação materializa pelo menos o primeiro horizonte |
+| `end_at` | TEXT | null, date | Última data em que a regra emite — somente `type = 2`; nulo = sem fim |
+| `starts_on` | TEXT | NN, date | Data da ocorrência de referência do calendário |
+| `starts_at` | INTEGER | NN, `CHECK (starts_at > 0)` | Número da ocorrência de `starts_on` |
+| `anchor_day` | INTEGER | null, `CHECK (anchor_day IS NULL OR anchor_day BETWEEN 1 AND 31)` | Dia do mês (`monthly`, `yearly`) ou da semana ISO (`weekly`); nulo em `daily` |
+| `materialized_count` | INTEGER | NN, `CHECK (materialized_count >= 0)` | Marca d'água; só avança |
+| `transaction_type` | INTEGER | NN, `CHECK (transaction_type IN (1, 2, 3, 4))` | Modelo — como `transactions.type` |
+| `account_id` | TEXT | null, FK | Modelo — origem numa conta; exclusiva com `credit_card_id` (regra da aplicação) |
+| `credit_card_id` | TEXT | null, FK | Modelo — origem num cartão |
+| `invoice_offset` | INTEGER | null | Meses entre a fatura escolhida e a sugerida — somente com `credit_card_id` |
+| `destination_account_id` | TEXT | null, FK | Modelo — tipos 3 e 4 |
+| `sub_category_id` | TEXT | NN, FK | Modelo |
+| `partner_id`, `goal_id` | TEXT | null, FK | Modelo |
+| `name` | TEXT | NN, `CHECK (length(name) <= 100)` | Modelo |
+| `description` | TEXT | null | Modelo |
+| `value` | REAL | NN | Modelo — o total quando `value_type = total`, senão o valor de cada ocorrência |
+| `charges` | REAL | NN | Modelo |
+| `currency`, `conversion_rate` | TEXT, REAL | NN | Modelo — proveniência, como em `transactions` |
 
 #### Chaves estrangeiras
 
 | FK | Destino | Nulo? | On delete | Por quê |
 |---|---|---|---|---|
 | `profile_id` | profiles | NN | `CASCADE` | Propriedade |
+| `account_id`, `credit_card_id`, `destination_account_id` | accounts, credit_cards | null | `CASCADE` | A regra não emite para uma conta ou um cartão que não existe; o soft delete em cadeia é da aplicação |
+| `sub_category_id` | transaction_sub_categories | NN | `NO ACTION` | Vocabulário, como em `transactions` |
+| `partner_id`, `goal_id` | partners, goals | null | `SET NULL` | Referência |
 
 #### Índices
 
 | Índice | Colunas | Tipo |
 |---|---|---|
 | `idx_recurrences_profile_id` | `(profile_id)` | simples |
+| `idx_recurrences_account_id`, `idx_recurrences_credit_card_id`, `idx_recurrences_destination_account_id` | cada coluna | simples — exclusão em cadeia |
+
+`recurrences_tags` repete `transactions_tags` com `recurrence_id` no lugar de
+`transaction_id`: id derivado do par, índice único parcial do par entre as linhas vivas.
 
 ### 4.13 transactions
 
@@ -1106,7 +1378,15 @@ investimento — é uma transação, e toda transação é classificada por uma 
 #### Uma transação pertence a exatamente um contêiner mensal
 
 Uma transação de conta cai em um extrato bancário; uma transação de cartão cai em uma
-fatura. `bank_statement_id` e `invoice_id` são alternativas, não pais simultâneos — um
+fatura.
+
+Regra de negócio (Extrato): a transação de conta cai no extrato do mês da sua **data de
+caixa** — o `payment_date` quando paga, o `due_date` enquanto em aberto. O extrato mostra
+quando o dinheiro de fato saiu ou entrou: o aluguel que vence em 28/09 e é pago em 02/10
+está no extrato de outubro. Pagar, desmarcar o pagamento ou editar a data de pagamento
+para outro mês **muda a transação de extrato**, e os dois meses são recalculados. Na
+transação de cartão a data de pagamento não decide nada: o contêiner é a fatura escolhida
+([§4.7](#47-invoices)). `bank_statement_id` e `invoice_id` são alternativas, não pais simultâneos — um
 arco exclusivo implementado como duas chaves estrangeiras anuláveis. "Exatamente uma está
 preenchida" é garantido na aplicação, não por um `CHECK`
 ([§3.10](#310-o-que-o-banco-garante-e-o-que-a-aplicação-garante)). A troca: uma
@@ -1168,8 +1448,10 @@ conta — o destino dos recursos — por meio de `destination_account_id`, nulo 
 os outros tipos.
 
 Regra de negócio (Transferência): **uma transferência é uma única linha**, no contêiner
-da origem, e não duas pernas. Ela sai da origem e entra no destino no mês do seu
-`due_date`, com o mesmo valor e o mesmo `paid` dos dois lados. Uma linha só não pode
+da origem, e não duas pernas. Ela sai da origem e entra no destino no mês da sua data de
+caixa (`payment_date` quando paga, `due_date` em aberto), com o mesmo valor e o mesmo
+`paid` dos dois lados — se o destino seguisse outra data, o dinheiro sumiria do perfil
+entre os dois meses. Uma linha só não pode
 ficar pela metade: editar ou excluir afeta as duas contas ao mesmo tempo, e duas edições
 concorrentes em dispositivos diferentes não conseguem deixar as pontas com valores
 diferentes ([sync-design.md §5.1](sync-design.md#51-a-unidade-de-merge-é-a-coluna-a-escrita-mais-recente-vence)).
@@ -1180,21 +1462,76 @@ transações mais as que chegam por `destination_account_id`
 fatura como origem ([§4.7](#47-invoices)). Os relatórios precisam evitar contagem dupla: uma transferência não é
 receita nem despesa líquida no nível do perfil, apenas no nível da conta.
 
-#### Uma transação registra qual sócio a pagou
+#### Transferência entre perfis
 
-`partner_id` identifica o sócio que pagou esta transação específica — distinto da
-participação societária da [§4.2](#42-partners). Ele não faz parte de nenhum arco
-exclusivo: é nulo em toda transação de um perfil pessoal, e anulável também em um perfil
-empresarial, já que pode não haver sócio registrado como pagador. Relatórios que dividem
-por sócio precisam lidar com transações sem atribuição, em vez de supor que o vínculo
-está presente.
+Regra de negócio (Transferência entre perfis): a conta de destino de uma **transferência**
+pode ser de outro perfil — mover dinheiro da conta pessoal para a da empresa é um fato
+real que os dois lados precisam registrar. É a única referência que atravessa a fronteira
+do perfil ([§3.8](#38-o-perfil-é-a-raiz-do-tenant-e-as-chaves-estrangeiras-seguem-o-relacionamento));
+as condições são verificadas no `TransactionComposer`:
+
+- só `transference` — o investimento continua com destino no próprio perfil
+  (`reference-outside-profile`);
+- a origem é uma **conta** — a transferência que sai de uma fatura (pagamento parcial) não
+  cruza perfis (`cross-profile-transfer-requires-account`);
+- os dois perfis têm a **mesma moeda** — a linha grava um único `value`, somado como está no
+  extrato do destino (`cross-profile-transfer-currency-mismatch`). Pela mesma razão, um
+  perfil que recebe transferências de outro tem a moeda travada (`profile-currency-locked`).
+
+A linha continua única e pertence ao perfil de **origem**: subcategoria, tags e meta são
+dele. O perfil de destino a vê na lista de transações do mês e no extrato da conta, só para
+leitura — editar, pagar ou excluir é no perfil de origem. Nos relatórios ela conta como
+despesa na origem (valor + encargos) e receita no destino (só o valor), porque para cada
+perfil o dinheiro de fato saiu ou entrou ([reports-design.md](reports-design.md), R2 e C3).
+Excluir a conta de destino apaga a transferência junto, como numa transferência interna, e
+recalcula a conta de origem no outro perfil.
+
+#### Mover para outro perfil
+
+Regra de negócio (Mover para outro perfil): a edição pode levar a transação para **outro
+perfil** (`profileId` em `transactions.update`; nulo ou igual ao atual mantém o perfil). A
+transação não tem `profile_id` próprio — o perfil vem do contêiner —, então mover é trocar a
+conta ou o cartão por um do perfil de destino, e todas as referências do conteúdo passam a ser
+conferidas contra ele no `TransactionComposer`: subcategoria, tags, meta, sócio e conta de
+destino precisam ser de lá ([§3.8](#38-o-perfil-é-a-raiz-do-tenant-e-as-chaves-estrangeiras-seguem-o-relacionamento)),
+com a exceção de sempre da transferência entre perfis. Os dois perfis precisam ter a **mesma
+moeda** (`transaction-move-currency-mismatch`), pela mesma razão da transferência entre perfis:
+o valor gravado não é convertido. O recálculo do estado antigo e do novo cobre as contas dos
+dois perfis numa só unidade de trabalho. A transferência recebida de outro perfil continua só
+para leitura no destino: quem a move é o perfil de origem. Numa ocorrência de série, a série
+inteira vai junto ([§4.12](#412-recurrences), "Pertence diretamente ao perfil").
+
+#### O tipo é fixo desde a criação
+
+Nenhuma edição troca o `type` de uma transação, em nenhum escopo de série: uma despesa
+continua despesa, uma receita continua receita, e o mesmo vale para transferência e
+investimento. Trocar o tipo inverte a direção do efeito no saldo, cria ou some com a conta de
+destino e muda quem pode alimentar uma meta; aceitar a troca numa edição deixava vínculos
+inválidos para trás (uma meta presa numa despesa, por exemplo). Lançar com outro tipo é
+excluir e lançar de novo. A regra é da aplicação (`transaction-type-locked`), verificada na
+entidade ao editar; o formulário só mostra o tipo atual.
+
+#### Uma transação registra qual sócio aportou
+
+`partner_id` identifica o sócio que aportou o dinheiro desta transação específica — distinto
+da participação societária da [§4.2](#42-partners). Toda despesa de um perfil empresarial é
+paga com o dinheiro da empresa, e o sócio aparece no dinheiro que **entra** nela: a receita
+do perfil empresarial e a transferência que chega a ele vinda de outro perfil
+([reports-design §8](reports-design.md#8-por-sócio-reportsbypartner-reportsentrieswithoutpartner)).
+Na transferência entre perfis a linha é do perfil de **origem** — um perfil pessoal, tipicamente —,
+mas o sócio é do perfil de **destino**; é a única referência a sócio que atravessa perfis, como a
+própria conta de destino. Ele não faz parte de nenhum arco exclusivo e é anulável mesmo no aporte,
+já que a receita de serviço não tem sócio. A regra é da aplicação (`TransactionComposer.assertPartner`).
+Despesas com sócio gravadas antes da regra continuam no banco e são ignoradas pelo relatório.
+Relatórios que dividem por sócio precisam lidar com transações sem atribuição, em vez de supor
+que o vínculo está presente.
 
 #### Os demais vínculos
 
-`goal_id` — uma transação pode contribuir para uma meta ou para nenhuma
-([§4.11](#411-goals)). `recurrence_id` — preenchido apenas em transações emitidas por uma
-regra ([§4.12](#412-recurrences)). Nenhum dos dois restringe o outro ou qualquer outra
-coisa. `paid` e `payment_date` precisam concordar, o que é uma regra da aplicação.
+`goal_id` — uma receita ou transferência pode contribuir para uma meta ou para nenhuma
+([§4.11](#411-goals)); `goal_withdrawal` marca a transferência que retira dinheiro da meta. `recurrence_id` — preenchido apenas em transações emitidas por uma
+regra ([§4.12](#412-recurrences)). Nenhum dos dois restringe o outro; a meta só restringe
+o tipo da transação. `paid` e `payment_date` precisam concordar, o que é uma regra da aplicação.
 
 #### Colunas
 
@@ -1204,9 +1541,10 @@ coisa. `paid` e `payment_date` precisam concordar, o que é uma regra da aplica�
 | `bank_statement_id` | TEXT | null, FK | Exclusivo com `invoice_id` |
 | `invoice_id` | TEXT | null, FK | Exclusivo com `bank_statement_id` |
 | `destination_account_id` | TEXT | null, FK | Somente `type` 3 e 4 |
-| `partner_id` | TEXT | null, FK | Somente perfis empresariais, opcional mesmo nesses |
+| `partner_id` | TEXT | null, FK | Só em aporte: receita de perfil empresarial ou transferência para um, com o sócio do perfil de destino; opcional mesmo nesses |
 | `goal_id` | TEXT | null, FK | |
 | `recurrence_id` | TEXT | null, FK | Somente quando emitida por uma regra |
+| `occurrence` | INTEGER | null, `CHECK (occurrence IS NULL OR occurrence > 0)` | Número da ocorrência na série — preenchido exatamente com `recurrence_id` (regra da aplicação); chave do id determinístico ([§4.12](#412-recurrences)). Migration `0004` |
 | `name` | TEXT | NN, `CHECK (length(name) <= 100)` | O tamanho não estava especificado no diagrama; 100 foi escolhido |
 | `description` | TEXT | null | Texto livre, sem limite de tamanho |
 | `value` | REAL | NN | money — **sempre já convertido** para a moeda do perfil |
@@ -1245,8 +1583,8 @@ exclusivo.
 | `idx_transactions_partner_id` | `(partner_id)` | simples |
 | `idx_transactions_goal_id` | `(goal_id)` | simples |
 | `idx_transactions_recurrence_id` | `(recurrence_id)` | simples |
-| `idx_transactions_due_date` | `(due_date)` | simples — relatórios por período e o escopo "esta e as futuras" |
-| `uq_transactions_recurrence_due_date` | `(recurrence_id, due_date)` | único, parcial — `WHERE deleted_at IS NULL AND recurrence_id IS NOT NULL` |
+| `idx_transactions_due_date` | `(due_date)` | simples — relatórios por período (o escopo "esta e as futuras" usa o número da ocorrência, [§4.12](#412-recurrences)) |
+| `uq_transactions_recurrence_occurrence` | `(recurrence_id, occurrence)` | único, parcial — `WHERE deleted_at IS NULL AND recurrence_id IS NOT NULL`; migration `0004` |
 
 ### 4.14 transactions_tags
 
@@ -1363,7 +1701,15 @@ for refatorado. O texto original é mantido como está no diagrama, seguido da t
 2. **A DDL existe** —
    [db/migrations/0001_initial_schema.sql](../../db/migrations/0001_initial_schema.sql),
    um arquivo `.sql` independente de runner, transcrito tabela por tabela a partir da
-   [§4](#4-tabelas). Ela foi exercitada contra o SQLite 3.46: um perfil totalmente
+   [§4](#4-tabelas). A
+   [0002_disabled_registries.sql](../../db/migrations/0002_disabled_registries.sql)
+   acrescenta `disabled_at` a `accounts` e `credit_cards` ([§4.4](#44-accounts)). A
+   [0003_invoice_payment_date.sql](../../db/migrations/0003_invoice_payment_date.sql)
+   acrescenta `payment_date` a `invoices` ([§4.7](#47-invoices)). A
+   [0004_recurrence_template.sql](../../db/migrations/0004_recurrence_template.sql)
+   recria `recurrences` com o modelo e o calendário da série, cria `recurrences_tags`,
+   acrescenta `occurrence` a `transactions` e troca a unicidade das ocorrências da data
+   pelo número ([§4.12](#412-recurrences)). A 0001 foi exercitada contra o SQLite 3.46: um perfil totalmente
    populado, após hard delete, deixa as tabelas vazias; uma transação órfã bloqueia essa
    exclusão; toda verificação de domínio e todo índice único parcial se comportam como
    documentado. Esse exercício precisa virar um teste permanente assim que a stack e seu
@@ -1379,6 +1725,8 @@ for refatorado. O texto original é mantido como está no diagrama, seguido da t
    saldo, transações órfãs, arquivos de anexo ausentes. Três verificações, uma rotina.
 4. **Não restam questões em aberto.**
 5. Ainda de fato não modelado: a **proveniência da importação** do histórico que está
-   sendo migrado do app atual. Os **metadados de sincronização** estão projetados em
+   sendo migrado do app atual. A importação em si chegou sem ela (desktop-mvp-plan Fase 13.1,
+   [import-design.md](import-design.md)): reimportar duplica, e a cópia do banco antes é o
+   caminho de volta. Os **metadados de sincronização** estão projetados em
    [sync-design.md](sync-design.md) e chegam em sua própria migration quando a
    sincronização for implementada; as tabelas acima não mudam por causa disso.

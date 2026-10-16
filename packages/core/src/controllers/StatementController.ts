@@ -1,8 +1,8 @@
 import { toAccountBalanceResponse, type AccountBalanceResponse } from '../dto/accounts/AccountBalanceResponse.ts';
 import { toProfileBalancesResponse, type ProfileBalancesResponse } from '../dto/profiles/ProfileBalancesResponse.ts';
-import { toStatementResponse, type StatementResponse } from '../dto/statements/StatementResponse.ts';
+import { toProfileInvoiceResponse, toStatementResponse, type ProfileInvoiceResponse, type StatementResponse } from '../dto/statements/StatementResponse.ts';
 import { profileBalancesRequest, rebuildAccountRequest } from '../requests/balanceRequests.ts';
-import { getStatementRequest } from '../requests/statementRequests.ts';
+import { getStatementRequest, profileInvoicesRequest } from '../requests/statementRequests.ts';
 import type { AccountBalanceService } from '../services/balance/AccountBalanceService.ts';
 import type { StatementConsolidationService } from '../services/statement/StatementConsolidationService.ts';
 import { handle, type CoreResult, type UnexpectedErrorListener } from './CoreResult.ts';
@@ -29,6 +29,19 @@ export class StatementController {
             getStatementRequest,
             raw,
             ({ accountId, period }) => toStatementResponse(this.consolidation.getStatement(accountId, period)),
+            this.onUnexpected,
+        );
+    }
+
+    /**
+     * @param raw Entrada com o perfil e o mês.
+     * @return As faturas que pesam no mês nas contas do perfil, pela data de caixa.
+     */
+    public profileInvoices(raw: unknown): Promise<CoreResult<readonly ProfileInvoiceResponse[]>> {
+        return handle(
+            profileInvoicesRequest,
+            raw,
+            ({ profileId, period }) => this.consolidation.listProfileInvoices(profileId, period).map(toProfileInvoiceResponse),
             this.onUnexpected,
         );
     }

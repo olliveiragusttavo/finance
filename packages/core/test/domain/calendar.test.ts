@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { LocalDate, YearMonth } from '../../src/index.ts';
 import { BillingCycle } from '../../src/domain/creditCard/BillingCycle.ts';
-import { uuidV5 } from '../../src/domain/shared/DeterministicIds.ts';
+import { APP_UUID_NAMESPACE, transactionTagIdFor, uuidV5 } from '../../src/domain/shared/DeterministicIds.ts';
+import { TagId, TransactionId } from '../../src/domain/shared/ids.ts';
 
 describe('LocalDate e YearMonth', () => {
     it('rejeita datas inexistentes, como o CHECK de formato do schema', () => {
@@ -62,5 +63,12 @@ describe('BillingCycle — regras do cartão (database-design §4.5 e §4.7)', (
 describe('UUID v5', () => {
     it('confere com o vetor de teste do RFC 9562 (namespace DNS, "www.example.com")', () => {
         expect(uuidV5('6ba7b810-9dad-11d1-80b4-00c04fd430c8', 'www.example.com')).toBe('2ed6657d-e927-568b-95e1-2665a8aea6a2');
+    });
+
+    it('o vínculo transação–tag deriva do par, com a chave permanente "transactions_tags:<transação>:<tag>"', () => {
+        const transactionId = TransactionId('00000000-0000-4000-8000-000000000001');
+        const tagId = TagId('00000000-0000-4000-8000-000000000002');
+        expect(transactionTagIdFor(transactionId, tagId)).toBe(uuidV5(APP_UUID_NAMESPACE, `transactions_tags:${transactionId}:${tagId}`));
+        expect(transactionTagIdFor(transactionId, tagId)).not.toBe(transactionTagIdFor(transactionId, TagId('00000000-0000-4000-8000-000000000003')));
     });
 });

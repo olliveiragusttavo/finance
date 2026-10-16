@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Sócios</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+.light{--bg:#F4F5F2;--surface:#FFFFFF;--surface2:#FAFAF8;--line:#DDE1DC;--line2:#EEF0EC;--ink:#1B1F1D;--ink2:#3D4541;--muted:#5A625E;--accent:#1F5F8B;--on-accent:#FFFFFF;--soft:#E6EEF4;--soft-ink:#163F5C;--warn-bg:#FFF1D6;--warn-ink:#5C3D00;--ok-bg:#E2F1E8;--ok-ink:#1E5A3F;--track:#EEF0EC;--danger:#9B2C1F;--dot:#2E7D5B;--s1:#1F5F8B;--s2:#A04A12;--s3:#5A625E;--s4:#2E7D5B}
+.dark{--bg:#111413;--surface:#1A1E1C;--surface2:#151917;--line:#2E3431;--line2:#242926;--ink:#E7EAE7;--ink2:#C3C9C5;--muted:#9AA29E;--accent:#6AAAD8;--on-accent:#0B1A24;--soft:#1D3040;--soft-ink:#B5D7F0;--warn-bg:#3A2C10;--warn-ink:#F2D38F;--ok-bg:#16302A;--ok-ink:#8FD9B4;--track:#2A302D;--danger:#F08A7A;--dot:#5BC08F;--s1:#6AAAD8;--s2:#E89A63;--s3:#9AA29E;--s4:#5BC08F}
+a{color:var(--accent);text-decoration:none}a:hover{color:var(--soft-ink)}
+.n{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+button,input,select{font:inherit;color:inherit}button{cursor:pointer}
+.app{min-height:100vh;display:flex;font-family:'IBM Plex Sans',system-ui,sans-serif;color:var(--ink);background:var(--bg)}
+.side{width:232px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:20px 14px;gap:20px;box-sizing:border-box}
+.brand{font-weight:600;font-size:17px;padding:0 8px}
+.prof{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-size:14px;text-align:left}
+.nav{display:flex;flex-direction:column;gap:2px;font-size:14px}
+.nav a{padding:9px 12px;border-radius:6px;color:var(--ink)}
+.nav a.on{background:var(--soft);color:var(--soft-ink);font-weight:500}
+.sync{margin-top:auto;padding:12px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.dotl{display:flex;align-items:center;gap:6px;color:var(--ink)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--dot);flex-shrink:0}
+.col{flex-grow:1;min-width:0;display:flex;flex-direction:column}
+.top{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 32px;background:var(--surface);border-bottom:1px solid var(--line)}
+.row{display:flex;align-items:center;gap:10px}
+.month{display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.month button{border:0;background:none;padding:8px 12px}
+.month span{font-size:14px;font-weight:600;min-width:150px;text-align:center}
+.link{border:0;background:none;color:var(--accent);font-size:13px;padding:8px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 12px;font-size:13px;display:inline-flex;align-items:center;gap:6px;color:var(--ink)}
+.btn-p{border:0;border-radius:8px;background:var(--accent);color:var(--on-accent);padding:9px 16px;font-size:14px;font-weight:500}
+.btn-p[aria-disabled="true"]{opacity:.5;cursor:not-allowed}
+main{padding:24px 32px;display:flex;flex-direction:column;gap:20px;min-width:0;flex-grow:1}
+h1{margin:0;font-size:20px;font-weight:600}
+h2{margin:0;font-size:22px;font-weight:600}
+h3{margin:0;font-size:16px;font-weight:600}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.clip{overflow:hidden}
+.sm{font-size:12px;color:var(--muted)}
+.muted{color:var(--muted)}
+.stack{display:flex;flex-direction:column}
+.split{display:flex;flex-grow:1;min-height:0}
+.pane{width:300px;flex-shrink:0;border-right:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column}
+.panehd{padding:20px 20px 12px}
+.li{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 20px;border-top:1px solid var(--line2);color:var(--ink);font-size:14px}
+.li.on{background:var(--soft);box-shadow:inset 3px 0 0 var(--accent);font-weight:600}
+.t{display:grid;grid-template-columns:28px 1.6fr 150px 1fr 1fr 40px;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line2);font-size:14px;align-items:center}
+.th{color:var(--muted);font-size:12px;background:var(--surface2);border-bottom:1px solid var(--line)}
+.r{text-align:right}
+.sw{width:12px;height:12px;border-radius:3px}
+.inp{border:1px solid var(--line);border-radius:6px;padding:8px 10px;background:var(--bg);font-size:14px;width:100%;box-sizing:border-box}
+.pct{display:flex;align-items:center;border:1px solid var(--line);border-radius:6px;background:var(--bg);overflow:hidden}
+.pct input{border:0;background:none;width:100%;padding:8px 6px 8px 10px;text-align:right;outline:0}
+.pct span{padding:0 10px;color:var(--muted)}
+.x{width:32px;height:32px;border:0;background:none;border-radius:6px;color:var(--muted)}
+.x:hover{background:var(--track);color:var(--danger)}
+.bar{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--track)}
+.bar>div{height:100%}
+.box{border-radius:8px;padding:10px 12px;font-size:13px}
+.warn{background:var(--warn-bg);color:var(--warn-ink)}.ok{background:var(--ok-bg);color:var(--ok-ink)}
+.note{background:var(--soft);color:var(--soft-ink);border-radius:8px;padding:10px 12px;font-size:13px}
+.field{display:flex;flex-direction:column;gap:4px;font-size:13px}
+.field>span{color:var(--muted)}
+</style>
+</helmet>
+<div class="app {{themeClass}}">
+<nav aria-label="Navegação principal" class="side">
+<div class="brand">Finanças</div>
+<button type="button" class="prof"><span class="stack" style="gap: 2px"><span style="font-weight: 500">Estúdio GO</span><span class="sm">Empresarial · BRL</span></span><span aria-hidden="true">▾</span></button>
+<div class="nav">
+<a href="Main.dc.html">Visão geral</a>
+<a href="DesktopTransacoes.dc.html">Transações</a>
+<a href="DesktopContas.dc.html">Contas</a>
+<a href="DesktopCartoes.dc.html">Cartões</a>
+<a href="DesktopRelCategoria.dc.html">Relatórios</a>
+<a href="DesktopMetas.dc.html">Metas</a>
+<a href="DesktopCadastros.dc.html" class="on" aria-current="page">Cadastros</a>
+<a href="DesktopDispositivos.dc.html">Dispositivos</a>
+<a href="DesktopAjustes.dc.html">Ajustes</a>
+</div>
+<div class="sync"><span class="dotl"><span class="dot" aria-hidden="true"></span>Sincronizado com iPhone de Gustavo · agora</span><span>Dados só neste aparelho e nos seus dispositivos pareados</span></div>
+</nav>
+<div class="col">
+<div class="top">
+<div class="row"><span class="sm">Mês de referência</span><div class="month"><button type="button" aria-label="Mês anterior" onClick="{{prevMonth}}">‹</button><span>{{monthLabel}}</span><button type="button" aria-label="Próximo mês" onClick="{{nextMonth}}">›</button></div><sc-if value="{{notCurrent}}" hint-placeholder-val="{{ false }}"><button type="button" class="link" onClick="{{goToday}}">Voltar ao mês atual</button></sc-if></div>
+<div class="row"><button type="button" class="btn" onClick="{{toggleTheme}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/></svg>{{themeLabel}}</button><button type="button" class="btn-p">+ Lançamento</button></div>
+</div>
+<div class="split">
+<section class="pane" aria-label="Tipos de cadastro">
+<div class="panehd"><h1>Cadastros</h1></div>
+<a href="DesktopContas.dc.html" class="li"><span>Contas</span><span class="sm">[n]</span></a>
+<a href="DesktopCartoes.dc.html" class="li"><span>Cartões</span><span class="sm">[n]</span></a>
+<a href="DesktopCadastros.dc.html" class="li"><span>Categorias</span><span class="sm">[n]</span></a>
+<a href="DesktopTags.dc.html" class="li"><span>Tags</span><span class="sm">[n]</span></a>
+<a href="DesktopSocios.dc.html" class="li on" aria-current="true"><span>Sócios</span><span class="sm n">{{count}}</span></a>
+<a href="#" class="li"><span>Perfis</span><span class="sm">2</span></a>
+<a href="DesktopAnotacoes.dc.html" class="li"><span>Anotações</span><span class="sm">[n]</span></a>
+<div class="sm" style="padding: 14px 20px; border-top: 1px solid var(--line2)">Sócios existem só em perfil empresarial.</div>
+</section>
+<main>
+<div class="row" style="justify-content: space-between; align-items: flex-end">
+<div class="stack" style="gap: 4px"><h2>Sócios</h2><span class="sm">Pessoas com participação no perfil Estúdio GO. A soma das participações precisa dar 100%.</span></div>
+<a href="DesktopRelSocio.dc.html" class="btn">Ver relatório por sócio →</a>
+</div>
+
+<section class="card" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 10px" aria-label="Divisão da participação">
+<div class="row" style="justify-content: space-between"><h3>Divisão</h3><span class="n" style="font-weight: 600">Soma: {{sumLabel}}</span></div>
+<div class="bar" role="img" aria-label="{{barAria}}"><sc-for list="{{segs}}" as="g" hint-placeholder-count="2"><div style="width: {{g.w}}%; background: {{g.color}}"></div></sc-for></div>
+<div class="row" style="gap: 18px; flex-wrap: wrap; font-size: 13px"><sc-for list="{{rows}}" as="p" hint-placeholder-count="2"><span class="row" style="gap: 6px"><span class="sw" style="background: {{p.color}}"></span>{{p.nameShown}} <span class="muted n">{{p.pctShown}}</span></span></sc-for></div>
+</section>
+
+<section class="card clip" aria-label="Lista de sócios">
+<div class="t th"><span></span><span>Nome</span><span class="r">Participação</span><span class="r">Pagou em {{monthShort}}</span><span class="r">Deveria pagar</span><span></span></div>
+<sc-for list="{{rows}}" as="p" hint-placeholder-count="2">
+<div class="t n">
+<span class="sw" style="background: {{p.color}}" aria-hidden="true"></span>
+<label><span style="position: absolute; left: -9999px">Nome do sócio {{p.idx}}</span><input class="inp" type="text" maxlength="100" value="{{p.name}}" onChange="{{p.setName}}"></label>
+<label class="pct"><span style="position: absolute; left: -9999px">Participação de {{p.nameShown}}</span><input type="text" inputmode="decimal" value="{{p.pct}}" onChange="{{p.setPct}}"><span aria-hidden="true">%</span></label>
+<span class="r">{{p.paid}}</span>
+<span class="r muted">{{p.should}}</span>
+<button type="button" class="x" onClick="{{p.remove}}" aria-label="{{p.removeAria}}">✕</button>
+</div>
+</sc-for>
+<form class="t" style="border-bottom: 0; background: var(--surface2)" onSubmit="{{addSubmit}}">
+<span class="sw" style="background: var(--track)" aria-hidden="true"></span>
+<label><span style="position: absolute; left: -9999px">Nome do novo sócio</span><input class="inp" type="text" maxlength="100" placeholder="Nome do novo sócio" value="{{draft}}" onChange="{{setDraft}}"></label>
+<button type="submit" class="btn" style="justify-content: center">+ Adicionar</button>
+<span class="sm" style="grid-column: span 3">Entra com 0%; ajuste a participação de todos.</span>
+</form>
+</section>
+
+<sc-if value="{{isOk}}" hint-placeholder-val="{{ true }}"><div class="box ok">A soma dá 100%. Pode salvar.</div></sc-if>
+<sc-if value="{{isOff}}" hint-placeholder-val="{{ false }}"><div class="box warn n">{{offText}}</div></sc-if>
+<sc-if value="{{hasRemoved}}" hint-placeholder-val="{{ false }}"><div class="box warn">{{removedText}}</div></sc-if>
+
+<div class="note">“Deveria pagar” usa a participação sobre as despesas com sócio atribuído no mês ({{baseLabel}}). Lançamentos sem sócio ficam fora da divisão.</div>
+
+<div class="row" style="justify-content: flex-end; gap: 10px"><button type="button" class="btn" onClick="{{reset}}">Descartar alterações</button><button type="button" class="btn-p" aria-disabled="{{saveDisabled}}">Salvar</button></div>
+</main>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1080}}'>
+class Component extends DCLogic {
+renderVals() {
+const s = this.state || {};
+const M = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const base = 2026 * 12 + 9;
+const idx = s.idx ?? base;
+const dark = s.dark ?? (this.props.dark ?? false);
+const INIT = [{id:1,name:'Gustavo',pct:'60',paid:3200,n:[14]},{id:2,name:'Ana',pct:'40',paid:1800}];
+const list = s.list || INIT;
+const removed = s.removed || [];
+const BASE = 5000;
+const COLORS = ['var(--s1)','var(--s2)','var(--s3)','var(--s4)'];
+const num = (v) => { const x = parseFloat(String(v).replace(',', '.')); return isNaN(x) ? 0 : x; };
+const brl = (v) => 'R$ ' + v.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const pctFmt = (v) => v.toLocaleString('pt-BR', {maximumFractionDigits: 2}) + '%';
+const sum = list.reduce((t, p) => t + num(p.pct), 0);
+const sumR = Math.round(sum * 100) / 100;
+const upd = (id, patch) => this.setState({ list: list.map(p => p.id === id ? Object.assign({}, p, patch) : p) });
+const rows = list.map((p, i) => ({
+idx: i + 1, name: p.name, nameShown: p.name || 'Sem nome', pct: p.pct, pctShown: pctFmt(num(p.pct)),
+color: COLORS[i % COLORS.length],
+paid: p.paid != null ? brl(p.paid) : 'R$ 0,00',
+should: brl(BASE * num(p.pct) / 100),
+setName: (e) => upd(p.id, { name: e.target.value }),
+setPct: (e) => upd(p.id, { pct: e.target.value.replace(/[^0-9.,]/g, '') }),
+remove: () => this.setState({ list: list.filter(q => q.id !== p.id), removed: p.paid ? removed.concat([p.name]) : removed }),
+removeAria: 'Remover ' + (p.name || 'sócio')
+}));
+const segs = list.map((p, i) => ({ w: Math.max(0, Math.min(100, num(p.pct))), color: COLORS[i % COLORS.length] }));
+if (sumR < 100) segs.push({ w: 100 - sumR, color: 'transparent' });
+const diff = Math.round((100 - sumR) * 100) / 100;
+const offText = diff > 0 ? 'Faltam ' + pctFmt(diff) + ' para fechar 100%.' : 'A soma passou ' + pctFmt(-diff) + ' de 100%. Reduza a participação de alguém.';
+const draft = s.draft || '';
+return {
+themeClass: dark ? 'dark' : 'light',
+themeLabel: dark ? 'Tema claro' : 'Tema escuro',
+toggleTheme: () => this.setState({ dark: !dark }),
+monthLabel: M[idx % 12] + ' de ' + Math.floor(idx / 12),
+monthShort: M[idx % 12].slice(0, 3).toLowerCase() + '/' + Math.floor(idx / 12),
+prevMonth: () => this.setState({ idx: idx - 1 }),
+nextMonth: () => this.setState({ idx: idx + 1 }),
+goToday: () => this.setState({ idx: base }),
+notCurrent: idx !== base,
+count: list.length,
+rows, segs,
+sumLabel: pctFmt(sumR),
+barAria: list.map(p => (p.name || 'Sem nome') + ' ' + pctFmt(num(p.pct))).join(', '),
+isOk: sumR === 100, isOff: sumR !== 100, offText,
+saveDisabled: sumR === 100 && list.every(p => p.name.trim()) ? 'false' : 'true',
+hasRemoved: removed.length > 0,
+removedText: 'Ao salvar, os lançamentos pagos por ' + removed.join(', ') + ' ficam “sem sócio atribuído” e saem da divisão.',
+baseLabel: brl(BASE),
+draft,
+setDraft: (e) => this.setState({ draft: e.target.value }),
+addSubmit: (e) => { e.preventDefault(); const nm = draft.trim(); if (!nm) return; this.setState({ list: list.concat([{ id: Date.now(), name: nm, pct: '0' }]), draft: '' }); },
+reset: () => this.setState({ list: INIT, removed: [], draft: '' })
+};
+}
+}
+</script>
+</body>
+</html>

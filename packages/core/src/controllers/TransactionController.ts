@@ -1,5 +1,13 @@
 import { toTransactionResponse, type TransactionResponse } from '../dto/transactions/TransactionResponse.ts';
-import { createTransactionRequest, listTransactionsRequest, transactionIdRequest, updateTransactionRequest } from '../requests/transactionRequests.ts';
+import {
+    createTransactionRequest,
+    deleteTransactionRequest,
+    listTransactionsRequest,
+    setPaidRequest,
+    setPartnerRequest,
+    transactionIdRequest,
+    updateTransactionRequest,
+} from '../requests/transactionRequests.ts';
 import type { TransactionService } from '../services/transaction/TransactionService.ts';
 import { handle, type CoreResult, type UnexpectedErrorListener } from './CoreResult.ts';
 
@@ -34,12 +42,28 @@ export class TransactionController {
     }
 
     /**
+     * @param raw Entrada com o id da transação e a situação pedida.
+     * @return A transação marcada como paga (com a data de hoje) ou em aberto.
+     */
+    public setPaid(raw: unknown): Promise<CoreResult<TransactionResponse>> {
+        return handle(setPaidRequest, raw, ({ id, paid }) => toTransactionResponse(this.transactions.setPaid(id, paid)), this.onUnexpected);
+    }
+
+    /**
+     * @param raw Entrada com o id da transação e o sócio que pagou, ou `null`.
+     * @return A transação com o sócio trocado.
+     */
+    public setPartner(raw: unknown): Promise<CoreResult<TransactionResponse>> {
+        return handle(setPartnerRequest, raw, ({ id, partnerId }) => toTransactionResponse(this.transactions.setPartner(id, partnerId)), this.onUnexpected);
+    }
+
+    /**
      * @param raw Entrada com o id da transação.
      * @return `null` em caso de sucesso — não há o que devolver de uma linha excluída.
      */
     public delete(raw: unknown): Promise<CoreResult<null>> {
-        return handle(transactionIdRequest, raw, ({ id }) => {
-            this.transactions.delete(id);
+        return handle(deleteTransactionRequest, raw, ({ id, scope }) => {
+            this.transactions.delete(id, scope);
             return null;
         }, this.onUnexpected);
     }

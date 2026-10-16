@@ -1,11 +1,12 @@
+import { toInvoiceCycleResponse, type InvoiceCycleResponse } from '../dto/invoices/InvoiceCycleResponse.ts';
 import { toInvoiceDetailResponse, type InvoiceDetailResponse } from '../dto/invoices/InvoiceDetailResponse.ts';
 import { toInvoiceResponse, type InvoiceResponse } from '../dto/invoices/InvoiceResponse.ts';
 import { toInvoiceSuggestionResponse, type InvoiceSuggestionResponse } from '../dto/invoices/InvoiceSuggestionResponse.ts';
-import { invoiceIdRequest, payInvoiceRequest, suggestInvoiceRequest } from '../requests/invoiceRequests.ts';
+import { invoiceIdRequest, listInvoicesByCardRequest, payInvoiceRequest, suggestInvoiceRequest } from '../requests/invoiceRequests.ts';
 import type { InvoiceService } from '../services/invoice/InvoiceService.ts';
 import { handle, type CoreResult, type UnexpectedErrorListener } from './CoreResult.ts';
 
-/** Rotas de fatura: sugestão, detalhe, pagamento e reabertura. */
+/** Rotas de fatura: sugestão, detalhe, próximas faturas, pagamento e reabertura. */
 export class InvoiceController {
     /**
      * @param invoices Casos de uso de fatura.
@@ -35,6 +36,19 @@ export class InvoiceController {
      */
     public get(raw: unknown): Promise<CoreResult<InvoiceDetailResponse>> {
         return handle(invoiceIdRequest, raw, ({ invoiceId }) => toInvoiceDetailResponse(this.invoices.get(invoiceId)), this.onUnexpected);
+    }
+
+    /**
+     * @param raw Entrada com o cartão e o mês de referência.
+     * @return A fatura do mês e as próximas do cartão, com as datas do ciclo.
+     */
+    public listByCard(raw: unknown): Promise<CoreResult<readonly InvoiceCycleResponse[]>> {
+        return handle(
+            listInvoicesByCardRequest,
+            raw,
+            ({ creditCardId, from }) => this.invoices.listByCard(creditCardId, from).map(toInvoiceCycleResponse),
+            this.onUnexpected,
+        );
     }
 
     /**

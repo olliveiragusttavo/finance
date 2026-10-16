@@ -1,11 +1,12 @@
 import { z } from 'zod';
-import { AccountId, CreditCardId, GoalId, PartnerId, ProfileId, SubCategoryId, TransactionId } from '../domain/shared/ids.ts';
+import { AccountId, CreditCardId, GoalId, PartnerId, ProfileId, SubCategoryId, TagId, TransactionId } from '../domain/shared/ids.ts';
 import type { CreateTransactionCommand, TransactionInput, UpdateTransactionCommand } from '../services/transaction/TransactionCommands.ts';
+import { RECURRENCE_FREQUENCIES } from '../domain/recurrence/RecurrenceSchedule.ts';
 import { currencyCodeField, localDateField, moneyField, parsedText, yearMonthField } from './fields.ts';
 
 const accountSourceSchema = z.strictObject({ kind: z.literal('account'), accountId: parsedText(AccountId) });
 
-const sourceSchema = z.discriminatedUnion('kind', [
+export const sourceSchema = z.discriminatedUnion('kind', [
     accountSourceSchema,
     z.strictObject({
         kind: z.literal('creditCard'),
@@ -26,6 +27,29 @@ const explicitSourceSchema = z.discriminatedUnion('kind', [
 ]);
 
 /**
+ * Repetição do lançamento (mockup `MobileParcelar`; database-design §4.12). Parcelas de 2 a
+ * 360: uma "parcela" só não é parcelamento, e 360 (30 anos de um financiamento mensal) limita
+ * o trabalho de gravar a série inteira na criação.
+ */
+export const repeatSchema = z.discriminatedUnion('kind', [
+    z.strictObject({
+        kind: z.literal('installments'),
+        frequency: z.enum(RECURRENCE_FREQUENCIES),
+        installments: z.number().int().min(2).max(360),
+        valueType: z.enum(['total', 'perInstallment']),
+    }),
+    z.strictObject({
+        kind: z.literal('fixed'),
+        frequency: z.enum(RECURRENCE_FREQUENCIES),
+        // Nulo repete sem fim.
+        endAt: localDateField.nullable(),
+    }),
+]);
+
+/** Escopo da edição e da exclusão de uma ocorrência; num lançamento avulso só existe `single`. */
+export const editScopeField = z.enum(['single', 'future', 'all']);
+
+/**
  * Campos do lançamento novo. Opcionais têm o default do domínio — `charges = 0`,
  * `conversion_rate = 1` (database-design §3.9) — para que o formulário rápido do celular
  * envie só o essencial (brief M2).
@@ -37,6 +61,8 @@ const contentShape = {
     destinationAccountId: parsedText(AccountId).nullable().default(null),
     partnerId: parsedText(PartnerId).nullable().default(null),
     goalId: parsedText(GoalId).nullable().default(null),
+    // Guardar é o caso comum; só a transferência retira (database-design §4.11).
+    goalWithdrawal: z.boolean().default(false),
     name: z.string().trim().min(1).max(100),
     description: z.string().nullable().default(null),
     value: moneyField,
@@ -47,6 +73,8 @@ const contentShape = {
     // Pago e data de pagamento andam juntos (brief §3, Transação): a transação está paga
     // exatamente quando a data de pagamento vem preenchida.
     paymentDate: localDateField.nullable().default(null),
+    // Tags são opcionais no lançamento rápido (brief M2, "Mais detalhes").
+    tagIds: z.array(parsedText(TagId)).default([]),
 };
 
 /**
@@ -62,6 +90,7 @@ const explicitContentShape = {
     destinationAccountId: parsedText(AccountId).nullable(),
     partnerId: parsedText(PartnerId).nullable(),
     goalId: parsedText(GoalId).nullable(),
+    goalWithdrawal: z.boolean(),
     name: contentShape.name,
     description: z.string().nullable(),
     value: moneyField,
@@ -70,6 +99,7 @@ const explicitContentShape = {
     conversionRate: z.number().positive(),
     dueDate: localDateField,
     paymentDate: localDateField.nullable(),
+    tagIds: z.array(parsedText(TagId)),
 };
 
 /**
@@ -88,6 +118,7 @@ function toInput(data: z.output<z.ZodObject<typeof contentShape>>): TransactionI
         destinationAccountId: data.destinationAccountId,
         partnerId: data.partnerId,
         goalId: data.goalId,
+        goalWithdrawal: data.goalWithdrawal,
         name: data.name,
         description: data.description,
         value: data.value,
@@ -96,17 +127,36 @@ function toInput(data: z.output<z.ZodObject<typeof contentShape>>): TransactionI
         conversionRate: data.conversionRate,
         dueDate: data.dueDate,
         paymentDate: data.paymentDate,
+        tagIds: data.tagIds,
     };
 }
 
 export const createTransactionRequest = z
-    .strictObject({ profileId: parsedText(ProfileId), ...contentShape })
-    .transform((data): CreateTransactionCommand => ({ ...toInput(data), profileId: data.profileId }));
+    // Sem repetição por padrão: o lançamento avulso é o caso comum, e o formulário rápido do
+    // celular não manda o campo.
+    .strictObject({ profileId: parsedText(ProfileId), ...contentShape, repeat: repeatSchema.nullable().default(null) })
+    .transform((data): CreateTransactionCommand => ({ ...toInput(data), profileId: data.profileId, repeat: data.repeat }));
 
 export const updateTransactionRequest = z
-    .strictObject({ id: parsedText(TransactionId), ...explicitContentShape })
-    .transform((data): UpdateTransactionCommand => ({ ...toInput(data), id: data.id }));
+    .strictObject({
+        id: parsedText(TransactionId),
+        ...explicitContentShape,
+        // Perfil, escopo e série não são conteúdo da transação, e sim o que fazer com ela: o
+        // padrão — ficar no perfil, "somente esta", sem mudar a série — é o único que vale para
+        // qualquer lançamento e não move nem apaga nada em silêncio.
+        profileId: parsedText(ProfileId).nullable().default(null),
+        scope: editScopeField.default('single'),
+        repeat: repeatSchema.nullable().default(null),
+    })
+    .transform((data): UpdateTransactionCommand => ({ ...toInput(data), id: data.id, profileId: data.profileId, scope: data.scope, repeat: data.repeat }));
 
 export const transactionIdRequest = z.strictObject({ id: parsedText(TransactionId) });
 
+export const deleteTransactionRequest = z.strictObject({ id: parsedText(TransactionId), scope: editScopeField.default('single') });
+
 export const listTransactionsRequest = z.strictObject({ profileId: parsedText(ProfileId), period: yearMonthField });
+
+export const setPaidRequest = z.strictObject({ id: parsedText(TransactionId), paid: z.boolean() });
+
+/** `null` tira a atribuição: o lançamento volta para a lista "sem sócio" do relatório. */
+export const setPartnerRequest = z.strictObject({ id: parsedText(TransactionId), partnerId: parsedText(PartnerId).nullable() });

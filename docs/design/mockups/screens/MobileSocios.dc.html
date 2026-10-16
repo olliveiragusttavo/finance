@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Sócios — celular</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+.light{--bg:#F4F5F2;--surface:#FFFFFF;--line:#DDE1DC;--line2:#EEF0EC;--ink:#1B1F1D;--ink2:#3D4541;--muted:#5A625E;--accent:#1F5F8B;--on-accent:#FFFFFF;--soft:#E6EEF4;--soft-ink:#163F5C;--warn-bg:#FFF1D6;--warn-ink:#5C3D00;--ok-bg:#E2F1E8;--ok-ink:#1E5A3F;--track:#EEF0EC;--danger:#9B2C1F;--s1:#1F5F8B;--s2:#A04A12;--s3:#5A625E;--s4:#2E7D5B}
+.dark{--bg:#111413;--surface:#1A1E1C;--line:#2E3431;--line2:#242926;--ink:#E7EAE7;--ink2:#C3C9C5;--muted:#9AA29E;--accent:#6AAAD8;--on-accent:#0B1A24;--soft:#1D3040;--soft-ink:#B5D7F0;--warn-bg:#3A2C10;--warn-ink:#F2D38F;--ok-bg:#16302A;--ok-ink:#8FD9B4;--track:#2A302D;--danger:#F08A7A;--s1:#6AAAD8;--s2:#E89A63;--s3:#9AA29E;--s4:#5BC08F}
+a{color:var(--accent);text-decoration:none}
+.n{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+button,input{font:inherit;color:inherit}button{cursor:pointer}
+.ph{width:390px;height:844px;box-sizing:border-box;overflow:hidden;position:relative;background:var(--bg);font-family:'IBM Plex Sans',system-ui,sans-serif;color:var(--ink);display:flex;flex-direction:column}
+.hdr{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px 8px 4px;background:var(--surface);min-height:66px;box-sizing:border-box;border-bottom:1px solid var(--line)}
+.hl{display:flex;align-items:center;gap:2px}
+.ttl{margin:0;font-size:20px;font-weight:600}
+.ib{width:44px;height:44px;border:1px solid var(--line);background:var(--bg);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.back{width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:24px}
+.bd{flex-grow:1;overflow:hidden;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.bar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--track)}
+.bar>div{height:100%}
+.list{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.it{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line2);min-height:58px;box-sizing:border-box}
+.it:last-child{border-bottom:0}
+.sw{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.nm{flex-grow:1;min-width:0;border:0;background:none;font-size:16px;outline:0;padding:8px 0}
+.pct{display:flex;align-items:center;border:1px solid var(--line);border-radius:10px;background:var(--bg);width:92px;height:44px;flex-shrink:0}
+.pct input{border:0;background:none;width:100%;text-align:right;outline:0;font-size:16px;padding:0 2px 0 8px}
+.pct span{padding:0 10px 0 2px;color:var(--muted)}
+.x{width:44px;height:44px;border:0;background:none;color:var(--muted);flex-shrink:0;font-size:16px}
+.add{display:flex;gap:8px}
+.add input{flex-grow:1;border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:0 12px;height:46px}
+.add button{border:0;border-radius:10px;background:var(--surface);border:1px solid var(--line);padding:0 14px;height:46px}
+.box{border-radius:10px;padding:10px 12px;font-size:13px}
+.warn{background:var(--warn-bg);color:var(--warn-ink)}.ok{background:var(--ok-bg);color:var(--ok-ink)}
+.sm{font-size:12px;color:var(--muted)}
+.foot{padding:10px 16px 12px;background:var(--surface);border-top:1px solid var(--line)}
+.bp{display:flex;align-items:center;justify-content:center;width:100%;height:50px;border:0;border-radius:12px;background:var(--accent);color:var(--on-accent);font-size:16px;font-weight:600}
+.bp[aria-disabled="true"]{opacity:.5}
+.tab{height:72px;flex-shrink:0;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,minmax(0,1fr));font-size:11px}
+.tab a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--muted)}
+.tab a.on{color:var(--accent);font-weight:600}
+</style>
+</helmet>
+<div class="ph {{themeClass}}">
+<header class="hdr"><div class="hl"><a href="MobileCadastros.dc.html" class="back" aria-label="Voltar para Cadastros">‹</a><div class="stack" style="display: flex; flex-direction: column"><h1 class="ttl">Sócios</h1><span class="sm">Estúdio GO · Empresarial</span></div></div><button type="button" class="ib" onClick="{{toggleTheme}}" aria-label="{{themeLabel}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/></svg></button></header>
+<div class="bd">
+<section class="card" aria-label="Divisão">
+<div style="display: flex; justify-content: space-between; align-items: baseline"><span class="sm">Soma das participações</span><span class="n" style="font-size: 20px; font-weight: 600">{{sumLabel}}</span></div>
+<div class="bar" role="img" aria-label="{{barAria}}"><sc-for list="{{segs}}" as="g" hint-placeholder-count="2"><div style="width: {{g.w}}%; background: {{g.color}}"></div></sc-for></div>
+</section>
+<div class="list">
+<sc-for list="{{rows}}" as="p" hint-placeholder-count="2">
+<div class="it">
+<span class="sw" style="background: {{p.color}}" aria-hidden="true"></span>
+<label style="display: contents"><span style="position: absolute; left: -9999px">Nome do sócio {{p.idx}}</span><input class="nm" type="text" maxlength="100" value="{{p.name}}" onChange="{{p.setName}}"></label>
+<label class="pct"><span style="position: absolute; left: -9999px">Participação de {{p.nameShown}}</span><input class="n" type="text" inputmode="decimal" value="{{p.pct}}" onChange="{{p.setPct}}"><span aria-hidden="true">%</span></label>
+<button type="button" class="x" onClick="{{p.remove}}" aria-label="{{p.removeAria}}">✕</button>
+</div>
+</sc-for>
+</div>
+<form class="add" onSubmit="{{addSubmit}}"><label style="display: contents"><span style="position: absolute; left: -9999px">Nome do novo sócio</span><input type="text" maxlength="100" placeholder="Novo sócio" value="{{draft}}" onChange="{{setDraft}}"></label><button type="submit">Adicionar</button></form>
+<sc-if value="{{isOk}}" hint-placeholder-val="{{ true }}"><div class="box ok">A soma dá 100%.</div></sc-if>
+<sc-if value="{{isOff}}" hint-placeholder-val="{{ false }}"><div class="box warn n">{{offText}}</div></sc-if>
+<sc-if value="{{hasRemoved}}" hint-placeholder-val="{{ false }}"><div class="box warn">{{removedText}}</div></sc-if>
+<span class="sm" style="padding: 0 4px">Na transação, o campo “Quem pagou” lista estes sócios.</span>
+</div>
+<div class="foot"><button type="button" class="bp" aria-disabled="{{saveDisabled}}">Salvar</button></div>
+<nav aria-label="Navegação" class="tab">
+<a href="MobileInicio.dc.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Início</a>
+<a href="MobileTransacoes.dc.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Transações</a>
+<a href="MobileContas.dc.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 10l9-6 9 6M5 10v8M10 10v8M14 10v8M19 10v8M3 20h18"/></svg>Contas</a>
+<a href="MobileCartoes.dc.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>Cartões</a>
+<a href="MobileMais.dc.html" class="on" aria-current="page"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>Mais</a>
+</nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":true},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+const s = this.state || {};
+const dark = s.dark ?? (this.props.dark ?? true);
+const INIT = [{id:1,name:'Gustavo',pct:'60',paid:true},{id:2,name:'Ana',pct:'40',paid:true}];
+const list = s.list || INIT;
+const removed = s.removed || [];
+const COLORS = ['var(--s1)','var(--s2)','var(--s3)','var(--s4)'];
+const num = (v) => { const x = parseFloat(String(v).replace(',', '.')); return isNaN(x) ? 0 : x; };
+const pctFmt = (v) => v.toLocaleString('pt-BR', {maximumFractionDigits: 2}) + '%';
+const sumR = Math.round(list.reduce((t, p) => t + num(p.pct), 0) * 100) / 100;
+const upd = (id, patch) => this.setState({ list: list.map(p => p.id === id ? Object.assign({}, p, patch) : p) });
+const rows = list.map((p, i) => ({
+idx: i + 1, name: p.name, nameShown: p.name || 'Sem nome', pct: p.pct, color: COLORS[i % COLORS.length],
+setName: (e) => upd(p.id, { name: e.target.value }),
+setPct: (e) => upd(p.id, { pct: e.target.value.replace(/[^0-9.,]/g, '') }),
+remove: () => this.setState({ list: list.filter(q => q.id !== p.id), removed: p.paid ? removed.concat([p.name]) : removed }),
+removeAria: 'Remover ' + (p.name || 'sócio')
+}));
+const segs = list.map((p, i) => ({ w: Math.max(0, Math.min(100, num(p.pct))), color: COLORS[i % COLORS.length] }));
+if (sumR < 100) segs.push({ w: 100 - sumR, color: 'transparent' });
+const diff = Math.round((100 - sumR) * 100) / 100;
+const draft = s.draft || '';
+return {
+themeClass: dark ? 'dark' : 'light',
+themeLabel: dark ? 'Usar tema claro' : 'Usar tema escuro',
+toggleTheme: () => this.setState({ dark: !dark }),
+rows, segs, sumLabel: pctFmt(sumR),
+barAria: list.map(p => (p.name || 'Sem nome') + ' ' + pctFmt(num(p.pct))).join(', '),
+isOk: sumR === 100, isOff: sumR !== 100,
+offText: diff > 0 ? 'Faltam ' + pctFmt(diff) + ' para fechar 100%.' : 'A soma passou ' + pctFmt(-diff) + ' de 100%.',
+saveDisabled: sumR === 100 && list.every(p => p.name.trim()) ? 'false' : 'true',
+hasRemoved: removed.length > 0,
+removedText: 'Ao salvar, os lançamentos pagos por ' + removed.join(', ') + ' ficam sem sócio atribuído.',
+draft,
+setDraft: (e) => this.setState({ draft: e.target.value }),
+addSubmit: (e) => { e.preventDefault(); const nm = draft.trim(); if (!nm) return; this.setState({ list: list.concat([{ id: Date.now(), name: nm, pct: '0' }]), draft: '' }); }
+};
+}
+}
+</script>
+</body>
+</html>
