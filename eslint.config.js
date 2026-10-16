@@ -51,7 +51,7 @@ const tokensBoundaryRules = {
 };
 
 export default tseslint.config(
-    { ignores: ['**/node_modules/**', '**/dist/**', '**/out/**', '**/test-results/**', '**/playwright-report/**', '**/*.generated.ts'] },
+    { ignores: ['**/node_modules/**', '**/dist/**', '**/out/**', '**/test-results/**', '**/playwright-report/**', '**/release/**', '**/*.generated.ts'] },
     js.configs.recommended,
     ...tseslint.configs.strictTypeChecked,
     {

@@ -4,9 +4,6 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'electron-vite';
 import type { PluginOption } from 'vite';
 
-/** Pacotes do monorepo: exportam TypeScript, então entram no bundle em vez de ficar externos. */
-const WORKSPACE_PACKAGES = ['@finance/client', '@finance/core', '@finance/sqlite-better', '@finance/tokens'];
-
 /**
  * CSP do app empacotado (desktop-shell-design §3.6): só o próprio app, nada remoto. Estilo
  * inline é permitido porque Radix, Recharts e o Sonner posicionam e animam por estilo
@@ -54,7 +51,10 @@ function contentSecurityPolicy(): PluginOption {
 export default defineConfig({
     main: {
         build: {
-            externalizeDeps: { exclude: WORKSPACE_PACKAGES },
+            // Só o que está em `dependencies` fica externo, e lá está apenas o `better-sqlite3`: o
+            // resto (inclusive os pacotes do monorepo, que exportam TypeScript) entra no bundle, e
+            // o app empacotado leva no `asar` só o módulo nativo, em vez de toda a árvore do renderer.
+            externalizeDeps: true,
             rollupOptions: {
                 // Módulo nativo: carrega o `.node` do disco e não pode entrar no bundle.
                 external: ['better-sqlite3'],

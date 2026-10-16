@@ -17,8 +17,9 @@ export function freshUserData(): string {
 }
 
 /**
- * Abre o app empacotado (`out/main/index.js`) numa pasta de dados isolada, para que o teste
- * nunca toque no banco real.
+ * Abre o app numa pasta de dados isolada, para que o teste nunca toque no banco real. Por
+ * padrão roda o bundle do `electron-vite build` (`out/main/index.js`) no Electron do
+ * `node_modules`; com `executable`, roda o binário do instalador, que é o que o usuário recebe.
  *
  * O ambiente segue o `scripts/electron-vite.mjs`: sem `ELECTRON_RUN_AS_NODE` (exportado pelo
  * terminal do VS Code) e, com `FINANCE_ELECTRON_NO_SANDBOX=1` (devcontainer e CI), sem o
@@ -26,9 +27,11 @@ export function freshUserData(): string {
  * bloqueia. O `sandbox: true` da janela continua valendo.
  *
  * @param userData Pasta de dados; reaproveitada para testar a reabertura.
+ * @param executable Executável do app instalado (`opt/Finanças/financas` do `.deb`); omitido, abre
+ * o bundle de desenvolvimento.
  * @return O app e a primeira janela, já com movimento reduzido.
  */
-export async function launchApp(userData: string = freshUserData()): Promise<LaunchedApp> {
+export async function launchApp(userData: string = freshUserData(), executable?: string): Promise<LaunchedApp> {
     const env: Record<string, string> = {};
     for (const [key, value] of Object.entries(process.env)) {
         if (value !== undefined && key !== 'ELECTRON_RUN_AS_NODE') {
@@ -36,10 +39,18 @@ export async function launchApp(userData: string = freshUserData()): Promise<Lau
         }
     }
     env['FINANCE_USER_DATA'] = userData;
+    // O instalador põe o executável em `/opt/Finanças`, e o Electron sai sem aviso quando o
+    // próprio caminho tem acento e o locale é o `C` do container; a sessão desktop é UTF-8.
+    if (executable !== undefined && (env['LANG'] ?? '') === '' && (env['LC_ALL'] ?? '') === '') {
+        env['LANG'] = 'C.UTF-8';
+    }
     const sandboxArgs = process.env['FINANCE_ELECTRON_NO_SANDBOX'] === '1' ? ['--no-sandbox'] : [];
     let app: ElectronApplication;
     try {
-        app = await electron.launch({ args: [...sandboxArgs, join(import.meta.dirname, '../out/main/index.js')], env });
+        // O binário empacotado já sabe onde está o próprio app (`resources/app.asar`) e não recebe o caminho.
+        app = await electron.launch(executable === undefined
+            ? { args: [...sandboxArgs, join(import.meta.dirname, '../out/main/index.js')], env }
+            : { executablePath: executable, args: sandboxArgs, env });
     } catch (error) {
         if (sandboxArgs.length === 0) {
             throw new Error('O Electron não abriu. Dentro de um container ou no CI, o sandbox do Chromium não tem namespaces de usuário: defina FINANCE_ELECTRON_NO_SANDBOX=1 (o devcontainer e o CI já definem).', { cause: error });

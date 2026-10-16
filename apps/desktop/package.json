@@ -1,6 +1,13 @@
 {
     "name": "@finance/desktop",
-    "version": "0.0.0",
+    "version": "1.0.0",
+    "description": "Finanças pessoais: contas, cartões, transações e relatórios.",
+    "author": {
+        "name": "Gustavo",
+        "email": "dev.gustavo.oliveira@gmail.com"
+    },
+    "homepage": "https://github.com/olliveiragusttavo/finance",
+    "desktopName": "financas.desktop",
     "private": true,
     "type": "module",
     "main": "./out/main/index.js",
@@ -10,20 +17,35 @@
         "preview": "node scripts/electron-vite.mjs preview",
         "typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.web.json && tsc -p tsconfig.json",
         "test": "vitest run && electron-vite build && playwright test --project=e2e",
-        "measure": "electron-vite build && playwright test --project=measure"
+        "measure": "electron-vite build && playwright test --project=measure",
+        "test:packaged": "pnpm dist:linux && playwright test --project=packaged",
+        "dist": "electron-vite build && electron-builder --linux --win",
+        "dist:linux": "electron-vite build && electron-builder --linux",
+        "dist:win": "electron-vite build && electron-builder --win"
     },
     "dependencies": {
+        "better-sqlite3": "13.0.3"
+    },
+    "devDependencies": {
         "@finance/client": "workspace:*",
         "@finance/core": "workspace:*",
         "@finance/sqlite-better": "workspace:*",
         "@finance/tokens": "workspace:*",
         "@fontsource/ibm-plex-sans": "5.3.0",
+        "@playwright/test": "1.63.0",
+        "@tailwindcss/vite": "4.3.3",
         "@tanstack/react-query": "5.104.1",
         "@tanstack/react-router": "1.170.41",
         "@tanstack/react-table": "9.2.4",
-        "better-sqlite3": "13.0.3",
+        "@types/node": "24.19.0",
+        "@types/react": "19.3.0",
+        "@types/react-dom": "19.3.0",
+        "@vitejs/plugin-react": "5.2.0",
         "class-variance-authority": "0.7.1",
         "clsx": "2.1.1",
+        "electron": "44.5.1",
+        "electron-builder": "26.17.0",
+        "electron-vite": "5.0.0",
         "lucide-react": "1.50.0",
         "radix-ui": "1.6.7",
         "react": "19.3.0",
@@ -32,21 +54,11 @@
         "recharts": "3.10.1",
         "sonner": "2.0.8",
         "tailwind-merge": "3.7.0",
-        "zod": "4.6.5"
-    },
-    "devDependencies": {
-        "@playwright/test": "1.63.0",
-        "@tailwindcss/vite": "4.3.3",
-        "@types/node": "24.19.0",
-        "@types/react": "19.3.0",
-        "@types/react-dom": "19.3.0",
-        "@vitejs/plugin-react": "5.2.0",
-        "electron": "44.5.1",
-        "electron-vite": "5.0.0",
         "tailwindcss": "4.3.3",
         "tw-animate-css": "1.4.0",
         "typescript": "6.0.3",
         "vite": "7.3.6",
-        "vitest": "5.0.3"
+        "vitest": "5.0.3",
+        "zod": "4.6.5"
     }
 }

@@ -1,0 +1,53 @@
+# Empacotamento do desktop (desktop-mvp-plan, Fase 14). Nome e versão vêm do `package.json`;
+# aqui fica só o que é próprio do instalador. Gerar com `pnpm dist:linux` (`.deb`), `pnpm dist:win`
+# (`.exe`) ou `pnpm dist` (os dois). No Linux, o `.exe` exige o Wine (`sudo apt install wine`): o
+# NSIS monta o desinstalador executando o próprio instalador.
+appId: io.github.olliveiragusttavo.finance
+productName: Finanças
+# Nome de arquivo em ASCII e sem o escopo `@finance/`, que viraria uma pasta no meio do caminho.
+artifactName: financas-${version}-${arch}.${ext}
+directories:
+  output: release
+files:
+  # O bundle do electron-vite já traz tudo, menos o `better-sqlite3`, o único item de
+  # `dependencies`; o fonte C++ e o SQLite amalgamado servem só para compilar e não vão.
+  - out/**
+  - package.json
+  - "!node_modules/better-sqlite3/{deps,src,binding.gyp}"
+  - "!node_modules/better-sqlite3/{deps,src}/**"
+  - "!node_modules/node-addon-api/**"
+  # Dos binários prontos, só os do sistema do instalador (`linux*`, `win*`). É `${os}`, o alvo, e
+  # não `${platform}`, que é o sistema de quem gera e poria o binário do Linux no `.exe`.
+  - "!node_modules/better-sqlite3/prebuilds/!(${os}*-${arch}.node)"
+asarUnpack:
+  # O `.node` não carrega de dentro do `asar`: o sistema precisa de um arquivo de verdade.
+  - node_modules/better-sqlite3/**
+# O `better-sqlite3` 13 é N-API e traz binários prontos de todas as plataformas, que carregam no
+# Electron sem recompilar (Fase 3.3); recompilar exigiria compilador e, no `.exe` gerado no
+# Linux, produziria o binário do Linux.
+npmRebuild: false
+linux:
+  target:
+    - target: deb
+      arch: x64
+  executableName: financas
+  # O Electron usa o `desktopName` do `package.json` como WM_CLASS; sem casar com o `.desktop`,
+  # a janela aberta aparece no dock como outro programa, com o ícone genérico.
+  syncDesktopName: true
+  category: Office
+  synopsis: Finanças pessoais
+  maintainer: Gustavo <dev.gustavo.oliveira@gmail.com>
+deb:
+  # O dpkg não aceita maiúscula nem acento no nome do pacote.
+  packageName: financas
+win:
+  target:
+    - target: nsis
+      arch: x64
+nsis:
+  artifactName: financas-setup-${version}.${ext}
+  # Instalador com escolha de pasta, em vez do "um clique" que instala sem perguntar nada.
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  # Os dados ficam em `%APPDATA%`, fora da pasta do programa: desinstalar não apaga o banco.
+  deleteAppDataOnUninstall: false

@@ -29,6 +29,22 @@ RUN apt-get update \
         fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
 
+# Wine para gerar o instalador do Windows (`pnpm dist:win`): o electron-builder monta o
+# desinstalador do NSIS executando o próprio instalador. O stub do NSIS é 32-bit, por isso
+# entra também o wine32 (arquitetura i386); só com o wine64 a execução falha.
+RUN dpkg --add-architecture i386 \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends wine wine32 wine64 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Prefixo do Wine no home do container, fora do repositório; ele é criado no primeiro
+# `dist:win`. WINEDEBUG=-all tira os avisos do Wine, que soterram a saída do electron-builder.
+# LANG=C.UTF-8 porque a imagem vem sem locale (POSIX) e o makensis aborta com "main argv
+# conversion failed" ao receber argumento não ASCII, como o productName "Finanças".
+ENV WINEPREFIX=/home/node/.wine \
+    WINEDEBUG=-all \
+    LANG=C.UTF-8
+
 # O pnpm vem pelo corepack, que lê a versão exata do campo packageManager do
 # package.json — assim a versão fica num lugar só e não diverge da usada fora do container.
 RUN corepack enable pnpm

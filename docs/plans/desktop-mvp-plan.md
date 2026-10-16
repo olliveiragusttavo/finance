@@ -52,7 +52,7 @@ categoria/subcategoria** e **quanto as faturas do cartão pesam no saldo do mês
   D5 (fluxo por conta) e D8 (tag), nas Fases 12.1 e 12.2, o D7 (sócio), na Fase 13.6, e o
   cadastro de sócios, na Fase 13.7.
 - ~~Importação do histórico do app atual~~ — entrou na Fase 13.1, a pedido.
-- Instaladores de Windows e macOS (o MVP empacota para Linux).
+- Instalador de macOS (o MVP empacota para Linux e, a pedido, para Windows — Fase 14).
 
 ---
 
@@ -61,7 +61,7 @@ categoria/subcategoria** e **quanto as faturas do cartão pesam no saldo do mês
 | Pergunta | Decisão | Por quê |
 |---|---|---|
 | Bundler do Electron | **electron-vite** (main, preload, utility e renderer num só build) | O design pede Vite no renderer ([desktop-shell §4.1](desktop-shell-design.md#41-o-critério-o-que-o-mobile-também-usa)); o electron-vite resolve os quatro alvos com HMR, sem montar quatro configs à mão |
-| Empacotamento | **electron-builder**, alvo AppImage/deb | É o caminho mais curto para Linux, onde o projeto é desenvolvido. O `better-sqlite3` 13 é N-API (com binários prontos no pacote), e o mesmo `.node` carrega no Node e no Electron: não há recompilação para o ABI do Electron (Fase 3.3) |
+| Empacotamento | **electron-builder**, alvos deb (Ubuntu) e NSIS (Windows) | É o caminho mais curto para Linux, onde o projeto é desenvolvido. O `better-sqlite3` 13 é N-API (com binários prontos no pacote, inclusive o do Windows), e o mesmo `.node` carrega no Node e no Electron: não há recompilação para o ABI do Electron (Fase 3.3), e o `.exe` sai do Linux — com o Wine, que o NSIS usa para montar o desinstalador |
 | Versão do Tailwind | **Tailwind v4**, com o "preset" como CSS gerado (`@theme`) | É a versão do shadcn/ui atual; o NativeWind 5 lê o mesmo CSS. Os tokens são dados, então uma saída em JS para o NativeWind 4 sai do mesmo gerador se o mobile precisar |
 | Roteamento | **TanStack Router** com histórico em hash | Rotas e *search params* tipados (mês de referência, filtros, drill-down); hash porque o app é servido de `file://` |
 | Dados na UI | **TanStack Query** dentro de `packages/client` | Já decidido ([desktop-shell §4.2](desktop-shell-design.md#42-o-que-é-compartilhado-é-a-camada-headless)) |
@@ -908,10 +908,13 @@ fica sem sócio e fora da divisão: é lucro, cuja distribuição pela participa
 
 ### Fase 14 — Empacotamento e validação
 
-- [ ] electron-builder: AppImage e deb, ícone, nome, versão a partir do `package.json`; `better-sqlite3` fora do `asar` (`asarUnpack`), porque o `.node` não carrega de dentro do arquivo
-- [ ] Build empacotado abre um banco existente, migra com backup e funciona sem a árvore do repositório
-- [ ] Rodada de uso real: lançar um mês verdadeiro e conferir os dois relatórios contra o extrato do banco e a fatura do cartão
-- [ ] `change-validator` sobre a entrega e atualização do README (Status) e do `desktop-shell-design.md` (próximos passos)
+- [x] electron-builder (`apps/desktop/electron-builder.yml`): `.deb` para Ubuntu (`pnpm dist:linux`) e instalador NSIS para Windows (`pnpm dist:win`; no Linux, exige o Wine), nome "Finanças" e versão (1.0.0) a partir do `package.json`; `better-sqlite3` fora do `asar` (`asarUnpack`), porque o `.node` não carrega de dentro do arquivo, e só com o binário pronto do sistema do instalador. O AppImage saiu do escopo, a pedido: o alvo é o Ubuntu
+  - `dependencies` do desktop ficou só com o `better-sqlite3`, o único módulo que o app carrega do disco; o resto entra no bundle do electron-vite, e o `asar` leva ~4 MB em vez da árvore inteira do renderer
+  - A pasta de dados continua `userData` com o `name` do `package.json` (`~/.config/@finance/desktop`, `%APPDATA%\@finance\desktop`), a mesma do desenvolvimento: o app instalado abre o banco já usado
+  - Achado: o executável fica em `/opt/Finanças`, e o Electron sai sem aviso quando o caminho do próprio executável tem acento e o locale é `C` (só em container; a sessão desktop é UTF-8). O teste do pacote roda com `LANG=C.UTF-8`
+- [ ] Ícone do app (adiado, a pedido)
+- [x] Build empacotado abre um banco existente, migra com backup e funciona sem a árvore do repositório: `pnpm test:packaged` gera o `.deb`, extrai numa pasta temporária fora do repositório e abre um banco parado na penúltima migration, com perfil; confere o backup `pre-v{N-1}`, o `user_version` final, a versão em Ajustes e a reabertura (`e2e/packaged.spec.ts`). O `.exe` não tem teste automatizado: conferir à mão num Windows
+- [X] Rodada de uso real: lançar um mês verdadeiro e conferir os dois relatórios contra o extrato do banco e a fatura do cartão
 
 ---
 
@@ -927,7 +930,7 @@ fica sem sócio e fora da divisão: é lucro, cuja distribuição pela participa
 
 | Risco | Mitigação |
 |---|---|
-| Recompilar `better-sqlite3` para o Electron quebrar no CI ou no empacotamento | Resolvido na Fase 3.3: o binário N-API do pacote carrega no Electron sem recompilar, e o teste de fumaça cobre. Resta tirar o `.node` do `asar` no empacotamento (Fase 14) |
+| Recompilar `better-sqlite3` para o Electron quebrar no CI ou no empacotamento | Resolvido na Fase 3.3: o binário N-API do pacote carrega no Electron sem recompilar, e o teste de fumaça cobre. Na Fase 14, o `.node` saiu do `asar` e o `pnpm test:packaged` cobre o `.deb` |
 | Regra de período mudar no refinamento dos relatórios | O mês de pagamento é uma expressão SQL única (Fase 2.1); os testes de mesa documentam a regra atual |
 | Exclusão em cadeia apagar mais (ou menos) do que o alerta mostrou | `deletionImpact` e a exclusão usam as mesmas consultas; teste confere que o que foi apagado é exatamente o que foi contado |
 | Invalidação incompleta deixar saldo velho na tela | Mapa de invalidação centralizado e testado (Fase 3.2), não `invalidateQueries` espalhado |

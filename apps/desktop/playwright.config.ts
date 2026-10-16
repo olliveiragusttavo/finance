@@ -16,7 +16,10 @@ export default defineConfig({
      * todo spec novo sem precisar listá-lo no package.json.
      */
     projects: [
-        { name: 'e2e', testIgnore: 'measure.spec.ts' },
+        { name: 'e2e', testIgnore: ['measure.spec.ts', 'packaged.spec.ts'] },
         { name: 'measure', testMatch: 'measure.spec.ts' },
+        // O instalador leva cerca de um minuto para gerar; fica fora do `pnpm check` e roda
+        // pelo `test:packaged`, antes de distribuir uma versão.
+        { name: 'packaged', testMatch: 'packaged.spec.ts' },
     ],
 });
