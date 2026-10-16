@@ -1511,14 +1511,20 @@ inválidos para trás (uma meta presa numa despesa, por exemplo). Lançar com ou
 excluir e lançar de novo. A regra é da aplicação (`transaction-type-locked`), verificada na
 entidade ao editar; o formulário só mostra o tipo atual.
 
-#### Uma transação registra qual sócio a pagou
+#### Uma transação registra qual sócio aportou
 
-`partner_id` identifica o sócio que pagou esta transação específica — distinto da
-participação societária da [§4.2](#42-partners). Ele não faz parte de nenhum arco
-exclusivo: é nulo em toda transação de um perfil pessoal, e anulável também em um perfil
-empresarial, já que pode não haver sócio registrado como pagador. Relatórios que dividem
-por sócio precisam lidar com transações sem atribuição, em vez de supor que o vínculo
-está presente.
+`partner_id` identifica o sócio que aportou o dinheiro desta transação específica — distinto
+da participação societária da [§4.2](#42-partners). Toda despesa de um perfil empresarial é
+paga com o dinheiro da empresa, e o sócio aparece no dinheiro que **entra** nela: a receita
+do perfil empresarial e a transferência que chega a ele vinda de outro perfil
+([reports-design §8](reports-design.md#8-por-sócio-reportsbypartner-reportsentrieswithoutpartner)).
+Na transferência entre perfis a linha é do perfil de **origem** — um perfil pessoal, tipicamente —,
+mas o sócio é do perfil de **destino**; é a única referência a sócio que atravessa perfis, como a
+própria conta de destino. Ele não faz parte de nenhum arco exclusivo e é anulável mesmo no aporte,
+já que a receita de serviço não tem sócio. A regra é da aplicação (`TransactionComposer.assertPartner`).
+Despesas com sócio gravadas antes da regra continuam no banco e são ignoradas pelo relatório.
+Relatórios que dividem por sócio precisam lidar com transações sem atribuição, em vez de supor
+que o vínculo está presente.
 
 #### Os demais vínculos
 
@@ -1535,7 +1541,7 @@ o tipo da transação. `paid` e `payment_date` precisam concordar, o que é uma 
 | `bank_statement_id` | TEXT | null, FK | Exclusivo com `invoice_id` |
 | `invoice_id` | TEXT | null, FK | Exclusivo com `bank_statement_id` |
 | `destination_account_id` | TEXT | null, FK | Somente `type` 3 e 4 |
-| `partner_id` | TEXT | null, FK | Somente perfis empresariais, opcional mesmo nesses |
+| `partner_id` | TEXT | null, FK | Só em aporte: receita de perfil empresarial ou transferência para um, com o sócio do perfil de destino; opcional mesmo nesses |
 | `goal_id` | TEXT | null, FK | |
 | `recurrence_id` | TEXT | null, FK | Somente quando emitida por uma regra |
 | `occurrence` | INTEGER | null, `CHECK (occurrence IS NULL OR occurrence > 0)` | Número da ocorrência na série — preenchido exatamente com `recurrence_id` (regra da aplicação); chave do id determinístico ([§4.12](#412-recurrences)). Migration `0004` |

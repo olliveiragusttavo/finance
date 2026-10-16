@@ -195,14 +195,17 @@ export class TestWorld {
     }
 
     /**
+     * Semeia o sócio direto no banco: o cadastro de sócios ainda não tem rota.
+     *
      * @param profileId Perfil empresarial dono.
+     * @param options Nome e participação (0 a 100); sem eles, "Sócio" com 100%.
      * @return O id do sócio semeado.
      */
-    public partner(profileId: string): string {
+    public partner(profileId: string, options: { readonly name?: string; readonly percentage?: number } = {}): string {
         const id = this.ids.random();
         this.database.run(
-            "INSERT INTO partners (id, profile_id, name, percentage, updated_at) VALUES (:id, :profileId, 'Sócio', 100, :now)",
-            { id, profileId, now: this.clock.now() },
+            'INSERT INTO partners (id, profile_id, name, percentage, updated_at) VALUES (:id, :profileId, :name, :percentage, :now)',
+            { id, profileId, name: options.name ?? 'Sócio', percentage: options.percentage ?? 100, now: this.clock.now() },
         );
         return id;
     }

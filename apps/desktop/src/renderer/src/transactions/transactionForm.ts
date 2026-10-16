@@ -1,5 +1,15 @@
 import { formatMoneyForInput, parseMoneyInput, type RecurrenceFrequency, type SourceOption } from '@finance/client';
-import { feedsGoal, movesToDestination, withdrawsFromGoal, type CoreInput, type RecurrenceResponse, type TransactionResponse, type TransactionType } from '@finance/core';
+import {
+    feedsGoal,
+    movesToDestination,
+    withdrawsFromGoal,
+    type CoreInput,
+    type ProfileResponse,
+    type RecurrenceResponse,
+    type TransactionResponse,
+    type TransactionType,
+    type TransferTargetResponse,
+} from '@finance/core';
 import { createTransactionRequest, updateTransactionRequest } from '@finance/core/requests';
 import type { z } from 'zod';
 import { periodOfDate } from '../cards/invoiceForms.ts';
@@ -47,6 +57,11 @@ export interface TransactionFormValues {
      * progresso (desktop-mvp-plan Fase 13.3). Só vale numa transferência com meta (`withdrawsFromGoal`).
      */
     readonly goalWithdrawal: boolean;
+    /**
+     * Sócio que aportou; vazio sem sócio. Só vale quando o lançamento é um aporte num perfil
+     * empresarial (`contributionProfileId`).
+     */
+    readonly partnerId: string;
     /** "Repetir" (mockup `MobileParcelar`): não repetir, parcelado ou fixo. */
     readonly repeatKind: RepeatKind;
     readonly frequency: RecurrenceFrequency;
@@ -79,6 +94,7 @@ export const TRANSACTION_FIELDS = [
     'paymentDate',
     'tagIds',
     'goalId',
+    'partnerId',
     'description',
     'installments',
     'endAt',
@@ -171,6 +187,7 @@ export function newTransactionForm(today: string, source: string, profileId: str
         tagIds: [],
         goalId: '',
         goalWithdrawal: false,
+        partnerId: '',
         repeatKind: 'none',
         frequency: 'monthly',
         installments: '12',
@@ -211,6 +228,7 @@ export function transactionFormFrom(transaction: TransactionResponse, today: str
         tagIds: transaction.tagIds,
         goalId: transaction.goalId ?? '',
         goalWithdrawal: transaction.goalWithdrawal,
+        partnerId: transaction.partnerId ?? '',
         repeatKind: recurrence?.kind ?? 'none',
         frequency: recurrence?.frequency ?? 'monthly',
         installments: recurrence === null ? '12' : recurrence.installments === null ? '' : String(recurrence.installments),
@@ -275,9 +293,80 @@ const FIELD_BY_PATH: Readonly<Record<string, FieldTarget<TransactionErrorField>>
     charges: { field: 'charges', label: 'os encargos', kind: 'nonNegativeMoney' },
     tagIds: { field: 'tagIds', label: 'as tags', kind: 'choice' },
     goalId: { field: 'goalId', label: 'a meta', kind: 'choice' },
+    partnerId: { field: 'partnerId', label: 'o sócio', kind: 'choice' },
     'repeat.installments': { field: 'installments', label: 'as parcelas', kind: 'choice' },
     'repeat.endAt': { field: 'endAt', label: 'o fim', kind: 'choice' },
 };
+
+/**
+ * Onde o lançamento pode registrar o sócio que aportou, como a tela o sabe: o perfil empresarial
+ * em que ele é aporte e os sócios desse perfil.
+ */
+export interface PartnerContext {
+    /** Perfil cujos sócios podem ser escolhidos; `null` quando o lançamento não é aporte. */
+    readonly profileId: string | null;
+    /** Ids dos sócios desse perfil; `undefined` enquanto carregam. */
+    readonly partnerIds: readonly string[] | undefined;
+}
+
+/** Contexto de quem não oferece sócio: nenhum lançamento é aporte. */
+export const NO_PARTNER_CONTEXT: PartnerContext = { profileId: null, partnerIds: [] };
+
+/**
+ * Perfil em que o lançamento é um aporte de sócio, pela mesma regra do núcleo
+ * (`TransactionComposer.assertPartner`), para que o campo só apareça onde a gravação o aceita.
+ * Regra de negócio (Sócios — aportes, reports-design §8): toda despesa do perfil empresarial é paga
+ * pela empresa; o sócio aparece no dinheiro que entra — a receita de um perfil empresarial e a
+ * transferência que chega a um perfil empresarial vinda de outro perfil. Na transferência, os
+ * sócios são os do perfil de destino.
+ *
+ * @param values Tipo, perfil e destino do formulário.
+ * @param profiles Perfis do app, com o tipo de cada um.
+ * @param otherProfileAccounts Contas dos outros perfis, que dizem o perfil do destino.
+ * @return O id do perfil empresarial dos sócios oferecidos, ou `null` quando o lançamento não é aporte.
+ */
+export function contributionProfileId(
+    values: Pick<TransactionFormValues, 'type' | 'profileId' | 'destinationAccountId'>,
+    profiles: readonly Pick<ProfileResponse, 'id' | 'type'>[],
+    otherProfileAccounts: readonly Pick<TransferTargetResponse, 'id' | 'profileId'>[],
+): string | null {
+    const isBusiness = (id: string): boolean => profiles.some((profile) => profile.id === id && profile.type === 'business');
+    if (values.type === 'income') {
+        return isBusiness(values.profileId) ? values.profileId : null;
+    }
+    if (values.type !== 'transference') {
+        return null;
+    }
+    // Conta de destino do próprio perfil não está entre as de outros perfis: transferência interna.
+    const destination = otherProfileAccounts.find((account) => account.id === values.destinationAccountId);
+    return destination !== undefined && destination.profileId !== values.profileId && isBusiness(destination.profileId) ? destination.profileId : null;
+}
+
+/**
+ * Sócio que vai na gravação.
+ * Regra de negócio (Sócios — aportes): no aporte vale a escolha do campo, desde que seja um dos
+ * sócios oferecidos — trocar o destino para outra empresa invalida o sócio da anterior. Fora de
+ * um aporte, a edição mantém o sócio já gravado (a despesa com sócio de antes dos aportes, que o
+ * núcleo aceita enquanto perfil e destino não mudam); qualquer outra mudança o descarta.
+ *
+ * @param values Valores do formulário.
+ * @param target Lançamento novo ou o editado.
+ * @param partner Onde o lançamento pode ter sócio.
+ * @return O id do sócio, ou `null`.
+ */
+function partnerOf(values: TransactionFormValues, target: TransactionFormTarget, partner: PartnerContext): string | null {
+    if (partner.profileId !== null) {
+        const chosen = values.partnerId;
+        return chosen !== '' && (partner.partnerIds === undefined || partner.partnerIds.includes(chosen)) ? chosen : null;
+    }
+    if (target.mode === 'update') {
+        const { transaction } = target;
+        const destination = movesToDestination(values.type) ? values.destinationAccountId : '';
+        const unchanged = !movesProfile(values, transaction) && destination === (transaction.destinationAccountId ?? '');
+        return unchanged ? transaction.partnerId : null;
+    }
+    return null;
+}
 
 /** Faixa de parcelas que a rota aceita (`repeatSchema`). */
 const INSTALLMENTS_RANGE = { min: 2, max: 360 } as const;
@@ -299,11 +388,13 @@ const INSTALLMENTS_RANGE = { min: 2, max: 360 } as const;
  *
  * @param values Valores dos campos.
  * @param target Moeda do lançamento novo, ou o lançamento editado (que fornece o que o painel
- * não edita: sócio e moeda de origem).
+ * não edita: a moeda de origem e o sócio antigo fora de um aporte).
+ * @param partner Onde o lançamento pode ter sócio (`contributionProfileId`); sem ele, nenhum sócio
+ * novo vai na gravação.
  * @return A chamada a fazer, ou a mensagem de cada campo com problema.
  * @throws {Error} Quando o schema aponta um caminho que o formulário não tem.
  */
-export function readTransactionForm(values: TransactionFormValues, target: TransactionFormTarget): TransactionFormResult {
+export function readTransactionForm(values: TransactionFormValues, target: TransactionFormTarget, partner: PartnerContext = NO_PARTNER_CONTEXT): TransactionFormResult {
     const currency = target.mode === 'create' ? target.currency : target.transaction.value.currency;
     const initial: FormErrors<TransactionErrorField> = {};
     const amount = parseMoneyInput(values.amount, currency);
@@ -362,6 +453,7 @@ export function readTransactionForm(values: TransactionFormValues, target: Trans
         // Regra de negócio (Metas, Fase 13.3): só a transferência com meta retira; trocar para
         // receita, ou tirar a meta, descarta a retirada, como o destino de um tipo sem destino.
         goalWithdrawal: withdrawsFromGoal(values.type) && values.goalId !== '' && values.goalWithdrawal,
+        partnerId: partnerOf(values, target, partner),
     };
     const submission: TransactionSubmission =
         target.mode === 'create'
@@ -373,8 +465,6 @@ export function readTransactionForm(values: TransactionFormValues, target: Trans
                       // Só vai quando muda: o mesmo perfil não é mudança, e `null` deixa claro que nada se move.
                       profileId: movesProfile(values, target.transaction) ? values.profileId : null,
                       ...content,
-                      // O sócio é do perfil (database-design §4.2): não acompanha a mudança de perfil.
-                      partnerId: movesProfile(values, target.transaction) ? null : target.transaction.partnerId,
                       originCurrency: target.transaction.originCurrency,
                       conversionRate: target.transaction.conversionRate,
                       repeat,

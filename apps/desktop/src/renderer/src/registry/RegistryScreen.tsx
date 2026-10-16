@@ -1,4 +1,4 @@
-import { useAccounts, useCategoryTree, useCreditCards, useNotes, useTags } from '@finance/client';
+import { useAccounts, useCategoryTree, useCreditCards, useNotes, usePartners, useTags } from '@finance/client';
 import { Link, useSearch } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { DetailPane, ListPane, PaneLayout } from '@/components/PaneLayout';
@@ -9,8 +9,9 @@ import { AccountsSection } from './AccountsSection.tsx';
 import { CategoriesSection } from './CategoriesSection.tsx';
 import { CreditCardsSection } from './CreditCardsSection.tsx';
 import { NotesSection } from './NotesSection.tsx';
+import { PartnersSection } from './PartnersSection.tsx';
 import { ProfilesSection } from './ProfilesSection.tsx';
-import { categoryCounter, openKind, parseRegistrySearch, REGISTRY_KINDS, type RegistryKind, type RegistryKindItem } from './registryKinds.ts';
+import { categoryCounter, openKind, parseRegistrySearch, registryKindsFor, type RegistryKind, type RegistryKindItem } from './registryKinds.ts';
 import { TagsSection } from './TagsSection.tsx';
 
 /**
@@ -36,12 +37,15 @@ export function RegistryScreen(): ReactNode {
     const categories = useCategoryTree({ profileId: profile.id });
     const tags = useTags({ profileId: profile.id });
     const notes = useNotes({ profileId: profile.id });
+    // Parada no perfil pessoal, que o núcleo recusa: sócio só existe em perfil empresarial.
+    const partners = usePartners(profile.type === 'business' ? { profileId: profile.id } : null);
 
     const counters: Readonly<Partial<Record<RegistryKind, string | undefined>>> = {
         accounts: accounts.data === undefined ? undefined : String(accounts.data.accounts.length),
         cards: creditCards.data === undefined ? undefined : String(creditCards.data.creditCards.length),
         categories: categories.data === undefined ? undefined : categoryCounter(categories.data),
         tags: tags.data === undefined ? undefined : String(tags.data.length),
+        partners: partners.data === undefined ? undefined : String(partners.data.length),
         profiles: String(profiles.length),
         notes: notes.data === undefined ? undefined : String(notes.data.length),
     };
@@ -58,18 +62,18 @@ export function RegistryScreen(): ReactNode {
                 }
                 footer={
                     <p className="px-5 py-3.5 text-12 text-muted">
-                        {profile.type === 'business' ? 'Sócios do perfil empresarial chegam numa próxima versão do app.' : 'Sócios aparecem aqui só em perfil empresarial.'}
+                        Sócios existem só em perfil empresarial.
                     </p>
                 }
             >
                 <ul>
-                    {REGISTRY_KINDS.map((item) => (
+                    {registryKindsFor(profile.type).map((item) => (
                         <KindLink key={item.kind} item={item} current={item.kind === kind} counter={counters[item.kind]} />
                     ))}
                 </ul>
             </ListPane>
             <DetailPane>
-                <OpenSection kind={kind} accounts={accounts} creditCards={creditCards} categories={categories} tags={tags} notes={notes} requestedNote={search.note ?? null} />
+                <OpenSection kind={kind} accounts={accounts} creditCards={creditCards} categories={categories} tags={tags} partners={partners} notes={notes} requestedNote={search.note ?? null} />
             </DetailPane>
         </PaneLayout>
     );
@@ -111,6 +115,7 @@ function KindLink({ item, current, counter }: { readonly item: RegistryKindItem;
  * @param props.creditCards Lista de cartões do perfil.
  * @param props.categories Árvore de categorias do perfil.
  * @param props.tags Tags do perfil, com o uso.
+ * @param props.partners Sócios do perfil empresarial; parada no perfil pessoal.
  * @param props.notes Anotações do perfil.
  * @param props.requestedNote Anotação pedida pela URL, para abrir no editor; `null` sem pedido.
  * @return A seção.
@@ -121,6 +126,7 @@ function OpenSection({
     creditCards,
     categories,
     tags,
+    partners,
     notes,
     requestedNote,
 }: {
@@ -129,6 +135,7 @@ function OpenSection({
     readonly creditCards: ReturnType<typeof useCreditCards>;
     readonly categories: ReturnType<typeof useCategoryTree>;
     readonly tags: ReturnType<typeof useTags>;
+    readonly partners: ReturnType<typeof usePartners>;
     readonly notes: ReturnType<typeof useNotes>;
     readonly requestedNote: string | null;
 }): ReactNode {
@@ -143,6 +150,8 @@ function OpenSection({
             return <ProfilesSection />;
         case 'tags':
             return <TagsSection query={tags} />;
+        case 'partners':
+            return <PartnersSection query={partners} />;
         case 'notes':
             return <NotesSection query={notes} requestedNote={requestedNote} />;
     }

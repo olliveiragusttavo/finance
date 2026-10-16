@@ -262,7 +262,7 @@ test('perfis: "Gerenciar perfis" abre o cadastro de perfis, criar empresarial co
         await page.getByRole('button', { name: '+ Novo perfil' }).dispatchEvent('click');
         await page.getByLabel('Nome do perfil').fill('Estúdio GO');
         await page.getByRole('radio', { name: 'Empresarial' }).dispatchEvent('click');
-        await expect(page.getByRole('dialog')).toContainText('o cadastro de sócios e o relatório por sócio chegam numa próxima versão');
+        await expect(page.getByRole('dialog')).toContainText('cadastrados em Cadastros › Sócios');
         await page.getByRole('button', { name: 'Criar perfil' }).dispatchEvent('click');
         await expect(page.getByRole('list', { name: 'Perfis' })).toContainText('Estúdio GO');
         await expect(page.getByRole('list', { name: 'Perfis' })).toContainText('Empresarial · BRL');

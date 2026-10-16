@@ -1,5 +1,5 @@
 import { BusinessRuleViolation, NotFoundError } from '../../domain/shared/errors.ts';
-import { TransactionId, type ProfileId } from '../../domain/shared/ids.ts';
+import { TransactionId, type PartnerId, type ProfileId } from '../../domain/shared/ids.ts';
 import { LocalDate } from '../../domain/shared/LocalDate.ts';
 import type { YearMonth } from '../../domain/shared/YearMonth.ts';
 import { Transaction } from '../../domain/transaction/Transaction.ts';
@@ -172,6 +172,33 @@ export class TransactionService {
             const revised = current.withPaymentDate(paymentDate, this.containerOnPayment(current, paymentDate ?? current.dueDate));
             this.transactions.update(revised);
             this.recalculation.apply(before.merge(this.impacts.ofTransaction(revised)));
+            return this.composer.requireTransaction(id);
+        });
+    }
+
+    /**
+     * Atribui ou tira o sócio que aportou, sem a edição completa — a escolha "Quem aportou" da
+     * lista de entradas sem sócio do relatório por sócio. Vale só para esta transação, como marcar
+     * como paga: numa série, as outras ocorrências continuam como estavam, porque quem aportou é
+     * um fato de cada mês. O sócio não muda saldo nenhum, então não há recálculo.
+     *
+     * @param id Transação a atribuir.
+     * @param partnerId Sócio que aportou, ou `null` para tirar a atribuição.
+     * @return A transação gravada, relida do banco.
+     * @throws {NotFoundError} Quando a transação ou o sócio não existem.
+     * @throws {BusinessRuleViolation} Quando o lançamento não é um aporte num perfil empresarial
+     * ou o sócio é de outro perfil (`TransactionComposer.assertPartner`).
+     */
+    public setPartner(id: TransactionId, partnerId: PartnerId | null): Transaction {
+        return this.unitOfWork.run(() => {
+            const current = this.composer.requireTransaction(id);
+            if (current.partnerId === partnerId) {
+                return current;
+            }
+            if (partnerId !== null) {
+                this.composer.assertPartner(this.composer.requireProfile(current.profileId), current, partnerId);
+            }
+            this.transactions.update(current.withPartner(partnerId));
             return this.composer.requireTransaction(id);
         });
     }

@@ -19,8 +19,12 @@ const PROFILE_TYPES: readonly ProfileFormValues['type'][] = ['personal', 'busine
 /** Diálogo aberto na seção: criar ou editar um perfil. */
 type ProfileDialogState = { readonly mode: 'create' } | { readonly mode: 'edit'; readonly profile: ProfileResponse };
 
-/** Aviso do perfil empresarial: sócios ficam fora do MVP (desktop-mvp-plan §1). */
-const BUSINESS_WITHOUT_PARTNERS = 'Perfil empresarial: o cadastro de sócios e o relatório por sócio chegam numa próxima versão do app.';
+/**
+ * Aviso do perfil empresarial: é o tipo que tem sócios, cadastrados em Cadastros › Sócios
+ * (desktop-mvp-plan Fase 13.7), e o relatório por sócio. O tipo não muda depois de criado, por
+ * isso o aviso aparece ao escolhê-lo.
+ */
+const BUSINESS_WITH_PARTNERS = 'Perfil empresarial: tem sócios com participação, cadastrados em Cadastros › Sócios, e o relatório por sócio.';
 
 /**
  * Perfis em Cadastros (desktop-mvp-plan Fase 6): lista, criar e editar. Não há exclusão no
@@ -81,7 +85,7 @@ export function ProfilesSection(): ReactNode {
                     </li>
                 ))}
             </ul>
-            {profiles.some((profile) => profile.type === 'business') && <p className="rounded-8 bg-soft px-3 py-2.5 text-13 text-soft-ink">{BUSINESS_WITHOUT_PARTNERS}</p>}
+            {profiles.some((profile) => profile.type === 'business') && <p className="rounded-8 bg-soft px-3 py-2.5 text-13 text-soft-ink">{BUSINESS_WITH_PARTNERS}</p>}
             {dialog?.mode === 'create' && <ProfileDialog profile={null} onClose={close} />}
             {dialog?.mode === 'edit' && <ProfileDialog key={dialog.profile.id} profile={dialog.profile} onClose={close} />}
         </>
@@ -207,7 +211,7 @@ function ProfileDialog({ profile, onClose }: { readonly profile: ProfileResponse
                     />
                 </Field>
             </div>
-            {type === 'business' && <p className="rounded-8 bg-soft px-3 py-2.5 text-13 text-soft-ink">{BUSINESS_WITHOUT_PARTNERS}</p>}
+            {type === 'business' && <p className="rounded-8 bg-soft px-3 py-2.5 text-13 text-soft-ink">{BUSINESS_WITH_PARTNERS}</p>}
         </FormDialog>
     );
 }

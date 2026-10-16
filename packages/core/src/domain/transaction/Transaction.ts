@@ -213,6 +213,39 @@ export class Transaction implements TransactionProps {
     }
 
     /**
+     * Troca só o sócio que pagou, sem a edição completa — a atribuição feita pelo relatório por
+     * sócio. Não revalida o conteúdo pelo mesmo motivo de `withPaymentDate`: o sócio não participa
+     * de nenhum invariante da linha (database-design §4.13), e revalidar recusaria atribuir o
+     * sócio a uma transferência antiga que perdeu o destino.
+     *
+     * @param partnerId Sócio que pagou, já conferido pelo Service, ou `null` para tirar a atribuição.
+     * @return Uma nova transação com o sócio trocado.
+     */
+    public withPartner(partnerId: PartnerId | null): Transaction {
+        return new Transaction({
+            id: this.id,
+            profileId: this.profileId,
+            recurrenceId: this.recurrenceId,
+            occurrence: this.occurrence,
+            type: this.type,
+            container: this.container,
+            subCategoryId: this.subCategoryId,
+            destinationAccountId: this.destinationAccountId,
+            partnerId,
+            goalId: this.goalId,
+            goalWithdrawal: this.goalWithdrawal,
+            name: this.name,
+            description: this.description,
+            value: this.value,
+            charges: this.charges,
+            origin: this.origin,
+            dueDate: this.dueDate,
+            paymentDate: this.paymentDate,
+            tagIds: this.tagIds,
+        });
+    }
+
+    /**
      * @return `true` quando a transação já foi paga. Derivado de `paymentDate` para que
      * `paid` e `payment_date` nunca discordem — regra que o banco não garante (§3.10).
      */

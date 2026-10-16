@@ -18,6 +18,7 @@ import {
     useGoalOptions,
     useInvoicesByCard,
     useInvoiceSuggestion,
+    usePartners,
     useRecurrences,
     useTags,
     useTransferTargets,
@@ -37,7 +38,7 @@ import {
     type TransactionResponse,
     type TransferTargetResponse,
 } from '@finance/core';
-import { useId, useState, type ReactNode } from 'react';
+import { useId, useRef, useState, type ReactNode } from 'react';
 import { Controller, useForm, type Resolver } from 'react-hook-form';
 import { toast } from 'sonner';
 import { periodOfDate } from '@/cards/invoiceForms';
@@ -60,16 +61,19 @@ import { ScopeDialog } from './ScopeDialog.tsx';
 import { SeriesReviewDialog } from './SeriesReviewDialog.tsx';
 import {
     cashPeriodOf,
+    contributionProfileId,
     changesSeries,
     destinationKey,
     formChangesSeries,
     movesProfile,
     newTransactionForm,
+    NO_PARTNER_CONTEXT,
     parseSourceKey,
     readTransactionForm,
     sourceKey,
     TRANSACTION_FIELDS,
     transactionFormFrom,
+    type PartnerContext,
     type TransactionErrorField,
     type TransactionFormTarget,
     type TransactionFormValues,
@@ -88,6 +92,7 @@ const FIELD_BY_CORE_FIELD: Readonly<Partial<Record<string, TransactionErrorField
     goalId: 'goalId',
     // A retirada é parte da escolha da meta: o erro dela aparece no campo "Meta".
     goalWithdrawal: 'goalId',
+    partnerId: 'partnerId',
     dueDate: 'dueDate',
     paymentDate: 'paymentDate',
     name: 'name',
@@ -99,6 +104,9 @@ const FIELD_BY_CORE_FIELD: Readonly<Partial<Record<string, TransactionErrorField
  * sem escolha; o campo do formulário continua vazio sem meta.
  */
 const NO_GOAL = 'none';
+
+/** Valor do item "Sem sócio" no seletor, pelo mesmo motivo do `NO_GOAL`. */
+const NO_PARTNER = 'none';
 
 /** O que o formulário faz e para onde volta. */
 export interface TransactionFormProps {
@@ -223,6 +231,9 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
     const profileChoices = profiles.filter((item) => item.currency === home.currency);
     const { currency } = home;
     const target: TransactionFormTarget = transaction === null ? { mode: 'create', currency } : { mode: 'update', transaction, recurrence };
+    // O resolver é criado uma vez pelo `useForm`; a referência leva a ele o contexto do sócio da
+    // renderização atual, que muda com o tipo, o destino e o carregamento dos sócios.
+    const partnerContext = useRef<PartnerContext>(NO_PARTNER_CONTEXT);
     /**
      * Valida pelo `readTransactionForm`, que aplica o schema da rota de criação ou de edição; os
      * valores seguem para o envio, que relê a chamada pronta.
@@ -231,7 +242,7 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
      * @return Os mesmos valores, ou o erro de cada campo no formato do react-hook-form.
      */
     const resolver: Resolver<TransactionFormValues> = (values) => {
-        const result = readTransactionForm(values, target);
+        const result = readTransactionForm(values, target, partnerContext.current);
         return result.ok ? { values, errors: {} } : { values: {}, errors: toFieldErrors<TransactionFormValues>(TRANSACTION_FIELDS, result.errors) };
     };
     const form = useForm<TransactionFormValues>({
@@ -242,6 +253,13 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
     const loaded = useFormRegistries(values.profileId);
     const { accounts, otherProfileAccounts, creditCards, categories, tags, goals } = loaded ?? NO_REGISTRIES;
     const owner = profiles.find((item) => item.id === values.profileId) ?? home;
+    // Regra de negócio (Sócios — aportes): o campo só existe quando o lançamento é um aporte num
+    // perfil empresarial, com os sócios desse perfil — o de destino, na transferência entre perfis.
+    const partnerProfileId = contributionProfileId(values, profiles, otherProfileAccounts);
+    const partners = usePartners(partnerProfileId === null ? null : { profileId: partnerProfileId });
+    partnerContext.current = { profileId: partnerProfileId, partnerIds: partners.data?.map((partner) => partner.id) };
+    const partnerProfile = profiles.find((item) => item.id === partnerProfileId) ?? null;
+    const partnerOptions = (partners.data ?? []).map((partner): ComboboxOption => ({ value: partner.id, label: partner.name }));
     const moved = transaction !== null && movesProfile(values, transaction);
     const create = useCoreMutation('transactions.create');
     const update = useCoreMutation('transactions.update');
@@ -321,11 +339,12 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
         form.setValue('tagIds', original?.tagIds ?? []);
         form.setValue('goalId', original?.goalId ?? '');
         form.setValue('goalWithdrawal', original?.goalWithdrawal ?? false);
+        form.setValue('partnerId', original?.partnerId ?? '');
         form.clearErrors();
     };
 
     const submit = form.handleSubmit(async (current) => {
-        const result = readTransactionForm(current, target);
+        const result = readTransactionForm(current, target, partnerContext.current);
         if (!result.ok) {
             return;
         }
@@ -552,6 +571,34 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
             )}
             {withdrawsFromGoal(values.type) && values.goalId !== '' && (
                 <Controller control={form.control} name="goalWithdrawal" render={({ field }) => <GoalDirection value={field.value} onChange={field.onChange} />} />
+            )}
+            {partnerProfile !== null && (
+                <Field
+                    id={fieldId('partner')}
+                    label={partnerProfile.id === values.profileId ? 'Sócio que aportou' : `Sócio que aportou em ${partnerProfile.name}`}
+                    error={errors.partnerId}
+                    hint={partners.data !== undefined && partnerOptions.length === 0 ? `${partnerProfile.name} não tem sócios; cadastre em Cadastros › Sócios.` : 'Deixe sem sócio quando não for aporte, como uma receita de serviço.'}
+                >
+                    <Controller
+                        control={form.control}
+                        name="partnerId"
+                        render={({ field }) => (
+                            <Combobox
+                                id={fieldId('partner')}
+                                options={[{ value: NO_PARTNER, label: 'Sem sócio' }, ...partnerOptions]}
+                                value={field.value === '' || !partnerOptions.some((option) => option.value === field.value) ? NO_PARTNER : field.value}
+                                onChange={(value) => {
+                                    field.onChange(value === NO_PARTNER ? '' : value);
+                                }}
+                                disabled={partnerOptions.length === 0}
+                                placeholder="Sem sócio"
+                                searchLabel="Buscar sócio"
+                                emptyText="Nenhum sócio encontrado."
+                                aria={fieldAria(fieldId('partner'), errors.partnerId, true)}
+                            />
+                        )}
+                    />
+                </Field>
             )}
             <Field id={fieldId('description')} label="Descrição" error={errors.description}>
                 <textarea

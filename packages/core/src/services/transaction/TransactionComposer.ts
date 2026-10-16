@@ -2,7 +2,7 @@ import type { Account } from '../../domain/account/Account.ts';
 import type { Profile } from '../../domain/profile/Profile.ts';
 import { Currency } from '../../domain/shared/Currency.ts';
 import { BusinessRuleViolation, NotFoundError } from '../../domain/shared/errors.ts';
-import type { AccountId, CreditCardId, ProfileId, TransactionId } from '../../domain/shared/ids.ts';
+import type { AccountId, CreditCardId, PartnerId, ProfileId, TransactionId } from '../../domain/shared/ids.ts';
 import type { LocalDate } from '../../domain/shared/LocalDate.ts';
 import { Money } from '../../domain/shared/Money.ts';
 import type { YearMonth } from '../../domain/shared/YearMonth.ts';
@@ -81,18 +81,21 @@ export class TransactionComposer {
      * @return void
      * @throws {NotFoundError} Quando uma referência não existe.
      * @throws {BusinessRuleViolation} Quando pertence a outro perfil (fora a transferência entre
-     * perfis aceita por `requireDestination`), há sócio num perfil pessoal ou a conta de destino
-     * escolhida está desativada.
+     * perfis aceita por `requireDestination`), o sócio está num lançamento que não é aporte ou a
+     * conta de destino escolhida está desativada.
      */
     public assertReferences(profile: Profile, input: TransactionInput, current: Transaction | null): void {
         this.assertOwnedBy(profile, 'subCategoryId', input.subCategoryId, this.categories.findSubCategory(input.subCategoryId)?.profileId ?? null);
-        if (input.partnerId !== null) {
-            // Regra de negócio (Perfil): sócios só existem em perfis empresariais
-            // (database-design §4.2), então só eles registram quem pagou.
-            if (!profile.acceptsPartners()) {
-                throw new BusinessRuleViolation('partner-requires-business-profile', 'só perfis empresariais registram o sócio que pagou');
-            }
-            this.assertOwnedBy(profile, 'partnerId', input.partnerId, this.references.partnerOwner(input.partnerId));
+        // O sócio já gravado continua na edição mesmo onde não caberia mais — a despesa com sócio
+        // de antes de os aportes existirem (desktop-mvp-plan Fase 13.8) —, desde que o lançamento
+        // fique no mesmo perfil e com o mesmo destino: editar o valor não pode exigir apagar o
+        // histórico, mas levar a transferência para outro perfil de destino muda de quem é o sócio.
+        const kept = current !== null
+            && current.profileId === profile.id
+            && current.partnerId === input.partnerId
+            && current.destinationAccountId === input.destinationAccountId;
+        if (input.partnerId !== null && !kept) {
+            this.assertPartner(profile, input, input.partnerId);
         }
         if (input.goalId !== null) {
             const goal = this.goals.findById(input.goalId);
@@ -117,6 +120,58 @@ export class TransactionComposer {
             const destination = this.requireDestination(profile, input, input.destinationAccountId);
             this.assertSelectable(destination, 'destinationAccountId', current?.destinationAccountId === destination.id);
         }
+    }
+
+    /**
+     * Confere o sócio que aportou. Fica exposto, e não só dentro de `assertReferences`, porque
+     * atribuir o sócio pelo relatório (`TransactionService.setPartner`) troca só esse vínculo e
+     * não deve reconferir o resto do lançamento.
+     * Regra de negócio (Sócios — aportes, reports-design §8): toda despesa de um perfil empresarial
+     * é paga com o dinheiro da empresa, e o sócio aparece no dinheiro que **entra** nela: a receita
+     * do perfil empresarial e a transferência que chega a ele vinda de outro perfil. Na
+     * transferência, a linha é do perfil de origem (database-design §4.13), mas o sócio é do perfil
+     * de destino — é lá que o aporte conta.
+     *
+     * @param profile Perfil dono da transação.
+     * @param entry Tipo e destino do lançamento, que decidem se ele é um aporte e de qual perfil.
+     * @param partnerId Sócio escolhido.
+     * @return void
+     * @throws {BusinessRuleViolation} `partner-requires-contribution` quando o lançamento não é uma
+     * entrada no perfil empresarial; `partner-requires-business-profile` quando a entrada é num
+     * perfil pessoal; `reference-outside-profile` quando o sócio é de outro perfil.
+     * @throws {NotFoundError} Quando o sócio, a conta de destino ou o perfil dela não existe.
+     */
+    public assertPartner(profile: Profile, entry: Pick<TransactionInput, 'type' | 'destinationAccountId'>, partnerId: PartnerId): void {
+        this.assertOwnedBy(this.contributionProfile(profile, entry), 'partnerId', partnerId, this.references.partnerOwner(partnerId));
+    }
+
+    /**
+     * @param profile Perfil dono da transação.
+     * @param entry Tipo e destino do lançamento.
+     * @return O perfil empresarial em que o lançamento é um aporte: o próprio, na receita; o do
+     * destino, na transferência que chega de outro perfil.
+     * @throws {BusinessRuleViolation} Quando o lançamento não é aporte, ou entra num perfil pessoal.
+     * @throws {NotFoundError} Quando a conta de destino ou o perfil dela não existe.
+     */
+    private contributionProfile(profile: Profile, entry: Pick<TransactionInput, 'type' | 'destinationAccountId'>): Profile {
+        let target: Profile | null = null;
+        if (entry.type === 'income') {
+            target = profile;
+        } else if (entry.type === 'transference' && entry.destinationAccountId !== null) {
+            const destination = this.accounts.findById(entry.destinationAccountId);
+            if (destination === null) {
+                throw new NotFoundError('destinationAccountId', entry.destinationAccountId);
+            }
+            // A transferência entre contas do mesmo perfil não traz dinheiro novo: não é aporte.
+            target = destination.profileId === profile.id ? null : this.requireProfile(destination.profileId);
+        }
+        if (target === null) {
+            throw new BusinessRuleViolation('partner-requires-contribution', 'só receitas e transferências vindas de outro perfil registram o sócio que aportou', { field: 'partnerId' });
+        }
+        if (!target.acceptsPartners()) {
+            throw new BusinessRuleViolation('partner-requires-business-profile', 'só perfis empresariais registram o sócio que aportou', { field: 'partnerId' });
+        }
+        return target;
     }
 
     /**

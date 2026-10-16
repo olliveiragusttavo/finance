@@ -24,7 +24,7 @@ import { parseTimestamp, type Clock, type Timestamp } from '../../ports/Clock.ts
 import type { Database, SqlParams, SqlRow } from '../../ports/Database.ts';
 import type { RowStamps, TransactionRepository } from '../../repositories/TransactionRepository.ts';
 import { decodeEnum, TRANSACTION_TYPE_CODE } from './enumCodes.ts';
-import { cashDateSql, monthBounds, periodKey, REPORT_SOURCES_CTE } from './periodSql.ts';
+import { cashDateSql, monthBounds, PARTNER_ENTRIES_CTE, periodKey, REPORT_SOURCES_CTE } from './periodSql.ts';
 import { RowReader } from './RowReader.ts';
 
 // As tags vêm numa coluna só, por nome, para que toda leitura de transação já traga o
@@ -317,6 +317,24 @@ export class SqliteTransactionRepository implements TransactionRepository {
                     expense: TRANSACTION_TYPE_CODE.expense,
                     period: period === null ? null : periodKey(period),
                 },
+            )
+            .map((row) => this.toTransaction(row));
+    }
+
+    /**
+     * @param profileId Perfil empresarial.
+     * @param period Mês de pagamento.
+     * @return As entradas do mês sem sócio vivo do perfil, por data.
+     */
+    public listEntriesWithoutPartner(profileId: ProfileId, period: YearMonth): readonly Transaction[] {
+        return this.database
+            .all(
+                `WITH ${REPORT_SOURCES_CTE}, ${PARTNER_ENTRIES_CTE}
+                ${SELECT_TRANSACTION}
+                JOIN partner_entries pe ON pe.id = t.id
+                LEFT JOIN partners pa ON pa.id = pe.partner_id AND pa.deleted_at IS NULL AND pa.profile_id = :profileId
+                WHERE pe.payment_key = :period AND pa.id IS NULL ${ORDER}`,
+                { profileId, income: TRANSACTION_TYPE_CODE.income, transference: TRANSACTION_TYPE_CODE.transference, period: periodKey(period) },
             )
             .map((row) => this.toTransaction(row));
     }

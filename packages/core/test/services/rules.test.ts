@@ -12,13 +12,13 @@ function setup(): { world: TestWorld; profileId: string; accountId: string; base
 }
 
 describe('ponto de controle das regras de negócio (database-design §3.10)', () => {
-    it('recusa sócio pagador num perfil pessoal', async () => {
+    it('recusa sócio numa receita de perfil pessoal', async () => {
         const { world, accountId, base } = setup();
         const business = world.profile({ type: 'business' });
         const error = await world.failure('transactions.create', {
             ...base,
             source: { kind: 'account', accountId },
-            type: 'expense',
+            type: 'income',
             name: 'Aluguel',
             value: 100,
             dueDate: '2026-03-10',
@@ -28,13 +28,13 @@ describe('ponto de controle das regras de negócio (database-design §3.10)', ()
         expect(error.details['rule']).toBe('partner-requires-business-profile');
     });
 
-    it('aceita sócio pagador do próprio perfil empresarial', async () => {
+    it('aceita o sócio que aportou numa receita do próprio perfil empresarial', async () => {
         const world = new TestWorld();
         const profileId = world.profile({ type: 'business' });
         const accountId = world.account(profileId);
         const created = await world.create(
             { profileId, subCategoryId: world.subCategory(profileId) },
-            { source: { kind: 'account', accountId }, partnerId: world.partner(profileId) },
+            { source: { kind: 'account', accountId }, type: 'income', partnerId: world.partner(profileId) },
         );
         expect(created.partnerId).not.toBeNull();
     });

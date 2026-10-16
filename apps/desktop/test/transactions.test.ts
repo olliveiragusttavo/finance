@@ -3,6 +3,7 @@ import type { RecurrenceResponse, TransactionResponse } from '@finance/core';
 import { describe, expect, it } from 'vitest';
 import {
     cashPeriodOf,
+    contributionProfileId,
     destinationKey,
     newTransactionForm,
     parseSourceKey,
@@ -147,6 +148,7 @@ describe('formulário de lançamento (desktop-mvp-plan Fase 9)', () => {
                     tagIds: [],
                     goalId: null,
                     goalWithdrawal: false,
+                    partnerId: null,
                     repeat: null,
                 },
             },
@@ -282,6 +284,46 @@ describe('formulário de lançamento (desktop-mvp-plan Fase 9)', () => {
         expect(movesProfile(movedValues, transaction)).toBe(true);
         const moved = readTransactionForm(movedValues, { mode: 'update', transaction, recurrence: null });
         expect(moved.ok && moved.submission.route === 'transactions.update' && [moved.submission.input.profileId, moved.submission.input.partnerId]).toEqual([business, null]);
+    });
+
+    it('Regra de negócio (Sócios — aportes, Fase 13.8): o sócio cabe na receita de perfil empresarial e na transferência que chega a um', () => {
+        const business = '99999999-9999-4999-8999-999999999999';
+        const pj = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+        const profiles = [{ id: PROFILE, type: 'personal' }, { id: business, type: 'business' }] as const;
+        const otherAccounts = [{ id: pj, profileId: business }];
+
+        expect(contributionProfileId({ type: 'income', profileId: business, destinationAccountId: '' }, profiles, [])).toBe(business);
+        expect(contributionProfileId({ type: 'income', profileId: PROFILE, destinationAccountId: '' }, profiles, otherAccounts)).toBeNull();
+        expect(contributionProfileId({ type: 'transference', profileId: PROFILE, destinationAccountId: pj }, profiles, otherAccounts)).toBe(business);
+        // Para uma conta do próprio perfil a transferência é interna; investimento e despesa nunca são aporte.
+        expect(contributionProfileId({ type: 'transference', profileId: PROFILE, destinationAccountId: TESOURO }, profiles, otherAccounts)).toBeNull();
+        expect(contributionProfileId({ type: 'investment', profileId: PROFILE, destinationAccountId: pj }, profiles, otherAccounts)).toBeNull();
+        expect(contributionProfileId({ type: 'expense', profileId: business, destinationAccountId: '' }, profiles, otherAccounts)).toBeNull();
+    });
+
+    it('o sócio escolhido vai na gravação só quando é um dos sócios do perfil do aporte', () => {
+        const business = '99999999-9999-4999-8999-999999999999';
+        const partner = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+        const values = filled({ type: 'income', profileId: business, partnerId: partner });
+
+        const chosen = readTransactionForm(values, CREATE, { profileId: business, partnerIds: [partner] });
+        expect(chosen.ok && chosen.submission.input.partnerId).toBe(partner);
+        // Destino trocado para outra empresa: o sócio da anterior não vale mais.
+        const stale = readTransactionForm(values, CREATE, { profileId: business, partnerIds: [] });
+        expect(stale.ok && stale.submission.input.partnerId).toBeNull();
+        const notContribution = readTransactionForm({ ...values, type: 'expense' }, CREATE);
+        expect(notContribution.ok && notContribution.submission.input.partnerId).toBeNull();
+    });
+
+    it('a despesa antiga com sócio mantém o sócio na edição; a transferência que troca de destino o perde', () => {
+        const partner = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+        const expense = purchase({ partnerId: partner });
+        const kept = readTransactionForm(transactionFormFrom(expense, '2026-10-15'), { mode: 'update', transaction: expense, recurrence: null });
+        expect(kept.ok && kept.submission.input.partnerId).toBe(partner);
+
+        const transfer = purchase({ type: 'transference', destinationAccountId: TESOURO, partnerId: partner, container: { kind: 'statement', statementId: 's', accountId: NUBANK, period: '2026-10' } });
+        const retargeted = readTransactionForm({ ...transactionFormFrom(transfer, '2026-10-15'), destinationAccountId: ROXINHO }, { mode: 'update', transaction: transfer, recurrence: null });
+        expect(retargeted.ok && retargeted.submission.input.partnerId).toBeNull();
     });
 
     it('Regra de negócio (Metas, Fase 13.3): só a transferência com meta retira; a receita sempre guarda', () => {

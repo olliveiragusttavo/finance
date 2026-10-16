@@ -4,6 +4,7 @@ import {
     deleteTransactionRequest,
     listTransactionsRequest,
     setPaidRequest,
+    setPartnerRequest,
     transactionIdRequest,
     updateTransactionRequest,
 } from '../requests/transactionRequests.ts';
@@ -46,6 +47,14 @@ export class TransactionController {
      */
     public setPaid(raw: unknown): Promise<CoreResult<TransactionResponse>> {
         return handle(setPaidRequest, raw, ({ id, paid }) => toTransactionResponse(this.transactions.setPaid(id, paid)), this.onUnexpected);
+    }
+
+    /**
+     * @param raw Entrada com o id da transação e o sócio que pagou, ou `null`.
+     * @return A transação com o sócio trocado.
+     */
+    public setPartner(raw: unknown): Promise<CoreResult<TransactionResponse>> {
+        return handle(setPartnerRequest, raw, ({ id, partnerId }) => toTransactionResponse(this.transactions.setPartner(id, partnerId)), this.onUnexpected);
     }
 
     /**

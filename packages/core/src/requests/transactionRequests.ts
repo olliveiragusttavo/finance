@@ -157,3 +157,6 @@ export const deleteTransactionRequest = z.strictObject({ id: parsedText(Transact
 export const listTransactionsRequest = z.strictObject({ profileId: parsedText(ProfileId), period: yearMonthField });
 
 export const setPaidRequest = z.strictObject({ id: parsedText(TransactionId), paid: z.boolean() });
+
+/** `null` tira a atribuição: o lançamento volta para a lista "sem sócio" do relatório. */
+export const setPartnerRequest = z.strictObject({ id: parsedText(TransactionId), partnerId: parsedText(PartnerId).nullable() });

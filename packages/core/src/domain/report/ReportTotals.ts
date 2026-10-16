@@ -1,5 +1,5 @@
 import type { BalancePair } from '../balance/BalancePair.ts';
-import type { AccountId, CategoryId, CreditCardId, InvoiceId, SubCategoryId, TagId } from '../shared/ids.ts';
+import type { AccountId, CategoryId, CreditCardId, InvoiceId, PartnerId, SubCategoryId, TagId } from '../shared/ids.ts';
 import type { LocalDate } from '../shared/LocalDate.ts';
 import type { Money } from '../shared/Money.ts';
 import type { YearMonth } from '../shared/YearMonth.ts';
@@ -47,6 +47,22 @@ export interface TagCategoryTotals {
     /** Primeiro e último mês de pagamento dos lançamentos somados. */
     readonly firstPeriod: YearMonth;
     readonly lastPeriod: YearMonth;
+}
+
+/**
+ * Somas das entradas de um perfil empresarial por sócio que aportou — receitas do perfil e
+ * transferências que chegam de outro perfil, pelo efeito no saldo (a receita sem os encargos, a
+ * transferência pelo valor). `partnerId` nulo junta as entradas sem sócio atribuído — inclusive as
+ * de um sócio excluído, porque o vínculo morto não diz mais quem aportou (reports-design §8).
+ */
+export interface PartnerContributionTotals {
+    readonly partnerId: PartnerId | null;
+    /** Soma de todos os períodos. */
+    readonly total: Money;
+    readonly count: number;
+    /** A parte do mês de referência. */
+    readonly month: Money;
+    readonly monthCount: number;
 }
 
 /** Uma fatura com o mês em que pesa no caixa e as somas das suas despesas. */

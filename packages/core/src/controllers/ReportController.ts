@@ -4,6 +4,12 @@ import { toCardImpactResponse, type CardImpactResponse } from '../dto/reports/Ca
 import { toCategoryReportResponse, type CategoryReportResponse } from '../dto/reports/CategoryReportResponse.ts';
 import { toCategoryTransactionsResponse, type CategoryTransactionsResponse } from '../dto/reports/CategoryTransactionsResponse.ts';
 import { toMonthSummaryResponse, type MonthSummaryResponse } from '../dto/reports/MonthSummaryResponse.ts';
+import {
+    toEntriesWithoutPartnerResponse,
+    toPartnerReportResponse,
+    type EntriesWithoutPartnerResponse,
+    type PartnerReportResponse,
+} from '../dto/reports/PartnerReportResponse.ts';
 import { toTagReportResponse, toTagTransactionsResponse, type TagReportResponse, type TagTransactionsResponse } from '../dto/reports/TagReportResponse.ts';
 import {
     accountFlowRequest,
@@ -11,14 +17,16 @@ import {
     cardImpactRequest,
     categoryReportRequest,
     categoryTransactionsRequest,
+    entriesWithoutPartnerRequest,
     monthSummaryRequest,
+    partnerReportRequest,
     tagReportRequest,
     tagTransactionsRequest,
 } from '../requests/reportRequests.ts';
 import type { ReportService } from '../services/report/ReportService.ts';
 import { handle, type CoreResult, type UnexpectedErrorListener } from './CoreResult.ts';
 
-/** Rotas dos relatórios: Visão geral, por categoria, impacto do cartão, fluxo por conta e por tag. Só leitura. */
+/** Rotas dos relatórios: Visão geral, por categoria, impacto do cartão, fluxo por conta, por tag e por sócio. Só leitura. */
 export class ReportController {
     /**
      * @param reports Casos de uso dos relatórios.
@@ -111,6 +119,27 @@ export class ReportController {
             tagTransactionsRequest,
             raw,
             ({ profileId, period, range, tagId }) => toTagTransactionsResponse(this.reports.tagTransactions(profileId, period, range, tagId)),
+            this.onUnexpected,
+        );
+    }
+
+    /**
+     * @param raw Entrada com o perfil empresarial e o mês de referência.
+     * @return Quanto cada sócio aportou e deveria ter aportado, os números do mês e o acerto.
+     */
+    public byPartner(raw: unknown): Promise<CoreResult<PartnerReportResponse>> {
+        return handle(partnerReportRequest, raw, ({ profileId, period }) => toPartnerReportResponse(this.reports.byPartner(profileId, period)), this.onUnexpected);
+    }
+
+    /**
+     * @param raw Entrada com o perfil empresarial e o mês de referência.
+     * @return As entradas do mês sem sócio e o total delas.
+     */
+    public entriesWithoutPartner(raw: unknown): Promise<CoreResult<EntriesWithoutPartnerResponse>> {
+        return handle(
+            entriesWithoutPartnerRequest,
+            raw,
+            ({ profileId, period }) => toEntriesWithoutPartnerResponse(this.reports.entriesWithoutPartner(profileId, period)),
             this.onUnexpected,
         );
     }

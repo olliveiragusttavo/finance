@@ -96,6 +96,8 @@ export type BusinessRule =
     | 'invoice-not-paid'
     | 'move-target-deleted'
     | 'partner-requires-business-profile'
+    | 'partner-requires-contribution'
+    | 'partner-shares-not-100'
     | 'profile-currency-locked'
     | 'recurrence-change-requires-scope'
     | 'recurrence-daily-date-single-only'

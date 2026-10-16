@@ -33,3 +33,12 @@ export interface TagTransactionsView {
     /** Despesas − receitas, pela mesma regra do total da tag, para a tela conferir com a lista. */
     readonly total: Money;
 }
+
+/** As entradas do mês sem sócio, para a lista do relatório por sócio. */
+export interface EntriesWithoutPartnerView {
+    readonly period: YearMonth;
+    /** Receitas do perfil e transferências vindas de outro perfil (linhas do perfil de origem). */
+    readonly transactions: readonly Transaction[];
+    /** O que entrou no saldo, pela mesma regra do indicador "Entradas sem sócio". */
+    readonly total: Money;
+}

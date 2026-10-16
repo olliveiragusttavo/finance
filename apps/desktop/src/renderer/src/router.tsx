@@ -15,10 +15,11 @@ import { parseAccountFlowSearch, type AccountFlowSearch } from './reports/accoun
 import { CardImpactScreen } from './reports/CardImpactScreen.tsx';
 import { CategoryReportScreen } from './reports/CategoryReportScreen.tsx';
 import { parseCategoryReportSearch, type CategoryReportSearch } from './reports/categoryReportSearch.ts';
+import { PartnerReportScreen } from './reports/PartnerReportScreen.tsx';
 import { TagReportScreen } from './reports/TagReportScreen.tsx';
 import { parseTagReportSearch, type TagReportSearch } from './reports/tagReportSearch.ts';
 import { parseRegistrySearch, type RegistrySearch } from './registry/registryKinds.ts';
-import { blankScreen, PartnerReportScreen } from './screens/BlankScreen.tsx';
+import { blankScreen } from './screens/BlankScreen.tsx';
 import { ImportScreen } from './import/ImportScreen.tsx';
 import { SettingsScreen } from './settings/SettingsScreen.tsx';
 import { AppShell } from './shell/AppShell.tsx';

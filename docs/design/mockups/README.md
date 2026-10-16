@@ -33,8 +33,9 @@ Cada tela é um arquivo `screens/*.dc.html` (HTML de um editor de design):
 7. Entrada/saída distinguíveis **sem depender só da cor**: sinal (+/−), ⇄ para transferência, rótulos.
 8. Números com algarismos tabulares e alinhados à direita nas tabelas.
 9. Anotação é texto livre; a primeira linha é usada como título na lista.
-10. Importação de arquivos só no desktop (ver seção Importação).
-11. Celular: barra inferior com Início · Transações · Contas · Cartões · Mais; alvos de toque ≥ 44px; escolhas em folhas inferiores.
+10. **Sócios** (só perfil empresarial): nome até 100 caracteres e participação %; a soma precisa dar 100% para salvar (soma ao vivo + barra de divisão). Remover sócio com lançamentos deixa esses lançamentos "sem sócio atribuído". Por enquanto a participação atual vale para todo o histórico (regra a confirmar).
+11. Importação de arquivos só no desktop (ver seção Importação).
+12. Celular: barra inferior com Início · Transações · Contas · Cartões · Mais; alvos de toque ≥ 44px; escolhas em folhas inferiores.
 
 ## Tokens de cor
 
@@ -83,6 +84,7 @@ Fonte: IBM Plex Sans.
 | DesktopPrimeiroUso | Primeiro uso |
 | DesktopTags | Cadastros › Tags (lista + painel de edição) |
 | DesktopAnotacoes | Cadastros › Anotações (lista + editor) |
+| DesktopSocios | Cadastros › Sócios (só perfil empresarial) |
 | DesktopImportArquivo | Importar 1/3 · Arquivo (tipo, separadores, prévia bruta) |
 | DesktopImportMapear | Importar 2/3 · Ligar colunas aos campos (arrastar e soltar) |
 | DesktopImportRevisar | Importar 3/3 · Revisar (perfil por conta, contas, cartões, categorias, recorrências) |
@@ -140,5 +142,6 @@ Assistente de 3 passos, um arquivo por vez (CSV ou XLSX).
 | MobileTags | Tags (lista + folha de edição) |
 | MobileAnotacoes | Anotações (lista) |
 | MobileAnotacaoEditar | Editar anotação |
+| MobileSocios | Sócios (só perfil empresarial) |
 
 As regras de negócio completas estão no brief do projeto (`claude-design-brief.md`).

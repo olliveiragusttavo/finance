@@ -29,7 +29,7 @@ categoria/subcategoria** e **quanto as faturas do cartão pesam no saldo do mês
 |---|---|---|
 | Primeiro uso | `DesktopPrimeiroUso` | Criar perfil e primeira conta. "Entrar num grupo" aparece desabilitado |
 | Shell | todas (barra lateral e superior) | Navegação, mês de referência fixo, seletor de perfil, tema claro/escuro, "+ Lançamento" |
-| Cadastros | `DesktopCadastros`, `DesktopTags`, `DesktopAnotacoes` | Perfis, contas, cartões, categorias e subcategorias, tags e anotações |
+| Cadastros | `DesktopCadastros`, `DesktopTags`, `DesktopAnotacoes`, `DesktopSocios` | Perfis, contas, cartões, categorias e subcategorias, tags, anotações e, no perfil empresarial, sócios (Fase 13.7) |
 | Contas | `DesktopContas` | Lista com consolidado e previsto → extrato do mês |
 | Cartões | `DesktopCartoes` | Lista com fatura do mês → detalhe da fatura, pagar, pagamento parcial, reabrir, próximas faturas |
 | Transações | `DesktopTransacoes` | Tabela do mês, filtros, diálogo de criação/edição, marcar pago, excluir, atalhos |
@@ -40,6 +40,7 @@ categoria/subcategoria** e **quanto as faturas do cartão pesam no saldo do mês
 | **Impacto do cartão** | `DesktopRelCartao` | Faturas por mês e cartão, extrato onde foram pagas, peso nas entradas |
 | Fluxo por conta (Fase 12.1) | `DesktopRelFluxo` | Extratos encadeados de uma conta, ou das contas do total somadas, nos 3 meses antes e 1 depois do de referência |
 | Por tag (Fase 12.2) | `DesktopRelTag` | Total líquido por tag no mês ou em todo o período, divisão por categoria e lançamentos da tag |
+| Por sócio (Fases 13.6 e 13.8) | `DesktopRelSocio` | Só em perfil empresarial: aportou × deveria pela participação no total de aportes, acerto e entradas do mês sem sócio, atribuíveis na própria tela |
 | Ajustes | `DesktopAjustes` | Tema, exportar cópia do banco, local do arquivo, atalhos, versões |
 
 ### Fora do escopo (próximas entregas)
@@ -47,8 +48,9 @@ categoria/subcategoria** e **quanto as faturas do cartão pesam no saldo do mês
 - **Mobile inteiro** (React Native / Expo).
 - **Sincronização e Dispositivos** (`DesktopDispositivos`): o indicador da barra lateral
   mostra só "Dados só neste aparelho".
-- Sócios, anexos e o relatório D7 (sócio). Tags e anotações entraram em Cadastros (Fase 6),
-  Metas, na Fase 9.3, e os relatórios D5 (fluxo por conta) e D8 (tag), nas Fases 12.1 e 12.2.
+- Anexos. Tags e anotações entraram em Cadastros (Fase 6), Metas, na Fase 9.3, os relatórios
+  D5 (fluxo por conta) e D8 (tag), nas Fases 12.1 e 12.2, o D7 (sócio), na Fase 13.6, e o
+  cadastro de sócios, na Fase 13.7.
 - ~~Importação do histórico do app atual~~ — entrou na Fase 13.1, a pedido.
 - Instaladores de Windows e macOS (o MVP empacota para Linux).
 
@@ -146,6 +148,27 @@ Decididas antes da Fase 12.2, que trouxe o relatório para dentro do MVP.
 | T4 | Por categoria | Total líquido de cada categoria da tag. A participação é sobre a soma das categorias com gasto líquido; a categoria em que as receitas superam as despesas mostra o valor como entrada (+) e não tem participação |
 | T5 | Lançamentos | Os da tag no período, com a mesma fonte e o mesmo critério do total: a lista soma o total líquido. Contas e cartões desativados entram |
 
+### 3.6 Por sócio
+
+Decididas antes da Fase 13.6, que trouxe o relatório para dentro do MVP, e revistas na Fase 13.8,
+que trocou as despesas pelos aportes. Só em perfil empresarial. Regras completas em
+[reports-design.md §8](reports-design.md#8-por-sócio-reportsbypartner-reportsentrieswithoutpartner).
+
+| # | Pergunta | Regra |
+|---|---|---|
+| P1 | Período | Os aportes de **todos os períodos**; o mês de referência só recorta os indicadores do mês e a lista de entradas sem sócio |
+| P2 | O que entra? | **Aportes**: receitas do perfil e transferências que chegam de outro perfil, com sócio. Toda despesa é paga pela empresa e fica fora |
+| P3 | "Deveria ter aportado" | Total de aportes com sócio × participação. Entradas sem sócio (receita de serviço) ficam fora da divisão. A sobra de centavo vai para os maiores restos |
+| P4 | Acerto ("Para equilibrar os aportes") | Quem aportou a menos transfere para quem aportou a mais, o maior devedor primeiro para o maior credor. Sem acerto quando as participações não somam 100% — a tela avisa |
+| P5 | Entradas sem sócio | As do mês sem sócio vivo, pelo mesmo critério das somas: a lista soma o indicador. "Quem aportou" grava só aquele lançamento |
+
+---|---|---|
+| P1 | Período | Regra-mestra da [§3.1](#31-regra-mestra-o-período-é-o-do-pagamento), só o mês de referência |
+| P2 | Quais tipos entram? | **Só despesas** ("Despesas do mês" do mockup): estorno abate (R2), encargos pelo efeito no saldo (R3). Quem pagou é o sócio gravado na transação; receitas, transferências e investimentos ficam fora |
+| P3 | "Deveria pagar" | Despesas **com sócio** × participação. As sem sócio ficam numa linha própria, **fora da divisão**, até serem atribuídas. A sobra de centavo da divisão vai para os maiores restos, e a divisão soma a base |
+| P4 | Acerto ("Para equilibrar o mês") | Quem pagou a menos transfere para quem pagou a mais, o maior devedor primeiro para o maior credor. Sem acerto quando as participações não somam 100% — a tela avisa |
+| P5 | Lançamentos sem sócio | Os do mês sem sócio vivo, pelo mesmo critério das somas: a lista soma o indicador. "Quem pagou" grava só aquele lançamento |
+
 ---
 
 ## 4. Arquitetura da entrega
@@ -175,7 +198,7 @@ Nenhuma decisão de produto está aberta. Ficaram decididas:
 | Decisão | Regra |
 |---|---|
 | Período dos relatórios | Mês do pagamento ([§3.1](#31-regra-mestra-o-período-é-o-do-pagamento)) |
-| Itens do menu sem tela no MVP (Dispositivos, Por sócio) | Aparecem no menu normalmente e levam a uma **tela em branco**, já com a rota e o mês de referência; "Por sócio" continua só no perfil empresarial. Fluxo por conta e Por tag saíram da lista nas Fases 12.1 e 12.2 |
+| Itens do menu sem tela no MVP (Dispositivos) | Aparecem no menu normalmente e levam a uma **tela em branco**, já com a rota e o mês de referência. Fluxo por conta, Por tag e Por sócio saíram da lista nas Fases 12.1, 12.2 e 13.6; "Por sócio" continua só no perfil empresarial |
 | Excluir conta ou cartão | Ver [§5.1](#51-desativar-e-excluir-conta-ou-cartão) |
 | Trocar a moeda do perfil | Só enquanto o perfil não tem lançamentos: a moeda é a unidade de todo valor gravado e a troca não converte nada (database-design §4.1). Renomear continua livre |
 | Limite usado do cartão | Valor a pagar somado das faturas em aberto até a **fatura aberta hoje**; das faturas depois dela, só o comprometido (parcelas e compras lançadas adiante), sem as ocorrências de séries fixas (Fase 13.5); fatura credora conta zero |
@@ -813,6 +836,75 @@ limite usado com um ano de cobranças que ainda não aconteceram.
   comprometido — parcelas e compras avulsas lançadas adiante —, sem as ocorrências de séries
   fixas (`BalanceLedgerRepository.committedInvoiceTypeTotals`, `CreditCardService.limitUsed`)
 - [x] Teste: `test/services/creditCards.test.ts` (assinatura, parcelas e compra adiante)
+
+### Fase 13.6 — Por sócio
+
+Entrou depois da Fase 13.5, a pedido: D7 estava fora do escopo (§1). O cadastro de sócios ainda
+não existe (o mockup está em preparação), e o relatório lê os sócios já gravados. Regras na
+[§3.6](#36-por-sócio) e em [reports-design.md §8](reports-design.md#8-por-sócio-reportsbypartner-reportsentrieswithoutpartner).
+
+**Núcleo**
+- [x] Domínio `Partner` (só `restore`, por enquanto) e `PartnerRepository.listByProfile`
+- [x] Domínio `PartnerReport`: divisão pela participação em centavos inteiros (maior resto), diferença e acerto (P3, P4), funções puras
+- [x] Rota `reports.byPartner` (perfil empresarial, mês): despesas, base com sócio, sem sócio, cada sócio e o acerto — somas no SQL sobre a `REPORT_SOURCES_CTE`, que passou a trazer o `partner_id`
+- [x] Rota `reports.expensesWithoutPartner`: as despesas sem sócio e o total (P5). As duas recusam perfil pessoal com `partner-requires-business-profile`
+- [x] Rota `transactions.setPartner` (id, sócio ou `null`): troca só o sócio, como `setPaid`; confere perfil empresarial e posse pelo `TransactionComposer.assertPartner`
+- [x] Testes de mesa (`test/services/reports.partner.test.ts`)
+
+**Client e desktop**
+- [x] Rotas no mapa de invalidação (`MONEY` e `TRANSACTION_CONTENT`; `setPartner` invalida só as transações e o relatório por sócio) e hooks `usePartnerReport`, `useExpensesWithoutPartner`
+- [x] View-model `partnerReport.ts`: indicadores, tabela com a diferença por seta, sinal e palavras (decisão de interface 7), barras pagou × deveria, acerto e o aviso de participações fora de 100%
+- [x] Tela `PartnerReportScreen.tsx` no lugar da tela em branco. **Decisões:** o "Ver tabela" do gráfico virou a alternância Gráfico/Tabela dos outros relatórios; a escolha de "Quem pagou" grava na hora, sem botão por linha; com mais de dois sócios o acerto lista uma transferência por linha; sem sócios cadastrados a tela explica e a coluna "Quem pagou" fica vazia
+- [x] Testes: `client` (`test/partnerReport.test.ts`, `test/invalidation.test.ts`) e ponta a ponta (`e2e/partnerReport.spec.ts`, que semeava os sócios direto no banco até a Fase 13.7 trazer a rota `partners.save`)
+
+### Fase 13.7 — Cadastro de sócios
+
+Entrou depois da Fase 13.6, a pedido, com o mockup `DesktopSocios` (Cadastros › Sócios, só em
+perfil empresarial). Regras na decisão de interface 10 dos mockups e em
+[database-design.md §4.2](database-design.md#42-partners).
+
+| # | Pergunta | Regra |
+|---|---|---|
+| S1 | Como grava? | A **lista inteira** de uma vez (`partners.save`): cria os novos, regrava os editados e remove os que saíram, numa transação só. Sócio a sócio, cada passo de uma redivisão (60/40 → 50/50) seria recusado pela soma |
+| S2 | Soma das participações | Precisa dar **100%** para salvar, conferida em centésimos inteiros (até duas casas decimais: 33,33 + 33,33 + 33,34). Recusa com `partner-shares-not-100`. A **lista vazia** é aceita: é o estado de todo perfil empresarial novo, e remover todos precisa ter volta |
+| S3 | Nome | De 1 a 100 caracteres, aparado; **pode repetir** (duas pessoas com o mesmo nome) |
+| S4 | Remover sócio | Soft delete; os lançamentos e as séries que ele pagou ficam **sem sócio atribuído** (o vínculo é apagado, e não só ignorado, para que editar o lançamento não esbarre num sócio excluído). A tela avisa quantos antes de salvar |
+| S5 | Perfil pessoal | `partners.list` e `partners.save` recusam com `partner-requires-business-profile`; o tipo Sócios some da lista lateral |
+| S6 | Participação no histórico | A participação atual vale para todo o histórico (decisão 10 dos mockups, "regra a confirmar") |
+
+**Núcleo**
+- [x] Domínio `Partner.create`/`revise` (nome até 100, participação de 0 a 100 com até duas casas), `assertSharesComplete` (S2) e `byLargestShare`, que passou a ser a ordem do cadastro e do relatório
+- [x] `PartnerRepository`: `save`, `softDelete` (S4, tira o sócio de `transactions` e `recurrences`) e `transactionCounts`
+- [x] `PartnerService` e rotas `partners.list` (maior participação primeiro, com os lançamentos de cada um) e `partners.save` (S1); só regrava o sócio que mudou
+- [x] `allocateByShares` exportada, para a prévia da tela dividir pela mesma conta do relatório
+- [x] Testes: `test/services/partners.test.ts`
+
+**Client e desktop**
+- [x] Rotas no mapa de invalidação (`partners.save` invalida a lista, o relatório por sócio, as séries e o conteúdo das transações; `partners.list` entrou no `MONEY` e no `setPartner`, pela contagem de lançamentos) e hook `usePartners`
+- [x] View-model `partnerRoster.ts`: soma ao vivo, barra de divisão, "Pagou" e "Deveria pagar" do mês com a participação digitada, avisos de soma e de remoção, e a entrada da gravação
+- [x] Seção `PartnersSection.tsx` em Cadastros, e "Editar sócios e participações" no relatório por sócio, como no mockup `DesktopRelSocio` revisto. **Decisões:** "Pagou" e "Deveria pagar" são do mês de referência, que continua escondido em Cadastros (Fase 4) — o cabeçalho da coluna diz o mês; as cores `--s1` a `--s4` do mockup são os tokens `accent`, `out`, `muted` e `dot` (mesmos valores nos dois temas), e a cor de cada sócio não muda quando outro sai
+- [x] Testes: `client` (`test/partnerRoster.test.ts`, `test/invalidation.test.ts`), `desktop` (`test/registry.test.ts`) e ponta a ponta (`e2e/partners.spec.ts`)
+
+### Fase 13.8 — Aportes no lugar das despesas
+
+Entrou depois da Fase 13.7, a pedido: toda despesa de um perfil empresarial é paga com o dinheiro
+da empresa, e o sócio aparece no dinheiro que **entra** — a receita do perfil empresarial e a
+transferência que chega a ele de outro perfil. O relatório por sócio passou a dividir o total de
+aportes de todos os períodos pela participação (§3.6; reports-design §8). **Diverge** do mockup
+`DesktopRelSocio`, desenhado sobre as despesas do mês, por decisão do usuário. A receita de serviço
+fica sem sócio e fora da divisão: é lucro, cuja distribuição pela participação fica para depois.
+
+**Núcleo**
+- [x] `TransactionComposer.assertPartner`: sócio só em aporte — receita de perfil empresarial ou transferência para um perfil empresarial vinda de outro, com o sócio do perfil de destino; o resto recusa com `partner-requires-contribution`. Vale para criar, editar, séries e `transactions.setPartner`
+- [x] Despesa com sócio já gravada: fica como está, não conta como aporte e mantém o sócio na edição enquanto perfil e destino não mudam (decisão do usuário: recusar só o sócio novo, sem limpar o histórico)
+- [x] `PARTNER_ENTRIES_CTE` (receitas e transferências recebidas, pelo efeito no saldo), `ReportRepository.contributionTotalsByPartner` (todos os períodos e o mês) e `buildPartnerReport` sobre os aportes
+- [x] Rota `reports.expensesWithoutPartner` renomeada para `reports.entriesWithoutPartner` (`TransactionRepository.listEntriesWithoutPartner`)
+- [x] Testes: `test/services/reports.partner.test.ts` reescrito sobre os aportes; `test/services/partners.test.ts` com receitas
+
+**Client e desktop**
+- [x] View-model `partnerReport.ts`: indicadores "Total de aportes", "Aportes em <mês>" e "Entradas sem sócio em <mês>"; a linha "Sem sócio atribuído" saiu da tabela, que só divide aportes; lista com a transferência recebida e o total. `partnerRoster.ts`: "Aportou" e "Deveria ter aportado"
+- [x] Formulário de lançamento: campo "Sócio que aportou" (`contributionProfileId`), só na receita de perfil empresarial e na transferência para um perfil empresarial, com os sócios do perfil de destino ("Sócio que aportou em Estúdio GO")
+- [x] Testes: `client` (`test/partnerReport.test.ts`, `test/partnerRoster.test.ts`, `test/invalidation.test.ts`), `desktop` (`test/transactions.test.ts`) e ponta a ponta (`e2e/partnerReport.spec.ts`, com o Pix do perfil pessoal e o sócio escolhido no formulário; `e2e/partners.spec.ts`)
 
 ### Fase 14 — Empacotamento e validação
 
