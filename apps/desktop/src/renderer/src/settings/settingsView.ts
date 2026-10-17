@@ -1,4 +1,4 @@
-import type { DatabaseExportFailure, ThemePreference } from '../../../shared/bridge.ts';
+import type { DatabaseExportFailure, DatabaseImportResult, ThemePreference } from '../../../shared/bridge.ts';
 
 /*
  * Textos da tela de Ajustes (desktop-mvp-plan Fase 13), separados do componente para que as
@@ -66,6 +66,42 @@ export function exportFailureMessage(reason: DatabaseExportFailure): string | nu
             return 'Não foi possível gravar a cópia. Confira se há espaço no disco e permissão de escrita na pasta escolhida.';
         case 'unavailable':
             return 'O banco não está aberto agora. Feche e abra o app para exportar a cópia.';
+    }
+}
+
+/**
+ * O que dizer depois de importar uma cópia do banco. O sucesso diz onde ficou o banco anterior,
+ * porque é o caminho de volta se a cópia escolhida for a errada; cada falha diz se os dados
+ * mudaram e o que fazer (brief §4, regra 9: nada de aviso genérico).
+ *
+ * @param result Resultado devolvido pelo processo principal, na hora ou depois de recarregar.
+ * @return A mensagem; `null` quando o usuário cancelou o diálogo, que não pede aviso.
+ */
+export function importResultMessage(result: DatabaseImportResult): string | null {
+    if (result.ok) {
+        return `Cópia ${result.file} importada. O banco anterior foi guardado em ${result.previousCopy}.`;
+    }
+    switch (result.reason) {
+        case 'canceled':
+            return null;
+        case 'same-as-database':
+            return 'Escolha outro arquivo: esse é o próprio banco do app, que já está aberto.';
+        case 'unreadable':
+            return 'O arquivo escolhido não é um banco SQLite ou está corrompido. Nada foi alterado; escolha uma cópia exportada pelo app.';
+        case 'not-app-database':
+            return 'O arquivo é um banco SQLite, mas não foi gravado por este app. Nada foi alterado; escolha uma cópia exportada pelo app.';
+        case 'newer-than-app':
+            return 'A cópia é de uma versão mais nova do app. Nada foi alterado; atualize o app para importá-la.';
+        case 'write-failed':
+            return 'Não foi possível preparar a cópia na pasta do banco. Nada foi alterado; confira se há espaço no disco.';
+        case 'unavailable':
+            return 'O banco não está aberto agora. Feche e abra o app para importar a cópia.';
+        case 'core-busy':
+            return 'O app não conseguiu liberar o banco a tempo. Nada foi alterado; tente de novo.';
+        case 'io-error':
+            return 'O disco recusou a troca do banco, e ela foi desfeita: os dados continuam os de antes. Confira se há espaço no disco e tente de novo.';
+        case 'database-moved':
+            return `A troca do banco falhou e não pôde ser desfeita. O banco anterior está guardado em ${result.failedCopy}.`;
     }
 }
 

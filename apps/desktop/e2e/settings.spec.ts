@@ -1,9 +1,9 @@
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { BetterSqliteDatabase } from '@finance/sqlite-better';
 import { expect, test, type ElectronApplication, type Page } from '@playwright/test';
-import type { SaveDialogReturnValue } from 'electron';
+import type { OpenDialogReturnValue, SaveDialogReturnValue } from 'electron';
 import { completeFirstUse } from './firstUse.ts';
 import { launchApp, removeUserData } from './launchApp.ts';
 
@@ -35,6 +35,107 @@ async function answerSaveDialog(app: ElectronApplication, filePath: string | nul
             Promise.resolve(path === null ? { canceled: true, filePath: '' } : { canceled: false, filePath: path });
     }, filePath);
 }
+
+/**
+ * Troca o diálogo de abrir por um que responde o arquivo dado, ou o cancelamento.
+ *
+ * @param app App aberto pelo teste.
+ * @param filePath Arquivo a responder; `null` simula o usuário fechando o diálogo.
+ */
+async function answerOpenDialog(app: ElectronApplication, filePath: string | null): Promise<void> {
+    await app.evaluate(({ dialog }, path) => {
+        dialog.showOpenDialog = (): Promise<OpenDialogReturnValue> =>
+            Promise.resolve(path === null ? { canceled: true, filePaths: [] } : { canceled: false, filePaths: [path] });
+    }, filePath);
+}
+
+/**
+ * Pede a importação pela linha de Ajustes e confirma o alerta, como o usuário faz.
+ *
+ * @param page Janela do app em Ajustes.
+ */
+async function requestImport(page: Page): Promise<void> {
+    await page.getByRole('region', { name: 'Dados' }).getByRole('button', { name: 'Importar…' }).dispatchEvent('click');
+    const confirmation = page.getByRole('alertdialog', { name: 'Importar cópia do banco?' });
+    await expect(confirmation).toContainText('serão substituídos pelos da cópia escolhida');
+    await confirmation.getByRole('button', { name: 'Escolher a cópia…' }).dispatchEvent('click');
+    await expect(confirmation).toHaveCount(0);
+}
+
+test('importar cópia do banco: recusa o que não serve e troca os dados, guardando o banco anterior', async () => {
+    const { app, window: page, userData } = await launchApp();
+    const folder = mkdtempSync(join(tmpdir(), 'finance-e2e-import-'));
+    try {
+        await completeFirstUse(page, { profileName: 'Ana', accountName: 'Nubank' });
+        await openSettings(page);
+        const copy = join(folder, 'financas.sqlite');
+        await answerSaveDialog(app, copy);
+        await page.getByRole('region', { name: 'Dados' }).getByRole('button', { name: 'Exportar…' }).dispatchEvent('click');
+        await expect(page.getByText(`Cópia salva em ${copy}.`)).toBeVisible();
+
+        // Depois da cópia, o aparelho ganha um perfil que ela não tem, e é ele que fica aberto.
+        await page.evaluate(async () => {
+            const created = await window.finance.core.call('profiles.create', { name: 'Estúdio GO', type: 'business', currency: 'BRL' });
+            if (!created.ok) {
+                throw new Error('não foi possível criar o perfil do teste');
+            }
+            await window.finance.preferences.update({ lastProfileId: created.data.id });
+        });
+        await page.reload();
+        await expect(page.getByTestId('profile-switcher')).toContainText('Estúdio GO');
+        await openSettings(page);
+        const dataCopy = page.getByRole('region', { name: 'Dados' });
+
+        // Desistir no alerta e cancelar o diálogo não mudam nada nem avisam.
+        await dataCopy.getByRole('button', { name: 'Importar…' }).dispatchEvent('click');
+        await page.getByRole('alertdialog').getByRole('button', { name: 'Cancelar' }).dispatchEvent('click');
+        await expect(page.getByRole('alertdialog')).toHaveCount(0);
+        await answerOpenDialog(app, null);
+        await requestImport(page);
+        await expect(dataCopy.getByRole('button', { name: 'Importar…' })).toBeEnabled();
+        await expect(dataCopy.getByRole('alert')).toHaveCount(0);
+
+        // O próprio banco e um arquivo que não é banco são recusados, com o motivo na linha.
+        const databasePath = join(userData, 'finance.sqlite');
+        await answerOpenDialog(app, databasePath);
+        await requestImport(page);
+        await expect(dataCopy.getByRole('alert')).toContainText('Escolha outro arquivo');
+        const text = join(folder, 'extrato.sqlite');
+        writeFileSync(text, 'data;valor\n'.repeat(500));
+        await answerOpenDialog(app, text);
+        await requestImport(page);
+        await expect(dataCopy.getByRole('alert')).toContainText('não é um banco SQLite');
+        await expect(page.getByTestId('profile-switcher')).toContainText('Estúdio GO');
+
+        // A cópia entra: a janela recarrega em Ajustes, com os dados da cópia e o aviso de onde
+        // ficou o banco anterior.
+        await answerOpenDialog(app, copy);
+        await requestImport(page);
+        await expect(page.getByRole('region', { name: 'Dados' }).getByRole('status')).toContainText(`Cópia ${copy} importada. O banco anterior foi guardado em ${join(userData, 'backups', 'antes-da-importacao-')}`);
+        await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ajustes');
+        await expect(page.getByTestId('profile-switcher')).toContainText('Ana');
+        const profiles = await page.evaluate(async () => {
+            const listed = await window.finance.core.call('profiles.list', {});
+            return listed.ok ? listed.data.map((profile) => profile.name) : [];
+        });
+        expect(profiles).toEqual(['Ana']);
+
+        const [previous] = readdirSync(join(userData, 'backups')).filter((name) => name.startsWith('antes-da-importacao-') && name.endsWith('.sqlite'));
+        expect(previous).toBeDefined();
+        const kept = BetterSqliteDatabase.open(join(userData, 'backups', previous ?? ''));
+        expect(kept.all('SELECT name FROM profiles ORDER BY name')).toEqual([{ name: 'Ana' }, { name: 'Estúdio GO' }]);
+        kept.close();
+        // O arquivo escolhido continua como estava, e o aviso é dado uma vez só.
+        expect(readdirSync(folder).sort()).toEqual(['extrato.sqlite', 'financas.sqlite']);
+        await page.reload();
+        await openSettings(page);
+        await expect(page.getByRole('region', { name: 'Dados' }).getByRole('status')).toHaveCount(0);
+    } finally {
+        await app.close();
+        removeUserData(userData);
+        rmSync(folder, { recursive: true, force: true });
+    }
+});
 
 test('tema, cópia do banco, local do arquivo, atalhos e versões', async () => {
     const { app, window: page, userData } = await launchApp();

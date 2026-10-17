@@ -1,13 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/states';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { bridge } from '@/lib/bridge';
 import { useDevicePreferences } from '@/lib/devicePreferences';
-import type { AppInfo } from '../../../shared/bridge.ts';
-import { exportFailureMessage, formatSchemaVersion, lastExportText, SHORTCUT_GUIDE, THEME_OPTIONS } from './settingsView.ts';
+import type { AppInfo, DatabaseImportResult } from '../../../shared/bridge.ts';
+import { exportFailureMessage, formatSchemaVersion, importResultMessage, lastExportText, SHORTCUT_GUIDE, THEME_OPTIONS } from './settingsView.ts';
 
 /**
  * Chave do cache das informações do app. Não é rota do núcleo — vem do processo principal —, e
@@ -78,9 +79,10 @@ function AppearanceSection(): ReactNode {
 }
 
 /**
- * Importar transações, exportar a cópia do banco e onde está o arquivo (mockup `DesktopAjustes`,
- * cartão "Dados"). A falha da exportação fica escrita na linha, e não num aviso que some: ela diz
- * o que fazer, e o usuário precisa dela enquanto escolhe outra pasta.
+ * Importar transações, exportar e importar a cópia do banco e onde está o arquivo (mockup
+ * `DesktopAjustes`, cartão "Dados"; a importação da cópia entrou depois do mockup, a pedido, logo
+ * após a exportação). A falha da exportação fica escrita na linha, e não num aviso que some: ela
+ * diz o que fazer, e o usuário precisa dela enquanto escolhe outra pasta.
  *
  * @param props.info Informações do app; `undefined` enquanto carregam.
  * @return A seção "Dados".
@@ -135,6 +137,7 @@ function DataCopySection({ info }: { readonly info: AppInfo | undefined }): Reac
                     {exportCopy.isPending ? 'Exportando…' : 'Exportar…'}
                 </Button>
             </SettingRow>
+            <ImportCopyRow />
             <SettingRow label="Local do arquivo" description={info === undefined ? <Skeleton className="h-4 w-64" /> : <span className="break-all select-text">{info.databasePath}</span>}>
                 <Button
                     variant="outline"
@@ -147,6 +150,109 @@ function DataCopySection({ info }: { readonly info: AppInfo | undefined }): Reac
                 </Button>
             </SettingRow>
         </SettingsCard>
+    );
+}
+
+/**
+ * "Importar cópia do banco": substitui os dados do aparelho pelos de uma cópia exportada. Pede
+ * confirmação antes do diálogo de abrir, porque a troca leva embora tudo o que foi lançado desde a
+ * cópia — o banco atual fica na pasta de backups, mas sair dele é uma decisão que o usuário
+ * precisa tomar sabendo disso.
+ *
+ * Quando a troca acontece, o processo principal reabre o núcleo e recarrega a janela, e a resposta
+ * desta chamada some com o renderer antigo. Por isso o resultado também é lido, uma vez, ao montar
+ * a tela (`takeImportNotice`): a janela recarrega em Ajustes, e o aviso fica escrito na linha, com
+ * o caminho do banco anterior, em vez de num toast que sumiria antes de o usuário anotá-lo.
+ *
+ * @return A linha com a ação, a confirmação e o aviso do resultado.
+ */
+function ImportCopyRow(): ReactNode {
+    const [confirming, setConfirming] = useState(false);
+    const [result, setResult] = useState<DatabaseImportResult | null>(null);
+    useEffect(() => {
+        // Sem cancelar na desmontagem: o aviso é entregue uma vez só, e a remontagem do modo
+        // estrito do React descartaria o único que existe.
+        void bridge.database.takeImportNotice().then((notice) => {
+            if (notice !== null) {
+                setResult(notice);
+            }
+        });
+    }, []);
+    const importCopy = useMutation({
+        mutationFn: () => bridge.database.importCopy(),
+        onMutate: () => {
+            setConfirming(false);
+            setResult(null);
+        },
+        onSuccess: (outcome) => {
+            setResult(outcome);
+        },
+        onError: () => {
+            setResult({ ok: false, reason: 'unavailable' });
+        },
+    });
+    const message = result === null ? null : importResultMessage(result);
+
+    return (
+        <>
+            <SettingRow
+                label="Importar cópia do banco"
+                description="Substitui os dados deste aparelho pelos de uma cópia exportada"
+                footer={
+                    message === null || result === null ? null : result.ok ? (
+                        <p role="status" className="text-13 break-all text-ink2">
+                            {message}
+                        </p>
+                    ) : (
+                        <p role="alert" className="text-13 break-all text-danger">
+                            {message}
+                        </p>
+                    )
+                }
+            >
+                <Button
+                    variant="outline"
+                    className="border-line text-13 font-normal"
+                    disabled={importCopy.isPending}
+                    onClick={() => {
+                        setConfirming(true);
+                    }}
+                >
+                    {importCopy.isPending ? 'Importando…' : 'Importar…'}
+                </Button>
+            </SettingRow>
+            <Dialog open={confirming} onOpenChange={setConfirming}>
+                <DialogContent showCloseButton={false} role="alertdialog">
+                    <DialogHeader>
+                        <DialogTitle>Importar cópia do banco?</DialogTitle>
+                        <DialogDescription>
+                            Os dados deste aparelho — perfis, contas, cartões e lançamentos — serão substituídos pelos da cópia escolhida, sem somar os dois. O banco atual fica guardado na pasta de backups, e o app reabre com os dados importados.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            autoFocus
+                            onClick={() => {
+                                setConfirming(false);
+                            }}
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={() => {
+                                importCopy.mutate();
+                            }}
+                        >
+                            Escolher a cópia…
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 }
 
