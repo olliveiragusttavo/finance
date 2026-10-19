@@ -5,6 +5,8 @@
 determinísticos da
 [§5.6](#56-linhas-identificadas-pelo-conteúdo-recebem-ids-determinísticos), já
 incorporada à [database-design.md §3.5](database-design.md#35-chaves-primárias-são-uuids).
+O modo remoto da [§7.7](#77-modo-remoto-o-celular-usa-o-banco-do-desktop) foi acrescentado
+depois, sobre a mesma sessão, e também não está implementado.
 **Relacionado:** [docs/plans/database-design.md](database-design.md) — o schema que este
 design replica; [docs/plans/backend-design.md](backend-design.md) — o núcleo onde a
 sincronização roda e a política de versões de schema entre dispositivos.
@@ -31,6 +33,9 @@ Acrescentadas por este design:
 - Todo dispositivo guarda o **conjunto completo de dados** e **escreve offline**.
 - **Qualquer dispositivo pareado** pode adicionar ou remover dispositivos.
 - Edições concorrentes são resolvidas como **a edição mais recente vence, por campo**.
+- Com o desktop na mesma rede e a opção ativa, o celular pode **usar o banco do desktop**
+  em vez do próprio, sem deixar de ser uma réplica completa
+  ([§7.7](#77-modo-remoto-o-celular-usa-o-banco-do-desktop)).
 
 Fora do escopo: sincronização pela internet, sincronização em segundo plano, uma "caixa
 postal" para dispositivos que nunca estão online ao mesmo tempo, e a purga física de
@@ -48,6 +53,7 @@ linhas com soft delete ([§9](#9-impacto-no-design-do-banco-de-dados)).
 | Como linhas criadas em dois dispositivos evitam colidir? | UUIDs; linhas identificadas pelo conteúdo recebem um UUID v5 **determinístico** | [§5.6](#56-linhas-identificadas-pelo-conteúdo-recebem-ids-determinísticos) |
 | Como os dispositivos são vinculados? | QR code ou código curto; um par de chaves por dispositivo; qualquer membro pode convidar ou remover | [§6](#6-membros-e-pareamento) |
 | Como os dados trafegam? | Conexão direta e criptografada na mesma rede local, com os dois apps em primeiro plano | [§7](#7-transporte-somente-a-mesma-rede-local) |
+| O celular pode usar o banco do desktop? | Sim, num modo remoto opcional: as rotas rodam no desktop e cada mudança volta na hora ao banco local do celular | [§7.7](#77-modo-remoto-o-celular-usa-o-banco-do-desktop) |
 
 ---
 
@@ -99,7 +105,7 @@ quarto dispositivo entre, sem casos especiais.
 
 | Opção | Por que não |
 |---|---|
-| Desktop como autoridade, celular como cliente fino | O celular não poderia funcionar offline — o caso de uso principal falha. |
+| Desktop como autoridade, celular como cliente fino | O celular não poderia funcionar offline — o caso de uso principal falha. O modo remoto da [§7.7](#77-modo-remoto-o-celular-usa-o-banco-do-desktop) não reabre esta decisão: ele só existe enquanto há conexão, e o celular continua uma réplica completa. |
 | Um "dono" cujos dados vencem os conflitos | Descarta trabalho mais novo: uma correção feita no celular às 10:00 seria sobrescrita por uma edição mais antiga do desktop, das 09:00, que ainda não tinha sido sincronizada. |
 
 **Consequência:** um dispositivo que entra em um grupo **começa vazio** e recebe uma
@@ -417,7 +423,9 @@ acesso remoto não está apenas não implementado, ele é recusado.
 Como a regra é garantida:
 
 - Um dispositivo **só escuta enquanto o app está em primeiro plano** — no iOS a
-  plataforma exige isso de qualquer forma.
+  plataforma exige isso de qualquer forma. A única exceção é o desktop com o modo remoto
+  ativo, que escuta enquanto o app estiver aberto, inclusive minimizado
+  ([§7.7](#77-modo-remoto-o-celular-usa-o-banco-do-desktop)).
 - Ele **só aceita e só disca para endereços locais**: faixas privadas IPv4 (`10/8`,
   `172.16/12`, `192.168/16`), link-local (`169.254/16`), e os endereços IPv6 link-local
   (`fe80::/10`) e unique-local (`fc00::/7`). Endereços públicos e a faixa de
@@ -500,6 +508,98 @@ transferência carrega o tamanho e o SHA-256 do arquivo, para que um arquivo tru
 rejeitado em vez de armazenado. Os arquivos são gravados uma única vez — um recibo
 substituído é um novo anexo — então nunca há conflito de arquivo a resolver.
 
+### 7.7 Modo remoto: o celular usa o banco do desktop
+
+Uma opção do desktop, **desligada por padrão**: "atender o celular pela rede". Com ela
+ativa e o desktop alcançável, um celular membro do grupo deixa de executar as rotas no
+próprio núcleo e passa a executá-las no núcleo do desktop, sobre o banco do desktop.
+Sem o desktop na rede, nada muda: o celular usa o próprio banco, como sempre.
+
+**Por quê:**
+
+- **Desempenho.** Relatórios e o recálculo de saldos ao editar uma transação antiga rodam
+  no computador, e não na thread JavaScript do celular, que é o custo aceito na
+  [mobile-shell-design.md §4.3](mobile-shell-design.md#43-o-custo-é-a-thread-javascript).
+- **Uma autoridade enquanto há conexão.** Com as escritas dos dois aparelhos gravadas no
+  mesmo banco, não há edição concorrente a reconciliar durante a sessão; o merge da
+  [§5](#5-modelo-de-replicação) só trabalha sobre o que foi feito offline.
+
+**O que não muda:** a topologia da [§4](#4-topologia-todo-dispositivo-é-um-par-igual). O
+celular continua guardando o conjunto completo de dados e escrevendo offline; o modo
+remoto é uma forma de usar uma sessão, não um papel de servidor. Quem lê só esta seção
+não deve concluir que o celular virou um cliente fino.
+
+**Pré-condições** — as mesmas de uma sessão ([§7.4](#74-uma-sessão)), mais uma:
+
+- os dois aparelhos são membros ativos do grupo, na mesma rede local
+  ([§7.1](#71-somente-a-mesma-rede-local)), com relógios e `user_version` compatíveis;
+- **a versão do mapa de rotas é a mesma nos dois.** O celular passa a chamar rotas que
+  o desktop executa, então o contrato das rotas precisa ser idêntico, não só o schema. Se
+  diferir, a sincronização continua normal e o modo remoto fica desligado, com um aviso
+  dizendo qual aparelho atualizar.
+
+**O ciclo:**
+
+1. **Conectar e sincronizar.** Os passos 1 a 7 da [§7.4](#74-uma-sessão) rodam como em
+   qualquer sessão: o desktop recebe o que o celular fez offline, e o celular recebe o
+   que mudou no desktop.
+2. **Trocar o cliente.** O app troca, na raiz, o `DirectCoreClient` por um
+   `RemoteCoreClient`, que envia cada chamada de rota pelo canal Noise já aberto. Telas e
+   hooks só conhecem `CoreClient`
+   ([desktop-shell-design.md §5.1](desktop-shell-design.md#51-um-contrato-duas-implementações)),
+   então nada abaixo da raiz percebe a troca. As consultas em cache são todas invalidadas,
+   porque passam a vir de outro banco.
+3. **Executar no desktop.** O desktop atende a chamada pelo mesmo despacho do núcleo que
+   atende a própria janela, no `utilityProcess` dono da única conexão escritora. A camada
+   Request valida a entrada de novo: o celular, ali, é entrada não confiável como o
+   renderer.
+4. **Devolver cada mudança na hora.** O modo ao vivo (passo 8 da
+   [§7.4](#74-uma-sessão)) continua ligado no sentido desktop → celular: toda escrita
+   confirmada no desktop — pedida pelo celular ou feita na janela do desktop — volta
+   imediatamente e é aplicada no banco local do celular
+   ([§5.9](#59-após-a-aplicação)). O banco do celular fica sempre em dia.
+5. **Desconectar.** Quando a conexão cai, o app volta ao `DirectCoreClient` e invalida o
+   cache de novo. Não há etapa final de cópia: o banco local já está em dia pelo passo 4.
+
+**Por que não copiar os dados só no fim da sessão:** o fim de uma sessão no celular não é
+confiável — o sistema suspende o app em segundo plano, o aparelho sai do Wi-Fi, a bateria
+acaba. Com a cópia no fim, uma despesa lançada durante a sessão existiria só no desktop, e
+o celular, offline, não a mostraria até a próxima sincronização. A devolução contínua do
+passo 4 elimina esse intervalo e usa um mecanismo que a sessão já tem.
+
+**Escrita em dúvida.** Se a conexão cai depois de o celular enviar uma escrita e antes da
+resposta, o celular não sabe se o desktop a gravou. Repetir às cegas duplicaria, por
+exemplo, uma transação. A regra:
+
+- Toda chamada de escrita leva um **id de pedido** (UUID v4) gerado no celular.
+- As linhas criadas por essa chamada recebem ids **derivados do id de pedido** (UUID v5
+  sobre o id de pedido e a ordem de criação dentro da chamada), e não ids aleatórios. As
+  linhas da [§5.6](#56-linhas-identificadas-pelo-conteúdo-recebem-ids-determinísticos)
+  mantêm o id da chave natural.
+- Na queda, o celular **reexecuta localmente** a escrita em dúvida com o mesmo id de
+  pedido. Se o desktop já a tinha gravado, as duas execuções produziram as mesmas linhas
+  com os mesmos ids, e a próxima sincronização as mescla numa só, em vez de duplicar.
+  Updates e exclusões já são idempotentes sob last-writer-wins.
+
+Isso exige que toda escrita seja determinística dado o id de pedido e o estado do banco —
+uma propriedade verificada por teste ([§11](#11-próximos-passos)), não uma suposição.
+
+**Desktop escutando.** Com a opção ativa, o desktop escuta e se anuncia enquanto o app
+estiver aberto, inclusive minimizado ou na bandeja do sistema — a exceção da
+[§7.1](#71-somente-a-mesma-rede-local). O celular continua escutando só em primeiro plano,
+e a regra de endereços locais vale igual para os dois. O computador precisa estar ligado
+e acordado; o modo remoto nunca é condição para o app funcionar.
+
+**Uso simultâneo.** A janela do desktop e o celular podem usar o mesmo banco ao mesmo
+tempo; as chamadas entram na fila da conexão única, porque a porta é síncrona
+([backend-design.md §3.5](backend-design.md#35-a-porta-de-banco-é-síncrona)). Uma escrita
+feita pelo celular precisa invalidar as consultas abertas na janela do desktop, e o
+contrário vale pelo passo 4.
+
+**Anexos.** Um anexo criado em modo remoto é enviado ao desktop pelo mesmo canal, com o
+tamanho e o SHA-256 da [§7.6](#76-anexos), e volta ao celular pelo caminho normal dos
+anexos.
+
 ---
 
 ## 8. Alternativas rejeitadas
@@ -515,7 +615,9 @@ Reunidas em um só lugar:
 | Last-writer-wins em nível de linha sobre `updated_at` | Precisão de segundos, confia no relógio de parede, perde edições concorrentes em colunas diferentes. |
 | Bibliotecas CRDT completas | Feitas para texto colaborativo; toda coluna aqui é um escalar. |
 | Reproduzir operações de negócio | Toda sincronização reexecuta a lógica de negócio; invasivo em todo o código-base. |
-| Um dono cujos dados vencem, ou um cliente fino | [§4](#4-topologia-todo-dispositivo-é-um-par-igual). |
+| Um dono cujos dados vencem, ou um cliente fino | [§4](#4-topologia-todo-dispositivo-é-um-par-igual). O modo remoto da [§7.7](#77-modo-remoto-o-celular-usa-o-banco-do-desktop) não é um cliente fino: o celular continua réplica completa. |
+| Acesso pelo navegador a um servidor HTTP no desktop | O navegador não fala o canal Noise da [§7.4](#74-uma-sessão), e HTTPS num endereço local exige certificado próprio, com alerta ou instalação manual em cada aparelho; HTTP puro exporia os dados e o próprio código da página na rede. Também não funciona offline. O modo remoto reaproveita o app, o pareamento e o canal que já existem. |
+| Modo remoto copiando os dados só no fim da sessão | O fim de uma sessão no celular não é confiável; as escritas da sessão ficariam fora do banco local até a próxima sincronização ([§7.7](#77-modo-remoto-o-celular-usa-o-banco-do-desktop)). |
 | Uma chave compartilhada do grupo | Remover um dispositivo exigiria trocar as chaves de todos os outros. |
 
 ---
@@ -571,3 +673,11 @@ Reunidas em um só lugar:
    trocado em um deles), a série recomeçada com a regra antiga completada offline
    ([§5.6](#56-linhas-identificadas-pelo-conteúdo-recebem-ids-determinísticos)) e uma linha
    com soft delete que precisa continuar excluída.
+5. **Testes do modo remoto**
+   ([§7.7](#77-modo-remoto-o-celular-usa-o-banco-do-desktop)): toda rota de escrita,
+   executada duas vezes com o mesmo id de pedido em duas réplicas com o mesmo estado,
+   produz as mesmas linhas com os mesmos ids; a queda no meio de uma escrita seguida de
+   reexecução local converge sem duplicar; a troca entre `DirectCoreClient` e
+   `RemoteCoreClient` invalida o cache; versões diferentes do mapa de rotas desligam o
+   modo remoto sem impedir a sincronização. A entrega pode começar só pelas leituras
+   (relatórios), que não têm escrita em dúvida, e acrescentar as escritas depois.
