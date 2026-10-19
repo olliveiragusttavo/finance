@@ -47,14 +47,15 @@ export function exportDatabaseFile(database: Database, databasePath: string, des
 
 /**
  * Compara pelos caminhos reais, e não pelo texto: um link simbólico para a pasta de dados, ou
- * `..` no caminho, levaria ao mesmo arquivo com outro nome.
+ * `..` no caminho, levaria ao mesmo arquivo com outro nome. Serve à exportação, que trocaria o
+ * arquivo vivo pela cópia, e à importação, que tiraria do lugar o próprio arquivo que ia copiar.
  *
- * @param destination Arquivo escolhido no diálogo.
+ * @param chosen Arquivo escolhido no diálogo de salvar ou de abrir.
  * @param databasePath Caminho do banco aberto.
- * @return Se o destino é o banco ou um dos arquivos que o SQLite mantém ao lado dele.
+ * @return Se o arquivo escolhido é o banco ou um dos arquivos que o SQLite mantém ao lado dele.
  */
-function isDatabaseFile(destination: string, databasePath: string): boolean {
-    const target = canonical(destination);
+export function isDatabaseFile(chosen: string, databasePath: string): boolean {
+    const target = canonical(chosen);
     const database = canonical(databasePath);
     return DATABASE_COMPANIONS.some((suffix) => target === `${database}${suffix}`);
 }

@@ -7,6 +7,7 @@ import { isAppUrl } from '../src/main/appUrl.ts';
 import { CloseHandshake, DatabaseCloseTimeoutError } from '../src/main/CloseHandshake.ts';
 import { DEFAULT_PREFERENCES, DevicePreferencesStore } from '../src/main/DevicePreferencesStore.ts';
 import { buildReportUrl, problemReportSchema, readLogTail, REPORT_DESTINATION } from '../src/main/problemReport.ts';
+import { replaceDatabase } from '../src/main/replaceDatabase.ts';
 import { restoreBackup } from '../src/main/restoreBackup.ts';
 import type { ProblemReport } from '../src/shared/bridge.ts';
 import { databaseFiles } from '../src/utility/databaseFiles.ts';
@@ -179,6 +180,42 @@ describe('restaurar backup (backend-design §4.5, passo 4)', () => {
         expect(existsSync(join(files.backupsPath, 'falha-20261003-130000.sqlite'))).toBe(false);
         expect(existsSync(files.restoreMarkerPath)).toBe(false);
         expect(existsSync(`${files.databasePath}.restaurando`)).toBe(false);
+    });
+});
+
+describe('trocar o banco pela cópia importada', () => {
+    it('põe o preparado no lugar e guarda o banco anterior com o -wal, sem mexer na marca de migration', () => {
+        const folder = temporaryFolder();
+        const files = databaseFiles(folder);
+        writeFileSync(files.databasePath, 'atual');
+        writeFileSync(`${files.databasePath}-wal`, 'wal atual');
+        writeFileSync(`${files.databasePath}.importando`, 'importada');
+        const previous = join(files.backupsPath, 'antes-da-importacao-20261017-120000.sqlite');
+
+        expect(replaceDatabase(files, `${files.databasePath}.importando`, previous)).toEqual({ ok: true });
+
+        expect(readFileSync(files.databasePath, 'utf8')).toBe('importada');
+        expect(readFileSync(previous, 'utf8')).toBe('atual');
+        expect(readFileSync(`${previous}-wal`, 'utf8')).toBe('wal atual');
+        expect(existsSync(`${files.databasePath}-wal`)).toBe(false);
+        expect(existsSync(`${files.databasePath}.importando`)).toBe(false);
+        expect(existsSync(files.restoreMarkerPath)).toBe(false);
+    });
+
+    it('troca que falha é desfeita e descarta o preparado', () => {
+        const folder = temporaryFolder();
+        const files = databaseFiles(folder);
+        writeFileSync(files.databasePath, 'atual');
+        writeFileSync(`${files.databasePath}.importando`, 'importada');
+        const previous = join(files.backupsPath, 'antes-da-importacao-20261017-120000.sqlite');
+        // O destino do banco anterior ocupado por uma pasta com conteúdo faz a primeira troca falhar.
+        mkdirSync(join(previous, 'ocupado'), { recursive: true });
+
+        expect(replaceDatabase(files, `${files.databasePath}.importando`, previous)).toEqual({ ok: false, reason: 'io-error' });
+
+        expect(readFileSync(files.databasePath, 'utf8')).toBe('atual');
+        expect(existsSync(`${files.databasePath}.importando`)).toBe(false);
+        expect(existsSync(files.restoreMarkerPath)).toBe(false);
     });
 });
 

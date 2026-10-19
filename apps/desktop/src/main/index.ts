@@ -4,7 +4,7 @@ import { homedir, release } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { colorTokens } from '@finance/tokens';
-import { IPC_CHANNELS, type AppInfo, type DatabaseExportResult, type FatalFailure, type ImportFileResult, type ReportResult, type RestoreResult } from '../shared/bridge.ts';
+import { IPC_CHANNELS, type AppInfo, type DatabaseExportResult, type DatabaseImportResult, type FatalFailure, type ImportFileResult, type ReportResult, type RestoreResult } from '../shared/bridge.ts';
 import { databaseFiles, type DatabaseFiles } from '../utility/databaseFiles.ts';
 import { errorReplacer } from '../utility/FileLog.ts';
 import { CoreProcess } from './CoreProcess.ts';
@@ -12,13 +12,14 @@ import { defaultExportFileName } from './databaseExport.ts';
 import { DevicePreferencesStore } from './DevicePreferencesStore.ts';
 import { readImportFile } from './importFiles.ts';
 import { buildReportUrl, problemReportSchema, readLogTail, reportChannelSchema } from './problemReport.ts';
+import { discard, replaceDatabase } from './replaceDatabase.ts';
 import { restoreBackup } from './restoreBackup.ts';
 import { installSecurityGuards } from './security.ts';
 
 /*
  * Processo principal: cria a janela e o processo do núcleo, costura o canal entre eles e
  * atende as poucas operações que só ele pode fazer (preferências do aparelho, restaurar
- * backup, diálogo de salvar da cópia exportada). Não executa rota alguma
+ * backup, diálogos de salvar e de abrir da cópia do banco). Não executa rota alguma
  * (desktop-shell-design §5.2).
  */
 
@@ -141,6 +142,11 @@ function registerIpc(core: CoreProcess, preferences: DevicePreferencesStore): vo
     let exporting: Promise<DatabaseExportResult> | null = null;
     // Um diálogo de abrir por vez, pelo mesmo motivo.
     let opening: Promise<ImportFileResult> | null = null;
+    // Uma importação de cópia por vez: a segunda tiraria do lugar o banco que a primeira acabou
+    // de pôr.
+    let importing: Promise<DatabaseImportResult> | null = null;
+    // Resultado da importação que recarregou as janelas, entregue uma vez à tela de Ajustes.
+    let importNotice: DatabaseImportResult | null = null;
     ipcMain.handle(IPC_CHANNELS.preferencesGet, () => preferences.read());
     ipcMain.handle(IPC_CHANNELS.preferencesUpdate, (_event, patch: unknown) => {
         const next = preferences.update(patch);
@@ -171,6 +177,26 @@ function registerIpc(core: CoreProcess, preferences: DevicePreferencesStore): vo
             exporting = null;
         });
         return exporting;
+    });
+    ipcMain.handle(IPC_CHANNELS.databaseImport, (event): Promise<DatabaseImportResult> => {
+        importing ??= runImport(core, files, BrowserWindow.fromWebContents(event.sender)).then(({ result, reopened }) => {
+            if (reopened) {
+                importNotice = result;
+                // Depois de a resposta sair: a tela que pediu ainda a recebe antes de recarregar.
+                setImmediate(() => {
+                    core.reloadWindows();
+                });
+            }
+            return result;
+        }).finally(() => {
+            importing = null;
+        });
+        return importing;
+    });
+    ipcMain.handle(IPC_CHANNELS.databaseImportNotice, (): DatabaseImportResult | null => {
+        const notice = importNotice;
+        importNotice = null;
+        return notice;
     });
     ipcMain.handle(IPC_CHANNELS.databaseShowInFolder, () => {
         shell.showItemInFolder(files.databasePath);
@@ -244,6 +270,72 @@ async function runExport(core: CoreProcess, preferences: DevicePreferencesStore,
         log('database.export-record-failed', { error });
     }
     return { ok: true, file: choice.filePath, exportedAt };
+}
+
+/**
+ * Importa uma cópia do banco no lugar do atual, a partir de Ajustes. Regra de negócio (Cópia do
+ * banco): os dados do aparelho são **substituídos** pelos da cópia, não somados — juntar dois
+ * bancos duplicaria tudo o que os dois têm em comum —, e o banco que sai vai para
+ * `backups/antes-da-importacao-{instante}.sqlite`, fora da rotação automática, para o usuário
+ * voltar a ele se escolheu a cópia errada.
+ *
+ * A ordem existe para que nada seja tocado antes de a cópia estar conferida e gravada ao lado do
+ * banco: o processo do núcleo confere e prepara com o banco ainda aberto, e só então o fecha. A
+ * troca é a mesma da restauração de backup (`replaceDatabase`). Depois de fechar o banco, qualquer
+ * resultado reabre o núcleo num processo novo, que migra a cópia de versão anterior e verifica a
+ * integridade como em toda abertura — inclusive quando a troca foi desfeita, porque o banco
+ * antigo também precisa ser reaberto.
+ *
+ * @param core Processo do núcleo, que prepara a cópia e solta o banco.
+ * @param files Caminhos do banco, dos backups e da marca de restauração.
+ * @param window Janela que pediu, dona do diálogo; `null` se ela fechou no meio do pedido.
+ * @return O resultado, e se o núcleo foi reaberto — aí as janelas precisam recarregar.
+ */
+async function runImport(core: CoreProcess, files: DatabaseFiles, window: BrowserWindow | null): Promise<{ readonly result: DatabaseImportResult; readonly reopened: boolean }> {
+    const status = await core.status();
+    if (status.kind !== 'ready') {
+        return { result: { ok: false, reason: 'unavailable' }, reopened: false };
+    }
+    const options: OpenDialogOptions = {
+        title: 'Importar cópia do banco',
+        buttonLabel: 'Importar',
+        defaultPath: app.getPath('documents'),
+        filters: [{ name: 'Banco SQLite', extensions: ['sqlite', 'db'] }],
+        properties: ['openFile'],
+    };
+    const choice = window === null ? await dialog.showOpenDialog(options) : await dialog.showOpenDialog(window, options);
+    const [source] = choice.filePaths;
+    if (choice.canceled || source === undefined) {
+        return { result: { ok: false, reason: 'canceled' }, reopened: false };
+    }
+    const staged = `${files.databasePath}.importando`;
+    const prepared = await core.prepareImport(source, staged);
+    if (!prepared.ok) {
+        log('database.import-refused', { reason: prepared.reason });
+        return { result: prepared, reopened: false };
+    }
+
+    let result: DatabaseImportResult;
+    try {
+        await core.closeDatabase();
+        const previousCopy = join(files.backupsPath, `antes-da-importacao-${fileInstant(new Date())}.sqlite`);
+        const outcome = replaceDatabase(files, staged, previousCopy);
+        if (outcome.ok) {
+            result = { ok: true, file: source, previousCopy };
+        } else {
+            result = outcome.reason === 'database-moved' ? { ok: false, reason: 'database-moved', failedCopy: previousCopy } : { ok: false, reason: 'io-error' };
+        }
+    } catch (error) {
+        // O núcleo não confirmou o fechamento: o banco não foi tocado, mas o estado da conexão é
+        // desconhecido, e a reabertura abaixo o devolve a um estado conhecido.
+        log('database.import-close-failed', { error });
+        discard(staged);
+        result = { ok: false, reason: 'core-busy' };
+    }
+    log('database.import', { result });
+    const reopened = await core.restart();
+    log('database.import-reopened', { status: reopened.kind });
+    return { result, reopened: true };
 }
 
 /**

@@ -1,10 +1,8 @@
-import { copyFileSync, existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import type { RestoreResult } from '../shared/bridge.ts';
 import type { DatabaseFiles } from '../utility/databaseFiles.ts';
-
-/** Arquivos que formam o banco: o principal e os do modo WAL, que só valem junto dele. */
-const DATABASE_SUFFIXES = ['', '-wal', '-shm'] as const;
+import { discard, replaceDatabase } from './replaceDatabase.ts';
 
 /**
  * Restaura a cópia de antes da migration que falhou (backend-design §4.5, passo 4). O banco
@@ -12,12 +10,9 @@ const DATABASE_SUFFIXES = ['', '-wal', '-shm'] as const;
  * `backups/falha-{instante}.sqlite`, fora do padrão da rotação automática, para que nada se
  * perca se o problema estiver no backup e não na migration.
  *
- * A ordem existe para que nenhuma falha deixe o app sem banco no lugar. O backup é copiado
- * primeiro para um arquivo provisório ao lado do banco: é a etapa que costuma falhar (disco
- * cheio), e até ali nada foi tocado. Só então o banco sai do lugar, e o provisório entra por
- * `rename`, que não grava dados. Se uma etapa falhar, as anteriores são desfeitas. Uma marca
- * em disco cobre o resto — o app cair no meio ou o desfazer falhar: enquanto ela existir, a
- * abertura bloqueia em vez de criar um banco vazio no lugar do que sumiu.
+ * O backup é copiado primeiro para um arquivo provisório ao lado do banco: é a etapa que costuma
+ * falhar (disco cheio), e até ali nada foi tocado. A troca em si, com a marca que protege contra
+ * o app cair no meio, é a de `replaceDatabase`, a mesma da importação de uma cópia em Ajustes.
  *
  * A restauração que dá certo também apaga a marca de migration que falhou: ela descreve o banco
  * que acabou de sair do lugar. Se ficasse, a próxima falha de migration — talvez semanas depois,
@@ -46,52 +41,15 @@ export function restoreBackup(files: DatabaseFiles, backupFile: string, instant:
     try {
         mkdirSync(files.backupsPath, { recursive: true });
         copyFileSync(source, staged);
-        writeFileSync(files.restoreMarkerPath, JSON.stringify({ failedCopy }));
     } catch {
         discard(staged);
-        discard(files.restoreMarkerPath);
         return { ok: false, reason: 'io-error' };
     }
 
-    const moved: { readonly from: string; readonly to: string }[] = [];
-    try {
-        for (const suffix of DATABASE_SUFFIXES) {
-            const from = `${files.databasePath}${suffix}`;
-            if (existsSync(from)) {
-                const to = `${failedCopy}${suffix}`;
-                renameSync(from, to);
-                moved.push({ from, to });
-            }
-        }
-        renameSync(staged, files.databasePath);
-    } catch {
-        try {
-            for (const { from, to } of moved.reverse()) {
-                renameSync(to, from);
-            }
-        } catch {
-            // A marca fica: a próxima abertura bloqueia apontando onde o banco está.
-            return { ok: false, reason: 'database-moved', failedCopy };
-        }
-        discard(staged);
-        discard(files.restoreMarkerPath);
-        return { ok: false, reason: 'io-error' };
+    const outcome = replaceDatabase(files, staged, failedCopy);
+    if (!outcome.ok) {
+        return outcome.reason === 'database-moved' ? { ok: false, reason: 'database-moved', failedCopy } : { ok: false, reason: 'io-error' };
     }
-    discard(files.restoreMarkerPath);
     discard(files.migrationFailureMarkerPath);
     return { ok: true, restoredFrom: basename(source), failedCopy };
-}
-
-/**
- * Remove um arquivo auxiliar sem deixar a falha da remoção esconder o resultado da
- * restauração, que é o que o usuário precisa saber.
- *
- * @param path Arquivo provisório ou marca.
- */
-function discard(path: string): void {
-    try {
-        rmSync(path, { force: true });
-    } catch {
-        // Sobra um arquivo auxiliar; o banco já está no estado que o resultado descreve.
-    }
 }

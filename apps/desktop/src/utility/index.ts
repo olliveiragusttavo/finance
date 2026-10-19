@@ -4,6 +4,7 @@ import type { CoreApi } from '@finance/core';
 import type { MessageEndpoint } from '../shared/coreProtocol.ts';
 import { databaseFiles } from './databaseFiles.ts';
 import { FileLog } from './FileLog.ts';
+import { prepareDatabaseImport } from './importDatabase.ts';
 import { openCore } from './openCore.ts';
 import { serveCore } from './serveCore.ts';
 import { CryptoIdGenerator, SystemClock } from './systemAdapters.ts';
@@ -17,6 +18,7 @@ import { parseUtilityArguments, type MainToUtilityMessage, type UtilityToMainMes
 
 const parentPort = process.parentPort;
 const { userData } = parseUtilityArguments(process.argv);
+const files = databaseFiles(userData);
 const log = new FileLog(join(userData, 'logs', 'core.log'));
 
 // Depois de uma exceção não tratada o estado do processo é desconhecido, e continuar
@@ -28,7 +30,7 @@ process.on('uncaughtException', (error) => {
 });
 
 const opened = await openCore({
-    ...databaseFiles(userData),
+    ...files,
     clock: new SystemClock(),
     ids: new CryptoIdGenerator(),
     log,
@@ -60,6 +62,13 @@ parentPort.on('message', (event: { readonly data: MainToUtilityMessage; readonly
     }
     if (event.data.kind === 'export-database') {
         post({ kind: 'database-exported', requestId: event.data.requestId, outcome: opened.exportCopy(event.data.destination) });
+    }
+    if (event.data.kind === 'prepare-import') {
+        const outcome = prepareDatabaseImport(files.databasePath, event.data.source, event.data.staged);
+        if (!outcome.ok) {
+            log.write('warn', 'database.import-refused', { reason: outcome.reason });
+        }
+        post({ kind: 'import-prepared', requestId: event.data.requestId, outcome });
     }
 });
 

@@ -111,6 +111,39 @@ export type DatabaseExportResult =
 /** Por que uma exportação não gravou a cópia. */
 export type DatabaseExportFailure = 'canceled' | 'same-as-database' | 'write-failed' | 'unavailable';
 
+/** Resultado de importar uma cópia do banco no lugar do atual. */
+export type DatabaseImportResult =
+    /**
+     * `file`: a cópia importada, como escolhida no diálogo; `previousCopy`: onde ficou o banco que
+     * saiu do lugar, para o usuário voltar a ele se escolheu a cópia errada.
+     */
+    | { readonly ok: true; readonly file: string; readonly previousCopy: string }
+    | { readonly ok: false; readonly reason: DatabaseImportFailure }
+    /**
+     * A troca falhou e não foi possível devolver o banco ao lugar: ele está em `failedCopy`. O
+     * app fica bloqueado até alguém resolver, como na restauração de backup.
+     */
+    | { readonly ok: false; readonly reason: 'database-moved'; readonly failedCopy: string };
+
+/**
+ * Por que uma importação não trocou o banco. `canceled`: o usuário fechou o diálogo de abrir.
+ * `same-as-database`: o arquivo escolhido é o próprio banco do app. `unreadable`: não é SQLite ou
+ * está corrompido. `not-app-database`: é SQLite, mas não deste app. `newer-than-app`: é de uma
+ * versão mais nova do app. `write-failed`: o disco recusou o arquivo provisório. `unavailable`:
+ * o núcleo não está com o banco aberto. `core-busy`: o núcleo não liberou o banco a tempo.
+ * `io-error`: o disco recusou a troca, e tudo foi desfeito. Em todos, o banco é o de antes.
+ */
+export type DatabaseImportFailure =
+    | 'canceled'
+    | 'same-as-database'
+    | 'unreadable'
+    | 'not-app-database'
+    | 'newer-than-app'
+    | 'write-failed'
+    | 'unavailable'
+    | 'core-busy'
+    | 'io-error';
+
 /** Arquivo escolhido para importar (desktop-mvp-plan Fase 13.1). */
 export type ImportFileResult =
     /** `name`: só o nome-base, para a tela; o caminho fica no processo principal. */
@@ -177,6 +210,21 @@ export interface FinanceBridge {
          * @return Onde a cópia ficou e quando, ou por que não foi gravada.
          */
         exportCopy(): Promise<DatabaseExportResult>;
+        /**
+         * Pergunta a cópia no diálogo de abrir do sistema e a põe no lugar do banco atual, que vai
+         * para a pasta de backups. O caminho é escolhido no processo principal, como na
+         * exportação. Quando o banco chega a ser fechado, o processo principal reabre o núcleo e
+         * recarrega as janelas, e o resultado fica guardado para `takeImportNotice`: a resposta
+         * desta chamada pode não chegar a uma tela que já recarregou.
+         *
+         * @return Onde ficou o banco anterior, ou por que a cópia não foi importada.
+         */
+        importCopy(): Promise<DatabaseImportResult>;
+        /**
+         * @return O resultado da importação que recarregou as janelas, uma vez só; `null` quando
+         * não há aviso pendente.
+         */
+        takeImportNotice(): Promise<DatabaseImportResult | null>;
         /** Abre a pasta do banco no gerenciador de arquivos, com o arquivo selecionado. */
         showInFolder(): Promise<void>;
     };
@@ -228,6 +276,8 @@ export const IPC_CHANNELS = {
     reportSend: 'report:send',
     aboutInfo: 'about:info',
     databaseExport: 'database:export',
+    databaseImport: 'database:import',
+    databaseImportNotice: 'database:import-notice',
     databaseShowInFolder: 'database:show-in-folder',
     importOpenFile: 'import:open-file',
     importTemplates: 'import:templates',

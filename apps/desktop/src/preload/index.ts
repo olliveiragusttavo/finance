@@ -4,6 +4,7 @@ import {
     IPC_CHANNELS,
     type AppInfo,
     type DatabaseExportResult,
+    type DatabaseImportResult,
     type DevicePreferences,
     type FatalFailure,
     type FinanceBridge,
@@ -93,6 +94,8 @@ const bridge: FinanceBridge = {
     },
     database: {
         exportCopy: (): Promise<DatabaseExportResult> => invoke(IPC_CHANNELS.databaseExport),
+        importCopy: (): Promise<DatabaseImportResult> => invoke(IPC_CHANNELS.databaseImport),
+        takeImportNotice: (): Promise<DatabaseImportResult | null> => invoke(IPC_CHANNELS.databaseImportNotice),
         showInFolder: (): Promise<void> => invoke(IPC_CHANNELS.databaseShowInFolder),
     },
     importFile: {

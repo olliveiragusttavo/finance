@@ -41,7 +41,7 @@ categoria/subcategoria** e **quanto as faturas do cartão pesam no saldo do mês
 | Fluxo por conta (Fase 12.1) | `DesktopRelFluxo` | Extratos encadeados de uma conta, ou das contas do total somadas, nos 3 meses antes e 1 depois do de referência |
 | Por tag (Fase 12.2) | `DesktopRelTag` | Total líquido por tag no mês ou em todo o período, divisão por categoria e lançamentos da tag |
 | Por sócio (Fases 13.6 e 13.8) | `DesktopRelSocio` | Só em perfil empresarial: aportou × deveria pela participação no total de aportes, acerto e entradas do mês sem sócio, atribuíveis na própria tela |
-| Ajustes | `DesktopAjustes` | Tema, exportar cópia do banco, local do arquivo, atalhos, versões |
+| Ajustes | `DesktopAjustes` | Tema, exportar e importar (Fase 13.9) a cópia do banco, local do arquivo, atalhos, versões |
 
 ### Fora do escopo (próximas entregas)
 
@@ -906,6 +906,24 @@ fica sem sócio e fora da divisão: é lucro, cuja distribuição pela participa
 - [x] Formulário de lançamento: campo "Sócio que aportou" (`contributionProfileId`), só na receita de perfil empresarial e na transferência para um perfil empresarial, com os sócios do perfil de destino ("Sócio que aportou em Estúdio GO")
 - [x] Testes: `client` (`test/partnerReport.test.ts`, `test/partnerRoster.test.ts`, `test/invalidation.test.ts`), `desktop` (`test/transactions.test.ts`) e ponta a ponta (`e2e/partnerReport.spec.ts`, com o Pix do perfil pessoal e o sócio escolhido no formulário; `e2e/partners.spec.ts`)
 
+### Fase 13.9 — Importar cópia do banco
+
+Entrou depois da Fase 13.8, a pedido: a Fase 13 exporta a cópia do banco, mas não havia como
+trazê-la de volta. Linha "Importar cópia do banco" em Ajustes › Dados, logo após "Exportar cópia
+do banco" — o mockup `DesktopAjustes` não tem a linha; a posição foi a pedida.
+
+Regra de negócio (Cópia do banco): a cópia **substitui** os dados do aparelho, não se soma a eles
+— juntar dois bancos duplicaria tudo o que têm em comum —, e o banco que sai vai para
+`backups/antes-da-importacao-{instante}.sqlite`, fora da rotação automática (backend-design
+§4.6), para o usuário voltar a ele se escolheu a cópia errada. Só entra cópia legível, gravada
+pelo app e de versão igual ou anterior à dele; a anterior migra na reabertura, com backup antes.
+
+- [x] Núcleo: `inspectDatabaseCopy` (ao lado de `copyDatabaseTo`, para o mobile importar pela mesma regra) — `quick_check`, `user_version` e a tabela `profiles`; recusa com `unreadable`, `not-app-database` ou `newer-than-app`, sem lançar e sem gravar no arquivo. `BetterSqliteDatabase.open` ganhou `readOnly`
+- [x] `utilityProcess` (`prepare-import`): com o banco ainda aberto, recusa o próprio banco (pelos caminhos reais, como a exportação), confere a cópia numa conexão somente leitura e a grava por `VACUUM INTO` em `finance.sqlite.importando`, ao lado do banco — o `-wal` de uma cópia em WAL entra junto, e a troca vira um `rename`
+- [x] Main: pede confirmação na tela, abre o diálogo de abrir (o caminho nunca vem do renderer), pede o preparo, fecha o banco e troca os arquivos por `replaceDatabase`, a mesma troca da restauração de backup, com a marca `restore-pending.json` contra o app cair no meio. Depois de fechar o banco, qualquer resultado reabre o núcleo num processo novo (`CoreProcess.restart`), que migra e verifica a integridade como em toda abertura, e recarrega as janelas; o resultado fica guardado para a tela ler uma vez (`database.takeImportNotice`), porque a resposta da chamada some com o renderer que recarregou
+- [x] Tela: alerta de confirmação antes do diálogo; o resultado fica escrito na linha — o sucesso com o caminho do banco anterior, cada falha dizendo se algo mudou e o que fazer; cancelar não avisa nada
+- [x] Testes: núcleo (`test/infrastructure/databaseCopy.test.ts`), desktop (`test/settings.test.ts`: preparo, recusas e textos; `test/main.test.ts`: a troca e o desfazer) e ponta a ponta (`e2e/settings.spec.ts`, com o diálogo de abrir trocado no processo principal)
+
 ### Fase 14 — Empacotamento e validação
 
 - [x] electron-builder (`apps/desktop/electron-builder.yml`): `.deb` para Ubuntu (`pnpm dist:linux`) e instalador NSIS para Windows (`pnpm dist:win`; no Linux, exige o Wine), nome "Finanças" e versão (1.0.0) a partir do `package.json`; `better-sqlite3` fora do `asar` (`asarUnpack`), porque o `.node` não carrega de dentro do arquivo, e só com o binário pronto do sistema do instalador. O AppImage saiu do escopo, a pedido: o alvo é o Ubuntu
@@ -924,7 +942,7 @@ fica sem sócio e fora da divisão: é lucro, cuja distribuição pela participa
 - Os dois relatórios conferem, centavo a centavo, com um mês real conferido à mão.
 - Tema claro e escuro em todas as telas; nenhuma cor literal fora de `packages/tokens`.
 - `pnpm check` verde, com os testes de mesa dos relatórios e o teste de fumaça do Electron.
-- Renderer sem acesso a Node: o preload expõe só o `CoreClient`, as preferências, o estado da abertura, o relato de problema, as ações de Ajustes sobre o arquivo do banco e a abertura do arquivo a importar com os modelos de mapeamento (Fase 13.1) — nenhuma recebe caminho do renderer.
+- Renderer sem acesso a Node: o preload expõe só o `CoreClient`, as preferências, o estado da abertura, o relato de problema, as ações de Ajustes sobre o arquivo do banco (exportar e, desde a Fase 13.9, importar a cópia) e a abertura do arquivo a importar com os modelos de mapeamento (Fase 13.1) — nenhuma recebe caminho do renderer.
 
 ## 8. Riscos
 

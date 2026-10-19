@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { BetterSqliteDatabase } from '@finance/sqlite-better';
 import { afterEach, describe, expect, it } from 'vitest';
-import { copyDatabaseTo, DatabaseCopyError, openDatabase, type Database } from '../../src/index.ts';
+import { copyDatabaseTo, DatabaseCopyError, inspectDatabaseCopy, openDatabase, type Database } from '../../src/index.ts';
 import { embeddedMigrations } from '../../src/infrastructure/migrations/embedded.generated.ts';
 import { FixedClock } from '../support/adapters.ts';
 
@@ -60,5 +60,60 @@ describe('cópia exportada do banco (desktop-mvp-plan Fase 13)', () => {
         expect(() => {
             copyDatabaseTo(database, path);
         }).toThrow(DatabaseCopyError);
+    });
+});
+
+/**
+ * Abre a cópia como a importação abre: somente leitura, para provar que a conferência não
+ * depende de gravar no arquivo do usuário.
+ *
+ * @param path Arquivo a conferir.
+ * @return O resultado da conferência, com a conexão já fechada.
+ */
+function inspectFile(path: string): ReturnType<typeof inspectDatabaseCopy> {
+    const copy = BetterSqliteDatabase.open(path, { readOnly: true });
+    try {
+        return inspectDatabaseCopy(copy);
+    } finally {
+        copy.close();
+    }
+}
+
+describe('conferência da cópia antes de importar', () => {
+    it('aceita a cópia exportada pelo app, com a versão do schema', () => {
+        const path = join(temporaryFolder(), 'financas.sqlite');
+        copyDatabaseTo(populatedDatabase(), path);
+
+        expect(inspectFile(path)).toEqual({ ok: true, schemaVersion: embeddedMigrations.length });
+    });
+
+    it('aceita a cópia de uma versão anterior, que a abertura vai migrar', () => {
+        const database = BetterSqliteDatabase.open(':memory:');
+        openDatabase(database, { backups: null, clock, migrations: embeddedMigrations.slice(0, -1) });
+
+        expect(inspectDatabaseCopy(database)).toEqual({ ok: true, schemaVersion: embeddedMigrations.length - 1 });
+    });
+
+    it('recusa a cópia de uma versão mais nova do app, que esta versão não abriria', () => {
+        const database = populatedDatabase();
+
+        expect(inspectDatabaseCopy(database, embeddedMigrations.slice(0, -1))).toEqual({ ok: false, reason: 'newer-than-app' });
+    });
+
+    it('recusa arquivo que não é SQLite, sem lançar', () => {
+        const path = join(temporaryFolder(), 'planilha.sqlite');
+        writeFileSync(path, 'data;valor\n2026-10-01;10,00\n'.repeat(200));
+
+        expect(inspectFile(path)).toEqual({ ok: false, reason: 'unreadable' });
+    });
+
+    it('recusa SQLite de outro programa: sem versão de schema ou sem as tabelas do app', () => {
+        const empty = BetterSqliteDatabase.open(':memory:');
+        empty.exec('CREATE TABLE notas (texto TEXT)');
+        expect(inspectDatabaseCopy(empty)).toEqual({ ok: false, reason: 'not-app-database' });
+
+        const versioned = BetterSqliteDatabase.open(':memory:');
+        versioned.exec('CREATE TABLE notas (texto TEXT); PRAGMA user_version = 3');
+        expect(inspectDatabaseCopy(versioned)).toEqual({ ok: false, reason: 'not-app-database' });
     });
 });

@@ -27,11 +27,15 @@ export class BetterSqliteDatabase {
 
     /**
      * @param filename Caminho do arquivo do banco, ou `:memory:` para os testes.
+     * @param options `readOnly` abre um arquivo que precisa existir, sem poder gravar nele: é o
+     * modo de conferir uma cópia escolhida pelo usuário antes de importá-la, sem criar um banco
+     * vazio no lugar de um caminho errado nem alterar o arquivo dele.
      * @return O adaptador sobre a conexão aberta. A configuração obrigatória
      * (`foreign_keys`, WAL) é aplicada pelo núcleo, num lugar só (database-design §3.2).
      */
-    public static open(filename: string): BetterSqliteDatabase {
-        return new BetterSqliteDatabase(new BetterSqlite3(filename));
+    public static open(filename: string, options: { readonly readOnly?: boolean } = {}): BetterSqliteDatabase {
+        const readOnly = options.readOnly ?? false;
+        return new BetterSqliteDatabase(new BetterSqlite3(filename, { readonly: readOnly, fileMustExist: readOnly }));
     }
 
     /**

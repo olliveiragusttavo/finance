@@ -4,9 +4,10 @@ import { join } from 'node:path';
 import { BetterSqliteDatabase } from '@finance/sqlite-better';
 import { afterEach, describe, expect, it } from 'vitest';
 import { defaultExportFileName } from '../src/main/databaseExport.ts';
-import { exportFailureMessage, formatExportInstant, formatSchemaVersion, lastExportText, SHORTCUT_GUIDE } from '../src/renderer/src/settings/settingsView.ts';
+import { exportFailureMessage, formatExportInstant, formatSchemaVersion, importResultMessage, lastExportText, SHORTCUT_GUIDE } from '../src/renderer/src/settings/settingsView.ts';
 import { shortcutFor, type KeyPress, type ShortcutAction } from '../src/renderer/src/shell/shortcuts.ts';
 import { exportDatabaseFile } from '../src/utility/exportDatabase.ts';
+import { prepareDatabaseImport } from '../src/utility/importDatabase.ts';
 import { openCore } from '../src/utility/openCore.ts';
 import type { Log } from '../src/utility/FileLog.ts';
 import { CryptoIdGenerator, SystemClock } from '../src/utility/systemAdapters.ts';
@@ -133,6 +134,84 @@ describe('exportar cópia do banco (desktop-mvp-plan Fase 13)', () => {
     });
 });
 
+describe('importar cópia do banco', () => {
+    it('confere a cópia exportada e a prepara ao lado do banco, sem tocar no banco nem na cópia', async () => {
+        const source = await openedWithProfile(temporaryFolder());
+        const exported = join(temporaryFolder(), 'financas.sqlite');
+        expect(source.exportCopy(exported)).toEqual({ ok: true });
+        source.close();
+        const folder = temporaryFolder();
+        const target = await openedWithProfile(folder);
+        await target.core?.call('profiles.create', { name: 'Empresa', type: 'business', currency: 'BRL' });
+        const staged = join(folder, 'finance.sqlite.importando');
+        // Um provisório que sobrou de uma tentativa anterior não impede a nova.
+        writeFileSync(staged, 'sobra');
+
+        expect(prepareDatabaseImport(join(folder, 'finance.sqlite'), exported, staged)).toEqual({ ok: true });
+
+        expect(profileNames(staged)).toEqual(['Pessoal']);
+        expect(profileNames(exported)).toEqual(['Pessoal']);
+        target.close();
+        expect(profileNames(join(folder, 'finance.sqlite'))).toEqual(['Empresa', 'Pessoal']);
+    });
+
+    it('recusa o próprio banco, inclusive por outro caminho, sem gravar provisório', async () => {
+        const folder = temporaryFolder();
+        const opened = await openedWithProfile(folder);
+        const alias = join(temporaryFolder(), 'atalho');
+        symlinkSync(folder, alias);
+        const staged = join(folder, 'finance.sqlite.importando');
+
+        for (const source of [join(folder, 'finance.sqlite'), join(alias, 'finance.sqlite')]) {
+            expect(prepareDatabaseImport(join(folder, 'finance.sqlite'), source, staged)).toEqual({ ok: false, reason: 'same-as-database' });
+        }
+        expect(existsSync(staged)).toBe(false);
+        opened.close();
+    });
+
+    it('recusa arquivo que não é banco, banco de outro programa e arquivo que sumiu, sem gravar provisório', () => {
+        const folder = temporaryFolder();
+        const databasePath = join(folder, 'finance.sqlite');
+        const staged = join(folder, 'finance.sqlite.importando');
+        const text = join(temporaryFolder(), 'extrato.sqlite');
+        writeFileSync(text, 'data;valor\n'.repeat(500));
+        const foreign = join(temporaryFolder(), 'outro.sqlite');
+        const other = BetterSqliteDatabase.open(foreign);
+        other.exec('CREATE TABLE notas (texto TEXT); PRAGMA user_version = 4');
+        other.close();
+
+        expect(prepareDatabaseImport(databasePath, text, staged)).toEqual({ ok: false, reason: 'unreadable' });
+        expect(prepareDatabaseImport(databasePath, foreign, staged)).toEqual({ ok: false, reason: 'not-app-database' });
+        expect(prepareDatabaseImport(databasePath, join(folder, 'sumiu.sqlite'), staged)).toEqual({ ok: false, reason: 'unreadable' });
+        expect(existsSync(staged)).toBe(false);
+        // O arquivo do usuário não ganha banco vazio nem WAL por ter sido conferido.
+        expect(readdirSync(join(foreign, '..'))).toEqual(['outro.sqlite']);
+    });
+
+    it('recusa a cópia de uma versão mais nova do app', async () => {
+        const source = await openedWithProfile(temporaryFolder());
+        const exported = join(temporaryFolder(), 'financas.sqlite');
+        expect(source.exportCopy(exported)).toEqual({ ok: true });
+        source.close();
+        const newer = BetterSqliteDatabase.open(exported);
+        newer.exec('PRAGMA user_version = 9999');
+        newer.close();
+        const folder = temporaryFolder();
+
+        expect(prepareDatabaseImport(join(folder, 'finance.sqlite'), exported, join(folder, 'finance.sqlite.importando'))).toEqual({ ok: false, reason: 'newer-than-app' });
+    });
+
+    it('pasta do banco que não aceita o provisório: falha de gravação, não de leitura', async () => {
+        const source = await openedWithProfile(temporaryFolder());
+        const exported = join(temporaryFolder(), 'financas.sqlite');
+        expect(source.exportCopy(exported)).toEqual({ ok: true });
+        source.close();
+        const missing = join(temporaryFolder(), 'sem-pasta');
+
+        expect(prepareDatabaseImport(join(missing, 'finance.sqlite'), exported, join(missing, 'finance.sqlite.importando'))).toEqual({ ok: false, reason: 'write-failed' });
+    });
+});
+
 describe('textos de Ajustes', () => {
     it('mostra a última cópia na hora local, e "nenhuma" sem cópia ou com data ilegível', () => {
         const instant = new Date(2026, 9, 14, 15, 7).toISOString();
@@ -147,6 +226,17 @@ describe('textos de Ajustes', () => {
         expect(exportFailureMessage('same-as-database')).toContain('Escolha outro arquivo');
         expect(exportFailureMessage('write-failed')).toContain('espaço no disco');
         expect(exportFailureMessage('unavailable')).toContain('Feche e abra o app');
+    });
+
+    it('importação: o sucesso diz onde ficou o banco anterior; cancelar não avisa; cada falha diz se algo mudou', () => {
+        expect(importResultMessage({ ok: true, file: '/home/u/financas.sqlite', previousCopy: '/dados/backups/antes-da-importacao-20261017-120000.sqlite' }))
+            .toBe('Cópia /home/u/financas.sqlite importada. O banco anterior foi guardado em /dados/backups/antes-da-importacao-20261017-120000.sqlite.');
+        expect(importResultMessage({ ok: false, reason: 'canceled' })).toBeNull();
+        for (const reason of ['unreadable', 'not-app-database', 'newer-than-app', 'write-failed', 'core-busy'] as const) {
+            expect(importResultMessage({ ok: false, reason })).toContain('Nada foi alterado');
+        }
+        expect(importResultMessage({ ok: false, reason: 'io-error' })).toContain('os dados continuam os de antes');
+        expect(importResultMessage({ ok: false, reason: 'database-moved', failedCopy: '/dados/backups/x.sqlite' })).toContain('/dados/backups/x.sqlite');
     });
 
     it('versão do banco', () => {

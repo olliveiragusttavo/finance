@@ -11,7 +11,7 @@ export type { IdGenerator } from './ports/IdGenerator.ts';
 export type { BusinessRule, ErrorCode, ErrorDetails } from './domain/shared/errors.ts';
 export { MigrationFailedError, MigrationIntegrityError, SchemaNewerThanAppError, type MigrationReport } from './infrastructure/migrations/MigrationRunner.ts';
 export { MigrationBackupError, newestBackup } from './infrastructure/migrations/PreMigrationBackup.ts';
-export { copyDatabaseTo, DatabaseCopyError } from './infrastructure/sqlite/DatabaseCopy.ts';
+export { copyDatabaseTo, DatabaseCopyError, inspectDatabaseCopy, type DatabaseCopyInspection, type DatabaseCopyRejection } from './infrastructure/sqlite/DatabaseCopy.ts';
 export { APP_UUID_NAMESPACE, deriveUuid } from './domain/shared/DeterministicIds.ts';
 export { parseUuid, type Uuid } from './domain/shared/ids.ts';
 export { LocalDate } from './domain/shared/LocalDate.ts';
