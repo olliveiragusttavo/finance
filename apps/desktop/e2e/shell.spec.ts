@@ -11,7 +11,7 @@ import { launchApp, removeUserData } from './launchApp.ts';
  */
 
 /**
- * Cria um perfil pessoal e um empresarial pela ponte, como o primeiro uso e Cadastros fazem —
+ * Cria um perfil pessoal e um empresarial pela ponte, como o primeiro uso e Perfis fazem —
  * o primeiro uso pela tela tem o próprio teste —, deixa o pessoal como o aberto e recarrega
  * para o shell abrir com eles.
  *
@@ -70,8 +70,8 @@ test('o menu leva a todas as telas e o mês de referência acompanha a navegaç�
         await expect(month).toHaveText(formatMonthLong(today));
 
         // Telas de configuração não mostram o mês (decisão da Fase 4), mas a barra continua.
-        await openMenuItem(page, 'Cadastros');
-        await expect(page.getByRole('heading', { level: 1 })).toHaveText('Cadastros');
+        await openMenuItem(page, 'Categorias');
+        await expect(page.getByRole('heading', { level: 1 })).toHaveText('Categorias');
         await expect(month).toHaveCount(0);
         await expect(page.getByRole('button', { name: '+ Lançamento' })).toBeVisible();
 
@@ -91,7 +91,7 @@ test('o menu leva a todas as telas e o mês de referência acompanha a navegaç�
     }
 });
 
-test('trocar de perfil mostra "Por sócio" no empresarial e é lembrado ao reabrir; tema e mês também', async () => {
+test('trocar de perfil mostra "Por sócio" e Sócios no empresarial e é lembrado ao reabrir; tema e mês também', async () => {
     const { app, window: page, userData } = await launchApp();
     try {
         await seedProfiles(page);
@@ -101,6 +101,7 @@ test('trocar de perfil mostra "Por sócio" no empresarial e é lembrado ao reabr
         await page.getByRole('menuitemradio', { name: /Estúdio GO/ }).dispatchEvent('click');
         await expect(page.getByTestId('profile-switcher')).toContainText('Empresarial · BRL');
         await expect(page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('link', { name: 'Por sócio' })).toBeVisible();
+        await expect(page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('link', { name: 'Sócios', exact: true })).toBeVisible();
 
         await page.getByRole('button', { name: 'Seguir o sistema' }).press('Enter');
         await page.getByRole('menuitemradio', { name: 'Tema escuro' }).dispatchEvent('click');

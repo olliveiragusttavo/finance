@@ -1,129 +1,25 @@
-import { describeError, formatAccountType, formatMoney, useCoreMutation, type CoreCallError } from '@finance/client';
-import type { AccountListResponse, AccountResponse } from '@finance/core';
-import type { UseQueryResult } from '@tanstack/react-query';
+import { describeError, formatAccountType, formatMoney, useCoreMutation } from '@finance/client';
+import type { AccountResponse } from '@finance/core';
 import { useState, type ReactNode } from 'react';
 import { Controller, useForm, type Resolver } from 'react-hook-form';
 import { toast } from 'sonner';
+import { FormDialog } from '@/components/entityUi';
 import { Field, fieldAria, toFieldErrors } from '@/components/form';
-import { EmptyState, QueryState } from '@/components/states';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { reportRejection } from '@/lib/coreErrorField';
 import { currencyOptionsWith } from '@/lib/currencies';
 import { useActiveProfile } from '@/shell/activeProfile';
 import { ACCOUNT_FIELDS, accountFormFrom, emptyAccountForm, readAccountForm, type AccountContent, type AccountFormValues } from './accountForm.ts';
-import { reportRejection } from './coreErrorField.ts';
-import { AccountDeletionDialog } from './DeletionDialog.tsx';
-import { FormDialog, RowAction, SectionHeader, StatusTag } from './registryUi.tsx';
 
 /** Tipos de conta, na ordem do primeiro uso. */
 const ACCOUNT_TYPES: readonly AccountFormValues['type'][] = ['checking', 'investment'];
-
-/** Diálogo aberto na seção: criar, editar ou excluir uma conta. */
-type AccountDialogState = { readonly mode: 'create' } | { readonly mode: 'edit'; readonly account: AccountResponse } | { readonly mode: 'delete'; readonly account: AccountResponse };
-
-/**
- * Contas em Cadastros (desktop-mvp-plan Fase 6): lista com as desativadas e as fora do total
- * marcadas, criar e editar em diálogo, desativar, reativar e excluir. Os saldos do mês ficam
- * na tela Contas; aqui está o cadastro.
- *
- * @param props.query Lista de contas do perfil, a mesma que conta o item na lista lateral.
- * @return A seção de contas.
- */
-export function AccountsSection({ query }: { readonly query: UseQueryResult<AccountListResponse, CoreCallError> }): ReactNode {
-    const [dialog, setDialog] = useState<AccountDialogState | null>(null);
-    const toggle = useToggleAccount();
-    const close = (): void => {
-        setDialog(null);
-    };
-
-    return (
-        <>
-            <SectionHeader
-                title="Contas"
-                description="Desativar tira a conta dos lançamentos novos sem mudar o histórico nem os saldos."
-                actions={
-                    <Button
-                        onClick={() => {
-                            setDialog({ mode: 'create' });
-                        }}
-                    >
-                        + Nova conta
-                    </Button>
-                }
-            />
-            <QueryState query={query}>
-                {(list) =>
-                    list.accounts.length === 0 ? (
-                        <EmptyState title="Nenhuma conta" description="Crie uma conta para começar a lançar." />
-                    ) : (
-                        <ul aria-label="Contas" className="rounded-10 border border-line bg-surface">
-                            {list.accounts.map((account) => (
-                                <li key={account.id} className="flex items-center justify-between gap-4 border-t border-line2 px-5 py-3 first:border-t-0">
-                                    <div className="flex min-w-0 flex-col gap-0.5">
-                                        <span className="flex items-center gap-2 font-medium">
-                                            {account.name}
-                                            {account.disabled && <StatusTag tone="warn">Desativada</StatusTag>}
-                                            {!account.considerBalance && <StatusTag tone="neutral">Fora do total</StatusTag>}
-                                        </span>
-                                        <span className="text-12 text-muted">
-                                            {formatAccountType(account.type)} · {account.currency} · Saldo inicial <span className="tabular-nums">{formatMoney(account.openingBalance)}</span>
-                                        </span>
-                                    </div>
-                                    <div className="flex shrink-0 items-center gap-1">
-                                        <RowAction
-                                            label="Editar"
-                                            accessibleName={`Editar ${account.name}`}
-                                            onClick={() => {
-                                                setDialog({ mode: 'edit', account });
-                                            }}
-                                        />
-                                        <RowAction
-                                            label={account.disabled ? 'Reativar' : 'Desativar'}
-                                            accessibleName={`${account.disabled ? 'Reativar' : 'Desativar'} ${account.name}`}
-                                            onClick={() => {
-                                                toggle(account);
-                                            }}
-                                        />
-                                        <RowAction
-                                            label="Excluir"
-                                            accessibleName={`Excluir ${account.name}`}
-                                            danger
-                                            onClick={() => {
-                                                setDialog({ mode: 'delete', account });
-                                            }}
-                                        />
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
-                    )
-                }
-            </QueryState>
-            {dialog?.mode === 'create' && <AccountDialog account={null} onClose={close} />}
-            {dialog?.mode === 'edit' && <AccountDialog key={dialog.account.id} account={dialog.account} onClose={close} />}
-            {dialog?.mode === 'delete' && (
-                <AccountDeletionDialog
-                    account={dialog.account}
-                    onClose={close}
-                    onDisableInstead={
-                        dialog.account.disabled
-                            ? undefined
-                            : () => {
-                                  toggle(dialog.account);
-                              }
-                    }
-                />
-            )}
-        </>
-    );
-}
 
 /**
  * Desativa ou reativa uma conta, conforme a situação atual. Sem confirmação: as duas ações
  * se desfazem uma com a outra e não mudam nenhum saldo (desktop-mvp-plan §5.1). O aviso
  * lembra o que desativar preserva, para que ninguém desative achando que perdeu o histórico.
- * Exportado porque a tela Contas oferece as mesmas ações no extrato.
+ * Fica fora da tela porque o "⋯" do extrato e a alternativa do alerta de exclusão o usam.
  *
  * @return A ação de alternar a conta.
  */
@@ -158,9 +54,10 @@ const ACCOUNT_FIELD_BY_CORE_FIELD: Readonly<Partial<Record<string, keyof Account
 };
 
 /**
- * Criar ou editar conta: nome, tipo, moeda, saldo inicial e se entra no total. Exportado
- * porque a tela Contas tem "+ Nova conta" e "Editar conta" (mockup `DesktopContas`): um
- * diálogo só, para que as duas telas validem e expliquem o cadastro do mesmo jeito.
+ * Criar ou editar conta: nome, tipo, moeda, saldo inicial e se entra no total. O cadastro da
+ * conta fica na própria tela Contas ("+ Nova conta" e "Editar conta", mockup `DesktopContas`)
+ * desde que a tela Cadastros saiu (desktop-mvp-plan Fase 13.10); um diálogo só, para que criar e
+ * editar validem e expliquem o cadastro do mesmo jeito.
  *
  * @param props.account Conta a editar, ou `null` para criar uma.
  * @param props.onClose Fecha o diálogo.

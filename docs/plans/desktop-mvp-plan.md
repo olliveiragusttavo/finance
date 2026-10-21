@@ -29,7 +29,7 @@ categoria/subcategoria** e **quanto as faturas do cartão pesam no saldo do mês
 |---|---|---|
 | Primeiro uso | `DesktopPrimeiroUso` | Criar perfil e primeira conta. "Entrar num grupo" aparece desabilitado |
 | Shell | todas (barra lateral e superior) | Navegação, mês de referência fixo, seletor de perfil, tema claro/escuro, "+ Lançamento" |
-| Cadastros | `DesktopCadastros`, `DesktopTags`, `DesktopAnotacoes`, `DesktopSocios` | Perfis, contas, cartões, categorias e subcategorias, tags, anotações e, no perfil empresarial, sócios (Fase 13.7) |
+| Cadastros | `DesktopCadastros`, `DesktopTags`, `DesktopAnotacoes`, `DesktopSocios` | Perfis, contas, cartões, categorias e subcategorias, tags, anotações e, no perfil empresarial, sócios (Fase 13.7). Desde a Fase 13.10, cada um tem item próprio no menu, sem a tela Cadastros |
 | Contas | `DesktopContas` | Lista com consolidado e previsto → extrato do mês |
 | Cartões | `DesktopCartoes` | Lista com fatura do mês → detalhe da fatura, pagar, pagamento parcial, reabrir, próximas faturas |
 | Transações | `DesktopTransacoes` | Tabela do mês, filtros, diálogo de criação/edição, marcar pago, excluir, atalhos |
@@ -381,6 +381,8 @@ Ordem pensada para que cada fase entregue algo testável. As fases 1–2 (núcle
 - [x] Testes: unitários do formulário (`test/firstUse.test.ts`) e ponta a ponta (`e2e/firstUse.spec.ts`: tela fora do shell, erros por campo sem chamar o núcleo, conclusão com rota e mês antigos no aparelho, reabertura); o teste de fumaça passou a criar o perfil pela tela
 
 ### Fase 6 — Cadastros
+
+> A tela Cadastros saiu na [Fase 13.10](#fase-1310--cadastros-no-menu): cada cadastro tem item próprio no menu. O registro abaixo é o histórico da fase.
 
 - [x] Página `DesktopCadastros` com lista lateral de tipos e contadores (Contas, Cartões, Categorias, Tags, Perfis, Anotações) — o tipo aberto é o *search param* `kind` de `/registry` (`registry/registryKinds.ts`), e o mês de referência, escondido na tela, continua na URL. **Decisões:** Contas e Cartões são geridos aqui, e não levam às telas Contas/Cartões como no mockup; o "Reordenar" das categorias ficou fora do MVP, porque o núcleo não guarda ordem de categorias
 - [x] Contas: lista (desativadas e fora do total marcadas), criar/editar em diálogo (nome, tipo, saldo inicial, moeda, considerar no total), desativar/reativar — sem confirmação, porque se desfazem e não mudam saldo; o saldo inicial é lido na moeda do perfil, e a moeda da conta é só rótulo
@@ -923,6 +925,42 @@ pelo app e de versão igual ou anterior à dele; a anterior migra na reabertura,
 - [x] Main: pede confirmação na tela, abre o diálogo de abrir (o caminho nunca vem do renderer), pede o preparo, fecha o banco e troca os arquivos por `replaceDatabase`, a mesma troca da restauração de backup, com a marca `restore-pending.json` contra o app cair no meio. Depois de fechar o banco, qualquer resultado reabre o núcleo num processo novo (`CoreProcess.restart`), que migra e verifica a integridade como em toda abertura, e recarrega as janelas; o resultado fica guardado para a tela ler uma vez (`database.takeImportNotice`), porque a resposta da chamada some com o renderer que recarregou
 - [x] Tela: alerta de confirmação antes do diálogo; o resultado fica escrito na linha — o sucesso com o caminho do banco anterior, cada falha dizendo se algo mudou e o que fazer; cancelar não avisa nada
 - [x] Testes: núcleo (`test/infrastructure/databaseCopy.test.ts`), desktop (`test/settings.test.ts`: preparo, recusas e textos; `test/main.test.ts`: a troca e o desfazer) e ponta a ponta (`e2e/settings.spec.ts`, com o diálogo de abrir trocado no processo principal)
+
+### Fase 13.10 — Cadastros no menu
+
+Entrou depois da Fase 13.9, a pedido: a tela Cadastros (`/registry`, Fase 6) saiu, e cada
+cadastro ganhou item próprio no menu lateral. **Diverge do mockup `DesktopCadastros`** e da
+decisão de interface 4 dos mockups ("listas em vez de abas" para os tipos de cadastro): a lista
+de tipos deixou de existir, e não virou aba — o menu é a lista. Os mockups `DesktopTags`,
+`DesktopAnotacoes` e `DesktopSocios` continuam a referência do conteúdo de cada tela.
+
+Menu, nesta ordem: Visão geral, Transações, Contas, Cartões, Relatórios, Metas, Categorias,
+Sócios, Tags, Anotações, Perfis, Dispositivos e Ajustes.
+
+- [x] Contas e Cartões: o cadastro fica só nas próprias telas ("+ Nova conta"/"+ Novo cartão",
+  "Editar", desativar/reativar e excluir pelo "⋯"), que já os tinham desde as Fases 7 e 8; as
+  listas de cadastro de contas e cartões saíram. O saldo inicial e os dias de fechamento e
+  vencimento ficam visíveis só no diálogo de editar
+- [x] Telas `/categories`, `/partners`, `/tags`, `/notes` e `/profiles`, a partir das seções da
+  antiga tela, cada uma buscando os próprios dados; o título vira o `h1` da página. A anotação
+  pedida pela URL passou de `/registry?kind=notes&note=` para `/notes?note=` (`notesSearch.ts`);
+  sair de uma anotação com alteração não salva continua pedindo salvar ou descartar ao trocar de
+  tela
+- [x] Regra de negócio (Perfis): o item Sócios só aparece no menu do perfil empresarial
+  (`menuFor`), como "Por sócio" em Relatórios; pela URL, no perfil pessoal, a tela explica em vez
+  de chamar a rota que o núcleo recusa
+- [x] O mês de referência continua escondido nos cadastros (decisão de interface 2): nenhum número
+  dessas telas depende do mês
+- [x] Os links que levavam a Cadastros (Visão geral › Anotações, Por tag, Por sócio, "Gerenciar
+  perfis") e as mensagens do `client` ("Reative-a na tela Contas", "na tela Sócios") apontam para
+  as telas novas
+- [x] Arquivos: `registry/` saiu; os diálogos de conta e cartão foram para `accounts/` e `cards/`,
+  as peças comuns para `components/entityUi.tsx`, `components/DeletionDialog.tsx`,
+  `lib/coreErrorField.ts` e `lib/nameForm.ts`
+- [x] Testes: `test/shell.test.ts` (menu e Sócios só no empresarial), `test/entities.test.ts`,
+  `test/accountForm.test.ts` e `test/creditCardForm.test.ts` (antes `test/registry.test.ts`) e
+  ponta a ponta (`e2e/entities.spec.ts`, antes `e2e/registry.spec.ts`; `e2e/partners.spec.ts`,
+  `e2e/shell.spec.ts`)
 
 ### Fase 14 — Empacotamento e validação
 

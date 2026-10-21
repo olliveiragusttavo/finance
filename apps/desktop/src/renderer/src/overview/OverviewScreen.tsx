@@ -33,7 +33,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } f
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ViewToggle } from '@/components/ViewToggle';
 import { cn } from '@/lib/cn';
-import { StatusTag } from '@/registry/registryUi';
+import { StatusTag } from '@/components/entityUi';
 import { useActiveProfile } from '@/shell/activeProfile';
 import { useReferenceMonth } from '@/shell/useReferenceMonth';
 
@@ -516,7 +516,7 @@ function GoalRow({ goal }: { readonly goal: GoalProgressResponse }): ReactNode {
 
 /**
  * Títulos das anotações (desktop-mvp-plan Fase 13.2): só o nome de cada uma, e o clique abre a
- * anotação no editor de Cadastros › Anotações. Num perfil com muitas, mostra as mais recentes e
+ * anotação no editor da tela Anotações. Num perfil com muitas, mostra as mais recentes e
  * leva às outras pelo "Ver todas".
  *
  * @param props.profileId Perfil ativo.
@@ -529,7 +529,7 @@ function NotesSummary({ profileId }: { readonly profileId: string }): ReactNode 
             {(list) =>
                 list.length === 0 ? (
                     <div className="px-5 py-4">
-                        <EmptyState title="Nenhuma anotação" description="Anote o que não cabe num lançamento." action={<Link to="/registry" search={{ kind: 'notes' }}>Ir para Anotações</Link>} />
+                        <EmptyState title="Nenhuma anotação" description="Anote o que não cabe num lançamento." action={<Link to="/notes">Ir para Anotações</Link>} />
                     </div>
                 ) : (
                     <NotesList notes={overviewNotes(list)} total={list.length} />
@@ -550,14 +550,14 @@ function NotesList({ notes, total }: { readonly notes: OverviewNotes; readonly t
             <ul aria-label="Anotações">
                 {notes.rows.map((row) => (
                     <li key={row.noteId} className="border-t border-line2 first:border-t-0">
-                        <Link to="/registry" search={{ kind: 'notes', note: row.noteId }} className={SUMMARY_ROW}>
+                        <Link to="/notes" search={{ note: row.noteId }} className={SUMMARY_ROW}>
                             <span className="truncate text-14">{row.title}</span>
                         </Link>
                     </li>
                 ))}
             </ul>
             {notes.hiddenCount > 0 && (
-                <Link to="/registry" search={{ kind: 'notes' }} className="block border-t border-line2 px-5 py-2.5 text-13 text-accent hover:bg-surface2">
+                <Link to="/notes" className="block border-t border-line2 px-5 py-2.5 text-13 text-accent hover:bg-surface2">
                     Ver todas as {total} anotações
                 </Link>
             )}

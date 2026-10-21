@@ -14,7 +14,7 @@ export interface CategoryBranch {
 }
 
 /**
- * A árvore categoria → subcategoria do perfil, como a tela de Cadastros mostra. Fica fora do
+ * A árvore categoria → subcategoria do perfil, como a tela Categorias mostra. Fica fora do
  * arquivo do `CategoryService` para que a camada DTO dependa só do contrato de saída.
  */
 export type CategoryTree = readonly CategoryBranch[];

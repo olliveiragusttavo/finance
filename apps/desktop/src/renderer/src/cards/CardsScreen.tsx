@@ -29,14 +29,14 @@ import { EmptyState, QueryState, Skeleton } from '@/components/states';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/cn';
-import { CreditCardDialog, useToggleCreditCard } from '@/registry/CreditCardsSection';
-import { CreditCardDeletionDialog } from '@/registry/DeletionDialog';
-import { StatusTag } from '@/registry/registryUi';
+import { CreditCardDeletionDialog } from '@/components/DeletionDialog';
+import { StatusTag } from '@/components/entityUi';
 import { useActiveProfile } from '@/shell/activeProfile';
 import { currentDate } from '@/shell/referenceMonth';
 import { useReferenceMonth } from '@/shell/useReferenceMonth';
 import { MovementGrid } from '@/transactions/MovementGrid';
 import { useTransactionActions } from '@/transactions/useTransactionActions';
+import { CreditCardDialog, useToggleCreditCard } from './CreditCardDialog.tsx';
 import { creditCardListView, openCreditCard, openInvoicePeriod, parseCardsSearch, shouldDropInvoice, type CardsLocation } from './cardsSearch.ts';
 import { PartialPaymentDialog, PayInvoiceDialog, ReopenInvoiceDialog, type InvoiceActionTarget } from './InvoiceDialogs.tsx';
 

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 
 /*
- * Layout das telas com lista lateral e detalhe — Contas, Cartões, Metas, Cadastros e os
+ * Layout das telas com lista lateral e detalhe — Contas, Cartões, Metas e os
  * relatórios por conta e por tag (desktop-mvp-plan Fase 13.3, pedido do usuário). Cada painel rola
  * sozinho: rolar o extrato não leva a lista de contas embora, e uma lista longa de contas não
  * empurra o detalhe. O rodapé da lista (os totais) fica fixo embaixo, sempre à vista.

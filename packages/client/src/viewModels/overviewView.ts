@@ -322,7 +322,7 @@ function cardRow(creditCard: CreditCardInPeriodResponse, payerName: string | und
     };
 }
 
-/** Uma anotação no bloco da Visão geral: só o título, que leva a ela em Cadastros › Anotações. */
+/** Uma anotação no bloco da Visão geral: só o título, que leva a ela na tela Anotações. */
 export interface OverviewNoteRow {
     readonly noteId: string;
     /** A primeira linha da anotação (decisão de interface 9 dos mockups). */
@@ -338,14 +338,14 @@ export interface OverviewNotes {
 
 /**
  * Quantas anotações o bloco mostra: as mais recentes, para o bloco ter a altura dos vizinhos
- * mesmo num perfil com dezenas delas; as outras estão a um clique, em Cadastros.
+ * mesmo num perfil com dezenas delas; as outras estão a um clique, na tela Anotações.
  */
 export const OVERVIEW_NOTES_LIMIT = 6;
 
 /**
  * Anotações da Visão geral (desktop-mvp-plan Fase 13.2): só os títulos, das mais recentes para as
  * mais antigas — a ordem em que o núcleo as lista —, para que se ache a anotação sem abrir
- * Cadastros; o texto inteiro fica no editor, para onde cada título leva.
+ * Anotações; o texto inteiro fica no editor, para onde cada título leva.
  *
  * @param notes Anotações do perfil, da mais recente para a mais antiga.
  * @param limit Quantas mostrar.

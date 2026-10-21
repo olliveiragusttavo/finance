@@ -183,7 +183,7 @@ function differenceOf(difference: MoneyResponse): { readonly difference: string;
  */
 function noteOf(report: PartnerReportResponse, complete: boolean): string {
     if (report.partners.length === 0) {
-        return 'Este perfil ainda não tem sócios cadastrados. Cadastre os sócios e as participações em Cadastros › Sócios para ver quanto cada um deveria ter aportado.';
+        return 'Este perfil ainda não tem sócios cadastrados. Cadastre os sócios e as participações na tela Sócios para ver quanto cada um deveria ter aportado.';
     }
     if (!complete) {
         return 'Sem acerto sugerido: as participações não somam 100%.';

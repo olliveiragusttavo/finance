@@ -6,10 +6,14 @@ import { AccountsScreen } from './accounts/AccountsScreen.tsx';
 import { parseAccountsSearch, type AccountsSearch } from './accounts/accountsSearch.ts';
 import { CardsScreen } from './cards/CardsScreen.tsx';
 import { parseCardsSearch, type CardsSearch } from './cards/cardsSearch.ts';
+import { CategoriesScreen } from './categories/CategoriesScreen.tsx';
 import { GoalsScreen } from './goals/GoalsScreen.tsx';
 import { OverviewScreen } from './overview/OverviewScreen.tsx';
 import { parseGoalsSearch, type GoalsSearch } from './goals/goalsSearch.ts';
-import { RegistryScreen } from './registry/RegistryScreen.tsx';
+import { NotesScreen } from './notes/NotesScreen.tsx';
+import { parseNotesSearch, type NotesSearch } from './notes/notesSearch.ts';
+import { PartnersScreen } from './partners/PartnersScreen.tsx';
+import { ProfilesScreen } from './profiles/ProfilesScreen.tsx';
 import { AccountFlowScreen } from './reports/AccountFlowScreen.tsx';
 import { parseAccountFlowSearch, type AccountFlowSearch } from './reports/accountFlowSearch.ts';
 import { CardImpactScreen } from './reports/CardImpactScreen.tsx';
@@ -18,11 +22,11 @@ import { parseCategoryReportSearch, type CategoryReportSearch } from './reports/
 import { PartnerReportScreen } from './reports/PartnerReportScreen.tsx';
 import { TagReportScreen } from './reports/TagReportScreen.tsx';
 import { parseTagReportSearch, type TagReportSearch } from './reports/tagReportSearch.ts';
-import { parseRegistrySearch, type RegistrySearch } from './registry/registryKinds.ts';
 import { blankScreen } from './screens/BlankScreen.tsx';
 import { ImportScreen } from './import/ImportScreen.tsx';
 import { SettingsScreen } from './settings/SettingsScreen.tsx';
 import { AppShell } from './shell/AppShell.tsx';
+import { TagsScreen } from './tags/TagsScreen.tsx';
 import { TransactionsScreen } from './transactions/TransactionsScreen.tsx';
 import { parseTransactionsSearch, type TransactionsSearch } from './transactions/transactionsSearch.ts';
 import type { AppPath } from './shell/navigation.ts';
@@ -106,18 +110,23 @@ const routeTree = rootRoute.addChildren([
         }),
         createRoute({
             getParentRoute: () => shellRoute,
-            path: '/registry' satisfies AppPath,
-            component: RegistryScreen,
-            validateSearch: (search: Record<string, unknown>): RegistrySearch => parseRegistrySearch(search),
-        }),
-        createRoute({ getParentRoute: () => shellRoute, path: '/settings' satisfies AppPath, component: SettingsScreen }),
-        createRoute({ getParentRoute: () => shellRoute, path: '/settings/import' satisfies AppPath, component: ImportScreen }),
-        createRoute({
-            getParentRoute: () => shellRoute,
             path: '/goals' satisfies AppPath,
             component: GoalsScreen,
             validateSearch: (search: Record<string, unknown>): GoalsSearch => parseGoalsSearch(search),
         }),
+        // Cadastros, cada um com item próprio no menu (desktop-mvp-plan Fase 13.10).
+        createRoute({ getParentRoute: () => shellRoute, path: '/categories' satisfies AppPath, component: CategoriesScreen }),
+        createRoute({ getParentRoute: () => shellRoute, path: '/partners' satisfies AppPath, component: PartnersScreen }),
+        createRoute({ getParentRoute: () => shellRoute, path: '/tags' satisfies AppPath, component: TagsScreen }),
+        createRoute({
+            getParentRoute: () => shellRoute,
+            path: '/notes' satisfies AppPath,
+            component: NotesScreen,
+            validateSearch: (search: Record<string, unknown>): NotesSearch => parseNotesSearch(search),
+        }),
+        createRoute({ getParentRoute: () => shellRoute, path: '/profiles' satisfies AppPath, component: ProfilesScreen }),
+        createRoute({ getParentRoute: () => shellRoute, path: '/settings' satisfies AppPath, component: SettingsScreen }),
+        createRoute({ getParentRoute: () => shellRoute, path: '/settings/import' satisfies AppPath, component: ImportScreen }),
         // Fora do MVP: tela em branco, com a rota e o mês já prontos (desktop-mvp-plan §5).
         createRoute({ getParentRoute: () => shellRoute, path: '/reports/partner' satisfies AppPath, component: PartnerReportScreen }),
         createRoute({ getParentRoute: () => shellRoute, path: '/devices' satisfies AppPath, component: blankScreen('Dispositivos') }),

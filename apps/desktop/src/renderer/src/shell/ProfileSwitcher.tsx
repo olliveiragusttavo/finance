@@ -17,8 +17,7 @@ import { useActiveProfile } from './activeProfile.tsx';
 /**
  * Seletor de perfil da barra lateral (mockups, todas as telas desktop). Mostra nome, tipo e
  * moeda porque é isso que muda o que a tela mostra; trocar o perfil invalida o cache inteiro
- * (`useActiveProfile`). Criar e renomear perfis fica em Cadastros › Perfis, para onde o menu
- * leva já com o tipo aberto; sem o `kind`, Cadastros abriria em Contas, o tipo padrão.
+ * (`useActiveProfile`). Criar e renomear perfis fica na tela Perfis, para onde o menu leva.
  *
  * @return O botão do perfil ativo com o menu dos demais.
  */
@@ -50,7 +49,7 @@ export function ProfileSwitcher(): ReactNode {
                 </DropdownMenuRadioGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                    <Link to="/registry" search={{ kind: 'profiles' }}>
+                    <Link to="/profiles">
                         Gerenciar perfis
                     </Link>
                 </DropdownMenuItem>

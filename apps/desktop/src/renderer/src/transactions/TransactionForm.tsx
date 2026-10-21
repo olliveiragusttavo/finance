@@ -50,8 +50,8 @@ import { Input } from '@/components/ui/input';
 import { Combobox, type ComboboxOption } from '@/components/Combobox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/cn';
-import { reportRejection } from '@/registry/coreErrorField';
-import { StatusTag } from '@/registry/registryUi';
+import { reportRejection } from '@/lib/coreErrorField';
+import { StatusTag } from '@/components/entityUi';
 import { useActiveProfile } from '@/shell/activeProfile';
 import { currentDate, shiftPeriod } from '@/shell/referenceMonth';
 import { useReferenceMonth } from '@/shell/useReferenceMonth';
@@ -577,7 +577,7 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
                     id={fieldId('partner')}
                     label={partnerProfile.id === values.profileId ? 'Sócio que aportou' : `Sócio que aportou em ${partnerProfile.name}`}
                     error={errors.partnerId}
-                    hint={partners.data !== undefined && partnerOptions.length === 0 ? `${partnerProfile.name} não tem sócios; cadastre em Cadastros › Sócios.` : 'Deixe sem sócio quando não for aporte, como uma receita de serviço.'}
+                    hint={partners.data !== undefined && partnerOptions.length === 0 ? `${partnerProfile.name} não tem sócios; cadastre em Sócios.` : 'Deixe sem sócio quando não for aporte, como uma receita de serviço.'}
                 >
                     <Controller
                         control={form.control}

@@ -54,9 +54,7 @@ export function PartnerReportScreen(): ReactNode {
                 </div>
                 {business && (
                     <Button asChild variant="outline">
-                        <Link to="/registry" search={{ kind: 'partners' }}>
-                            Editar sócios e participações
-                        </Link>
+                        <Link to="/partners">Editar sócios e participações</Link>
                     </Button>
                 )}
             </div>

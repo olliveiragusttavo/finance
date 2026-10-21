@@ -18,7 +18,11 @@ export type AppPath =
     | '/reports/partner'
     | '/reports/tag'
     | '/goals'
-    | '/registry'
+    | '/categories'
+    | '/partners'
+    | '/tags'
+    | '/notes'
+    | '/profiles'
     | '/devices'
     | '/settings'
     | '/settings/import';
@@ -41,6 +45,8 @@ export interface MenuItem {
      */
     readonly section: string;
     readonly children: readonly ReportMenuItem[];
+    /** Só aparece em perfil empresarial (Sócios), como "Por sócio" entre os relatórios. */
+    readonly businessOnly: boolean;
 }
 
 /** Prefixo dos caminhos de relatório. */
@@ -58,26 +64,48 @@ const REPORT_ITEMS: readonly ReportMenuItem[] = [
     { label: 'Por tag', to: '/reports/tag', businessOnly: false },
 ];
 
-/** Menu completo do mockup (brief D1), na ordem da barra lateral. */
+/**
+ * Menu completo, na ordem da barra lateral. Os cadastros que o mockup (brief D1) reunia em
+ * "Cadastros" têm cada um o seu item, a pedido do usuário (desktop-mvp-plan Fase 13.10): contas e
+ * cartões já se cadastram nas próprias telas, e os demais ficam a um clique, sem a lista de tipos
+ * no meio.
+ */
 export const MENU: readonly MenuItem[] = [
-    { label: 'Visão geral', to: '/', section: '/', children: [] },
-    { label: 'Transações', to: '/transactions', section: '/transactions', children: [] },
-    { label: 'Contas', to: '/accounts', section: '/accounts', children: [] },
-    { label: 'Cartões', to: '/cards', section: '/cards', children: [] },
-    { label: 'Relatórios', to: '/reports/category', section: REPORTS_SECTION, children: REPORT_ITEMS },
-    { label: 'Metas', to: '/goals', section: '/goals', children: [] },
-    { label: 'Cadastros', to: '/registry', section: '/registry', children: [] },
-    { label: 'Dispositivos', to: '/devices', section: '/devices', children: [] },
-    { label: 'Ajustes', to: '/settings', section: '/settings', children: [] },
+    { label: 'Visão geral', to: '/', section: '/', children: [], businessOnly: false },
+    { label: 'Transações', to: '/transactions', section: '/transactions', children: [], businessOnly: false },
+    { label: 'Contas', to: '/accounts', section: '/accounts', children: [], businessOnly: false },
+    { label: 'Cartões', to: '/cards', section: '/cards', children: [], businessOnly: false },
+    { label: 'Relatórios', to: '/reports/category', section: REPORTS_SECTION, children: REPORT_ITEMS, businessOnly: false },
+    { label: 'Metas', to: '/goals', section: '/goals', children: [], businessOnly: false },
+    { label: 'Categorias', to: '/categories', section: '/categories', children: [], businessOnly: false },
+    { label: 'Sócios', to: '/partners', section: '/partners', children: [], businessOnly: true },
+    { label: 'Tags', to: '/tags', section: '/tags', children: [], businessOnly: false },
+    { label: 'Anotações', to: '/notes', section: '/notes', children: [], businessOnly: false },
+    { label: 'Perfis', to: '/profiles', section: '/profiles', children: [], businessOnly: false },
+    { label: 'Dispositivos', to: '/devices', section: '/devices', children: [], businessOnly: false },
+    { label: 'Ajustes', to: '/settings', section: '/settings', children: [], businessOnly: false },
 ];
+
+/**
+ * Regra de negócio (Perfis): sócio só existe em perfil empresarial (database-design §4.2), então
+ * o item Sócios some do menu no perfil pessoal, como "Por sócio" some dos relatórios.
+ *
+ * @param profileType Tipo do perfil ativo.
+ * @return Os itens que a barra lateral mostra para o perfil, na ordem do menu.
+ */
+export function menuFor(profileType: ProfileResponse['type']): readonly MenuItem[] {
+    return MENU.filter((item) => !item.businessOnly || profileType === 'business');
+}
 
 /**
  * Telas de configuração, que não dependem de período. Regra de interface (mockups, decisão 2):
  * o mês de referência não aparece em fluxos de configuração. Os mockups dessas telas ainda
  * desenham a barra do mês; a regra do README prevaleceu, por decisão registrada na Fase 4 do
- * plano. Metas continua com a barra, como no mockup.
+ * plano. Metas continua com a barra, como no mockup. Os cadastros (Categorias, Sócios, Tags,
+ * Anotações e Perfis) seguem sem a barra, como na antiga tela Cadastros: nenhum número deles
+ * depende do mês.
  */
-const PATHS_WITHOUT_REFERENCE_MONTH: ReadonlySet<string> = new Set<AppPath>(['/registry', '/devices', '/settings', '/settings/import']);
+const PATHS_WITHOUT_REFERENCE_MONTH: ReadonlySet<string> = new Set<AppPath>(['/categories', '/partners', '/tags', '/notes', '/profiles', '/devices', '/settings', '/settings/import']);
 
 /** Um passo do caminho "Ajustes › Importar dados"; o último não tem link. */
 export interface TrailStep {
@@ -125,7 +153,7 @@ export function isItemActive(item: Pick<MenuItem, 'section'>, pathname: string):
 
 /**
  * Subitens visíveis de um item. Os relatórios só se abrem quando a seção está ativa, como nos
- * mockups: abertos sempre, empurrariam Metas, Cadastros e Ajustes para baixo em toda tela.
+ * mockups: abertos sempre, empurrariam Metas, os cadastros e Ajustes para baixo em toda tela.
  * Regra de negócio (Perfis): "Por sócio" só existe em perfil empresarial (brief §12).
  *
  * @param item Item do menu.

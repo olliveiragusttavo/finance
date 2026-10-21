@@ -92,7 +92,7 @@ function useStartOnboarding(): UseMutationResult<OnboardingResponse, CoreCallErr
 /**
  * "Começar do zero": perfil (nome, tipo, moeda) e primeira conta (nome, tipo, saldo inicial).
  * A moeda da conta não é perguntada: a conta nasce na moeda do perfil, o caso comum, e quem
- * precisar de outra muda em Cadastros.
+ * precisar de outra muda na tela Contas.
  *
  * @return O cartão com o formulário.
  */

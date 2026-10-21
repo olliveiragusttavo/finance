@@ -2,13 +2,14 @@ import { Link, useLocation } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 import { useActiveProfile } from './activeProfile.tsx';
-import { isItemActive, MENU, visibleChildren } from './navigation.ts';
+import { isItemActive, menuFor, visibleChildren } from './navigation.ts';
 import { ProfileSwitcher } from './ProfileSwitcher.tsx';
 
 /**
  * Barra lateral do shell (mockups `Main` e `DesktopRelCategoria`): marca, seletor de perfil,
  * menu e rodapé. O rodapé diz só "Dados só neste aparelho" porque a sincronização está fora do
  * MVP (desktop-mvp-plan §1): o indicador verde do mockup prometeria uma cópia que não existe.
+ * Os itens dependem do perfil ativo: Sócios só existe no empresarial.
  *
  * @return A navegação principal.
  */
@@ -20,7 +21,7 @@ export function Sidebar(): ReactNode {
             <div className="px-2 text-17 font-semibold">Finanças</div>
             <ProfileSwitcher />
             <ul className="flex flex-col gap-0.5 text-14">
-                {MENU.map((item) => {
+                {menuFor(profile.type).map((item) => {
                     const active = isItemActive(item, pathname);
                     return (
                         <li key={item.to} className="flex flex-col gap-0.5">

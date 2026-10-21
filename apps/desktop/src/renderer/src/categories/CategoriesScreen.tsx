@@ -1,20 +1,19 @@
-import { useCoreMutation, type CoreCallError } from '@finance/client';
+import { useCategoryTree, useCoreMutation } from '@finance/client';
 import type { CategoryBranchResponse, SubCategoryUsageResponse } from '@finance/core';
-import type { UseQueryResult } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { Combobox } from '@/components/Combobox';
+import { FormDialog, RowAction, SectionHeader } from '@/components/entityUi';
 import { Field, fieldAria } from '@/components/form';
 import { EmptyState, QueryState } from '@/components/states';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { reportRejection } from '@/lib/coreErrorField';
+import { readNameForm } from '@/lib/nameForm';
 import { useActiveProfile } from '@/shell/activeProfile';
 import { moveTargets, transactionsToMove, type CategoryDeletionTarget } from './categoryMoves.ts';
-import { reportRejection } from './coreErrorField.ts';
-import { readNameForm } from './nameForm.ts';
-import { FormDialog, RowAction, SectionHeader } from './registryUi.tsx';
 
-/** Diálogo aberto na seção. */
+/** Diálogo aberto na tela. */
 type CategoryDialogState =
     | { readonly mode: 'createCategory' }
     | { readonly mode: 'editCategory'; readonly category: CategoryBranchResponse }
@@ -23,15 +22,16 @@ type CategoryDialogState =
     | { readonly mode: 'delete'; readonly target: CategoryDeletionTarget };
 
 /**
- * Categorias em Cadastros (mockup `DesktopCadastros`; desktop-mvp-plan Fase 6): um cartão por
- * categoria com as subcategorias e a contagem de lançamentos, criar, renomear e excluir. A
- * ordem é a do núcleo; o "Reordenar" do mockup ficou fora do MVP, porque o núcleo não guarda
- * ordem de categorias.
+ * Categorias, item próprio do menu (mockup `DesktopCadastros`; desktop-mvp-plan Fases 6 e 13.10): um
+ * cartão por categoria com as subcategorias e a contagem de lançamentos, criar, renomear e
+ * excluir. A ordem é a do núcleo; o "Reordenar" do mockup ficou fora do MVP, porque o núcleo não
+ * guarda ordem de categorias.
  *
- * @param props.query Árvore de categorias do perfil.
- * @return A seção de categorias.
+ * @return A tela de categorias.
  */
-export function CategoriesSection({ query }: { readonly query: UseQueryResult<readonly CategoryBranchResponse[], CoreCallError> }): ReactNode {
+export function CategoriesScreen(): ReactNode {
+    const { profile } = useActiveProfile();
+    const query = useCategoryTree({ profileId: profile.id });
     const [dialog, setDialog] = useState<CategoryDialogState | null>(null);
     const close = (): void => {
         setDialog(null);
@@ -92,7 +92,7 @@ export function CategoriesSection({ query }: { readonly query: UseQueryResult<re
  * passar o mouse ou ao chegar pelo teclado, para não poluir a grade.
  *
  * @param props.category Categoria com as subcategorias.
- * @param props.onOpen Abre um diálogo da seção.
+ * @param props.onOpen Abre um diálogo da tela.
  * @return O cartão.
  */
 function CategoryCard({ category, onOpen }: { readonly category: CategoryBranchResponse; readonly onOpen: (dialog: CategoryDialogState) => void }): ReactNode {

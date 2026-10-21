@@ -1,33 +1,32 @@
-import { formatDate, formatMoney, useCoreMutation, type CoreCallError } from '@finance/client';
+import { formatDate, formatMoney, useCoreMutation, useTags } from '@finance/client';
 import type { TagUsageResponse } from '@finance/core';
-import type { UseQueryResult } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { XIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
+import { SectionHeader } from '@/components/entityUi';
 import { Field, fieldAria } from '@/components/form';
 import { EmptyState, QueryState } from '@/components/states';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/cn';
+import { reportRejection } from '@/lib/coreErrorField';
+import { readNameForm } from '@/lib/nameForm';
 import { useActiveProfile } from '@/shell/activeProfile';
-import { reportRejection } from './coreErrorField.ts';
-import { readNameForm } from './nameForm.ts';
-import { SectionHeader } from './registryUi.tsx';
 
 /** Rótulo do campo do nome, com artigo, para a frase do campo vazio. */
 const TAG_NAME_LABEL = 'o nome da tag';
 
 /**
- * Tags em Cadastros (mockup `DesktopTags`): a lista com o uso de cada tag em todo o período e,
- * ao lado, o painel da tag escolhida para renomear ou excluir. A criação fica no topo, num
- * campo só, porque a tag é só um nome.
+ * Tags, item próprio do menu (mockup `DesktopTags`; desktop-mvp-plan Fase 13.10): a lista com o uso
+ * de cada tag em todo o período e, ao lado, o painel da tag escolhida para renomear ou excluir. A
+ * criação fica no topo, num campo só, porque a tag é só um nome.
  *
- * @param props.query Tags do perfil, com o uso; a mesma consulta que conta o item na lista
- * lateral.
- * @return A seção de tags.
+ * @return A tela de tags.
  */
-export function TagsSection({ query }: { readonly query: UseQueryResult<readonly TagUsageResponse[], CoreCallError> }): ReactNode {
+export function TagsScreen(): ReactNode {
+    const { profile } = useActiveProfile();
+    const query = useTags({ profileId: profile.id });
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const selected = query.data?.find((tag) => tag.id === selectedId) ?? null;
 

@@ -1,18 +1,18 @@
-import { describeError, summarizeNote, useCoreMutation, type CoreCallError } from '@finance/client';
+import { describeError, summarizeNote, useCoreMutation, useNotes } from '@finance/client';
 import type { NoteResponse } from '@finance/core';
-import type { UseQueryResult } from '@tanstack/react-query';
-import { useBlocker } from '@tanstack/react-router';
+import { useBlocker, useSearch } from '@tanstack/react-router';
 import { useCallback, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
+import { SectionHeader } from '@/components/entityUi';
 import { QueryState } from '@/components/states';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/cn';
+import { reportRejection } from '@/lib/coreErrorField';
 import { useActiveProfile, useProfileSwitchGuard } from '@/shell/activeProfile';
-import { reportRejection } from './coreErrorField.ts';
 import { filterNotes, noteTitle, readNoteForm } from './noteForm.ts';
-import { SectionHeader } from './registryUi.tsx';
+import { parseNotesSearch } from './notesSearch.ts';
 
 /** O que o editor mostra: nada, uma anotação nova ainda não gravada, ou uma existente. */
 type EditorTarget = { readonly mode: 'none' } | { readonly mode: 'new' } | { readonly mode: 'edit'; readonly noteId: string };
@@ -26,24 +26,26 @@ interface PendingLeave {
 }
 
 /**
- * Anotações em Cadastros (mockup `DesktopAnotacoes`): à esquerda a lista com busca, à direita
- * o editor da anotação aberta. Regra de interface (mockups, decisão 9): anotação é texto livre,
- * e a primeira linha é o título na lista.
+ * Anotações, item próprio do menu (mockup `DesktopAnotacoes`; desktop-mvp-plan Fase 13.10): à
+ * esquerda a lista com busca, à direita o editor da anotação aberta. Regra de interface
+ * (mockups, decisão 9): anotação é texto livre, e a primeira linha é o título na lista.
  *
- * Sair da anotação com alterações não salvas — abrir outra, criar uma nova, trocar de cadastro
- * ou de tela, trocar de perfil — passa antes por um diálogo que pede salvar ou descartar: o
+ * Sair da anotação com alterações não salvas — abrir outra, criar uma nova, trocar de tela,
+ * trocar de perfil — passa antes por um diálogo que pede salvar ou descartar: o
  * texto de uma anotação não está em nenhum outro lugar, e descartá-lo em silêncio o perderia.
  * Por isso o rascunho e a gravação ficam aqui, e não no editor: o diálogo precisa salvar.
  *
  * A anotação pedida pela URL (`note`, que a Visão geral usa para levar a uma anotação) abre no
  * editor assim que a lista carrega, uma vez por pedido.
  *
- * @param props.query Anotações do perfil, da mais recente para a mais antiga.
- * @param props.requestedNote Anotação a abrir, vinda da URL; `null` sem pedido.
- * @return A seção de anotações.
+ * @return A tela de anotações.
  */
-export function NotesSection({ query, requestedNote = null }: { readonly query: UseQueryResult<readonly NoteResponse[], CoreCallError>; readonly requestedNote?: string | null }): ReactNode {
+export function NotesScreen(): ReactNode {
     const { profile } = useActiveProfile();
+    // Lida pelo `parseNotesSearch`, e não pelo tipo da rota, pelo mesmo motivo do
+    // `useReferenceMonth`: a tela é importada pelo próprio roteador.
+    const requestedNote = useSearch({ strict: false, select: (raw: Readonly<Record<string, unknown>>) => parseNotesSearch(raw).note ?? null });
+    const query = useNotes({ profileId: profile.id });
     const create = useCoreMutation('notes.create');
     const rewrite = useCoreMutation('notes.update');
     const [target, setTarget] = useState<EditorTarget>({ mode: 'none' });
@@ -87,7 +89,7 @@ export function NotesSection({ query, requestedNote = null }: { readonly query: 
     useBlocker({
         shouldBlockFn: async ({ current, next }) => {
             // Comparado pela URL inteira: o `search` aqui não é tipado (é a união de todas as rotas),
-            // e qualquer mudança dele nesta tela troca o cadastro aberto.
+            // e qualquer mudança dele nesta tela pede outra anotação pela URL.
             const staysInNotes = next.pathname === current.pathname && JSON.stringify(next.search) === JSON.stringify(current.search);
             return !staysInNotes && !(await confirmLeave());
         },
@@ -313,7 +315,7 @@ function NoteList({ notes, openId, onOpen }: { readonly notes: readonly NoteResp
 
 /**
  * Editor da anotação: o texto inteiro num campo só, salvar, descartar e excluir. Numa
- * anotação nova, "Descartar" fecha o editor e não há o que excluir. O rascunho é da seção,
+ * anotação nova, "Descartar" fecha o editor e não há o que excluir. O rascunho é da tela,
  * que precisa dele para salvar a partir do diálogo de alterações não salvas.
  *
  * @param props.note Anotação aberta, ou `null` para escrever uma nova.

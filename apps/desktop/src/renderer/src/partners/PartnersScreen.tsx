@@ -4,25 +4,24 @@ import {
     toSavePartnersInput,
     useCoreMutation,
     usePartnerReport,
-    type CoreCallError,
+    usePartners,
     type PartnerDraftRow,
     type PartnerRosterRow,
     type PartnerRosterView,
 } from '@finance/client';
 import { PARTNER_NAME_MAX_LENGTH, type PartnerResponse } from '@finance/core';
-import type { UseQueryResult } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { XIcon } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
+import { SectionHeader } from '@/components/entityUi';
 import { EmptyState, QueryState } from '@/components/states';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/cn';
+import { reportRejection } from '@/lib/coreErrorField';
 import { useActiveProfile } from '@/shell/activeProfile';
 import { useReferenceMonth } from '@/shell/useReferenceMonth';
-import { reportRejection } from './coreErrorField.ts';
-import { SectionHeader } from './registryUi.tsx';
 
 /**
  * Cor de cada sócio na divisão, pela posição na lista. O mockup `DesktopSocios` define `--s1` a
@@ -35,18 +34,18 @@ const PARTNER_COLORS: readonly string[] = ['bg-accent', 'bg-out', 'bg-muted', 'b
 const TABLE_COLUMNS = 'grid grid-cols-[12px_minmax(0,1.6fr)_150px_minmax(0,1fr)_minmax(0,1fr)_32px] items-start gap-3 px-4';
 
 /**
- * Sócios em Cadastros (mockup `DesktopSocios`; desktop-mvp-plan Fase 13.7).
- * Regra de negócio (Perfis): sócio só existe em perfil empresarial (database-design §4.2). A lista
- * lateral já esconde o tipo no perfil pessoal, mas a URL continua alcançável — pelo histórico, ou
- * trocando o perfil com a seção aberta —, e então a seção explica em vez de chamar uma rota que o
- * núcleo recusa.
+ * Sócios, item próprio do menu (mockup `DesktopSocios`; desktop-mvp-plan Fases 13.7 e 13.10).
+ * Regra de negócio (Perfis): sócio só existe em perfil empresarial (database-design §4.2). O menu
+ * já esconde o item no perfil pessoal, mas a URL continua alcançável — pelo histórico, ou trocando
+ * o perfil com a tela aberta —, e então a tela explica em vez de chamar uma rota que o núcleo
+ * recusa.
  *
- * @param props.query Sócios do perfil, a mesma consulta que conta o item na lista lateral; parada
- * no perfil pessoal.
- * @return A seção de sócios.
+ * @return A tela de sócios.
  */
-export function PartnersSection({ query }: { readonly query: UseQueryResult<readonly PartnerResponse[], CoreCallError> }): ReactNode {
+export function PartnersScreen(): ReactNode {
     const { profile } = useActiveProfile();
+    // Parada no perfil pessoal, que o núcleo recusa: sócio só existe em perfil empresarial.
+    const query = usePartners(profile.type === 'business' ? { profileId: profile.id } : null);
     if (profile.type !== 'business') {
         return (
             <>
