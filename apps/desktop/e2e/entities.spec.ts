@@ -182,7 +182,7 @@ test('excluir conta: o alerta conta a cadeia e nomeia a outra conta, e só exclu
     }
 });
 
-test('categorias: nome repetido apontado no campo, nova subcategoria e excluir subcategoria em uso movendo os lançamentos', async () => {
+test('categorias: nome repetido apontado no campo, categoria criada aberta e excluída, busca pela subcategoria, nova subcategoria e excluir subcategoria em uso movendo os lançamentos', async () => {
     const { app, window: page, userData } = await launchApp();
     try {
         await completeFirstUse(page, { profileName: 'Gustavo', accountName: 'Nubank' });
@@ -218,18 +218,30 @@ test('categorias: nome repetido apontado no campo, nova subcategoria e excluir s
         // Regra de interface (mockups, decisão 2): o mês de referência não aparece em configuração.
         await expect(page.getByTestId('reference-month')).toHaveCount(0);
 
-        await page.getByRole('button', { name: '+ Nova categoria' }).dispatchEvent('click');
+        await page.getByRole('button', { name: 'Nova categoria' }).dispatchEvent('click');
         await page.getByLabel('Nome da categoria').fill('moradia');
         await page.getByRole('button', { name: 'Criar categoria' }).dispatchEvent('click');
         await expect(page.getByLabel('Nome da categoria')).toHaveAccessibleDescription('Já existe uma categoria com o nome "moradia". Escolha outro nome.');
-        await page.getByRole('button', { name: 'Cancelar' }).dispatchEvent('click');
+        await page.getByLabel('Nome da categoria').fill('Lazer');
+        await page.getByRole('button', { name: 'Criar categoria' }).dispatchEvent('click');
+        // A categoria criada abre no detalhe, pronta para receber as subcategorias.
+        await expect(page.getByRole('heading', { name: 'Lazer', level: 2 })).toBeVisible();
+        await page.getByRole('button', { name: 'Excluir categoria' }).dispatchEvent('click');
+        await page.getByRole('button', { name: 'Excluir', exact: true }).dispatchEvent('click');
+        const list = page.getByRole('list', { name: 'Categorias' });
+        await expect(list).not.toContainText('Lazer');
 
-        await page.getByRole('button', { name: 'Nova subcategoria em Moradia' }).dispatchEvent('click');
-        await page.getByLabel('Nome da subcategoria').fill('Internet');
-        await page.getByRole('button', { name: 'Criar subcategoria' }).dispatchEvent('click');
-        const housing = page.getByRole('list', { name: 'Subcategorias de Moradia' });
+        // A busca acha a categoria pelo nome da subcategoria.
+        await page.getByLabel('Buscar categoria ou subcategoria').fill('alugu');
+        await expect(list.getByRole('link')).toHaveCount(1);
+        await list.getByRole('link', { name: /Moradia/ }).dispatchEvent('click');
+        await expect(page.getByRole('heading', { name: 'Moradia', level: 2 })).toBeVisible();
+
+        await page.getByLabel('Nova subcategoria em Moradia').fill('Internet');
+        await page.getByRole('button', { name: 'Adicionar' }).dispatchEvent('click');
+        const housing = page.getByRole('table', { name: 'Subcategorias de Moradia' });
         await expect(housing).toContainText('Internet');
-        await expect(housing.getByRole('listitem').filter({ hasText: 'Aluguel' })).toContainText('1 lanç.');
+        await expect(housing.getByRole('row', { name: /Aluguel/ })).toContainText('1');
 
         await page.getByRole('button', { name: 'Excluir Aluguel' }).dispatchEvent('click');
         await page.getByRole('button', { name: 'Mover e excluir' }).dispatchEvent('click');
@@ -238,7 +250,7 @@ test('categorias: nome repetido apontado no campo, nova subcategoria e excluir s
         await page.getByRole('button', { name: 'Mover e excluir' }).dispatchEvent('click');
 
         await expect(housing).not.toContainText('Aluguel');
-        await expect(housing.getByRole('listitem').filter({ hasText: 'Internet' })).toContainText('1 lanç.');
+        await expect(housing.getByRole('row', { name: /Internet/ })).toContainText('1');
         const moved = await page.evaluate(
             async ({ id, profileId }) => {
                 const { core } = window.finance;

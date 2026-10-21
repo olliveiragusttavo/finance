@@ -7,6 +7,7 @@ import { parseAccountsSearch, type AccountsSearch } from './accounts/accountsSea
 import { CardsScreen } from './cards/CardsScreen.tsx';
 import { parseCardsSearch, type CardsSearch } from './cards/cardsSearch.ts';
 import { CategoriesScreen } from './categories/CategoriesScreen.tsx';
+import { parseCategoriesSearch, type CategoriesSearch } from './categories/categoriesSearch.ts';
 import { GoalsScreen } from './goals/GoalsScreen.tsx';
 import { OverviewScreen } from './overview/OverviewScreen.tsx';
 import { parseGoalsSearch, type GoalsSearch } from './goals/goalsSearch.ts';
@@ -115,7 +116,12 @@ const routeTree = rootRoute.addChildren([
             validateSearch: (search: Record<string, unknown>): GoalsSearch => parseGoalsSearch(search),
         }),
         // Cadastros, cada um com item próprio no menu (desktop-mvp-plan Fase 13.10).
-        createRoute({ getParentRoute: () => shellRoute, path: '/categories' satisfies AppPath, component: CategoriesScreen }),
+        createRoute({
+            getParentRoute: () => shellRoute,
+            path: '/categories' satisfies AppPath,
+            component: CategoriesScreen,
+            validateSearch: (search: Record<string, unknown>): CategoriesSearch => parseCategoriesSearch(search),
+        }),
         createRoute({ getParentRoute: () => shellRoute, path: '/partners' satisfies AppPath, component: PartnersScreen }),
         createRoute({ getParentRoute: () => shellRoute, path: '/tags' satisfies AppPath, component: TagsScreen }),
         createRoute({

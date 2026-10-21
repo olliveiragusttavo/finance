@@ -1,5 +1,6 @@
 import type { CategoryBranchResponse, CoreError } from '@finance/core';
 import { describe, expect, it } from 'vitest';
+import { categoryTransactionCount, filterCategories, formatCategoryCount, openCategory, parseCategoriesSearch } from '../src/renderer/src/categories/categoriesSearch.ts';
 import { moveTargets, transactionsToMove } from '../src/renderer/src/categories/categoryMoves.ts';
 import { placeCoreError } from '../src/renderer/src/lib/coreErrorField.ts';
 import { readNameForm } from '../src/renderer/src/lib/nameForm.ts';
@@ -83,6 +84,51 @@ describe('mover lançamentos ao excluir categoria', () => {
         const target = { kind: 'category', category: food } as const;
         expect(transactionsToMove(target)).toBe(5);
         expect(moveTargets(tree, target).map((group) => group.categoryName)).toEqual(['Moradia']);
+    });
+});
+
+describe('lista e detalhe de categorias (desktop-mvp-plan Fase 13.11)', () => {
+    const home = 'b7c4a1e2-1111-4c3d-9e8f-000000000001';
+    const other = 'b7c4a1e2-1111-4c3d-9e8f-000000000002';
+    const tree: readonly CategoryBranchResponse[] = [
+        {
+            id: home,
+            profileId: 'p',
+            name: 'Moradia',
+            subCategories: [
+                { id: 'rent', categoryId: home, name: 'Aluguel', transactionCount: 4 },
+                { id: 'power', categoryId: home, name: 'Energia', transactionCount: 2 },
+            ],
+        },
+        { id: other, profileId: 'p', name: 'Outros', subCategories: [{ id: 'uber', categoryId: other, name: 'Uber', transactionCount: 1 }] },
+    ];
+
+    it('a URL só aceita um id de categoria; o resto é descartado', () => {
+        expect(parseCategoriesSearch({ category: home })).toEqual({ category: home });
+        expect(parseCategoriesSearch({ category: 'moradia' })).toEqual({});
+        expect(parseCategoriesSearch({})).toEqual({});
+    });
+
+    it('a busca acha a categoria pelo nome dela ou pelo de uma subcategoria, sem diferenciar maiúsculas nem acentos', () => {
+        expect(filterCategories(tree, '').map((branch) => branch.name)).toEqual(['Moradia', 'Outros']);
+        expect(filterCategories(tree, 'UBER').map((branch) => branch.name)).toEqual(['Outros']);
+        expect(filterCategories(tree, 'moradía').map((branch) => branch.name)).toEqual(['Moradia']);
+        expect(filterCategories(tree, 'xyz')).toEqual([]);
+    });
+
+    it('abre a categoria da URL mesmo fora da busca; sem ela, ou excluída, a primeira da lista', () => {
+        const visible = filterCategories(tree, 'uber');
+        expect(openCategory(tree, visible, { category: home })?.name).toBe('Moradia');
+        expect(openCategory(tree, visible, {})?.name).toBe('Outros');
+        expect(openCategory(tree, tree, { category: 'b7c4a1e2-1111-4c3d-9e8f-00000000dead' })?.name).toBe('Moradia');
+        expect(openCategory(tree, [], {})).toBeNull();
+    });
+
+    it('conta as categorias mostradas e os lançamentos pela soma das subcategorias', () => {
+        expect(formatCategoryCount(tree)).toBe('2 categorias · 3 subcategorias');
+        expect(formatCategoryCount(filterCategories(tree, 'uber'))).toBe('1 categoria · 1 subcategoria');
+        expect(formatCategoryCount([])).toBe('0 categorias · 0 subcategorias');
+        expect(tree.map(categoryTransactionCount)).toEqual([6, 1]);
     });
 });
 

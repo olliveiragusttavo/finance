@@ -17,7 +17,7 @@ import { cn } from '@/lib/cn';
  *
  * @param props.title Nome do cadastro ("Categorias").
  * @param props.description Frase sobre o cadastro, que diz a regra que mais importa nele.
- * @param props.actions Botões do cabeçalho ("+ Nova categoria").
+ * @param props.actions Botões do cabeçalho ("+ Novo perfil").
  * @return O cabeçalho.
  */
 export function SectionHeader({ title, description, actions }: { readonly title: string; readonly description: string; readonly actions?: ReactNode }): ReactNode {
@@ -74,8 +74,6 @@ export function RowAction({ label, accessibleName, onClick, danger = false }: { 
  * @param props.pending Se o núcleo ainda está gravando; trava o botão contra envio duplo.
  * @param props.error Recusa do núcleo que não pertence a um campo.
  * @param props.onSubmit Envio do formulário.
- * @param props.secondaryAction Ação à esquerda do rodapé, separada das de salvar (ex.: "Excluir
- * categoria" no diálogo de editar, que é o único caminho para ela no mockup).
  * @param props.children Os campos.
  * @return O diálogo.
  */
@@ -88,7 +86,6 @@ export function FormDialog({
     pending,
     error,
     onSubmit,
-    secondaryAction,
     children,
 }: {
     readonly open: boolean;
@@ -99,7 +96,6 @@ export function FormDialog({
     readonly pending: boolean;
     readonly error: string | null;
     readonly onSubmit: (event: SubmitEvent<HTMLFormElement>) => void;
-    readonly secondaryAction?: ReactNode;
     readonly children: ReactNode;
 }): ReactNode {
     return (
@@ -124,7 +120,6 @@ export function FormDialog({
                         </p>
                     )}
                     <DialogFooter>
-                        {secondaryAction !== undefined && <div className="sm:mr-auto">{secondaryAction}</div>}
                         <Button type="button" variant="outline" onClick={onClose}>
                             Cancelar
                         </Button>

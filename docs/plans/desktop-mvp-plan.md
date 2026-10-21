@@ -962,6 +962,32 @@ Sócios, Tags, Anotações, Perfis, Dispositivos e Ajustes.
   ponta a ponta (`e2e/entities.spec.ts`, antes `e2e/registry.spec.ts`; `e2e/partners.spec.ts`,
   `e2e/shell.spec.ts`)
 
+### Fase 13.11 — Categorias em lista e detalhe
+
+Entrou depois da Fase 13.10, a pedido: a grade de cartões de Categorias virou lista lateral e
+detalhe, como Contas e Cartões, a partir de um mockup novo trazido pelo usuário (lista de
+categorias com busca → tabela de subcategorias da categoria aberta).
+
+- [x] Lista lateral (`ListPane`): "+ Nova", busca por categoria **ou** subcategoria (sem
+  diferenciar maiúsculas nem acentos, `matchesAllTerms`), resumo "N categorias · M
+  subcategorias" da lista mostrada e, em cada item, quantas subcategorias e lançamentos tem.
+  A categoria aberta é o *search param* `category` de `/categories` (`categoriesSearch.ts`);
+  sem ele, ou com uma que não existe mais, abre a primeira da lista. A categoria da URL continua
+  aberta mesmo quando a busca a esconde da lista
+- [x] Detalhe: "Renomear" e "Excluir categoria" no cabeçalho (a exclusão saiu do diálogo de
+  editar), subcategorias e lançamentos de todo o período, "Ver no relatório por categoria →"
+  com a categoria aberta, e a tabela das subcategorias com renomear e excluir por linha e a
+  criação na última linha, sem diálogo. A categoria criada abre no detalhe; a excluída sai da URL
+- [x] **Divergências do mockup (perguntadas):** sem "Mover para" — o núcleo não move
+  subcategoria entre categorias —, sem "Total em out/2026" — a tela continua sem depender do
+  mês de referência (decisão de interface 2), e o relatório por categoria mostra os valores —
+  e sem arrastar para reordenar — o núcleo não guarda ordem de categorias, como na Fase 6
+- [x] `FormDialog` perdeu o `secondaryAction`, que só existia para "Excluir categoria" no
+  diálogo de editar
+- [x] Testes: `test/entities.test.ts` (URL, busca pela subcategoria, categoria aberta, contagens)
+  e ponta a ponta (`e2e/entities.spec.ts`: categoria criada aberta e excluída, busca, nova
+  subcategoria na tabela e excluir subcategoria em uso movendo os lançamentos)
+
 ### Fase 14 — Empacotamento e validação
 
 - [x] electron-builder (`apps/desktop/electron-builder.yml`): `.deb` para Ubuntu (`pnpm dist:linux`) e instalador NSIS para Windows (`pnpm dist:win`; no Linux, exige o Wine), nome "Finanças" e versão (1.0.0) a partir do `package.json`; `better-sqlite3` fora do `asar` (`asarUnpack`), porque o `.node` não carrega de dentro do arquivo, e só com o binário pronto do sistema do instalador. O AppImage saiu do escopo, a pedido: o alvo é o Ubuntu
