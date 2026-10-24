@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isItemActive, MENU, showsReferenceMonth, trailFor, visibleChildren, type MenuItem } from '../src/renderer/src/shell/navigation.ts';
+import { isItemActive, MENU, showsReferenceMonth, trailFor, visibleReports, type MenuItem } from '../src/renderer/src/shell/navigation.ts';
 import { pickActiveProfile } from '../src/renderer/src/shell/pickActiveProfile.ts';
 import { currentPeriod, parseShellSearch, resolveReferenceMonth, shiftPeriod } from '../src/renderer/src/shell/referenceMonth.ts';
 import { shortcutFor, type KeyPress } from '../src/renderer/src/shell/shortcuts.ts';
@@ -30,11 +30,9 @@ describe('menu do shell (desktop-mvp-plan Fase 4)', () => {
         expect(isItemActive(menuItem('Relatórios'), '/reports/tag')).toBe(true);
     });
 
-    it('os relatórios só se abrem com a seção ativa, e "Por sócio" só no perfil empresarial', () => {
-        const reports = menuItem('Relatórios');
-        expect(visibleChildren(reports, '/accounts', 'business')).toEqual([]);
-        expect(visibleChildren(reports, '/reports/category', 'personal').map((child) => child.label)).toEqual(['Por categoria', 'Fluxo por conta', 'Impacto do cartão', 'Por tag']);
-        expect(visibleChildren(reports, '/reports/category', 'business').map((child) => child.label)).toEqual(['Por categoria', 'Fluxo por conta', 'Impacto do cartão', 'Por sócio', 'Por tag']);
+    it('a lista de relatórios segue a ordem dos mockups, e "Por sócio" só no perfil empresarial', () => {
+        expect(visibleReports('personal').map((report) => report.label)).toEqual(['Por categoria', 'Fluxo por conta', 'Impacto do cartão', 'Por tag']);
+        expect(visibleReports('business').map((report) => report.label)).toEqual(['Por categoria', 'Fluxo por conta', 'Impacto do cartão', 'Por sócio', 'Por tag']);
     });
 
     it('esconde o mês de referência só em Cadastros, Dispositivos e Ajustes, e na importação dentro de Ajustes', () => {

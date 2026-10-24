@@ -53,7 +53,7 @@ test('por tag: sem tag, total líquido, período, categorias e link para Transa�
     const { app, window: page, userData } = await launchApp();
     try {
         await completeFirstUse(page, { profileName: 'Pessoal', accountName: 'Nubank', openingBalance: '1.000,00' });
-        // Os subitens de Relatórios só aparecem com a seção aberta.
+        // Os relatórios ficam na lista da página de Relatórios.
         await page.getByRole('link', { name: 'Relatórios', exact: true }).dispatchEvent('click');
         await page.getByRole('link', { name: 'Por tag', exact: true }).dispatchEvent('click');
         await expect(page.getByRole('heading', { name: 'Por tag', level: 1 })).toBeVisible();

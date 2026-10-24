@@ -75,14 +75,15 @@ test('o menu leva a todas as telas e o mês de referência acompanha a navegaç�
         await expect(month).toHaveCount(0);
         await expect(page.getByRole('button', { name: '+ Lançamento' })).toBeVisible();
 
-        // Relatórios abrem os subitens; "Por sócio" só no perfil empresarial.
+        // Relatórios abrem a página com a lista dos relatórios; "Por sócio" só no perfil empresarial.
         await openMenuItem(page, 'Relatórios');
-        const menu = page.getByRole('navigation', { name: 'Navegação principal' });
+        const reports = page.getByRole('region', { name: 'Lista de relatórios' });
         await expect(page.getByRole('heading', { level: 1 })).toHaveText('Por categoria');
-        await expect(menu.getByRole('link', { name: 'Por categoria' })).toHaveAttribute('aria-current', 'page');
-        await expect(menu.getByRole('link', { name: 'Fluxo por conta' })).toBeVisible();
-        await expect(menu.getByRole('link', { name: 'Por sócio' })).toHaveCount(0);
-        await openMenuItem(page, 'Por tag');
+        await expect(reports.getByRole('link', { name: 'Por categoria' })).toHaveAttribute('aria-current', 'page');
+        await expect(reports.getByRole('link', { name: 'Fluxo por conta' })).toBeVisible();
+        await expect(reports.getByRole('link', { name: 'Por sócio' })).toHaveCount(0);
+        await expect(page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('link', { name: 'Por categoria' })).toHaveCount(0);
+        await reports.getByRole('link', { name: 'Por tag', exact: true }).dispatchEvent('click');
         await expect(page.getByRole('heading', { level: 1 })).toHaveText('Por tag');
         await expect(month).toHaveText(formatMonthLong(today));
     } finally {
@@ -100,7 +101,7 @@ test('trocar de perfil mostra "Por sócio" no empresarial e é lembrado ao reabr
         await page.getByTestId('profile-switcher').press('Enter');
         await page.getByRole('menuitemradio', { name: /Estúdio GO/ }).dispatchEvent('click');
         await expect(page.getByTestId('profile-switcher')).toContainText('Empresarial · BRL');
-        await expect(page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('link', { name: 'Por sócio' })).toBeVisible();
+        await expect(page.getByRole('region', { name: 'Lista de relatórios' }).getByRole('link', { name: 'Por sócio' })).toBeVisible();
 
         await page.getByRole('button', { name: 'Seguir o sistema' }).press('Enter');
         await page.getByRole('menuitemradio', { name: 'Tema escuro' }).dispatchEvent('click');

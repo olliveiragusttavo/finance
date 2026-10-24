@@ -23,15 +23,15 @@ export type AppPath =
     | '/settings'
     | '/settings/import';
 
-/** Subitem de "Relatórios". */
-export interface ReportMenuItem {
+/** Item da lista de relatórios, à esquerda da página de Relatórios. */
+export interface ReportItem {
     readonly label: string;
     readonly to: AppPath;
     /** Só aparece em perfil empresarial (decisão de interface 5 dos mockups). */
     readonly businessOnly: boolean;
 }
 
-/** Item de primeiro nível da barra lateral. */
+/** Item da barra lateral. */
 export interface MenuItem {
     readonly label: string;
     readonly to: AppPath;
@@ -40,17 +40,18 @@ export interface MenuItem {
      * é o primeiro relatório mas que fica marcado em qualquer um deles.
      */
     readonly section: string;
-    readonly children: readonly ReportMenuItem[];
 }
 
 /** Prefixo dos caminhos de relatório. */
 const REPORTS_SECTION = '/reports';
 
 /**
- * Relatórios na ordem dos mockups (`DesktopRelSocio` mostra a lista completa). Todos têm tela;
- * Por sócio só aparece no perfil empresarial.
+ * Relatórios na ordem dos mockups (`DesktopRelSocio` mostra a lista completa). Ficam na lista à
+ * esquerda da página de Relatórios, como as contas em Contas, e não como subitens do menu: a
+ * pedido do usuário, porque a lista vai crescer com os relatórios personalizados e, no menu,
+ * empurraria Metas, Cadastros e Ajustes para baixo. Por sócio só aparece no perfil empresarial.
  */
-const REPORT_ITEMS: readonly ReportMenuItem[] = [
+const REPORTS: readonly ReportItem[] = [
     { label: 'Por categoria', to: '/reports/category', businessOnly: false },
     { label: 'Fluxo por conta', to: '/reports/account-flow', businessOnly: false },
     { label: 'Impacto do cartão', to: '/reports/card-impact', businessOnly: false },
@@ -60,15 +61,15 @@ const REPORT_ITEMS: readonly ReportMenuItem[] = [
 
 /** Menu completo do mockup (brief D1), na ordem da barra lateral. */
 export const MENU: readonly MenuItem[] = [
-    { label: 'Visão geral', to: '/', section: '/', children: [] },
-    { label: 'Transações', to: '/transactions', section: '/transactions', children: [] },
-    { label: 'Contas', to: '/accounts', section: '/accounts', children: [] },
-    { label: 'Cartões', to: '/cards', section: '/cards', children: [] },
-    { label: 'Relatórios', to: '/reports/category', section: REPORTS_SECTION, children: REPORT_ITEMS },
-    { label: 'Metas', to: '/goals', section: '/goals', children: [] },
-    { label: 'Cadastros', to: '/registry', section: '/registry', children: [] },
-    { label: 'Dispositivos', to: '/devices', section: '/devices', children: [] },
-    { label: 'Ajustes', to: '/settings', section: '/settings', children: [] },
+    { label: 'Visão geral', to: '/', section: '/' },
+    { label: 'Transações', to: '/transactions', section: '/transactions' },
+    { label: 'Contas', to: '/accounts', section: '/accounts' },
+    { label: 'Cartões', to: '/cards', section: '/cards' },
+    { label: 'Relatórios', to: '/reports/category', section: REPORTS_SECTION },
+    { label: 'Metas', to: '/goals', section: '/goals' },
+    { label: 'Cadastros', to: '/registry', section: '/registry' },
+    { label: 'Dispositivos', to: '/devices', section: '/devices' },
+    { label: 'Ajustes', to: '/settings', section: '/settings' },
 ];
 
 /**
@@ -124,18 +125,12 @@ export function isItemActive(item: Pick<MenuItem, 'section'>, pathname: string):
 }
 
 /**
- * Subitens visíveis de um item. Os relatórios só se abrem quando a seção está ativa, como nos
- * mockups: abertos sempre, empurrariam Metas, Cadastros e Ajustes para baixo em toda tela.
+ * Relatórios da lista lateral para o perfil ativo.
  * Regra de negócio (Perfis): "Por sócio" só existe em perfil empresarial (brief §12).
  *
- * @param item Item do menu.
- * @param pathname Caminho atual, que decide se a seção está aberta.
  * @param profileType Tipo do perfil ativo, que decide se "Por sócio" aparece.
- * @return Os subitens a desenhar; vazio quando a seção está fechada ou não tem subitens.
+ * @return Os relatórios a listar, na ordem dos mockups.
  */
-export function visibleChildren(item: MenuItem, pathname: string, profileType: ProfileResponse['type']): readonly ReportMenuItem[] {
-    if (!isItemActive(item, pathname)) {
-        return [];
-    }
-    return item.children.filter((child) => !child.businessOnly || profileType === 'business');
+export function visibleReports(profileType: ProfileResponse['type']): readonly ReportItem[] {
+    return REPORTS.filter((report) => !report.businessOnly || profileType === 'business');
 }

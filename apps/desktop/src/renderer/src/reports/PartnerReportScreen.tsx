@@ -18,6 +18,7 @@ import type { PartnerLineResponse } from '@finance/core';
 import { Link } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
+import { DetailPane } from '@/components/PaneLayout';
 import { EmptyState, QueryState, Skeleton } from '@/components/states';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -46,7 +47,7 @@ export function PartnerReportScreen(): ReactNode {
     const { profile } = useActiveProfile();
     const business = profile.type === 'business';
     return (
-        <>
+        <DetailPane label="Relatório aberto">
             <div className="flex items-end justify-between gap-4">
                 <div className="flex flex-col gap-1">
                     <span className="text-12 text-muted">Relatórios · só no perfil empresarial</span>
@@ -69,7 +70,7 @@ export function PartnerReportScreen(): ReactNode {
                     action={<Link to="/reports/category">Ver o relatório por categoria</Link>}
                 />
             )}
-        </>
+        </DetailPane>
     );
 }
 
