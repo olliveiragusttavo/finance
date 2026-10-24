@@ -360,7 +360,7 @@ Ordem pensada para que cada fase entregue algo testável. As fases 1–2 (núcle
 ### Fase 4 — Shell e navegação
 
 - [x] Layout: barra lateral (marca, seletor de perfil, menu, rodapé "Dados só neste aparelho"), barra superior fixa — só a área de conteúdo rola
-- [x] Menu completo do mockup, com subitens de Relatórios (Por categoria, Fluxo por conta, Impacto do cartão, Por sócio só no perfil empresarial, Por tag) — os subitens se abrem com a seção ativa, como nos mockups; o mapa do menu (`shell/navigation.ts`) é o mesmo tipo (`AppPath`) dos caminhos do roteador
+- [x] Menu completo do mockup, com subitens de Relatórios (Por categoria, Fluxo por conta, Impacto do cartão, Por sócio só no perfil empresarial, Por tag) — os subitens se abriam com a seção ativa, como nos mockups, e depois deram lugar à lista na página de Relatórios ([Fase 13.10](#fase-1310--lista-de-relatórios-na-página)); o mapa do menu (`shell/navigation.ts`) é o mesmo tipo (`AppPath`) dos caminhos do roteador
 - [x] Rotas de Metas, Dispositivos, Fluxo por conta, Por sócio e Por tag levando a uma **tela em branco** dentro do shell ([§5](#5-decisões-de-produto)), para que a navegação já esteja pronta quando as telas chegarem — as telas do MVP ainda não feitas também têm rota com tela em branco, substituída na fase de cada uma; "Por sócio" aberto num perfil pessoal explica que só existe no empresarial
 - [x] Mês de referência global (‹ mês ›, "Voltar ao mês atual") como *search param* tipado (`period`), preservado ao navegar (`retainSearchParams`); sem ele na URL, abre o último mês do aparelho (`lastPeriod`) ou o corrente. **Decisão:** escondido em Cadastros, Dispositivos e Ajustes — os mockups dessas telas desenham a barra, mas a regra do README dos mockups ("não aparece em fluxos de configuração") prevaleceu; Metas mantém a barra
 - [x] Tema claro/escuro/seguir o sistema, persistido nas preferências do aparelho. **Decisão:** o botão do mockup (que só alterna claro/escuro) virou um menu com as três opções, com o tema escolhido no rótulo
@@ -923,6 +923,18 @@ pelo app e de versão igual ou anterior à dele; a anterior migra na reabertura,
 - [x] Main: pede confirmação na tela, abre o diálogo de abrir (o caminho nunca vem do renderer), pede o preparo, fecha o banco e troca os arquivos por `replaceDatabase`, a mesma troca da restauração de backup, com a marca `restore-pending.json` contra o app cair no meio. Depois de fechar o banco, qualquer resultado reabre o núcleo num processo novo (`CoreProcess.restart`), que migra e verifica a integridade como em toda abertura, e recarrega as janelas; o resultado fica guardado para a tela ler uma vez (`database.takeImportNotice`), porque a resposta da chamada some com o renderer que recarregou
 - [x] Tela: alerta de confirmação antes do diálogo; o resultado fica escrito na linha — o sucesso com o caminho do banco anterior, cada falha dizendo se algo mudou e o que fazer; cancelar não avisa nada
 - [x] Testes: núcleo (`test/infrastructure/databaseCopy.test.ts`), desktop (`test/settings.test.ts`: preparo, recusas e textos; `test/main.test.ts`: a troca e o desfazer) e ponta a ponta (`e2e/settings.spec.ts`, com o diálogo de abrir trocado no processo principal)
+
+### Fase 13.10 — Lista de relatórios na página
+
+Entrou depois da Fase 13.9, a pedido, antes dos relatórios personalizados: "Relatórios" deixa de
+abrir subitens no menu lateral e passa a ser um item como Contas e Cartões. A página tem a lista
+dos relatórios à esquerda e o relatório aberto à direita; no menu, a lista que vai crescer com os
+personalizados empurraria Metas, Cadastros e Ajustes para baixo. Diverge da decisão de interface 5
+dos mockups, que foi atualizada.
+
+- [x] `shell/navigation.ts`: o menu perdeu os subitens; `visibleReports` dá a lista do perfil ativo — "Por sócio" só no perfil empresarial
+- [x] Rota de layout sem caminho (`_reports`, `reports/ReportsLayout.tsx`) com a lista à esquerda; cada relatório mantém o caminho (`/reports/...`) e desenha o lado direito: Por categoria, Impacto do cartão e Por sócio num `DetailPane`; Fluxo por conta e Por tag, que já tinham lista própria, em painéis aninhados (`NestedPanes`), com a lista deles mais estreita (`w-60`, e a de relatórios em `w-48`) para que a tabela dos cinco meses do Fluxo por conta caiba sem rolagem a 1440px
+- [x] Testes: unitário do menu e da lista (`test/shell.test.ts`) e ponta a ponta (`e2e/shell.spec.ts`)
 
 ### Fase 14 — Empacotamento e validação
 

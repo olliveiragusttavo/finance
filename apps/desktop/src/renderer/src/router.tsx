@@ -16,6 +16,7 @@ import { CardImpactScreen } from './reports/CardImpactScreen.tsx';
 import { CategoryReportScreen } from './reports/CategoryReportScreen.tsx';
 import { parseCategoryReportSearch, type CategoryReportSearch } from './reports/categoryReportSearch.ts';
 import { PartnerReportScreen } from './reports/PartnerReportScreen.tsx';
+import { ReportsLayout } from './reports/ReportsLayout.tsx';
 import { TagReportScreen } from './reports/TagReportScreen.tsx';
 import { parseTagReportSearch, type TagReportSearch } from './reports/tagReportSearch.ts';
 import { parseRegistrySearch, type RegistrySearch } from './registry/registryKinds.ts';
@@ -59,6 +60,13 @@ const shellRoute = createRoute({
     search: { middlewares: [retainSearchParams<ShellSearch>(['period'])] },
 });
 
+/**
+ * Rota de layout dos relatórios, sem caminho próprio: desenha a lista de relatórios à esquerda
+ * (`ReportsLayout`) e o relatório aberto à direita, para que trocar de relatório mantenha a lista
+ * montada. Sem caminho para que cada relatório continue com o caminho de `AppPath`.
+ */
+const reportsRoute = createRoute({ getParentRoute: () => shellRoute, id: '_reports', component: ReportsLayout });
+
 /*
  * Telas do shell. Cada caminho é conferido contra `AppPath`, o tipo do menu, e cada item do
  * menu é um `Link` tipado pelas rotas registradas: caminho de menu sem rota não compila.
@@ -85,25 +93,28 @@ const routeTree = rootRoute.addChildren([
             component: CardsScreen,
             validateSearch: (search: Record<string, unknown>): CardsSearch => parseCardsSearch(search),
         }),
-        createRoute({
-            getParentRoute: () => shellRoute,
-            path: '/reports/category' satisfies AppPath,
-            component: CategoryReportScreen,
-            validateSearch: (search: Record<string, unknown>): CategoryReportSearch => parseCategoryReportSearch(search),
-        }),
-        createRoute({ getParentRoute: () => shellRoute, path: '/reports/card-impact' satisfies AppPath, component: CardImpactScreen }),
-        createRoute({
-            getParentRoute: () => shellRoute,
-            path: '/reports/account-flow' satisfies AppPath,
-            component: AccountFlowScreen,
-            validateSearch: (search: Record<string, unknown>): AccountFlowSearch => parseAccountFlowSearch(search),
-        }),
-        createRoute({
-            getParentRoute: () => shellRoute,
-            path: '/reports/tag' satisfies AppPath,
-            component: TagReportScreen,
-            validateSearch: (search: Record<string, unknown>): TagReportSearch => parseTagReportSearch(search),
-        }),
+        reportsRoute.addChildren([
+            createRoute({
+                getParentRoute: () => reportsRoute,
+                path: '/reports/category' satisfies AppPath,
+                component: CategoryReportScreen,
+                validateSearch: (search: Record<string, unknown>): CategoryReportSearch => parseCategoryReportSearch(search),
+            }),
+            createRoute({
+                getParentRoute: () => reportsRoute,
+                path: '/reports/account-flow' satisfies AppPath,
+                component: AccountFlowScreen,
+                validateSearch: (search: Record<string, unknown>): AccountFlowSearch => parseAccountFlowSearch(search),
+            }),
+            createRoute({ getParentRoute: () => reportsRoute, path: '/reports/card-impact' satisfies AppPath, component: CardImpactScreen }),
+            createRoute({ getParentRoute: () => reportsRoute, path: '/reports/partner' satisfies AppPath, component: PartnerReportScreen }),
+            createRoute({
+                getParentRoute: () => reportsRoute,
+                path: '/reports/tag' satisfies AppPath,
+                component: TagReportScreen,
+                validateSearch: (search: Record<string, unknown>): TagReportSearch => parseTagReportSearch(search),
+            }),
+        ]),
         createRoute({
             getParentRoute: () => shellRoute,
             path: '/registry' satisfies AppPath,
@@ -119,7 +130,6 @@ const routeTree = rootRoute.addChildren([
             validateSearch: (search: Record<string, unknown>): GoalsSearch => parseGoalsSearch(search),
         }),
         // Fora do MVP: tela em branco, com a rota e o mês já prontos (desktop-mvp-plan §5).
-        createRoute({ getParentRoute: () => shellRoute, path: '/reports/partner' satisfies AppPath, component: PartnerReportScreen }),
         createRoute({ getParentRoute: () => shellRoute, path: '/devices' satisfies AppPath, component: blankScreen('Dispositivos') }),
     ]),
 ]);

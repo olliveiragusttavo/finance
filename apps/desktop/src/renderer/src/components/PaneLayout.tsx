@@ -80,3 +80,16 @@ export function DetailPane({ label, children }: { readonly label?: string; reado
         </section>
     );
 }
+
+/**
+ * Painéis aninhados no lugar do detalhe de outro `PaneLayout`: os relatórios com lista própria
+ * (Fluxo por conta, Por tag) ficam à direita da lista de relatórios. Não reaproveita o
+ * `PaneLayout`, cujas margens negativas desfazem o espaçamento do `main` e, aqui dentro, puxariam
+ * os painéis por cima da lista de relatórios.
+ *
+ * @param props.children A lista do relatório e o detalhe.
+ * @return A área que os painéis aninhados dividem.
+ */
+export function NestedPanes({ children }: { readonly children: ReactNode }): ReactNode {
+    return <div className="flex min-h-0 min-w-0 flex-1">{children}</div>;
+}

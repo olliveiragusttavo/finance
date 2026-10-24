@@ -62,7 +62,7 @@ test('fluxo por conta: linhas do mês, previsto, conta fora do total e soma das 
     const next = shiftPeriod(period, 1);
     try {
         await completeFirstUse(page, { profileName: 'Pessoal', accountName: 'Nubank', openingBalance: '1.000,00' });
-        // Os subitens de Relatórios só aparecem com a seção aberta.
+        // Os relatórios ficam na lista da página de Relatórios.
         await page.getByRole('link', { name: 'Relatórios', exact: true }).dispatchEvent('click');
         await page.getByRole('link', { name: 'Fluxo por conta', exact: true }).dispatchEvent('click');
         await seedFlow(page);
