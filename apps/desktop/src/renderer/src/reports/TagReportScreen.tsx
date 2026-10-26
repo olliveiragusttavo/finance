@@ -158,7 +158,7 @@ function TagList({ items, openId }: { readonly items: readonly TagListItem[]; re
 }
 
 /**
- * O lado direito: a tag aberta, ou o estado vazio — perfil sem tag leva a Cadastros; com tag mas
+ * O lado direito: a tag aberta, ou o estado vazio — perfil sem tag leva à tela Tags; com tag mas
  * sem lançamento no período, o mês de referência sugere olhar o período todo.
  *
  * @param props.report Relatório do núcleo.
@@ -177,7 +177,7 @@ function TagReportBody({ report, tagId, range, hasTags }: { readonly report: Tag
                 action={<Link to="/transactions">Ir para Transações</Link>}
             />
         ) : (
-            <EmptyState title="Nenhuma tag" description="Crie tags em Cadastros e marque os lançamentos para ver quanto cada uma soma." action={<Link to="/registry" search={{ kind: 'tags' }}>Ir para Tags</Link>} />
+            <EmptyState title="Nenhuma tag" description="Crie tags em Tags e marque os lançamentos para ver quanto cada uma soma." action={<Link to="/tags">Ir para Tags</Link>} />
         );
     }
     return <TagDetail key={`${tag.tagId}:${range}`} tag={tag} range={range} />;

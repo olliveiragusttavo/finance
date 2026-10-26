@@ -86,7 +86,7 @@ async function pickOption(page: Page, item: Locator): Promise<void> {
 }
 
 /**
- * Escolhe uma opção numa lista do Radix pelo teclado, como em `registry.spec.ts`.
+ * Escolhe uma opção numa lista do Radix pelo teclado, como em `entities.spec.ts`.
  *
  * @param page Janela do app.
  * @param label Rótulo do campo.

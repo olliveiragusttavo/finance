@@ -1,26 +1,39 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { currentPeriod, shiftPeriod } from '../src/renderer/src/shell/referenceMonth.ts';
+import { currentPeriod } from '../src/renderer/src/shell/referenceMonth.ts';
 import { completeFirstUse } from './firstUse.ts';
 import { launchApp, removeUserData } from './launchApp.ts';
 
 /*
- * Cadastros (desktop-mvp-plan Fase 6) no app empacotado: contas, cartões, categorias e perfis,
- * com os diálogos, o alerta de exclusão em cadeia e as recusas do núcleo nos campos. Os
- * cliques usam `dispatchEvent` e as listas de escolha do Radix são operadas pelo teclado,
- * pelo motivo explicado em `firstUse.ts`.
+ * Cadastros (desktop-mvp-plan Fases 6 e 13.11) no app empacotado: o cadastro de contas e cartões nas
+ * telas Contas e Cartões, e as telas de categorias, perfis, tags e anotações, com os diálogos, o
+ * alerta de exclusão em cadeia e as recusas do núcleo nos campos. Os cliques usam
+ * `dispatchEvent` e as listas de escolha do Radix são operadas pelo teclado, pelo motivo
+ * explicado em `firstUse.ts`.
  */
 
 /**
- * Abre Cadastros pelo menu e escolhe o tipo na lista lateral.
+ * Abre uma tela pelo item dela no menu.
  *
  * @param page Janela do app, com o shell aberto.
- * @param kind Rótulo do tipo na lista lateral ("Contas").
+ * @param label Rótulo do item no menu, que também é o título da tela ("Categorias").
  */
-async function openRegistry(page: Page, kind: string): Promise<void> {
-    await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('link', { name: 'Cadastros', exact: true }).dispatchEvent('click');
-    await expect(page.getByRole('heading', { name: 'Cadastros', level: 1 })).toBeVisible();
-    await page.getByRole('region', { name: 'Tipos de cadastro' }).getByRole('link', { name: new RegExp(`^${kind}`) }).dispatchEvent('click');
-    await expect(page.getByRole('heading', { name: kind, level: 2 })).toBeVisible();
+async function openScreen(page: Page, label: string): Promise<void> {
+    await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('link', { name: label, exact: true }).dispatchEvent('click');
+    await expect(page.getByRole('heading', { name: label, level: 1 })).toBeVisible();
+}
+
+/**
+ * Abre uma opção do menu "⋯" do detalhe (extrato ou fatura) pelo teclado, como em
+ * `accounts.spec.ts`.
+ *
+ * @param page Janela do app, com o detalhe aberto.
+ * @param name Nome da opção ("Excluir conta…").
+ */
+async function chooseMoreAction(page: Page, name: string): Promise<void> {
+    await page.getByRole('button', { name: 'Mais ações' }).press('Enter');
+    const item = page.getByRole('menuitem', { name });
+    await item.focus();
+    await item.press('Enter');
 }
 
 /**
@@ -73,18 +86,11 @@ async function activeProfileId(page: Page): Promise<string> {
     });
 }
 
-test('contas e cartões: criar com erro no campo, desativar e conta desativada fora das pagadoras, aviso do fechamento no dia 31', async () => {
+test('contas e cartões nas próprias telas: criar com erro no campo, desativar e conta desativada fora das pagadoras, aviso do fechamento no dia 31', async () => {
     const { app, window: page, userData } = await launchApp();
     try {
         await completeFirstUse(page, { profileName: 'Gustavo', accountName: 'Nubank' });
-        await page.getByRole('button', { name: 'Próximo mês' }).dispatchEvent('click');
-        const nextMonth = shiftPeriod(currentPeriod(new Date()), 1);
-        await expect(page).toHaveURL(new RegExp(`period=${nextMonth}`));
-        await openRegistry(page, 'Contas');
-        // Regra de interface (mockups, decisão 2): o mês de referência não aparece em configuração.
-        await expect(page.getByTestId('reference-month')).toHaveCount(0);
-        const kinds = page.getByRole('region', { name: 'Tipos de cadastro' });
-        await expect(kinds.getByRole('link', { name: /^Contas/ })).toHaveAttribute('aria-current', 'page');
+        await openScreen(page, 'Contas');
 
         await page.getByRole('button', { name: '+ Nova conta' }).dispatchEvent('click');
         await page.getByRole('button', { name: 'Criar conta' }).dispatchEvent('click');
@@ -94,15 +100,13 @@ test('contas e cartões: criar com erro no campo, desativar e conta desativada f
         await page.getByRole('button', { name: 'Criar conta' }).dispatchEvent('click');
 
         const accounts = page.getByRole('list', { name: 'Contas' });
-        await expect(accounts.getByRole('listitem').filter({ hasText: 'Tesouro' })).toContainText('Saldo inicial R$ 2.000,00');
-        await expect(kinds.getByRole('link', { name: /^Contas/ })).toContainText('2');
+        await expect(page.getByRole('heading', { name: /^Tesouro — extrato de/, level: 2 })).toBeVisible();
+        await expect(accounts.getByRole('link', { name: /^Tesouro/ })).toContainText('R$ 2.000,00');
 
-        await page.getByRole('button', { name: 'Desativar Tesouro' }).dispatchEvent('click');
-        await expect(accounts.getByRole('listitem').filter({ hasText: 'Tesouro' })).toContainText('Desativada');
+        await chooseMoreAction(page, 'Desativar conta');
+        await expect(accounts.getByRole('link', { name: /^Tesouro/ })).toContainText('Desativada');
 
-        await kinds.getByRole('link', { name: /^Cartões/ }).dispatchEvent('click');
-        // O mês escondido nesta tela continua na URL, para as outras telas o reencontrarem.
-        await expect(page).toHaveURL(new RegExp(`kind=cards.*period=${nextMonth}|period=${nextMonth}.*kind=cards`));
+        await openScreen(page, 'Cartões');
         await page.getByRole('button', { name: '+ Novo cartão' }).dispatchEvent('click');
         await page.getByLabel('Conta pagadora').press('Enter');
         await expect(page.getByRole('option', { name: 'Nubank' })).toBeVisible();
@@ -115,7 +119,8 @@ test('contas e cartões: criar com erro no campo, desativar e conta desativada f
         await expect(page.getByLabel('Dia do fechamento')).toHaveAccessibleDescription('Nos meses sem o dia 31, a fatura fecha no último dia do mês.');
         await page.getByLabel('Dia do vencimento').fill('8');
         await page.getByRole('button', { name: 'Criar cartão' }).dispatchEvent('click');
-        await expect(page.getByRole('list', { name: 'Cartões' })).toContainText('Paga por Nubank · Limite R$ 5.000,00 · Fecha dia 31 · Vence dia 8');
+        await expect(page.getByRole('heading', { name: /^Roxinho — fatura de/, level: 2 })).toBeVisible();
+        await expect(page.getByText('Cartão de crédito · paga com Nubank')).toBeVisible();
     } finally {
         await app.close();
         removeUserData(userData);
@@ -146,8 +151,9 @@ test('excluir conta: o alerta conta a cadeia e nomeia a outra conta, e só exclu
             await core.call('transactions.create', { ...base, type: 'expense', source: { kind: 'creditCard', creditCardId: card.data.id }, name: 'Mercado', value: 120 });
         }, { profileId, period: currentPeriod(new Date()) });
 
-        await openRegistry(page, 'Contas');
-        await page.getByRole('button', { name: 'Excluir Nubank' }).dispatchEvent('click');
+        await openScreen(page, 'Contas');
+        await expect(page.getByRole('heading', { name: /^Nubank — extrato de/, level: 2 })).toBeVisible();
+        await chooseMoreAction(page, 'Excluir conta…');
         const alert = page.getByRole('alertdialog', { name: 'Excluir a conta Nubank?' });
         await expect(alert.getByRole('list', { name: 'Também serão apagados' })).toContainText('1 cartão pago por ela');
         await expect(alert.getByRole('list', { name: 'Também serão apagados' })).toContainText('1 lançamento nas faturas');
@@ -161,8 +167,7 @@ test('excluir conta: o alerta conta a cadeia e nomeia a outra conta, e só exclu
         await confirm.dispatchEvent('click');
 
         await expect(alert).toHaveCount(0);
-        await expect(page.getByRole('list', { name: 'Contas' }).getByRole('listitem')).toHaveCount(1);
-        await expect(page.getByRole('list', { name: 'Contas' })).toContainText('Tesouro');
+        await expect(page.getByRole('list', { name: 'Contas' }).getByRole('link')).toHaveText([/^Tesouro/]);
         const cards = await page.evaluate(
             async ({ profileId, period }) => {
                 const result = await window.finance.core.call('creditCards.list', { profileId, period });
@@ -177,7 +182,7 @@ test('excluir conta: o alerta conta a cadeia e nomeia a outra conta, e só exclu
     }
 });
 
-test('categorias: nome repetido apontado no campo, nova subcategoria e excluir subcategoria em uso movendo os lançamentos', async () => {
+test('categorias: nome repetido apontado no campo, categoria criada aberta e excluída, busca pela subcategoria, nova subcategoria e excluir subcategoria em uso movendo os lançamentos', async () => {
     const { app, window: page, userData } = await launchApp();
     try {
         await completeFirstUse(page, { profileName: 'Gustavo', accountName: 'Nubank' });
@@ -209,21 +214,34 @@ test('categorias: nome repetido apontado no campo, nova subcategoria e excluir s
             { profileId, period: currentPeriod(new Date()) },
         );
 
-        await openRegistry(page, 'Categorias');
-        await expect(page.getByRole('region', { name: 'Tipos de cadastro' }).getByRole('link', { name: /^Categorias/ })).toContainText(/\d+ · \d+ sub/);
+        await openScreen(page, 'Categorias');
+        // Regra de interface (mockups, decisão 2): o mês de referência não aparece em configuração.
+        await expect(page.getByTestId('reference-month')).toHaveCount(0);
 
-        await page.getByRole('button', { name: '+ Nova categoria' }).dispatchEvent('click');
+        await page.getByRole('button', { name: 'Nova categoria' }).dispatchEvent('click');
         await page.getByLabel('Nome da categoria').fill('moradia');
         await page.getByRole('button', { name: 'Criar categoria' }).dispatchEvent('click');
         await expect(page.getByLabel('Nome da categoria')).toHaveAccessibleDescription('Já existe uma categoria com o nome "moradia". Escolha outro nome.');
-        await page.getByRole('button', { name: 'Cancelar' }).dispatchEvent('click');
+        await page.getByLabel('Nome da categoria').fill('Lazer');
+        await page.getByRole('button', { name: 'Criar categoria' }).dispatchEvent('click');
+        // A categoria criada abre no detalhe, pronta para receber as subcategorias.
+        await expect(page.getByRole('heading', { name: 'Lazer', level: 2 })).toBeVisible();
+        await page.getByRole('button', { name: 'Excluir categoria' }).dispatchEvent('click');
+        await page.getByRole('button', { name: 'Excluir', exact: true }).dispatchEvent('click');
+        const list = page.getByRole('list', { name: 'Categorias' });
+        await expect(list).not.toContainText('Lazer');
 
-        await page.getByRole('button', { name: 'Nova subcategoria em Moradia' }).dispatchEvent('click');
-        await page.getByLabel('Nome da subcategoria').fill('Internet');
-        await page.getByRole('button', { name: 'Criar subcategoria' }).dispatchEvent('click');
-        const housing = page.getByRole('list', { name: 'Subcategorias de Moradia' });
+        // A busca acha a categoria pelo nome da subcategoria.
+        await page.getByLabel('Buscar categoria ou subcategoria').fill('alugu');
+        await expect(list.getByRole('link')).toHaveCount(1);
+        await list.getByRole('link', { name: /Moradia/ }).dispatchEvent('click');
+        await expect(page.getByRole('heading', { name: 'Moradia', level: 2 })).toBeVisible();
+
+        await page.getByLabel('Nova subcategoria em Moradia').fill('Internet');
+        await page.getByRole('button', { name: 'Adicionar' }).dispatchEvent('click');
+        const housing = page.getByRole('table', { name: 'Subcategorias de Moradia' });
         await expect(housing).toContainText('Internet');
-        await expect(housing.getByRole('listitem').filter({ hasText: 'Aluguel' })).toContainText('1 lanç.');
+        await expect(housing.getByRole('row', { name: /Aluguel/ })).toContainText('1');
 
         await page.getByRole('button', { name: 'Excluir Aluguel' }).dispatchEvent('click');
         await page.getByRole('button', { name: 'Mover e excluir' }).dispatchEvent('click');
@@ -232,7 +250,7 @@ test('categorias: nome repetido apontado no campo, nova subcategoria e excluir s
         await page.getByRole('button', { name: 'Mover e excluir' }).dispatchEvent('click');
 
         await expect(housing).not.toContainText('Aluguel');
-        await expect(housing.getByRole('listitem').filter({ hasText: 'Internet' })).toContainText('1 lanç.');
+        await expect(housing.getByRole('row', { name: /Internet/ })).toContainText('1');
         const moved = await page.evaluate(
             async ({ id, profileId }) => {
                 const { core } = window.finance;
@@ -254,15 +272,19 @@ test('perfis: "Gerenciar perfis" abre o cadastro de perfis, criar empresarial co
     const { app, window: page, userData } = await launchApp();
     try {
         await completeFirstUse(page, { profileName: 'Gustavo', accountName: 'Nubank' });
-        // "Gerenciar perfis" no seletor abre Cadastros já em Perfis, e não no tipo padrão.
+        // "Gerenciar perfis" no seletor abre a tela Perfis.
         await page.getByTestId('profile-switcher').press('Enter');
         await page.getByRole('menuitem', { name: 'Gerenciar perfis' }).dispatchEvent('click');
-        await expect(page.getByRole('heading', { name: 'Perfis', level: 2 })).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Perfis', level: 1 })).toBeVisible();
+        const menu = page.getByRole('navigation', { name: 'Navegação principal' });
+        await expect(menu.getByRole('link', { name: 'Perfis', exact: true })).toHaveAttribute('aria-current', 'page');
+        // Regra de negócio (Perfis): Sócios só aparece no menu do perfil empresarial.
+        await expect(menu.getByRole('link', { name: 'Sócios', exact: true })).toHaveCount(0);
 
         await page.getByRole('button', { name: '+ Novo perfil' }).dispatchEvent('click');
         await page.getByLabel('Nome do perfil').fill('Estúdio GO');
         await page.getByRole('radio', { name: 'Empresarial' }).dispatchEvent('click');
-        await expect(page.getByRole('dialog')).toContainText('cadastrados em Cadastros › Sócios');
+        await expect(page.getByRole('dialog')).toContainText('cadastrados em Sócios');
         await page.getByRole('button', { name: 'Criar perfil' }).dispatchEvent('click');
         await expect(page.getByRole('list', { name: 'Perfis' })).toContainText('Estúdio GO');
         await expect(page.getByRole('list', { name: 'Perfis' })).toContainText('Empresarial · BRL');
@@ -282,7 +304,7 @@ test('tags: criar com nome repetido apontado no campo, uso do lançamento na lis
     try {
         await completeFirstUse(page, { profileName: 'Gustavo', accountName: 'Nubank' });
         const profileId = await activeProfileId(page);
-        await openRegistry(page, 'Tags');
+        await openScreen(page, 'Tags');
 
         await page.getByLabel('Nova tag').fill('viagem');
         await page.getByRole('button', { name: 'Adicionar' }).dispatchEvent('click');
@@ -328,7 +350,7 @@ test('tags: criar com nome repetido apontado no campo, uso do lançamento na lis
         );
         // A escrita pela ponte não passa pelo mapa de invalidação das telas; recarregar relê.
         await page.reload();
-        await expect(page.getByRole('heading', { name: 'Tags', level: 2 })).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Tags', level: 1 })).toBeVisible();
         const row = list.getByRole('row').filter({ hasText: 'viagem' });
         await expect(row).toContainText('1');
         await expect(row).toContainText('R$ 1.400,00');
@@ -359,7 +381,7 @@ test('tags: o atalho do painel abre o relatório na tag aberta, e não na de mai
     try {
         await completeFirstUse(page, { profileName: 'Gustavo', accountName: 'Nubank' });
         const profileId = await activeProfileId(page);
-        await openRegistry(page, 'Tags');
+        await openScreen(page, 'Tags');
 
         // Duas tags com lançamento, a "presente" com o menor total: sem a tag no link, o
         // relatório abriria a "viagem", que vem primeiro pelo total líquido (T3).
@@ -385,7 +407,7 @@ test('tags: o atalho do painel abre o relatório na tag aberta, e não na de mai
         );
         // A escrita pela ponte não passa pelo mapa de invalidação das telas; recarregar relê.
         await page.reload();
-        await expect(page.getByRole('heading', { name: 'Tags', level: 2 })).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Tags', level: 1 })).toBeVisible();
 
         await page.getByRole('button', { name: 'Editar a tag presente' }).dispatchEvent('click');
         const panel = page.getByRole('complementary', { name: 'Editar tag' });
@@ -403,7 +425,7 @@ test('anotações: criar, buscar, salvar sincroniza o editor, sair com alteraç�
     const { app, window: page, userData } = await launchApp();
     try {
         await completeFirstUse(page, { profileName: 'Gustavo', accountName: 'Nubank' });
-        await openRegistry(page, 'Anotações');
+        await openScreen(page, 'Anotações');
         const list = page.getByRole('region', { name: 'Lista de anotações' });
 
         await page.getByRole('button', { name: '+ Nova anotação' }).dispatchEvent('click');
@@ -419,7 +441,7 @@ test('anotações: criar, buscar, salvar sincroniza o editor, sair com alteraç�
         await editor.fill('Reembolsos pendentes\nConferir a tag reembolsável.');
         await page.getByRole('button', { name: 'Salvar' }).dispatchEvent('click');
         await expect(list.getByRole('button', { name: /^Reembolsos pendentes/ })).toHaveAttribute('aria-current', 'true');
-        await expect(page.getByRole('region', { name: 'Tipos de cadastro' }).getByRole('link', { name: /^Anotações/ })).toContainText('2');
+        await expect(list.getByRole('listitem')).toHaveCount(2);
 
         await list.getByLabel('Buscar').fill('FEVEREIRO');
         await expect(list.getByRole('listitem')).toHaveCount(1);
@@ -440,13 +462,13 @@ test('anotações: criar, buscar, salvar sincroniza o editor, sair com alteraç�
         await expect(unsaved).toHaveCount(0);
         await expect(editor).toHaveValue('Reembolsos pendentes\nCobrar a empresa.');
 
-        // Trocar de cadastro também pergunta; descartar deixa sair e volta ao texto gravado.
-        await page.getByRole('region', { name: 'Tipos de cadastro' }).getByRole('link', { name: /^Tags/ }).dispatchEvent('click');
+        // Trocar de tela também pergunta; descartar deixa sair e volta ao texto gravado.
+        await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('link', { name: 'Tags', exact: true }).dispatchEvent('click');
         await expect(unsaved).toBeVisible();
-        await expect(page).toHaveURL(/kind=notes/);
+        await expect(page).toHaveURL(/#\/notes/);
         await unsaved.getByRole('button', { name: 'Descartar' }).dispatchEvent('click');
-        await expect(page.getByRole('heading', { name: 'Tags', level: 2 })).toBeVisible();
-        await openRegistry(page, 'Anotações');
+        await expect(page.getByRole('heading', { name: 'Tags', level: 1 })).toBeVisible();
+        await openScreen(page, 'Anotações');
         await list.getByRole('button', { name: /^Reembolsos pendentes/ }).dispatchEvent('click');
         await expect(editor).toHaveValue('Reembolsos pendentes\nConferir a tag reembolsável.');
 

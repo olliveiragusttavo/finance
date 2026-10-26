@@ -4,7 +4,7 @@ import { useState, type ReactNode } from 'react';
 import { Skeleton } from '@/components/states';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { StatusTag } from '@/registry/registryUi';
+import { StatusTag } from '@/components/entityUi';
 
 /** A escrita que o diálogo revisa, com a entrada da rota de plano correspondente. */
 export type SeriesReviewRequest =

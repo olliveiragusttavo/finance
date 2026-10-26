@@ -8,8 +8,8 @@ import { Field, fieldAria, toFieldErrors } from '@/components/form';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { reportRejection } from '@/registry/coreErrorField';
-import { FormDialog } from '@/registry/registryUi';
+import { reportRejection } from '@/lib/coreErrorField';
+import { FormDialog } from '@/components/entityUi';
 import { cn } from '@/lib/cn';
 import { useActiveProfile } from '@/shell/activeProfile';
 import { useReferenceMonth } from '@/shell/useReferenceMonth';
@@ -134,7 +134,7 @@ export function GoalDialog({ goal, onClose, onCreated }: { readonly goal: GoalPr
                     id="goal-account"
                     label="Conta de investimento"
                     error={errors.accountId}
-                    hint={investments.length === 0 ? 'Nenhuma conta de investimento; crie uma em Cadastros › Contas.' : undefined}
+                    hint={investments.length === 0 ? 'Nenhuma conta de investimento; crie uma em Contas.' : undefined}
                 >
                     <Controller
                         control={form.control}

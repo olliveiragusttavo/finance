@@ -16,9 +16,9 @@ export interface ErrorDescription {
  * regra nova no núcleo quebra a compilação aqui, e não cai na mensagem genérica.
  */
 const RULE_MESSAGES: Readonly<Record<BusinessRule, string>> = {
-    'account-disabled': 'Esta conta está desativada e não aceita lançamentos novos. Reative-a em Cadastros para usá-la.',
+    'account-disabled': 'Esta conta está desativada e não aceita lançamentos novos. Reative-a na tela Contas para usá-la.',
     'account-type-funds-goal': 'Esta conta é o saldo de uma meta. Troque o tipo da meta antes de mudar o tipo da conta.',
-    'credit-card-disabled': 'Este cartão está desativado e não aceita lançamentos novos. Reative-o em Cadastros para usá-lo.',
+    'credit-card-disabled': 'Este cartão está desativado e não aceita lançamentos novos. Reative-o na tela Cartões para usá-lo.',
     'cross-profile-transfer-currency-mismatch': 'Só dá para transferir para um perfil com a mesma moeda deste.',
     'cross-profile-transfer-requires-account': 'A transferência para outro perfil precisa sair de uma conta, não de um cartão.',
     'destination-equals-origin': 'A conta de destino precisa ser diferente da conta de origem.',

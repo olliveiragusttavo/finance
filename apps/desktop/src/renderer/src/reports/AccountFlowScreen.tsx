@@ -6,7 +6,7 @@ import { DetailPane, ListPane, NestedPanes } from '@/components/PaneLayout';
 import { EmptyState, QueryState, Skeleton } from '@/components/states';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/cn';
-import { StatusTag } from '@/registry/registryUi';
+import { StatusTag } from '@/components/entityUi';
 import { useActiveProfile } from '@/shell/activeProfile';
 import { useReferenceMonth } from '@/shell/useReferenceMonth';
 import { ALL_ACCOUNTS, chooseAccountFlow, parseAccountFlowSearch, type AccountFlowChoice } from './accountFlowSearch.ts';

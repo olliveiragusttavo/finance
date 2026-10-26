@@ -139,7 +139,7 @@ test('o campo "Perfil" move o lançamento para o outro perfil, com a conta e a c
     }
 });
 
-test('visão geral: o resumo das metas e os títulos das anotações, que abrem a anotação em Cadastros', async () => {
+test('visão geral: o resumo das metas e os títulos das anotações, que abrem a anotação na tela Anotações', async () => {
     const { app, window: page, userData } = await launchApp();
     try {
         await completeFirstUse(page, { profileName: 'Pessoal', accountName: 'Nubank' });
@@ -165,7 +165,7 @@ test('visão geral: o resumo das metas e os títulos das anotações, que abrem 
         await expect(notes.getByRole('link', { name: 'IPTU 2027', exact: true })).toBeVisible();
 
         await notes.getByRole('link', { name: 'Senha do wi-fi' }).dispatchEvent('click');
-        await expect(page).toHaveURL(/\/registry\?.*kind=notes/);
+        await expect(page).toHaveURL(/#\/notes\?.*note=/);
         await expect(page.getByLabel('Anotação', { exact: true })).toHaveValue('Senha do wi-fi\nna caixa do roteador');
     } finally {
         await app.close();

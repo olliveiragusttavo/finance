@@ -19,7 +19,7 @@ const APP_INFO_KEY = ['device', 'appInfo'] as const;
 /**
  * Ajustes (desktop-mvp-plan Fase 13; mockup `DesktopAjustes`): tema, cópia dos dados, atalhos e
  * versões. **Decisões:** sem a seção "Perfil atual" do mockup — o perfil se edita só em
- * Cadastros › Perfis, num lugar só —, e sem o "Lembrete de exportação". O mês de referência
+ * Perfis, num lugar só —, e sem o "Lembrete de exportação". O mês de referência
  * fica escondido, como em toda tela de configuração (Fase 4).
  *
  * @return A tela de Ajustes.

@@ -3,7 +3,7 @@ import type { FieldError, FieldErrors, FieldValues, Path } from 'react-hook-form
 import { cn } from '@/lib/cn';
 
 /*
- * Peças comuns dos formulários (primeiro uso e Cadastros). Ficam num lugar só para que todo
+ * Peças comuns dos formulários (primeiro uso e cadastros). Ficam num lugar só para que todo
  * formulário mostre o erro do mesmo jeito: texto abaixo do campo, ligado a ele por
  * `aria-describedby`, além da borda — a cor nunca é o único sinal (decisão de interface 7).
  */
