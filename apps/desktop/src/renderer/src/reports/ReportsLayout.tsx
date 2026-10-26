@@ -19,7 +19,7 @@ export function ReportsLayout(): ReactNode {
     const { profile } = useActiveProfile();
     return (
         <PaneLayout>
-            <ListPane label="Lista de relatórios" width="w-48" header={<div className="px-5 pt-5 pb-3 text-20 font-semibold">Relatórios</div>}>
+            <ListPane label="Lista de relatórios" width="w-95" header={<div className="px-5 pt-5 pb-3 text-20 font-semibold">Relatórios</div>}>
                 <ul aria-label="Relatórios">
                     {visibleReports(profile.type).map((report) => {
                         const current = pathname === report.to;

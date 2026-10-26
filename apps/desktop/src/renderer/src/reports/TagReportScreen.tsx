@@ -74,7 +74,7 @@ export function TagReportScreen(): ReactNode {
         <NestedPanes>
             <ListPane
                 label="Lista de tags"
-                width="w-60"
+                width="w-95"
                 header={
                     <div className="flex flex-col gap-2.5 px-5 pt-5 pb-3">
                         <div className="flex flex-col gap-1">

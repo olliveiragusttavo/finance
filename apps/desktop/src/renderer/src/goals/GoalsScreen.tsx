@@ -153,7 +153,7 @@ function GoalList({
     return (
         <ListPane
             label="Lista de metas"
-            width="w-90"
+            width="w-95"
             header={
                 <>
                     <div className="flex items-center justify-between px-5 pt-5 pb-3">
@@ -402,7 +402,7 @@ function AccountSource({ accountId, name }: { readonly accountId: string; readon
  */
 function GoalListSkeleton(): ReactNode {
     return (
-        <section aria-label="Lista de metas" className="flex w-90 shrink-0 flex-col gap-3 border-r border-line bg-surface p-5">
+        <section aria-label="Lista de metas" className="flex w-95 shrink-0 flex-col gap-3 border-r border-line bg-surface p-5">
             <h1 className="text-20 font-semibold">Metas</h1>
             <Skeleton className="h-16" />
             <Skeleton className="h-16" />

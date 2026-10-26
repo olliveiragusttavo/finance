@@ -66,7 +66,7 @@ function AccountChoiceList({ list, choice }: { readonly list: AccountListRespons
     return (
         <ListPane
             label="Escolher conta"
-            width="w-60"
+            width="w-95"
             header={
                 <div className="flex flex-col gap-1 px-5 pt-5 pb-3">
                     <span className="text-12 text-muted">Relatórios</span>

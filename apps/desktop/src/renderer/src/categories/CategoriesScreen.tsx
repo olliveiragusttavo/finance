@@ -148,7 +148,7 @@ function CategoryList({
     return (
         <ListPane
             label="Lista de categorias"
-            width="w-72"
+            width="w-95"
             header={
                 <div className="flex flex-col gap-3 px-5 pt-5 pb-3">
                     <div className="flex items-center justify-between">
@@ -429,7 +429,7 @@ function NewSubCategoryForm({ category }: { readonly category: CategoryBranchRes
  */
 function CategoryListSkeleton(): ReactNode {
     return (
-        <section aria-label="Lista de categorias" className="flex w-72 shrink-0 flex-col gap-3 border-r border-line bg-surface p-5">
+        <section aria-label="Lista de categorias" className="flex w-95 shrink-0 flex-col gap-3 border-r border-line bg-surface p-5">
             <h1 className="text-20 font-semibold">Categorias</h1>
             <Skeleton className="h-9" />
             <Skeleton className="h-10" />
