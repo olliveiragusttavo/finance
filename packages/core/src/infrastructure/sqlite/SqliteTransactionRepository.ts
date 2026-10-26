@@ -1,4 +1,3 @@
-import type { CategoryScope } from '../../domain/report/CategoryScope.ts';
 import { Currency } from '../../domain/shared/Currency.ts';
 import { transactionTagIdFor } from '../../domain/shared/DeterministicIds.ts';
 import { CorruptRowError } from '../../domain/shared/errors.ts';
@@ -24,7 +23,7 @@ import { parseTimestamp, type Clock, type Timestamp } from '../../ports/Clock.ts
 import type { Database, SqlParams, SqlRow } from '../../ports/Database.ts';
 import type { RowStamps, TransactionRepository } from '../../repositories/TransactionRepository.ts';
 import { decodeEnum, TRANSACTION_TYPE_CODE } from './enumCodes.ts';
-import { cashDateSql, monthBounds, PARTNER_ENTRIES_CTE, periodKey, REPORT_SOURCES_CTE } from './periodSql.ts';
+import { cashDateSql, monthBounds } from './periodSql.ts';
 import { RowReader } from './RowReader.ts';
 
 // As tags vêm numa coluna só, por nome, para que toda leitura de transação já traga o
@@ -267,76 +266,6 @@ export class SqliteTransactionRepository implements TransactionRepository {
                 ))) ${ORDER}`,
             { profileId, from: from.toString(), to: to.toString(), transference: TRANSACTION_TYPE_CODE.transference },
         );
-    }
-
-    /**
-     * @param profileId Perfil dono.
-     * @param period Mês de pagamento.
-     * @param scope Categoria inteira ou uma subcategoria.
-     * @return As despesas vivas do escopo que pesam no mês, pelo critério de
-     * `REPORT_SOURCES_CTE`.
-     */
-    public listExpensesByPaymentPeriod(profileId: ProfileId, period: YearMonth, scope: CategoryScope): readonly Transaction[] {
-        const filter = scope.kind === 'category'
-            ? { sql: 'sc.category_id = :scopeId', scopeId: scope.categoryId }
-            : { sql: 'sc.id = :scopeId', scopeId: scope.subCategoryId };
-        return this.database
-            .all(
-                `WITH ${REPORT_SOURCES_CTE}
-                ${SELECT_TRANSACTION}
-                JOIN report_transactions rt ON rt.id = t.id
-                JOIN transaction_sub_categories sc ON sc.id = t.sub_category_id
-                WHERE rt.type = :expense AND rt.payment_key = :period AND ${filter.sql} ${ORDER}`,
-                { profileId, expense: TRANSACTION_TYPE_CODE.expense, period: periodKey(period), scopeId: filter.scopeId },
-            )
-            .map((row) => this.toTransaction(row));
-    }
-
-    /**
-     * Mesmo recorte das somas da tag: vínculo e tag vivos, só receitas e despesas, mês da
-     * `REPORT_SOURCES_CTE` — sem mês, todos.
-     *
-     * @param profileId Perfil dono.
-     * @param tagId Tag consultada.
-     * @param period Mês de pagamento, ou `null` para todos.
-     * @return As receitas e despesas com a tag, por data.
-     */
-    public listIncomeAndExpensesByTag(profileId: ProfileId, tagId: TagId, period: YearMonth | null): readonly Transaction[] {
-        return this.database
-            .all(
-                `WITH ${REPORT_SOURCES_CTE}
-                ${SELECT_TRANSACTION}
-                JOIN report_transactions rt ON rt.id = t.id
-                JOIN transactions_tags tt ON tt.transaction_id = t.id AND tt.deleted_at IS NULL AND tt.tag_id = :tagId
-                JOIN tags tg ON tg.id = tt.tag_id AND tg.deleted_at IS NULL AND tg.profile_id = :profileId
-                WHERE rt.type IN (:income, :expense) AND (:period IS NULL OR rt.payment_key = :period) ${ORDER}`,
-                {
-                    profileId,
-                    tagId,
-                    income: TRANSACTION_TYPE_CODE.income,
-                    expense: TRANSACTION_TYPE_CODE.expense,
-                    period: period === null ? null : periodKey(period),
-                },
-            )
-            .map((row) => this.toTransaction(row));
-    }
-
-    /**
-     * @param profileId Perfil empresarial.
-     * @param period Mês de pagamento.
-     * @return As entradas do mês sem sócio vivo do perfil, por data.
-     */
-    public listEntriesWithoutPartner(profileId: ProfileId, period: YearMonth): readonly Transaction[] {
-        return this.database
-            .all(
-                `WITH ${REPORT_SOURCES_CTE}, ${PARTNER_ENTRIES_CTE}
-                ${SELECT_TRANSACTION}
-                JOIN partner_entries pe ON pe.id = t.id
-                LEFT JOIN partners pa ON pa.id = pe.partner_id AND pa.deleted_at IS NULL AND pa.profile_id = :profileId
-                WHERE pe.payment_key = :period AND pa.id IS NULL ${ORDER}`,
-                { profileId, income: TRANSACTION_TYPE_CODE.income, transference: TRANSACTION_TYPE_CODE.transference, period: periodKey(period) },
-            )
-            .map((row) => this.toTransaction(row));
     }
 
     /**

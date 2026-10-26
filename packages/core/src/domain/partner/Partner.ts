@@ -89,8 +89,7 @@ export class Partner implements PartnerProps {
     }
 
     /**
-     * A participação como proporção, a forma em que os relatórios a usam e a devolvem
-     * (reports-design §9: proporções vão como número, 0,6 para 60%).
+     * A participação como proporção, a forma em que as contas de divisão a usam (0,6 para 60%).
      *
      * @return A participação de 0 a 1.
      */

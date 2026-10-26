@@ -1,6 +1,6 @@
 # Plano do MVP Desktop — CRUD e primeiros relatórios
 
-**Status:** Em andamento — Fases 0 a 13.5 concluídas (ficaram pendentes só o `Ctrl K` da Fase 4, a pendência da Fase 9.2 que depende da sincronização, o XLSX da Fase 13.1 e a decisão da Fase 11.1 sobre a data dos lançamentos de conta em Transações). Primeira entrega com tela do projeto: o app desktop
+**Status:** Em andamento — Fases 0 a 13.5 concluídas, e a 15 (relatórios personalizados, que substituiu os relatórios fixos) entregue (ficaram pendentes só o `Ctrl K` da Fase 4, a pendência da Fase 9.2 que depende da sincronização, o XLSX da Fase 13.1 e a decisão da Fase 11.1 sobre a data dos lançamentos de conta em Transações). Primeira entrega com tela do projeto: o app desktop
 (Electron) com os cadastros e lançamentos básicos e os dois primeiros relatórios
 personalizados, que são a motivação original do projeto ([README](../../README.md#motivação)).
 O mobile fica inteiro para depois.
@@ -74,6 +74,10 @@ categoria/subcategoria** e **quanto as faturas do cartão pesam no saldo do mês
 ---
 
 ## 3. Regras de negócio dos relatórios
+
+> **Histórico.** Estes relatórios foram descartados na [Fase 15](#fase-15--relatórios-personalizados),
+> que os trocou pelos relatórios personalizados; as regras abaixo não valem mais e ficam como registro
+> das decisões. As regras atuais estão em [reports-design.md](reports-design.md).
 
 Os relatórios serão refinados depois do MVP; as regras abaixo valem para esta primeira
 versão e precisam estar nos testes de mesa antes do código
@@ -1009,6 +1013,35 @@ categorias com busca → tabela de subcategorias da categoria aberta).
 - [ ] Ícone do app (adiado, a pedido)
 - [x] Build empacotado abre um banco existente, migra com backup e funciona sem a árvore do repositório: `pnpm test:packaged` gera o `.deb`, extrai numa pasta temporária fora do repositório e abre um banco parado na penúltima migration, com perfil; confere o backup `pre-v{N-1}`, o `user_version` final, a versão em Ajustes e a reabertura (`e2e/packaged.spec.ts`). O `.exe` não tem teste automatizado: conferir à mão num Windows
 - [X] Rodada de uso real: lançar um mês verdadeiro e conferir os dois relatórios contra o extrato do banco e a fatura do cartão
+
+### Fase 15 — Relatórios personalizados
+
+Entrou depois da Fase 13.12, a pedido: os relatórios fixos do MVP (Por categoria, Fluxo por conta,
+Impacto do cartão, Por sócio e Por tag) foram **descartados**, e a página de Relatórios passou a
+listar relatórios que o usuário monta — o filtro dos dados (período, base de data e qualquer
+atributo da transação) e o formato (tabela agrupada ou gráfico), com nome, salvos no banco. Regras
+em [reports-design.md](reports-design.md); as da [§3](#3-regras-de-negócio-dos-relatórios) valem só
+como histórico.
+
+- [x] Remoção: rotas `reports.*` antigas, domínio, Repository, DTOs, view-models do `client`, as cinco
+  telas e os testes delas. A Visão geral perdeu os indicadores de receitas, despesas e faturas em
+  aberto, a evolução do saldo e as maiores categorias (ficam consolidado e previsto); Sócios perdeu
+  "Aportou" e "Deveria ter aportado"; Categorias e Tags perderam o atalho para o relatório
+- [x] Núcleo: migration `0007` (`report_definitions`, definição em JSON versionado), domínio
+  `ReportFilter`, `ReportLayout`, `ReportDefinition` e `buildReportResult`, `ReportService` com o nome
+  único no perfil e a posse das referências do filtro, `SqliteReportQueryRepository` (SQL montado só a
+  partir de listas fechadas, Strategy por dimensão) e as rotas `reports.list/get/create/update/delete/run/preview`
+- [x] `client`: `reportEditor` (rascunho, rótulos, leitura validada, descrição do período e dos
+  filtros) e `reportView` (tabela, gráfico com até cinco séries e os avisos), hooks e o mapa de
+  invalidação com as rotas novas
+- [x] Desktop: página `/reports` com a lista e o relatório aberto (`report` na URL), editor
+  `/reports/edit` com o resultado ao vivo e a exclusão com confirmação. **Sem mockup:** segue a lista e
+  o detalhe das outras telas; a barra do mês aparece no editor, porque o resultado depende dele
+- [x] Testes: núcleo (`test/domain/reportDefinition.test.ts`, `test/services/reports.definitions.test.ts`,
+  `test/services/reports.run.test.ts`), `client` (`test/reportEditor.test.ts`, `test/reportView.test.ts`,
+  `test/invalidation.test.ts`), desktop (`test/reports.test.ts`) e ponta a ponta (`e2e/reports.spec.ts`)
+- [ ] Mockup das telas de relatório (lista, editor e resultado) para revisar o layout provisório
+- [ ] Próximos passos do design ([reports-design §7](reports-design.md#7-próximos-passos))
 
 ---
 

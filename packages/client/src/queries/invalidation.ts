@@ -1,9 +1,16 @@
 import type { ReadRoute, WriteRoute } from './routes.ts';
 
 /**
+ * Resultados dos relatórios personalizados: somam transações e mostram os nomes de categoria,
+ * conta, cartão, tag, sócio e meta de cada grupo (reports-design §3), então mudam com o dinheiro
+ * e com os cadastros.
+ */
+const REPORT_RESULTS: readonly ReadRoute[] = ['reports.run', 'reports.preview'];
+
+/**
  * Leituras que mostram nomes de categoria e subcategoria.
  */
-const CATEGORY_NAMES: readonly ReadRoute[] = ['categories.tree', 'reports.byCategory', 'reports.categoryTransactions', 'reports.byTag'];
+const CATEGORY_NAMES: readonly ReadRoute[] = ['categories.tree', ...REPORT_RESULTS];
 
 /**
  * Leituras que carregam transações inteiras (com a subcategoria e as tags de cada uma);
@@ -15,9 +22,6 @@ const TRANSACTION_CONTENT: readonly ReadRoute[] = [
     'transactions.listByPeriod',
     'statements.get',
     'invoices.get',
-    'reports.categoryTransactions',
-    'reports.tagTransactions',
-    'reports.entriesWithoutPartner',
     'recurrences.occurrences',
     'goals.contributions',
 ];
@@ -73,16 +77,7 @@ const MONEY: readonly ReadRoute[] = [
     'invoices.get',
     'invoices.listByCard',
     'integrity.verifyBalances',
-    'reports.monthSummary',
-    'reports.balanceEvolution',
-    'reports.byCategory',
-    'reports.categoryTransactions',
-    'reports.cardImpact',
-    'reports.accountFlow',
-    'reports.byTag',
-    'reports.tagTransactions',
-    'reports.byPartner',
-    'reports.entriesWithoutPartner',
+    ...REPORT_RESULTS,
     // O uso de cada tag (contagem, total, último uso) sai dos lançamentos.
     'tags.list',
     // Quantos lançamentos cada sócio pagou, o número do aviso de remoção do cadastro.
@@ -131,13 +126,13 @@ const INVALIDATIONS: Readonly<Record<WriteRoute, readonly ReadRoute[]>> = {
     'subCategories.update': CATEGORY_NAMES,
     'subCategories.delete': [...CATEGORY_NAMES, ...TRANSACTION_CONTENT],
     'tags.create': ['tags.list'],
-    // O relatório por tag mostra o nome de cada tag.
-    'tags.update': ['tags.list', 'reports.byTag'],
-    // Excluir a tag a tira dos lançamentos, que continuam existindo, e do relatório por tag.
-    'tags.delete': ['tags.list', 'reports.byTag', ...TRANSACTION_CONTENT],
-    // Sócio não mexe em saldo: muda a lista, a divisão do relatório por sócio e, quando alguém é
+    // Os relatórios mostram o nome de cada tag.
+    'tags.update': ['tags.list', ...REPORT_RESULTS],
+    // Excluir a tag a tira dos lançamentos, que continuam existindo, e dos relatórios.
+    'tags.delete': ['tags.list', ...REPORT_RESULTS, ...TRANSACTION_CONTENT],
+    // Sócio não mexe em saldo: muda a lista, os nomes e grupos dos relatórios e, quando alguém é
     // removido, o sócio dos lançamentos e das séries que ele pagou, que ficam sem sócio.
-    'partners.save': ['partners.list', 'reports.byPartner', 'recurrences.list', ...TRANSACTION_CONTENT],
+    'partners.save': ['partners.list', 'recurrences.list', ...REPORT_RESULTS, ...TRANSACTION_CONTENT],
     // Anotação é uma lista à parte: não toca em dinheiro nem em cadastro.
     'notes.create': ['notes.list'],
     'notes.update': ['notes.list'],
@@ -147,19 +142,24 @@ const INVALIDATIONS: Readonly<Record<WriteRoute, readonly ReadRoute[]>> = {
     'goals.create': ['goals.list', 'goals.options'],
     // Trocar para a meta vinculada a conta tira a meta dos lançamentos e das séries, como excluir;
     // e ela deixa de ser opção do campo "Meta" (desktop-mvp-plan Fase 13.3).
-    'goals.update': ['goals.list', 'goals.options', 'recurrences.list', ...TRANSACTION_CONTENT],
+    'goals.update': ['goals.list', 'goals.options', 'recurrences.list', ...REPORT_RESULTS, ...TRANSACTION_CONTENT],
     // Arquivar só muda a lista de Metas e as escolhas do campo "Meta": os vínculos ficam
     // (desktop-mvp-plan Fase 13.4).
     'goals.archive': ['goals.list', 'goals.options'],
     'goals.unarchive': ['goals.list', 'goals.options'],
     // Excluir tira a meta dos lançamentos e das séries, que continuam existindo.
-    'goals.delete': ['goals.list', 'goals.options', 'recurrences.list', ...TRANSACTION_CONTENT],
+    'goals.delete': ['goals.list', 'goals.options', 'recurrences.list', ...REPORT_RESULTS, ...TRANSACTION_CONTENT],
+    // A definição salva só muda a lista e o próprio relatório; o resultado do editor (`preview`)
+    // não depende do que está gravado.
+    'reports.create': ['reports.list'],
+    'reports.update': ['reports.list', 'reports.get', 'reports.run'],
+    'reports.delete': ['reports.list', 'reports.get', 'reports.run'],
     'transactions.create': MONEY,
     'transactions.update': MONEY,
     'transactions.delete': MONEY,
     'transactions.setPaid': MONEY,
-    // O sócio que pagou não mexe em saldo: muda só a transação e a divisão do relatório por sócio.
-    'transactions.setPartner': ['transactions.get', 'transactions.listByPeriod', 'recurrences.occurrences', 'reports.byPartner', 'reports.entriesWithoutPartner', 'partners.list'],
+    // O sócio que pagou não mexe em saldo: muda só a transação e o grupo de sócio dos relatórios.
+    'transactions.setPartner': ['transactions.get', 'transactions.listByPeriod', 'recurrences.occurrences', 'partners.list', ...REPORT_RESULTS],
     // O complemento emite ocorrências: mexe em extratos, faturas e relatórios dos meses à frente.
     'recurrences.topUp': MONEY,
     // A importação cria cadastros, lançamentos, séries e pagamentos de fatura em qualquer perfil.

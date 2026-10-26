@@ -16,15 +16,9 @@ import type { InvoiceSuggestionResponse } from '../dto/invoices/InvoiceSuggestio
 import type { OnboardingResponse } from '../dto/onboarding/OnboardingResponse.ts';
 import type { ProfileBalancesResponse } from '../dto/profiles/ProfileBalancesResponse.ts';
 import type { ProfileResponse } from '../dto/profiles/ProfileResponse.ts';
-import type { AccountFlowResponse } from '../dto/reports/AccountFlowResponse.ts';
-import type { BalanceEvolutionResponse } from '../dto/reports/BalanceEvolutionResponse.ts';
-import type { CardImpactResponse } from '../dto/reports/CardImpactResponse.ts';
-import type { CategoryReportResponse } from '../dto/reports/CategoryReportResponse.ts';
-import type { CategoryTransactionsResponse } from '../dto/reports/CategoryTransactionsResponse.ts';
-import type { MonthSummaryResponse } from '../dto/reports/MonthSummaryResponse.ts';
-import type { EntriesWithoutPartnerResponse, PartnerReportResponse } from '../dto/reports/PartnerReportResponse.ts';
-import type { TagReportResponse, TagTransactionsResponse } from '../dto/reports/TagReportResponse.ts';
 import type { NoteResponse } from '../dto/notes/NoteResponse.ts';
+import type { ReportDefinitionResponse } from '../dto/reports/ReportDefinitionResponse.ts';
+import type { ReportResultResponse } from '../dto/reports/ReportResultResponse.ts';
 import type { ProfileInvoiceResponse, StatementResponse } from '../dto/statements/StatementResponse.ts';
 import type { TagResponse, TagUsageResponse } from '../dto/tags/TagResponse.ts';
 import type { PartnerResponse } from '../dto/partners/PartnerResponse.ts';
@@ -50,19 +44,15 @@ import type { verifyBalancesRequest } from '../requests/integrityRequests.ts';
 import type { invoiceIdRequest, listInvoicesByCardRequest, payInvoiceRequest, suggestInvoiceRequest } from '../requests/invoiceRequests.ts';
 import type { startOnboardingRequest } from '../requests/onboardingRequests.ts';
 import type { createProfileRequest, listProfilesRequest, updateProfileRequest } from '../requests/profileRequests.ts';
-import type {
-    accountFlowRequest,
-    balanceEvolutionRequest,
-    cardImpactRequest,
-    categoryReportRequest,
-    categoryTransactionsRequest,
-    entriesWithoutPartnerRequest,
-    monthSummaryRequest,
-    partnerReportRequest,
-    tagReportRequest,
-    tagTransactionsRequest,
-} from '../requests/reportRequests.ts';
 import type { createNoteRequest, listNotesRequest, noteIdRequest, rewriteNoteRequest } from '../requests/noteRequests.ts';
+import type {
+    createReportRequest,
+    listReportsRequest,
+    previewReportRequest,
+    reportIdRequest,
+    runReportRequest,
+    updateReportRequest,
+} from '../requests/reportRequests.ts';
 import type {
     listRecurrencesRequest,
     planCreateRequest,
@@ -162,16 +152,13 @@ export interface CoreRoutes {
     'invoices.pay': { input: z.input<typeof payInvoiceRequest>; output: InvoiceResponse };
     'invoices.reopen': { input: z.input<typeof invoiceIdRequest>; output: InvoiceResponse };
     'integrity.verifyBalances': { input: z.input<typeof verifyBalancesRequest>; output: IntegrityReportResponse };
-    'reports.monthSummary': { input: z.input<typeof monthSummaryRequest>; output: MonthSummaryResponse };
-    'reports.balanceEvolution': { input: z.input<typeof balanceEvolutionRequest>; output: BalanceEvolutionResponse };
-    'reports.byCategory': { input: z.input<typeof categoryReportRequest>; output: CategoryReportResponse };
-    'reports.categoryTransactions': { input: z.input<typeof categoryTransactionsRequest>; output: CategoryTransactionsResponse };
-    'reports.cardImpact': { input: z.input<typeof cardImpactRequest>; output: CardImpactResponse };
-    'reports.accountFlow': { input: z.input<typeof accountFlowRequest>; output: AccountFlowResponse };
-    'reports.byTag': { input: z.input<typeof tagReportRequest>; output: TagReportResponse };
-    'reports.tagTransactions': { input: z.input<typeof tagTransactionsRequest>; output: TagTransactionsResponse };
-    'reports.byPartner': { input: z.input<typeof partnerReportRequest>; output: PartnerReportResponse };
-    'reports.entriesWithoutPartner': { input: z.input<typeof entriesWithoutPartnerRequest>; output: EntriesWithoutPartnerResponse };
+    'reports.list': { input: z.input<typeof listReportsRequest>; output: readonly ReportDefinitionResponse[] };
+    'reports.get': { input: z.input<typeof reportIdRequest>; output: ReportDefinitionResponse };
+    'reports.create': { input: z.input<typeof createReportRequest>; output: ReportDefinitionResponse };
+    'reports.update': { input: z.input<typeof updateReportRequest>; output: ReportDefinitionResponse };
+    'reports.delete': { input: z.input<typeof reportIdRequest>; output: null };
+    'reports.run': { input: z.input<typeof runReportRequest>; output: ReportResultResponse };
+    'reports.preview': { input: z.input<typeof previewReportRequest>; output: ReportResultResponse };
     'imports.run': { input: z.input<typeof runImportRequest>; output: ImportResponse };
 }
 

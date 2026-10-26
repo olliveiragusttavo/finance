@@ -191,11 +191,9 @@ function TagTable({ tags, selectedId, onSelect }: { readonly tags: readonly TagU
 }
 
 /**
- * Painel "Editar tag" do mockup: nome, o uso em números, os atalhos para Transações e para o
- * relatório por tag, salvar e excluir. Os dois atalhos levam a tag aberta: sem ela, o relatório
- * abriria a tag de maior total (`openTag`) e mostraria os números de outra tag. O período fica
- * de fora de propósito: o padrão (`all`) mostra a tag sempre que ela tem lançamento, como o
- * "Total" do painel. Regra de negócio (Tags): excluir tira a tag dos lançamentos, que continuam
+ * Painel "Editar tag" do mockup: nome, o uso em números, o atalho para Transações com a tag
+ * aberta, salvar e excluir. O atalho para o relatório por tag saiu com os relatórios fixos
+ * (reports-design). Regra de negócio (Tags): excluir tira a tag dos lançamentos, que continuam
  * existindo — o aviso diz quantos, e por isso a exclusão não pede outra confirmação: nada além
  * da etiqueta se perde.
  *
@@ -280,9 +278,6 @@ function TagPanel({ tag, onClose }: { readonly tag: TagUsageResponse; readonly o
                 <div className="flex flex-col gap-1.5 text-13">
                     <Link to="/transactions" search={{ tag: tag.id }} className="text-accent hover:text-soft-ink">
                         Ver lançamentos em Transações →
-                    </Link>
-                    <Link to="/reports/tag" search={{ tag: tag.id }} className="text-accent hover:text-soft-ink">
-                        Abrir relatório por tag →
                     </Link>
                 </div>
                 <div className="flex items-center gap-2.5">

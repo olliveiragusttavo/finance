@@ -8,9 +8,9 @@ import { NoteController } from '../controllers/NoteController.ts';
 import type { CoreResult, UnexpectedErrorListener } from '../controllers/CoreResult.ts';
 import { ProfileController } from '../controllers/ProfileController.ts';
 import { ImportController } from '../controllers/ImportController.ts';
-import { ReportController } from '../controllers/ReportController.ts';
 import type { CoreApi, CoreRoute, RouteHandlers } from '../controllers/routes.ts';
 import { StatementController } from '../controllers/StatementController.ts';
+import { ReportController } from '../controllers/ReportController.ts';
 import { TagController } from '../controllers/TagController.ts';
 import { PartnerController } from '../controllers/PartnerController.ts';
 import { RecurrenceController } from '../controllers/RecurrenceController.ts';
@@ -33,7 +33,8 @@ import { SqlitePartnerRepository } from '../infrastructure/sqlite/SqlitePartnerR
 import { SqliteProfileRepository } from '../infrastructure/sqlite/SqliteProfileRepository.ts';
 import { SqliteReferenceRepository } from '../infrastructure/sqlite/SqliteReferenceRepository.ts';
 import { SqliteRecurrenceRepository } from '../infrastructure/sqlite/SqliteRecurrenceRepository.ts';
-import { SqliteReportRepository } from '../infrastructure/sqlite/SqliteReportRepository.ts';
+import { SqliteReportDefinitionRepository } from '../infrastructure/sqlite/SqliteReportDefinitionRepository.ts';
+import { SqliteReportQueryRepository } from '../infrastructure/sqlite/SqliteReportQueryRepository.ts';
 import { SqliteTagRepository } from '../infrastructure/sqlite/SqliteTagRepository.ts';
 import { SqliteTransactionRepository } from '../infrastructure/sqlite/SqliteTransactionRepository.ts';
 import type { BackupDirectory } from '../ports/BackupDirectory.ts';
@@ -53,8 +54,8 @@ import { InvoiceService } from '../services/invoice/InvoiceService.ts';
 import { NoteService } from '../services/note/NoteService.ts';
 import { OnboardingService } from '../services/onboarding/OnboardingService.ts';
 import { ProfileService } from '../services/profile/ProfileService.ts';
-import { ReportService } from '../services/report/ReportService.ts';
 import { StatementConsolidationService } from '../services/statement/StatementConsolidationService.ts';
+import { ReportService } from '../services/report/ReportService.ts';
 import { TagService } from '../services/tag/TagService.ts';
 import { PartnerService } from '../services/partner/PartnerService.ts';
 import { ImportService } from '../services/import/ImportService.ts';
@@ -164,8 +165,9 @@ export function createCore(ports: CorePorts): Core {
     const goals = new SqliteGoalRepository(database, clock);
     const deletions = new SqliteDeletionRepository(database, clock);
     const ledger = new SqliteBalanceLedgerRepository(database);
-    const reportRepository = new SqliteReportRepository(database);
     const recurrenceRepository = new SqliteRecurrenceRepository(database, clock);
+    const reportDefinitions = new SqliteReportDefinitionRepository(database, clock);
+    const reportQueries = new SqliteReportQueryRepository(database);
 
     const recalculation = new BalanceRecalculationService(unitOfWork, accounts, statements, invoices, ledger, clock);
     const impacts = new ImpactCalculator(invoices, creditCards);
@@ -185,12 +187,12 @@ export function createCore(ports: CorePorts): Core {
     const onboardingService = new OnboardingService(unitOfWork, profileService, accountService, categoryService);
     const cascadeDeletion = new CascadeDeletionService(unitOfWork, deletions, accounts, creditCards, invoices, transactions, recalculation);
     const balances = new AccountBalanceService(unitOfWork, profiles, accounts, recalculation);
+    const reportService = new ReportService(unitOfWork, ids, profileService, reportDefinitions, reportQueries);
     const integrity = new BalanceIntegrityService(unitOfWork, accounts, statements, invoices, recalculation, clock);
     const importService = new ImportService(
         unitOfWork, clock, ids, composer, transactions, accounts, creditCards, invoices, categories, tags,
         accountService, creditCardService, categoryService, tagService, recurrenceService, invoiceService, impacts, recalculation,
     );
-    const reportService = new ReportService(unitOfWork, profileService, reportRepository, transactions, creditCards, categories, accounts, tags, partners, consolidation, clock);
 
     const transactionController = new TransactionController(transactionService, onUnexpected);
     const recurrenceController = new RecurrenceController(recurrenceService, new SeriesPlanner(unitOfWork, transactionService, composer, transactions, recurrenceRepository), onUnexpected);
@@ -201,10 +203,10 @@ export function createCore(ports: CorePorts): Core {
     const accountController = new AccountController(accountService, cascadeDeletion, onUnexpected);
     const creditCardController = new CreditCardController(creditCardService, cascadeDeletion, onUnexpected);
     const categoryController = new CategoryController(categoryService, onUnexpected);
-    const reportController = new ReportController(reportService, onUnexpected);
     const tagController = new TagController(tagService, onUnexpected);
     const partnerController = new PartnerController(partnerService, onUnexpected);
     const noteController = new NoteController(noteService, onUnexpected);
+    const reportController = new ReportController(reportService, onUnexpected);
     const goalController = new GoalController(goalService, onUnexpected);
     const importController = new ImportController(importService, onUnexpected);
 
@@ -277,16 +279,13 @@ export function createCore(ports: CorePorts): Core {
         'invoices.pay': (raw) => invoiceController.pay(raw),
         'invoices.reopen': (raw) => invoiceController.reopen(raw),
         'integrity.verifyBalances': (raw) => integrityController.verifyBalances(raw),
-        'reports.monthSummary': (raw) => reportController.monthSummary(raw),
-        'reports.balanceEvolution': (raw) => reportController.balanceEvolution(raw),
-        'reports.byCategory': (raw) => reportController.byCategory(raw),
-        'reports.categoryTransactions': (raw) => reportController.categoryTransactions(raw),
-        'reports.cardImpact': (raw) => reportController.cardImpact(raw),
-        'reports.accountFlow': (raw) => reportController.accountFlow(raw),
-        'reports.byTag': (raw) => reportController.byTag(raw),
-        'reports.tagTransactions': (raw) => reportController.tagTransactions(raw),
-        'reports.byPartner': (raw) => reportController.byPartner(raw),
-        'reports.entriesWithoutPartner': (raw) => reportController.entriesWithoutPartner(raw),
+        'reports.list': (raw) => reportController.list(raw),
+        'reports.get': (raw) => reportController.get(raw),
+        'reports.create': (raw) => reportController.create(raw),
+        'reports.update': (raw) => reportController.update(raw),
+        'reports.delete': (raw) => reportController.delete(raw),
+        'reports.run': (raw) => reportController.run(raw),
+        'reports.preview': (raw) => reportController.preview(raw),
         'imports.run': (raw) => importController.run(raw),
     };
 

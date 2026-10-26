@@ -15,18 +15,12 @@ export { formatPercent } from './format/percent.ts';
 export { formatProfileSummary, formatProfileType } from './format/profile.ts';
 export { formatAccountHeading, formatAccountType } from './format/account.ts';
 export { summarizeNote, type NoteSummary } from './format/note.ts';
-export { formatVariation, type VariationDirection, type VariationView } from './format/variation.ts';
 export { matchesAllTerms, normalizeForSearch } from './format/searchText.ts';
 export { parseMoneyInput, type MoneyInputRejection, type MoneyInputResult } from './format/parseMoneyInput.ts';
 export * from './viewModels/otherProfileAccounts.ts';
 export * from './viewModels/transactionTable.ts';
 export * from './viewModels/transactionEditor.ts';
 export * from './viewModels/recurrenceView.ts';
-export * from './viewModels/categoryReport.ts';
-export * from './viewModels/cardImpactGrid.ts';
-export * from './viewModels/accountFlowTable.ts';
-export * from './viewModels/tagReport.ts';
-export * from './viewModels/partnerReport.ts';
 export * from './viewModels/partnerRoster.ts';
 export * from './viewModels/deletionImpact.ts';
 export * from './viewModels/statementTable.ts';
@@ -35,6 +29,9 @@ export * from './viewModels/movementList.ts';
 export * from './viewModels/goalView.ts';
 export * from './viewModels/listViews.ts';
 export * from './viewModels/overviewView.ts';
+// Relatórios personalizados (reports-design): o editor e a visualização do resultado.
+export * from './viewModels/reportEditor.ts';
+export * from './viewModels/reportView.ts';
 // Importação de transações (import-design): leitura do arquivo, ligação de colunas e revisão.
 export * from './import/csv.ts';
 export * from './import/cellFormats.ts';

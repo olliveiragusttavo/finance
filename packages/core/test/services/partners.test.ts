@@ -189,10 +189,9 @@ describe('cadastro de sócios (mockup DesktopSocios)', () => {
         expect(occurrences.every((occurrence) => occurrence.partnerId === null)).toBe(true);
         expect(scene.world.database.get('SELECT partner_id FROM recurrences WHERE id = :id', { id: series.recurrenceId ?? '' })).toEqual({ partner_id: null });
 
-        // O lançamento sem sócio continua editável, e o relatório o mostra como sem sócio.
+        // O lançamento sem sócio continua editável.
         await scene.world.ok('transactions.update', { ...(await scene.world.editInput(paid)), value: 310 });
-        const report = await scene.world.ok('reports.byPartner', { profileId: scene.profileId, period: '2026-10' });
-        expect(report.unassignedCount).toBe(2);
+        expect((await scene.world.ok('transactions.get', { id: paid })).partnerId).toBeNull();
     });
 
     it('remover todos os sócios é permitido: sem sócio não há o que dividir', async () => {
@@ -246,22 +245,5 @@ describe('cadastro de sócios (mockup DesktopSocios)', () => {
         });
         expect(scene.world.database.get('SELECT updated_at FROM partners WHERE id = :id', { id: scene.gustavo })).toEqual(before);
         expect(scene.world.database.get('SELECT updated_at FROM partners WHERE id = :id', { id: scene.ana })).not.toEqual(before);
-    });
-
-    it('a nova participação vale para a divisão do relatório por sócio', async () => {
-        const scene = await scenario();
-        await launch(scene, scene.gustavo, { value: 1000 });
-        await scene.world.ok('partners.save', {
-            profileId: scene.profileId,
-            partners: [
-                { id: scene.gustavo, name: 'Gustavo', percentage: 25 },
-                { id: scene.ana, name: 'Ana', percentage: 75 },
-            ],
-        });
-        const report = await scene.world.ok('reports.byPartner', { profileId: scene.profileId, period: '2026-10' });
-        expect(report.partners.map((line) => [line.name, line.expected.amount])).toEqual([
-            ['Ana', 750],
-            ['Gustavo', 250],
-        ]);
     });
 });

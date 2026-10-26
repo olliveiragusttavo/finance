@@ -107,6 +107,7 @@ export type BusinessRule =
     | 'recurrence-move-requires-all'
     | 'recurrence-scope-requires-series'
     | 'reference-outside-profile'
+    | 'report-dimensions-repeated'
     | 'sub-category-in-use'
     | 'transaction-move-currency-mismatch'
     | 'transaction-type-locked';

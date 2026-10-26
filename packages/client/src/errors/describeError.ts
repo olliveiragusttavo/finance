@@ -44,6 +44,7 @@ const RULE_MESSAGES: Readonly<Record<BusinessRule, string>> = {
     'recurrence-move-requires-all': 'Mover para outro perfil leva a série inteira: escolha "todas".',
     'recurrence-scope-requires-series': 'Este lançamento não faz parte de uma série.',
     'reference-outside-profile': 'O item escolhido pertence a outro perfil.',
+    'report-dimensions-repeated': 'Escolha uma segunda divisão diferente da primeira.',
     'sub-category-in-use': 'Esta subcategoria tem lançamentos. Escolha para onde movê-los antes de excluir.',
     'transaction-move-currency-mismatch': 'Só dá para mover o lançamento para um perfil com a mesma moeda deste.',
     'transaction-type-locked': 'O tipo do lançamento não muda depois de criado. Exclua-o e lance de novo com o outro tipo.',

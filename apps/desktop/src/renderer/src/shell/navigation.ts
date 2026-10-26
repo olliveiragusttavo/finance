@@ -12,11 +12,8 @@ export type AppPath =
     | '/transactions'
     | '/accounts'
     | '/cards'
-    | '/reports/category'
-    | '/reports/account-flow'
-    | '/reports/card-impact'
-    | '/reports/partner'
-    | '/reports/tag'
+    | '/reports'
+    | '/reports/edit'
     | '/goals'
     | '/categories'
     | '/partners'
@@ -27,43 +24,18 @@ export type AppPath =
     | '/settings'
     | '/settings/import';
 
-/** Item da lista de relatórios, à esquerda da página de Relatórios. */
-export interface ReportItem {
-    readonly label: string;
-    readonly to: AppPath;
-    /** Só aparece em perfil empresarial (decisão de interface 5 dos mockups). */
-    readonly businessOnly: boolean;
-}
-
 /** Item da barra lateral. */
 export interface MenuItem {
     readonly label: string;
     readonly to: AppPath;
     /**
-     * Prefixo dos caminhos que pertencem ao item. Difere de `to` em "Relatórios", cujo destino
-     * é o primeiro relatório mas que fica marcado em qualquer um deles.
+     * Prefixo dos caminhos que pertencem ao item: "Relatórios" fica marcado também no editor
+     * (`/reports/edit`).
      */
     readonly section: string;
-    /** Só aparece em perfil empresarial (Sócios), como "Por sócio" entre os relatórios. */
+    /** Só aparece em perfil empresarial (Sócios). */
     readonly businessOnly: boolean;
 }
-
-/** Prefixo dos caminhos de relatório. */
-const REPORTS_SECTION = '/reports';
-
-/**
- * Relatórios na ordem dos mockups (`DesktopRelSocio` mostra a lista completa). Ficam na lista à
- * esquerda da página de Relatórios, como as contas em Contas, e não como subitens do menu: a
- * pedido do usuário, porque a lista vai crescer com os relatórios personalizados e, no menu,
- * empurraria Metas, os cadastros e Ajustes para baixo. Por sócio só aparece no perfil empresarial.
- */
-const REPORTS: readonly ReportItem[] = [
-    { label: 'Por categoria', to: '/reports/category', businessOnly: false },
-    { label: 'Fluxo por conta', to: '/reports/account-flow', businessOnly: false },
-    { label: 'Impacto do cartão', to: '/reports/card-impact', businessOnly: false },
-    { label: 'Por sócio', to: '/reports/partner', businessOnly: true },
-    { label: 'Por tag', to: '/reports/tag', businessOnly: false },
-];
 
 /**
  * Menu completo, na ordem da barra lateral. Os cadastros que o mockup (brief D1) reunia em
@@ -76,7 +48,7 @@ export const MENU: readonly MenuItem[] = [
     { label: 'Transações', to: '/transactions', section: '/transactions', businessOnly: false },
     { label: 'Contas', to: '/accounts', section: '/accounts', businessOnly: false },
     { label: 'Cartões', to: '/cards', section: '/cards', businessOnly: false },
-    { label: 'Relatórios', to: '/reports/category', section: REPORTS_SECTION, businessOnly: false },
+    { label: 'Relatórios', to: '/reports', section: '/reports', businessOnly: false },
     { label: 'Metas', to: '/goals', section: '/goals', businessOnly: false },
     { label: 'Categorias', to: '/categories', section: '/categories', businessOnly: false },
     { label: 'Sócios', to: '/partners', section: '/partners', businessOnly: true },
@@ -89,7 +61,7 @@ export const MENU: readonly MenuItem[] = [
 
 /**
  * Regra de negócio (Perfis): sócio só existe em perfil empresarial (database-design §4.2), então
- * o item Sócios some do menu no perfil pessoal, como "Por sócio" some dos relatórios.
+ * o item Sócios some do menu no perfil pessoal.
  *
  * @param profileType Tipo do perfil ativo.
  * @return Os itens que a barra lateral mostra para o perfil, na ordem do menu.
@@ -150,16 +122,4 @@ export function isItemActive(item: Pick<MenuItem, 'section'>, pathname: string):
         return pathname === '/';
     }
     return pathname === item.section || pathname.startsWith(`${item.section}/`);
-}
-
-/**
- * Relatórios da lista à esquerda da página de Relatórios para o perfil ativo, para que a lista
- * não ofereça um relatório que o núcleo recusa no perfil pessoal.
- * Regra de negócio (Perfis): "Por sócio" só existe em perfil empresarial (brief §12).
- *
- * @param profileType Tipo do perfil ativo, que decide se "Por sócio" aparece.
- * @return Os relatórios a listar, na ordem dos mockups.
- */
-export function visibleReports(profileType: ProfileResponse['type']): readonly ReportItem[] {
-    return REPORTS.filter((report) => !report.businessOnly || profileType === 'business');
 }

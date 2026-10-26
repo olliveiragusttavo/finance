@@ -124,9 +124,9 @@ export class TransactionComposer {
 
     /**
      * Confere o sócio que aportou. Fica exposto, e não só dentro de `assertReferences`, porque
-     * atribuir o sócio pelo relatório (`TransactionService.setPartner`) troca só esse vínculo e
+     * atribuir só o sócio (`TransactionService.setPartner`) troca só esse vínculo e
      * não deve reconferir o resto do lançamento.
-     * Regra de negócio (Sócios — aportes, reports-design §8): toda despesa de um perfil empresarial
+     * Regra de negócio (Sócios — aportes, database-design §4.13, `partner_id`): toda despesa de um perfil empresarial
      * é paga com o dinheiro da empresa, e o sócio aparece no dinheiro que **entra** nela: a receita
      * do perfil empresarial e a transferência que chega a ele vinda de outro perfil. Na
      * transferência, a linha é do perfil de origem (database-design §4.13), mas o sócio é do perfil

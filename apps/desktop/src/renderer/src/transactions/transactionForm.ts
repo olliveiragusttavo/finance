@@ -315,7 +315,7 @@ export const NO_PARTNER_CONTEXT: PartnerContext = { profileId: null, partnerIds:
 /**
  * Perfil em que o lançamento é um aporte de sócio, pela mesma regra do núcleo
  * (`TransactionComposer.assertPartner`), para que o campo só apareça onde a gravação o aceita.
- * Regra de negócio (Sócios — aportes, reports-design §8): toda despesa do perfil empresarial é paga
+ * Regra de negócio (Sócios — aportes, database-design §4.13, `partner_id`): toda despesa do perfil empresarial é paga
  * pela empresa; o sócio aparece no dinheiro que entra — a receita de um perfil empresarial e a
  * transferência que chega a um perfil empresarial vinda de outro perfil. Na transferência, os
  * sócios são os do perfil de destino.

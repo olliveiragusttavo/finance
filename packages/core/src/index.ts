@@ -18,13 +18,19 @@ export { LocalDate } from './domain/shared/LocalDate.ts';
 export { YearMonth } from './domain/shared/YearMonth.ts';
 export { Currency } from './domain/shared/Currency.ts';
 export { MONEY_MAX_AMOUNT, Money, roundHalfAwayFromZero } from './domain/shared/Money.ts';
-// Modos de comparação dos relatórios: a tela valida o modo vindo da URL pela mesma lista que a
-// Request usa, sem manter uma cópia própria.
-export { COMPARISON_MODES, type ComparisonMode } from './domain/report/Comparison.ts';
-export { TAG_REPORT_RANGES, type TagReportRange } from './domain/report/TagReport.ts';
-export type { FlowMonthTiming } from './domain/report/AccountFlowReport.ts';
-// Divisão pela participação: a prévia do cadastro de sócios usa a mesma conta do relatório por sócio.
-export { allocateByShares } from './domain/report/PartnerReport.ts';
+// Vocabulário dos relatórios personalizados: o editor oferece as mesmas opções e limites que a
+// Request aceita, sem manter uma cópia própria (reports-design §2 e §3).
+export {
+    REPORT_DATE_BASES,
+    REPORT_MAX_PREVIOUS_MONTHS,
+    REPORT_STATUS_FILTERS,
+    REPORT_TAG_MATCHES,
+    type ReportDateBasis,
+    type ReportStatusFilter,
+    type ReportTagMatch,
+} from './domain/report/ReportFilter.ts';
+export { REPORT_DIMENSIONS, REPORT_FORMATS, REPORT_MEASURES, type ReportDimension, type ReportFormat, type ReportMeasure } from './domain/report/ReportLayout.ts';
+export { REPORT_NAME_MAX_LENGTH } from './domain/report/ReportDefinition.ts';
 export { PARTNER_NAME_MAX_LENGTH } from './domain/partner/Partner.ts';
 // Regras puras do tipo da transação: o formulário de lançamento mostra o sinal do efeito e pede
 // a conta de destino e a meta pela mesma regra que o núcleo aplica, sem reimplementá-la na UI.
