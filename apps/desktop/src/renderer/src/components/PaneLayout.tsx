@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 
 /*
- * Layout das telas com lista lateral e detalhe — Contas, Cartões, Metas, Cadastros e os
+ * Layout das telas com lista lateral e detalhe — Contas, Cartões, Metas e os
  * relatórios por conta e por tag (desktop-mvp-plan Fase 13.3, pedido do usuário). Cada painel rola
  * sozinho: rolar o extrato não leva a lista de contas embora, e uma lista longa de contas não
  * empurra o detalhe. O rodapé da lista (os totais) fica fixo embaixo, sempre à vista.
@@ -79,4 +79,17 @@ export function DetailPane({ label, children }: { readonly label?: string; reado
             {content}
         </section>
     );
+}
+
+/**
+ * Painéis aninhados no lugar do detalhe de outro `PaneLayout`: os relatórios com lista própria
+ * (Fluxo por conta, Por tag) ficam à direita da lista de relatórios. Não reaproveita o
+ * `PaneLayout`, cujas margens negativas desfazem o espaçamento do `main` e, aqui dentro, puxariam
+ * os painéis por cima da lista de relatórios.
+ *
+ * @param props.children A lista do relatório e o detalhe.
+ * @return A área que os painéis aninhados dividem.
+ */
+export function NestedPanes({ children }: { readonly children: ReactNode }): ReactNode {
+    return <div className="flex min-h-0 min-w-0 flex-1">{children}</div>;
 }

@@ -26,6 +26,7 @@ import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import type { MouseHandlerDataParam, YAxisTickContentProps } from 'recharts';
 import { Bar, BarChart, ReferenceLine, XAxis, YAxis } from 'recharts';
 import { useState, type ReactNode } from 'react';
+import { DetailPane } from '@/components/PaneLayout';
 import { EmptyState, QueryState, Skeleton } from '@/components/states';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -78,7 +79,7 @@ export function CategoryReportScreen(): ReactNode {
     };
 
     return (
-        <>
+        <DetailPane label="Relatório aberto">
             <div className="flex items-end justify-between gap-4">
                 <div className="flex flex-col gap-1">
                     <span className="text-12 text-muted">Relatórios</span>
@@ -103,7 +104,7 @@ export function CategoryReportScreen(): ReactNode {
             <QueryState query={report} loading={<ReportSkeleton />}>
                 {(data) => <CategoryReportBody key={`${period}:${comparison}`} report={data} selection={selectionFromSearch(search)} currency={profile.currency} onSelect={select} />}
             </QueryState>
-        </>
+        </DetailPane>
     );
 }
 

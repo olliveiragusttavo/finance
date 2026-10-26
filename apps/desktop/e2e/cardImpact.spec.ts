@@ -72,7 +72,7 @@ test('impacto do cartão: sem cartão, indicadores, situações da grade e link 
     const next = shiftPeriod(period, 1);
     try {
         await completeFirstUse(page, { profileName: 'Pessoal', accountName: 'Nubank', openingBalance: '1.000,00' });
-        // Os subitens de Relatórios só aparecem com a seção aberta.
+        // Os relatórios ficam na lista da página de Relatórios.
         await page.getByRole('link', { name: 'Relatórios', exact: true }).dispatchEvent('click');
         await page.getByRole('link', { name: 'Impacto do cartão', exact: true }).dispatchEvent('click');
         await expect(page.getByRole('heading', { name: 'Impacto do cartão', level: 1 })).toBeVisible();

@@ -3,36 +3,37 @@ import type { ProfileResponse } from '@finance/core';
 import { useState, type ReactNode } from 'react';
 import { Controller, useForm, type Resolver } from 'react-hook-form';
 import { toast } from 'sonner';
+import { FormDialog, RowAction, SectionHeader, StatusTag } from '@/components/entityUi';
 import { Field, fieldAria, toFieldErrors } from '@/components/form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { reportRejection } from '@/lib/coreErrorField';
 import { currencyOptionsWith } from '@/lib/currencies';
 import { useActiveProfile } from '@/shell/activeProfile';
-import { reportRejection } from './coreErrorField.ts';
 import { emptyProfileForm, PROFILE_FIELDS, profileFormFrom, readProfileForm, type ProfileContent, type ProfileFormValues } from './profileForm.ts';
-import { FormDialog, RowAction, SectionHeader, StatusTag } from './registryUi.tsx';
 
 /** Tipos de perfil, na ordem do primeiro uso. */
 const PROFILE_TYPES: readonly ProfileFormValues['type'][] = ['personal', 'business'];
 
-/** Diálogo aberto na seção: criar ou editar um perfil. */
+/** Diálogo aberto na tela: criar ou editar um perfil. */
 type ProfileDialogState = { readonly mode: 'create' } | { readonly mode: 'edit'; readonly profile: ProfileResponse };
 
 /**
- * Aviso do perfil empresarial: é o tipo que tem sócios, cadastrados em Cadastros › Sócios
- * (desktop-mvp-plan Fase 13.7), e o relatório por sócio. O tipo não muda depois de criado, por
- * isso o aviso aparece ao escolhê-lo.
+ * Aviso do perfil empresarial: é o tipo que tem sócios, cadastrados na tela Sócios
+ * (desktop-mvp-plan Fases 13.7 e 13.11), e o relatório por sócio. O tipo não muda depois de
+ * criado, por isso o aviso aparece ao escolhê-lo.
  */
-const BUSINESS_WITH_PARTNERS = 'Perfil empresarial: tem sócios com participação, cadastrados em Cadastros › Sócios, e o relatório por sócio.';
+const BUSINESS_WITH_PARTNERS = 'Perfil empresarial: tem sócios com participação, cadastrados em Sócios, e o relatório por sócio.';
 
 /**
- * Perfis em Cadastros (desktop-mvp-plan Fase 6): lista, criar e editar. Não há exclusão no
- * MVP — o núcleo não tem rota para ela, e apagar um perfil apagaria todo o histórico dele.
+ * Perfis, item próprio do menu (desktop-mvp-plan Fases 6 e 13.11): lista, criar e editar. Não há
+ * exclusão no MVP — o núcleo não tem rota para ela, e apagar um perfil apagaria todo o histórico
+ * dele.
  *
- * @return A seção de perfis.
+ * @return A tela de perfis.
  */
-export function ProfilesSection(): ReactNode {
+export function ProfilesScreen(): ReactNode {
     const { profile: active, profiles, switchTo } = useActiveProfile();
     const [dialog, setDialog] = useState<ProfileDialogState | null>(null);
     const close = (): void => {

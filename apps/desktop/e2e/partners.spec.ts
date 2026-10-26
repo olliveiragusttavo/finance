@@ -45,20 +45,19 @@ async function seedBusiness(page: Page): Promise<Seeded> {
 }
 
 /**
- * Abre Cadastros › Sócios pelo menu e pela lista lateral.
+ * Abre a tela Sócios pelo menu, onde o item só existe no perfil empresarial.
  *
- * @param page Janela do app, com o shell aberto.
+ * @param page Janela do app, com o shell aberto num perfil empresarial.
  */
 async function openPartners(page: Page): Promise<void> {
-    await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('link', { name: 'Cadastros', exact: true }).dispatchEvent('click');
-    await page.getByRole('region', { name: 'Tipos de cadastro' }).getByRole('link', { name: /^Sócios/ }).dispatchEvent('click');
-    await expect(page.getByRole('heading', { name: 'Sócios', level: 2 })).toBeVisible();
+    await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('link', { name: 'Sócios', exact: true }).dispatchEvent('click');
+    await expect(page.getByRole('heading', { name: 'Sócios', level: 1 })).toBeVisible();
 }
 
 /**
  * Adiciona um sócio pela última linha da tabela.
  *
- * @param page Janela do app, em Cadastros › Sócios.
+ * @param page Janela do app, na tela Sócios.
  * @param name Nome do sócio novo.
  */
 async function addPartner(page: Page, name: string): Promise<void> {
@@ -87,7 +86,8 @@ test('sócios: soma ao vivo até 100%, aportou × deveria e remoção que deixa 
         await expect(page.getByRole('img', { name: 'Gustavo 60%, Ana 40%' })).toBeVisible();
         await page.getByRole('button', { name: 'Salvar', exact: true }).dispatchEvent('click');
         await expect(page.getByText('Sócios salvos.')).toBeVisible();
-        await expect(page.getByRole('region', { name: 'Tipos de cadastro' }).getByRole('link', { name: /^Sócios/ })).toContainText('2');
+        // A tabela recomeça do gravado, com os dois sócios.
+        await expect(page.getByLabel('Participação de Ana')).toHaveValue('40');
 
         // Um aporte do Gustavo: "Aportou" e "Deveria ter aportado" acompanham.
         const period = currentPeriod(new Date());

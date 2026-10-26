@@ -19,7 +19,7 @@ import { TAG_REPORT_RANGES, type TagReportRange, type TagReportResponse, type Ta
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
 import { Bar, BarChart, ReferenceLine, XAxis, YAxis } from 'recharts';
-import { DetailPane, ListPane, PaneLayout } from '@/components/PaneLayout';
+import { DetailPane, ListPane, NestedPanes } from '@/components/PaneLayout';
 import { EmptyState, QueryState, Skeleton } from '@/components/states';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -43,6 +43,8 @@ const RANGE_LABELS: Readonly<Record<TagReportRange, string>> = {
  * Regra de negócio (Relatórios, T1–T5): o total de uma tag é despesas menos receitas, pelo mês do
  * pagamento; "Todo o período" inclui as parcelas futuras. A tela só arruma o que o núcleo agregou,
  * pelo `tagReport` do `client` (desktop-mvp-plan §3.5).
+ * A lista das tags é mais estreita que a do mockup porque divide a página com a lista de
+ * relatórios (`ReportsLayout`).
  *
  * @return A tela do relatório por tag.
  */
@@ -69,7 +71,7 @@ export function TagReportScreen(): ReactNode {
     };
 
     return (
-        <PaneLayout>
+        <NestedPanes>
             <ListPane
                 label="Lista de tags"
                 width="w-95"
@@ -106,7 +108,7 @@ export function TagReportScreen(): ReactNode {
                     {(data) => <TagReportBody report={data} tagId={search.tag} range={range} hasTags={(tags.data?.length ?? 1) > 0} />}
                 </QueryState>
             </DetailPane>
-        </PaneLayout>
+        </NestedPanes>
     );
 }
 
@@ -156,7 +158,7 @@ function TagList({ items, openId }: { readonly items: readonly TagListItem[]; re
 }
 
 /**
- * O lado direito: a tag aberta, ou o estado vazio — perfil sem tag leva a Cadastros; com tag mas
+ * O lado direito: a tag aberta, ou o estado vazio — perfil sem tag leva à tela Tags; com tag mas
  * sem lançamento no período, o mês de referência sugere olhar o período todo.
  *
  * @param props.report Relatório do núcleo.
@@ -175,7 +177,7 @@ function TagReportBody({ report, tagId, range, hasTags }: { readonly report: Tag
                 action={<Link to="/transactions">Ir para Transações</Link>}
             />
         ) : (
-            <EmptyState title="Nenhuma tag" description="Crie tags em Cadastros e marque os lançamentos para ver quanto cada uma soma." action={<Link to="/registry" search={{ kind: 'tags' }}>Ir para Tags</Link>} />
+            <EmptyState title="Nenhuma tag" description="Crie tags em Tags e marque os lançamentos para ver quanto cada uma soma." action={<Link to="/tags">Ir para Tags</Link>} />
         );
     }
     return <TagDetail key={`${tag.tagId}:${range}`} tag={tag} range={range} />;

@@ -1,10 +1,11 @@
 import { buildCardImpactGrid, useAccounts, useCardImpact, type CardImpactCell, type CardImpactGrid, type CardImpactKpi, type CardImpactRow, type SituationTone } from '@finance/client';
 import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
+import { DetailPane } from '@/components/PaneLayout';
 import { EmptyState, QueryState, Skeleton } from '@/components/states';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/cn';
-import { StatusTag } from '@/registry/registryUi';
+import { StatusTag } from '@/components/entityUi';
 import { useActiveProfile } from '@/shell/activeProfile';
 import { useReferenceMonth } from '@/shell/useReferenceMonth';
 
@@ -26,7 +27,7 @@ export function CardImpactScreen(): ReactNode {
     const accounts = useAccounts({ profileId: profile.id, period });
 
     return (
-        <>
+        <DetailPane label="Relatório aberto">
             <div className="flex flex-col gap-1">
                 <span className="text-12 text-muted">Relatórios</span>
                 <h1 className="text-24 font-semibold">Impacto do cartão</h1>
@@ -34,7 +35,7 @@ export function CardImpactScreen(): ReactNode {
             <QueryState query={report} loading={<ReportSkeleton />}>
                 {(data) => <CardImpactBody grid={buildCardImpactGrid(data, accounts.data?.accounts ?? [])} />}
             </QueryState>
-        </>
+        </DetailPane>
     );
 }
 

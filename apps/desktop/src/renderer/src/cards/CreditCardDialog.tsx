@@ -1,16 +1,14 @@
-import { describeError, formatMoney, useCoreMutation, type CoreCallError } from '@finance/client';
-import type { AccountListResponse, AccountResponse, CreditCardListResponse, CreditCardResponse } from '@finance/core';
-import type { UseQueryResult } from '@tanstack/react-query';
+import { describeError, formatMoney, useCoreMutation } from '@finance/client';
+import type { AccountResponse, CreditCardResponse } from '@finance/core';
 import { useState, type ReactNode } from 'react';
 import { Controller, useForm, type Resolver } from 'react-hook-form';
 import { toast } from 'sonner';
 import { Combobox } from '@/components/Combobox';
+import { FormDialog } from '@/components/entityUi';
 import { Field, fieldAria, toFieldErrors } from '@/components/form';
-import { EmptyState, QueryState } from '@/components/states';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { reportRejection } from '@/lib/coreErrorField';
 import { useActiveProfile } from '@/shell/activeProfile';
-import { reportRejection } from './coreErrorField.ts';
 import {
     closingDayWarning,
     CREDIT_CARD_FIELDS,
@@ -21,142 +19,11 @@ import {
     type CreditCardContent,
     type CreditCardFormValues,
 } from './creditCardForm.ts';
-import { CreditCardDeletionDialog } from './DeletionDialog.tsx';
-import { FormDialog, RowAction, SectionHeader, StatusTag } from './registryUi.tsx';
-
-/** Diálogo aberto na seção: criar, editar ou excluir um cartão. */
-type CreditCardDialogState =
-    | { readonly mode: 'create' }
-    | { readonly mode: 'edit'; readonly creditCard: CreditCardResponse }
-    | { readonly mode: 'delete'; readonly creditCard: CreditCardResponse };
-
-/**
- * Cartões em Cadastros (desktop-mvp-plan Fase 6): lista com os desativados marcados, criar e
- * editar em diálogo, desativar, reativar e excluir. A fatura do mês fica na tela Cartões;
- * aqui está o cadastro.
- *
- * @param props.query Lista de cartões do perfil.
- * @param props.accounts Contas do perfil, para o nome da conta pagadora e as opções do
- * formulário.
- * @return A seção de cartões.
- */
-export function CreditCardsSection({
-    query,
-    accounts,
-}: {
-    readonly query: UseQueryResult<CreditCardListResponse, CoreCallError>;
-    readonly accounts: UseQueryResult<AccountListResponse, CoreCallError>;
-}): ReactNode {
-    const [dialog, setDialog] = useState<CreditCardDialogState | null>(null);
-    const toggle = useToggleCreditCard();
-    const close = (): void => {
-        setDialog(null);
-    };
-    const accountList = accounts.data?.accounts ?? [];
-    // Regra de negócio (Cartões): todo cartão é pago por uma conta ativa do perfil; sem
-    // nenhuma, não há o que escolher, e o botão explica em vez de abrir um formulário inútil.
-    const hasActiveAccount = accountList.some((account) => !account.disabled);
-
-    return (
-        <>
-            <SectionHeader
-                title="Cartões"
-                description="Todo cartão é pago por uma conta do perfil; as faturas pagas entram no extrato dela."
-                actions={
-                    <Button
-                        disabled={!hasActiveAccount}
-                        title={hasActiveAccount ? undefined : 'Reative ou crie uma conta para pagar o cartão.'}
-                        onClick={() => {
-                            setDialog({ mode: 'create' });
-                        }}
-                    >
-                        + Novo cartão
-                    </Button>
-                }
-            />
-            <QueryState query={query}>
-                {(list) =>
-                    list.creditCards.length === 0 ? (
-                        <EmptyState
-                            title="Nenhum cartão"
-                            description={hasActiveAccount ? 'Cadastre um cartão para lançar compras nas faturas.' : 'Para cadastrar um cartão, o perfil precisa de uma conta ativa que pague as faturas.'}
-                        />
-                    ) : (
-                        <ul aria-label="Cartões" className="rounded-10 border border-line bg-surface">
-                            {list.creditCards.map((creditCard) => (
-                                <li key={creditCard.id} className="flex items-center justify-between gap-4 border-t border-line2 px-5 py-3 first:border-t-0">
-                                    <div className="flex min-w-0 flex-col gap-0.5">
-                                        <span className="flex items-center gap-2 font-medium">
-                                            {creditCard.name}
-                                            {creditCard.disabled && <StatusTag tone="warn">Desativado</StatusTag>}
-                                        </span>
-                                        <span className="text-12 text-muted">
-                                            Paga por {accountName(accountList, creditCard.accountId)} · Limite <span className="tabular-nums">{formatMoney(creditCard.limit)}</span> · Fecha dia{' '}
-                                            {creditCard.closingDay} · Vence dia {creditCard.dueDay}
-                                        </span>
-                                    </div>
-                                    <div className="flex shrink-0 items-center gap-1">
-                                        <RowAction
-                                            label="Editar"
-                                            accessibleName={`Editar ${creditCard.name}`}
-                                            onClick={() => {
-                                                setDialog({ mode: 'edit', creditCard });
-                                            }}
-                                        />
-                                        <RowAction
-                                            label={creditCard.disabled ? 'Reativar' : 'Desativar'}
-                                            accessibleName={`${creditCard.disabled ? 'Reativar' : 'Desativar'} ${creditCard.name}`}
-                                            onClick={() => {
-                                                toggle(creditCard);
-                                            }}
-                                        />
-                                        <RowAction
-                                            label="Excluir"
-                                            accessibleName={`Excluir ${creditCard.name}`}
-                                            danger
-                                            onClick={() => {
-                                                setDialog({ mode: 'delete', creditCard });
-                                            }}
-                                        />
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
-                    )
-                }
-            </QueryState>
-            {dialog?.mode === 'create' && <CreditCardDialog creditCard={null} accounts={accountList} onClose={close} />}
-            {dialog?.mode === 'edit' && <CreditCardDialog key={dialog.creditCard.id} creditCard={dialog.creditCard} accounts={accountList} onClose={close} />}
-            {dialog?.mode === 'delete' && (
-                <CreditCardDeletionDialog
-                    creditCard={dialog.creditCard}
-                    onClose={close}
-                    onDisableInstead={
-                        dialog.creditCard.disabled
-                            ? undefined
-                            : () => {
-                                  toggle(dialog.creditCard);
-                              }
-                    }
-                />
-            )}
-        </>
-    );
-}
-
-/**
- * @param accounts Contas do perfil.
- * @param accountId Conta pagadora do cartão.
- * @return O nome da conta; um traço enquanto a lista de contas ainda carrega.
- */
-function accountName(accounts: readonly AccountResponse[], accountId: string): string {
-    return accounts.find((account) => account.id === accountId)?.name ?? '—';
-}
 
 /**
  * Desativa ou reativa um cartão, sem confirmação, pelo mesmo motivo das contas: as duas
  * ações se desfazem uma com a outra e não mudam faturas nem saldos (desktop-mvp-plan §5.1).
- * Exportada para o "⋯" da tela Cartões, que faz o mesmo.
+ * Fica fora da tela porque o "⋯" da fatura e a alternativa do alerta de exclusão o usam.
  *
  * @return A ação de alternar o cartão.
  */
@@ -189,9 +56,10 @@ const CREDIT_CARD_FIELD_BY_CORE_FIELD: Readonly<Partial<Record<string, keyof Cre
 };
 
 /**
- * Criar ou editar cartão: nome, conta pagadora, limite, fechamento e vencimento. Exportado
- * para a tela Cartões ("+ Novo cartão" e "Editar cartão"), para que o cadastro tenha um só
- * formulário.
+ * Criar ou editar cartão: nome, conta pagadora, limite, fechamento e vencimento. O cadastro do
+ * cartão fica na própria tela Cartões ("+ Novo cartão" e "Editar cartão") desde que a tela
+ * Cadastros saiu (desktop-mvp-plan Fase 13.11); um diálogo só, para que criar e editar validem do
+ * mesmo jeito.
  *
  * @param props.creditCard Cartão a editar, ou `null` para criar um.
  * @param props.accounts Contas do perfil, das quais saem as opções de conta pagadora.

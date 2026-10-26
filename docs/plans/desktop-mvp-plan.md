@@ -29,7 +29,7 @@ categoria/subcategoria** e **quanto as faturas do cartão pesam no saldo do mês
 |---|---|---|
 | Primeiro uso | `DesktopPrimeiroUso` | Criar perfil e primeira conta. "Entrar num grupo" aparece desabilitado |
 | Shell | todas (barra lateral e superior) | Navegação, mês de referência fixo, seletor de perfil, tema claro/escuro, "+ Lançamento" |
-| Cadastros | `DesktopCadastros`, `DesktopTags`, `DesktopAnotacoes`, `DesktopSocios` | Perfis, contas, cartões, categorias e subcategorias, tags, anotações e, no perfil empresarial, sócios (Fase 13.7) |
+| Cadastros | `DesktopCadastros`, `DesktopTags`, `DesktopAnotacoes`, `DesktopSocios` | Perfis, contas, cartões, categorias e subcategorias, tags, anotações e, no perfil empresarial, sócios (Fase 13.7). Desde a Fase 13.11, cada um tem item próprio no menu, sem a tela Cadastros |
 | Contas | `DesktopContas` | Lista com consolidado e previsto → extrato do mês |
 | Cartões | `DesktopCartoes` | Lista com fatura do mês → detalhe da fatura, pagar, pagamento parcial, reabrir, próximas faturas |
 | Transações | `DesktopTransacoes` | Tabela do mês, filtros, diálogo de criação/edição, marcar pago, excluir, atalhos |
@@ -360,7 +360,7 @@ Ordem pensada para que cada fase entregue algo testável. As fases 1–2 (núcle
 ### Fase 4 — Shell e navegação
 
 - [x] Layout: barra lateral (marca, seletor de perfil, menu, rodapé "Dados só neste aparelho"), barra superior fixa — só a área de conteúdo rola
-- [x] Menu completo do mockup, com subitens de Relatórios (Por categoria, Fluxo por conta, Impacto do cartão, Por sócio só no perfil empresarial, Por tag) — os subitens se abrem com a seção ativa, como nos mockups; o mapa do menu (`shell/navigation.ts`) é o mesmo tipo (`AppPath`) dos caminhos do roteador
+- [x] Menu completo do mockup, com subitens de Relatórios (Por categoria, Fluxo por conta, Impacto do cartão, Por sócio só no perfil empresarial, Por tag) — os subitens se abriam com a seção ativa, como nos mockups, e depois deram lugar à lista na página de Relatórios ([Fase 13.10](#fase-1310--lista-de-relatórios-na-página)); o mapa do menu (`shell/navigation.ts`) é o mesmo tipo (`AppPath`) dos caminhos do roteador
 - [x] Rotas de Metas, Dispositivos, Fluxo por conta, Por sócio e Por tag levando a uma **tela em branco** dentro do shell ([§5](#5-decisões-de-produto)), para que a navegação já esteja pronta quando as telas chegarem — as telas do MVP ainda não feitas também têm rota com tela em branco, substituída na fase de cada uma; "Por sócio" aberto num perfil pessoal explica que só existe no empresarial
 - [x] Mês de referência global (‹ mês ›, "Voltar ao mês atual") como *search param* tipado (`period`), preservado ao navegar (`retainSearchParams`); sem ele na URL, abre o último mês do aparelho (`lastPeriod`) ou o corrente. **Decisão:** escondido em Cadastros, Dispositivos e Ajustes — os mockups dessas telas desenham a barra, mas a regra do README dos mockups ("não aparece em fluxos de configuração") prevaleceu; Metas mantém a barra
 - [x] Tema claro/escuro/seguir o sistema, persistido nas preferências do aparelho. **Decisão:** o botão do mockup (que só alterna claro/escuro) virou um menu com as três opções, com o tema escolhido no rótulo
@@ -381,6 +381,8 @@ Ordem pensada para que cada fase entregue algo testável. As fases 1–2 (núcle
 - [x] Testes: unitários do formulário (`test/firstUse.test.ts`) e ponta a ponta (`e2e/firstUse.spec.ts`: tela fora do shell, erros por campo sem chamar o núcleo, conclusão com rota e mês antigos no aparelho, reabertura); o teste de fumaça passou a criar o perfil pela tela
 
 ### Fase 6 — Cadastros
+
+> A tela Cadastros saiu na [Fase 13.11](#fase-1311--cadastros-no-menu): cada cadastro tem item próprio no menu. O registro abaixo é o histórico da fase.
 
 - [x] Página `DesktopCadastros` com lista lateral de tipos e contadores (Contas, Cartões, Categorias, Tags, Perfis, Anotações) — o tipo aberto é o *search param* `kind` de `/registry` (`registry/registryKinds.ts`), e o mês de referência, escondido na tela, continua na URL. **Decisões:** Contas e Cartões são geridos aqui, e não levam às telas Contas/Cartões como no mockup; o "Reordenar" das categorias ficou fora do MVP, porque o núcleo não guarda ordem de categorias
 - [x] Contas: lista (desativadas e fora do total marcadas), criar/editar em diálogo (nome, tipo, saldo inicial, moeda, considerar no total), desativar/reativar — sem confirmação, porque se desfazem e não mudam saldo; o saldo inicial é lido na moeda do perfil, e a moeda da conta é só rótulo
@@ -923,6 +925,80 @@ pelo app e de versão igual ou anterior à dele; a anterior migra na reabertura,
 - [x] Main: pede confirmação na tela, abre o diálogo de abrir (o caminho nunca vem do renderer), pede o preparo, fecha o banco e troca os arquivos por `replaceDatabase`, a mesma troca da restauração de backup, com a marca `restore-pending.json` contra o app cair no meio. Depois de fechar o banco, qualquer resultado reabre o núcleo num processo novo (`CoreProcess.restart`), que migra e verifica a integridade como em toda abertura, e recarrega as janelas; o resultado fica guardado para a tela ler uma vez (`database.takeImportNotice`), porque a resposta da chamada some com o renderer que recarregou
 - [x] Tela: alerta de confirmação antes do diálogo; o resultado fica escrito na linha — o sucesso com o caminho do banco anterior, cada falha dizendo se algo mudou e o que fazer; cancelar não avisa nada
 - [x] Testes: núcleo (`test/infrastructure/databaseCopy.test.ts`), desktop (`test/settings.test.ts`: preparo, recusas e textos; `test/main.test.ts`: a troca e o desfazer) e ponta a ponta (`e2e/settings.spec.ts`, com o diálogo de abrir trocado no processo principal)
+
+### Fase 13.10 — Lista de relatórios na página
+
+Entrou depois da Fase 13.9, a pedido, antes dos relatórios personalizados: "Relatórios" deixa de
+abrir subitens no menu lateral e passa a ser um item como Contas e Cartões. A página tem a lista
+dos relatórios à esquerda e o relatório aberto à direita; no menu, a lista que vai crescer com os
+personalizados empurraria Metas, Cadastros e Ajustes para baixo. Diverge da decisão de interface 5
+dos mockups, que foi atualizada.
+
+- [x] `shell/navigation.ts`: o menu perdeu os subitens; `visibleReports` dá a lista do perfil ativo — "Por sócio" só no perfil empresarial
+- [x] Rota de layout sem caminho (`_reports`, `reports/ReportsLayout.tsx`) com a lista à esquerda; cada relatório mantém o caminho (`/reports/...`) e desenha o lado direito: Por categoria, Impacto do cartão e Por sócio num `DetailPane`; Fluxo por conta e Por tag, que já tinham lista própria, em painéis aninhados (`NestedPanes`), com a lista deles mais estreita (`w-60`, e a de relatórios em `w-48`) para que a tabela dos cinco meses do Fluxo por conta caiba sem rolagem a 1440px
+- [x] Testes: unitário do menu e da lista (`test/shell.test.ts`) e ponta a ponta (`e2e/shell.spec.ts`)
+
+### Fase 13.11 — Cadastros no menu
+
+Entrou depois da Fase 13.10, a pedido: a tela Cadastros (`/registry`, Fase 6) saiu, e cada
+cadastro ganhou item próprio no menu lateral. **Diverge do mockup `DesktopCadastros`** e da
+decisão de interface 4 dos mockups ("listas em vez de abas" para os tipos de cadastro): a lista
+de tipos deixou de existir, e não virou aba — o menu é a lista. Os mockups `DesktopTags`,
+`DesktopAnotacoes` e `DesktopSocios` continuam a referência do conteúdo de cada tela.
+
+Menu, nesta ordem: Visão geral, Transações, Contas, Cartões, Relatórios, Metas, Categorias,
+Sócios, Tags, Anotações, Perfis, Dispositivos e Ajustes.
+
+- [x] Contas e Cartões: o cadastro fica só nas próprias telas ("+ Nova conta"/"+ Novo cartão",
+  "Editar", desativar/reativar e excluir pelo "⋯"), que já os tinham desde as Fases 7 e 8; as
+  listas de cadastro de contas e cartões saíram. O saldo inicial e os dias de fechamento e
+  vencimento ficam visíveis só no diálogo de editar
+- [x] Telas `/categories`, `/partners`, `/tags`, `/notes` e `/profiles`, a partir das seções da
+  antiga tela, cada uma buscando os próprios dados; o título vira o `h1` da página. A anotação
+  pedida pela URL passou de `/registry?kind=notes&note=` para `/notes?note=` (`notesSearch.ts`);
+  sair de uma anotação com alteração não salva continua pedindo salvar ou descartar ao trocar de
+  tela
+- [x] Regra de negócio (Perfis): o item Sócios só aparece no menu do perfil empresarial
+  (`menuFor`), como "Por sócio" em Relatórios; pela URL, no perfil pessoal, a tela explica em vez
+  de chamar a rota que o núcleo recusa
+- [x] O mês de referência continua escondido nos cadastros (decisão de interface 2): nenhum número
+  dessas telas depende do mês
+- [x] Os links que levavam a Cadastros (Visão geral › Anotações, Por tag, Por sócio, "Gerenciar
+  perfis") e as mensagens do `client` ("Reative-a na tela Contas", "na tela Sócios") apontam para
+  as telas novas
+- [x] Arquivos: `registry/` saiu; os diálogos de conta e cartão foram para `accounts/` e `cards/`,
+  as peças comuns para `components/entityUi.tsx`, `components/DeletionDialog.tsx`,
+  `lib/coreErrorField.ts` e `lib/nameForm.ts`
+- [x] Testes: `test/shell.test.ts` (menu e Sócios só no empresarial), `test/entities.test.ts`,
+  `test/accountForm.test.ts` e `test/creditCardForm.test.ts` (antes `test/registry.test.ts`) e
+  ponta a ponta (`e2e/entities.spec.ts`, antes `e2e/registry.spec.ts`; `e2e/partners.spec.ts`,
+  `e2e/shell.spec.ts`)
+
+### Fase 13.12 — Categorias em lista e detalhe
+
+Entrou depois da Fase 13.11, a pedido: a grade de cartões de Categorias virou lista lateral e
+detalhe, como Contas e Cartões, a partir de um mockup novo trazido pelo usuário (lista de
+categorias com busca → tabela de subcategorias da categoria aberta).
+
+- [x] Lista lateral (`ListPane`): "+ Nova", busca por categoria **ou** subcategoria (sem
+  diferenciar maiúsculas nem acentos, `matchesAllTerms`), resumo "N categorias · M
+  subcategorias" da lista mostrada e, em cada item, quantas subcategorias e lançamentos tem.
+  A categoria aberta é o *search param* `category` de `/categories` (`categoriesSearch.ts`);
+  sem ele, ou com uma que não existe mais, abre a primeira da lista. A categoria da URL continua
+  aberta mesmo quando a busca a esconde da lista
+- [x] Detalhe: "Renomear" e "Excluir categoria" no cabeçalho (a exclusão saiu do diálogo de
+  editar), subcategorias e lançamentos de todo o período, "Ver no relatório por categoria →"
+  com a categoria aberta, e a tabela das subcategorias com renomear e excluir por linha e a
+  criação na última linha, sem diálogo. A categoria criada abre no detalhe; a excluída sai da URL
+- [x] **Divergências do mockup (perguntadas):** sem "Mover para" — o núcleo não move
+  subcategoria entre categorias —, sem "Total em out/2026" — a tela continua sem depender do
+  mês de referência (decisão de interface 2), e o relatório por categoria mostra os valores —
+  e sem arrastar para reordenar — o núcleo não guarda ordem de categorias, como na Fase 6
+- [x] `FormDialog` perdeu o `secondaryAction`, que só existia para "Excluir categoria" no
+  diálogo de editar
+- [x] Testes: `test/entities.test.ts` (URL, busca pela subcategoria, categoria aberta, contagens)
+  e ponta a ponta (`e2e/entities.spec.ts`: categoria criada aberta e excluída, busca, nova
+  subcategoria na tabela e excluir subcategoria em uso movendo os lançamentos)
 
 ### Fase 14 — Empacotamento e validação
 

@@ -4,25 +4,27 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { cn } from '@/lib/cn';
 
 /*
- * Peças repetidas pelas seções de Cadastros. Ficam juntas para que contas, cartões,
- * categorias e perfis tenham o mesmo cabeçalho, as mesmas etiquetas e o mesmo diálogo — o
- * mockup desenha só Categorias, e as outras seções seguem o mesmo desenho.
+ * Peças repetidas pelas telas de cadastro (Categorias, Sócios, Tags, Anotações e Perfis) e pelos
+ * diálogos de contas, cartões e metas. Ficam juntas para que todas tenham o mesmo cabeçalho, as
+ * mesmas etiquetas e o mesmo diálogo — o mockup `DesktopCadastros` desenha só Categorias, e as
+ * outras telas seguem o mesmo desenho.
  */
 
 /**
- * Cabeçalho da seção aberta, como no mockup: título com a explicação abaixo, e as ações à
- * direita.
+ * Cabeçalho da tela de cadastro, como no mockup: título com a explicação abaixo, e as ações à
+ * direita. O título é o `h1` da página: cada cadastro virou item próprio do menu
+ * (desktop-mvp-plan Fase 13.11), e não há mais um "Cadastros" acima dele.
  *
- * @param props.title Nome do cadastro ("Contas").
+ * @param props.title Nome do cadastro ("Categorias").
  * @param props.description Frase sobre o cadastro, que diz a regra que mais importa nele.
- * @param props.actions Botões do cabeçalho ("+ Nova conta").
+ * @param props.actions Botões do cabeçalho ("+ Novo perfil").
  * @return O cabeçalho.
  */
 export function SectionHeader({ title, description, actions }: { readonly title: string; readonly description: string; readonly actions?: ReactNode }): ReactNode {
     return (
         <div className="flex items-center justify-between gap-4">
             <div className="flex flex-col gap-1">
-                <h2 className="text-22 font-semibold">{title}</h2>
+                <h1 className="text-22 font-semibold">{title}</h1>
                 <span className="text-12 text-muted">{description}</span>
             </div>
             {actions !== undefined && <div className="flex items-center gap-2.5">{actions}</div>}
@@ -72,8 +74,6 @@ export function RowAction({ label, accessibleName, onClick, danger = false }: { 
  * @param props.pending Se o núcleo ainda está gravando; trava o botão contra envio duplo.
  * @param props.error Recusa do núcleo que não pertence a um campo.
  * @param props.onSubmit Envio do formulário.
- * @param props.secondaryAction Ação à esquerda do rodapé, separada das de salvar (ex.: "Excluir
- * categoria" no diálogo de editar, que é o único caminho para ela no mockup).
  * @param props.children Os campos.
  * @return O diálogo.
  */
@@ -86,7 +86,6 @@ export function FormDialog({
     pending,
     error,
     onSubmit,
-    secondaryAction,
     children,
 }: {
     readonly open: boolean;
@@ -97,7 +96,6 @@ export function FormDialog({
     readonly pending: boolean;
     readonly error: string | null;
     readonly onSubmit: (event: SubmitEvent<HTMLFormElement>) => void;
-    readonly secondaryAction?: ReactNode;
     readonly children: ReactNode;
 }): ReactNode {
     return (
@@ -122,7 +120,6 @@ export function FormDialog({
                         </p>
                     )}
                     <DialogFooter>
-                        {secondaryAction !== undefined && <div className="sm:mr-auto">{secondaryAction}</div>}
                         <Button type="button" variant="outline" onClick={onClose}>
                             Cancelar
                         </Button>

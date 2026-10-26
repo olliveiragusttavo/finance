@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isItemActive, MENU, showsReferenceMonth, trailFor, visibleChildren, type MenuItem } from '../src/renderer/src/shell/navigation.ts';
+import { isItemActive, MENU, menuFor, showsReferenceMonth, trailFor, visibleReports, type MenuItem } from '../src/renderer/src/shell/navigation.ts';
 import { pickActiveProfile } from '../src/renderer/src/shell/pickActiveProfile.ts';
 import { currentPeriod, parseShellSearch, resolveReferenceMonth, shiftPeriod } from '../src/renderer/src/shell/referenceMonth.ts';
 import { shortcutFor, type KeyPress } from '../src/renderer/src/shell/shortcuts.ts';
@@ -18,8 +18,28 @@ function menuItem(label: string): MenuItem {
 }
 
 describe('menu do shell (desktop-mvp-plan Fase 4)', () => {
-    it('tem os itens do mockup, na ordem da barra lateral', () => {
-        expect(MENU.map((item) => item.label)).toEqual(['Visão geral', 'Transações', 'Contas', 'Cartões', 'Relatórios', 'Metas', 'Cadastros', 'Dispositivos', 'Ajustes']);
+    it('tem um item por cadastro no lugar de "Cadastros" (Fase 13.11), na ordem da barra lateral', () => {
+        expect(MENU.map((item) => item.label)).toEqual([
+            'Visão geral',
+            'Transações',
+            'Contas',
+            'Cartões',
+            'Relatórios',
+            'Metas',
+            'Categorias',
+            'Sócios',
+            'Tags',
+            'Anotações',
+            'Perfis',
+            'Dispositivos',
+            'Ajustes',
+        ]);
+    });
+
+    it('Regra de negócio (Perfis): Sócios só aparece no menu do perfil empresarial', () => {
+        expect(menuFor('business').map((item) => item.label)).toContain('Sócios');
+        expect(menuFor('personal').map((item) => item.label)).not.toContain('Sócios');
+        expect(menuFor('personal')).toHaveLength(MENU.length - 1);
     });
 
     it('Visão geral só fica marcada na raiz, e as seções em todo caminho delas', () => {
@@ -30,16 +50,14 @@ describe('menu do shell (desktop-mvp-plan Fase 4)', () => {
         expect(isItemActive(menuItem('Relatórios'), '/reports/tag')).toBe(true);
     });
 
-    it('os relatórios só se abrem com a seção ativa, e "Por sócio" só no perfil empresarial', () => {
-        const reports = menuItem('Relatórios');
-        expect(visibleChildren(reports, '/accounts', 'business')).toEqual([]);
-        expect(visibleChildren(reports, '/reports/category', 'personal').map((child) => child.label)).toEqual(['Por categoria', 'Fluxo por conta', 'Impacto do cartão', 'Por tag']);
-        expect(visibleChildren(reports, '/reports/category', 'business').map((child) => child.label)).toEqual(['Por categoria', 'Fluxo por conta', 'Impacto do cartão', 'Por sócio', 'Por tag']);
+    it('a lista de relatórios segue a ordem dos mockups, e "Por sócio" só no perfil empresarial', () => {
+        expect(visibleReports('personal').map((report) => report.label)).toEqual(['Por categoria', 'Fluxo por conta', 'Impacto do cartão', 'Por tag']);
+        expect(visibleReports('business').map((report) => report.label)).toEqual(['Por categoria', 'Fluxo por conta', 'Impacto do cartão', 'Por sócio', 'Por tag']);
     });
 
-    it('esconde o mês de referência só em Cadastros, Dispositivos e Ajustes, e na importação dentro de Ajustes', () => {
+    it('esconde o mês de referência só nos cadastros, em Dispositivos e Ajustes, e na importação dentro de Ajustes', () => {
         const hidden = MENU.filter((item) => !showsReferenceMonth(item.to)).map((item) => item.label);
-        expect(hidden).toEqual(['Cadastros', 'Dispositivos', 'Ajustes']);
+        expect(hidden).toEqual(['Categorias', 'Sócios', 'Tags', 'Anotações', 'Perfis', 'Dispositivos', 'Ajustes']);
         expect(showsReferenceMonth('/reports/partner')).toBe(true);
         expect(showsReferenceMonth('/settings/import')).toBe(false);
     });

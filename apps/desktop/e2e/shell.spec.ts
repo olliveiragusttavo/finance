@@ -11,7 +11,7 @@ import { launchApp, removeUserData } from './launchApp.ts';
  */
 
 /**
- * Cria um perfil pessoal e um empresarial pela ponte, como o primeiro uso e Cadastros fazem —
+ * Cria um perfil pessoal e um empresarial pela ponte, como o primeiro uso e Perfis fazem —
  * o primeiro uso pela tela tem o próprio teste —, deixa o pessoal como o aberto e recarrega
  * para o shell abrir com eles.
  *
@@ -70,19 +70,20 @@ test('o menu leva a todas as telas e o mês de referência acompanha a navegaç�
         await expect(month).toHaveText(formatMonthLong(today));
 
         // Telas de configuração não mostram o mês (decisão da Fase 4), mas a barra continua.
-        await openMenuItem(page, 'Cadastros');
-        await expect(page.getByRole('heading', { level: 1 })).toHaveText('Cadastros');
+        await openMenuItem(page, 'Categorias');
+        await expect(page.getByRole('heading', { level: 1 })).toHaveText('Categorias');
         await expect(month).toHaveCount(0);
         await expect(page.getByRole('button', { name: '+ Lançamento' })).toBeVisible();
 
-        // Relatórios abrem os subitens; "Por sócio" só no perfil empresarial.
+        // Relatórios abrem a página com a lista dos relatórios; "Por sócio" só no perfil empresarial.
         await openMenuItem(page, 'Relatórios');
-        const menu = page.getByRole('navigation', { name: 'Navegação principal' });
+        const reports = page.getByRole('region', { name: 'Lista de relatórios' });
         await expect(page.getByRole('heading', { level: 1 })).toHaveText('Por categoria');
-        await expect(menu.getByRole('link', { name: 'Por categoria' })).toHaveAttribute('aria-current', 'page');
-        await expect(menu.getByRole('link', { name: 'Fluxo por conta' })).toBeVisible();
-        await expect(menu.getByRole('link', { name: 'Por sócio' })).toHaveCount(0);
-        await openMenuItem(page, 'Por tag');
+        await expect(reports.getByRole('link', { name: 'Por categoria' })).toHaveAttribute('aria-current', 'page');
+        await expect(reports.getByRole('link', { name: 'Fluxo por conta' })).toBeVisible();
+        await expect(reports.getByRole('link', { name: 'Por sócio' })).toHaveCount(0);
+        await expect(page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('link', { name: 'Por categoria' })).toHaveCount(0);
+        await reports.getByRole('link', { name: 'Por tag', exact: true }).dispatchEvent('click');
         await expect(page.getByRole('heading', { level: 1 })).toHaveText('Por tag');
         await expect(month).toHaveText(formatMonthLong(today));
     } finally {
@@ -91,16 +92,20 @@ test('o menu leva a todas as telas e o mês de referência acompanha a navegaç�
     }
 });
 
-test('trocar de perfil mostra "Por sócio" no empresarial e é lembrado ao reabrir; tema e mês também', async () => {
+test('trocar de perfil mostra "Por sócio" e Sócios no empresarial e é lembrado ao reabrir; tema e mês também', async () => {
     const { app, window: page, userData } = await launchApp();
     try {
         await seedProfiles(page);
         await openMenuItem(page, 'Relatórios');
+        // Regra de negócio (Perfis): Sócios só aparece no menu do perfil empresarial.
+        const menu = page.getByRole('navigation', { name: 'Navegação principal' });
+        await expect(menu.getByRole('link', { name: 'Sócios', exact: true })).toHaveCount(0);
 
         await page.getByTestId('profile-switcher').press('Enter');
         await page.getByRole('menuitemradio', { name: /Estúdio GO/ }).dispatchEvent('click');
         await expect(page.getByTestId('profile-switcher')).toContainText('Empresarial · BRL');
-        await expect(page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('link', { name: 'Por sócio' })).toBeVisible();
+        await expect(page.getByRole('region', { name: 'Lista de relatórios' }).getByRole('link', { name: 'Por sócio' })).toBeVisible();
+        await expect(menu.getByRole('link', { name: 'Sócios', exact: true })).toBeVisible();
 
         await page.getByRole('button', { name: 'Seguir o sistema' }).press('Enter');
         await page.getByRole('menuitemradio', { name: 'Tema escuro' }).dispatchEvent('click');

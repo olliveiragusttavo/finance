@@ -317,8 +317,7 @@ test('filtros ficam na URL, ordenação por coluna, menu de contexto e a tag abe
         await menu.getByRole('menuitem', { name: /Marcar como pago/ }).press('Enter');
         await expect(rowOf(page, 'Aluguel')).toContainText('Pago');
 
-        await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('link', { name: 'Cadastros', exact: true }).dispatchEvent('click');
-        await page.getByRole('region', { name: 'Tipos de cadastro' }).getByRole('link', { name: /^Tags/ }).dispatchEvent('click');
+        await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('link', { name: 'Tags', exact: true }).dispatchEvent('click');
         await page.getByRole('button', { name: 'Editar a tag viagem' }).dispatchEvent('click');
         await page.getByRole('link', { name: 'Ver lançamentos em Transações →' }).dispatchEvent('click');
         await expect(page.getByRole('heading', { name: 'Transações', level: 1 })).toBeVisible();

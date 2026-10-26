@@ -26,13 +26,13 @@ import { EmptyState, QueryState, Skeleton } from '@/components/states';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/cn';
-import { AccountDialog, useToggleAccount } from '@/registry/AccountsSection';
-import { AccountDeletionDialog } from '@/registry/DeletionDialog';
-import { StatusTag } from '@/registry/registryUi';
+import { AccountDeletionDialog } from '@/components/DeletionDialog';
+import { StatusTag } from '@/components/entityUi';
 import { useActiveProfile } from '@/shell/activeProfile';
 import { useReferenceMonth } from '@/shell/useReferenceMonth';
 import { MovementGrid } from '@/transactions/MovementGrid';
 import { useTransactionActions } from '@/transactions/useTransactionActions';
+import { AccountDialog, useToggleAccount } from './AccountDialog.tsx';
 import { accountListView, openAccount, parseAccountsSearch } from './accountsSearch.ts';
 
 /**
@@ -47,8 +47,8 @@ type AccountDialogState = { readonly mode: 'create' } | { readonly mode: 'edit';
 /**
  * Contas (mockup `DesktopContas`; desktop-mvp-plan Fase 7): à esquerda a lista com o saldo do
  * mês de cada conta e os totais, à direita o extrato do mês da conta aberta. A conta aberta
- * fica na URL (`account`), como o tipo aberto em Cadastros, e a lista mostra as ativas ou as
- * desativadas (`view`, desktop-mvp-plan Fase 13.4).
+ * fica na URL (`account`), e a lista mostra as ativas ou as desativadas (`view`,
+ * desktop-mvp-plan Fase 13.4).
  *
  * @return A tela de Contas.
  */

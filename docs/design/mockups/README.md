@@ -28,7 +28,7 @@ Cada tela é um arquivo `screens/*.dc.html` (HTML de um editor de design):
 3. **Contas e Cartões são seções separadas**, cada uma com item próprio no menu:
    lista com resumo do mês (saldo da conta / total e situação da fatura) → clique abre o detalhe.
 4. **Listas em vez de abas** no topo para escolher entidades (contas, cartões, tags, metas, tipos de cadastro).
-5. **Relatórios** são subitens de "Relatórios" no menu lateral do desktop. "Por sócio" só existe em perfil empresarial.
+5. **Relatórios** é um item do menu lateral do desktop, como Contas e Cartões: abre a página com a lista dos relatórios à esquerda e o relatório aberto à direita. Os mockups ainda desenham os relatórios como subitens do menu; a lista na página prevaleceu, a pedido, porque vai receber os relatórios personalizados. "Por sócio" só existe em perfil empresarial.
 6. **Consolidado e previsto** sempre juntos; previsto com peso menor.
 7. Entrada/saída distinguíveis **sem depender só da cor**: sinal (+/−), ⇄ para transferência, rótulos.
 8. Números com algarismos tabulares e alinhados à direita nas tabelas.

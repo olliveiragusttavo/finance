@@ -1,4 +1,5 @@
 import type { CategoryBranchResponse, SubCategoryResponse } from '@finance/core';
+import { categoryTransactionCount } from './categoriesSearch.ts';
 
 /** O que vai ser excluído: uma categoria inteira ou uma subcategoria. */
 export type CategoryDeletionTarget =
@@ -21,7 +22,7 @@ export function transactionsToMove(target: CategoryDeletionTarget): number {
     if (target.kind === 'subCategory') {
         return target.subCategory.transactionCount;
     }
-    return target.category.subCategories.reduce((total, subCategory) => total + subCategory.transactionCount, 0);
+    return categoryTransactionCount(target.category);
 }
 
 /**

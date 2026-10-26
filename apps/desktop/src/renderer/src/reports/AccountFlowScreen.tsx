@@ -2,11 +2,11 @@ import { buildAccountFlowTable, formatAccountType, useAccountFlow, useAccounts, 
 import type { AccountInPeriodResponse, AccountListResponse } from '@finance/core';
 import { Link, useSearch } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
-import { DetailPane, ListPane, PaneLayout } from '@/components/PaneLayout';
+import { DetailPane, ListPane, NestedPanes } from '@/components/PaneLayout';
 import { EmptyState, QueryState, Skeleton } from '@/components/states';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/cn';
-import { StatusTag } from '@/registry/registryUi';
+import { StatusTag } from '@/components/entityUi';
 import { useActiveProfile } from '@/shell/activeProfile';
 import { useReferenceMonth } from '@/shell/useReferenceMonth';
 import { ALL_ACCOUNTS, chooseAccountFlow, parseAccountFlowSearch, type AccountFlowChoice } from './accountFlowSearch.ts';
@@ -29,7 +29,7 @@ export function AccountFlowScreen(): ReactNode {
     const accounts = useAccounts({ profileId: profile.id, period });
 
     return (
-        <PaneLayout>
+        <NestedPanes>
             <QueryState query={accounts} loading={<FlowSkeleton />}>
                 {(list) => {
                     const choice = chooseAccountFlow(list.accounts, search);
@@ -47,12 +47,14 @@ export function AccountFlowScreen(): ReactNode {
                     );
                 }}
             </QueryState>
-        </PaneLayout>
+        </NestedPanes>
     );
 }
 
 /**
- * Lista lateral: cada conta e, por último, a soma das contas do total.
+ * Lista lateral: cada conta e, por último, a soma das contas do total. Mais estreita que a de
+ * Contas porque divide a página com a lista de relatórios (`ReportsLayout`), e a tabela dos cinco
+ * meses precisa do espaço.
  * Regra de negócio (Relatórios, F6): a conta fora do total pode ser escolhida, mas aparece apagada
  * e com "fora do total", como em Contas, porque não entra na soma (desktop-mvp-plan §3.4).
  *
