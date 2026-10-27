@@ -37,18 +37,26 @@ function probes(s: SeriesScenario): readonly Probe[] {
             { route: 'statements.get', input: { accountId: s.checkingId, period } },
             { route: 'statements.get', input: { accountId: s.savingsId, period } },
             { route: 'statements.profileInvoices', input: { profileId: s.profileId, period } },
-            { route: 'reports.monthSummary', input: { profileId: s.profileId, period } },
-            { route: 'reports.byCategory', input: { profileId: s.profileId, period } },
-            { route: 'reports.categoryTransactions', input: { profileId: s.profileId, period, subCategoryId: s.subCategoryId } },
-            { route: 'reports.cardImpact', input: { profileId: s.profileId, period } },
-            { route: 'reports.accountFlow', input: { profileId: s.profileId, period } },
-            { route: 'reports.accountFlow', input: { profileId: s.profileId, period, accountId: s.savingsId } },
-            { route: 'reports.byTag', input: { profileId: s.profileId, period, range: 'month' } },
-            { route: 'reports.tagTransactions', input: { profileId: s.profileId, period, range: 'month', tagId: s.tagId } },
         ]),
-        { route: 'reports.byTag', input: { profileId: s.profileId, period: PERIOD, range: 'all' } },
+        { route: 'reports.list', input: { profileId: s.profileId } },
+        { route: 'reports.get', input: { id: s.reportId } },
+        ...['2026-09', PERIOD].map((period): Probe => ({ route: 'reports.run', input: { id: s.reportId, period } })),
+        // Origem e subcategoria: os nomes de conta, cartão e subcategoria, e a posse das referências.
+        {
+            route: 'reports.preview',
+            input: {
+                profileId: s.profileId,
+                period: PERIOD,
+                filter: { period: { anchor: { kind: 'reference' }, previousMonths: 2, basis: 'payment' }, accountIds: [s.checkingId, s.savingsId], creditCardIds: [s.creditCardId] },
+                layout: { format: 'bar', primary: 'source', secondary: 'subCategory' },
+            },
+        },
+        { route: 'reports.preview', input: { profileId: s.profileId, period: PERIOD, filter: { period: { anchor: { kind: 'reference' }, basis: 'due' }, goalIds: [s.goalId] }, layout: { format: 'line', primary: 'month' } } },
+        { route: 'reports.preview', input: { profileId: s.businessId, period: PERIOD, filter: { period: { anchor: { kind: 'reference' }, basis: 'due' } }, layout: { format: 'table', primary: 'partner', secondary: 'status' } } },
         { route: 'reports.byPartner', input: { profileId: s.businessId, period: PERIOD } },
         { route: 'reports.entriesWithoutPartner', input: { profileId: s.businessId, period: PERIOD } },
+        { route: 'reports.balanceProjection', input: { profileId: s.profileId } },
+        { route: 'reports.balanceProjection', input: { profileId: s.profileId, basis: 1 } },
         { route: 'partners.list', input: { profileId: s.businessId } },
         { route: 'transactions.get', input: { id: s.businessIncomeId } },
         { route: 'accounts.transferTargets', input: { profileId: s.profileId } },
@@ -68,7 +76,6 @@ function probes(s: SeriesScenario): readonly Probe[] {
         { route: 'invoices.get', input: { invoiceId: s.paidInvoiceId } },
         { route: 'invoices.listByCard', input: { creditCardId: s.creditCardId, from: PERIOD } },
         { route: 'integrity.verifyBalances', input: {} },
-        { route: 'reports.balanceEvolution', input: { profileId: s.profileId, period: '2026-12', months: 6 } },
     ];
 }
 
@@ -163,6 +170,15 @@ const WRITES: readonly Write[] = [
     { route: 'transactions.setPaid', input: (s) => ({ id: s.expenseId, paid: true }) },
     { route: 'transactions.setPartner', input: (s) => ({ id: s.businessIncomeId, partnerId: s.partnerId }) },
     { route: 'balances.rebuildAccount', input: (s) => ({ accountId: s.checkingId }), unchanged: true },
+    {
+        route: 'reports.create',
+        input: (s) => ({ profileId: s.profileId, name: 'Por mês', filter: { period: { anchor: { kind: 'reference' } } }, layout: { format: 'line', primary: 'month' } }),
+    },
+    {
+        route: 'reports.update',
+        input: (s) => ({ id: s.reportId, name: 'Gastos por mês', filter: { period: { anchor: { kind: 'reference' }, previousMonths: 1 }, types: ['expense'] }, layout: { format: 'bar', primary: 'month' } }),
+    },
+    { route: 'reports.delete', input: (s) => ({ id: s.reportId }) },
     { route: 'invoices.pay', input: (s) => ({ invoiceId: s.openInvoiceId, paymentDate: '2026-10-09' }) },
     { route: 'invoices.reopen', input: (s) => ({ invoiceId: s.paidInvoiceId }) },
     // Com o relógio parado, o complemento não tem o que emitir: a criação já foi até o horizonte.
@@ -183,8 +199,8 @@ const WRITES: readonly Write[] = [
 ];
 
 /**
- * O cenário do `ClientWorld`, uma série fixa para as sondas de recorrência e um perfil
- * empresarial com um sócio para as do relatório por sócio.
+ * O cenário do `ClientWorld`, uma série fixa para as sondas de recorrência, um perfil
+ * empresarial com um sócio e um relatório salvo para as sondas dos relatórios.
  */
 interface SeriesScenario extends Scenario {
     readonly recurrenceId: string;
@@ -194,6 +210,8 @@ interface SeriesScenario extends Scenario {
     readonly partnerId: string;
     /** Receita de outubro do perfil empresarial, ainda sem sócio: a entrada que pode ser aporte. */
     readonly businessIncomeId: string;
+    /** Relatório salvo por categoria e tag, para as sondas dos relatórios personalizados. */
+    readonly reportId: string;
 }
 
 /**
@@ -205,8 +223,8 @@ function seriesContent(s: SeriesScenario): { type: 'expense'; source: { kind: 'a
 }
 
 /**
- * Semeia o cenário, uma série fixa mensal no Tesouro a partir de março de 2027 e o perfil
- * empresarial com um sócio e uma despesa sem sócio. Fica aqui, e
+ * Semeia o cenário, uma série fixa mensal no Tesouro a partir de março de 2027, o perfil
+ * empresarial com um sócio e uma receita sem sócio, e um relatório salvo. Fica aqui, e
  * não no `ClientWorld`, porque os outros testes contam os lançamentos de outubro; numa conta e
  * em meses que nenhuma outra sonda olha, a série só aparece nas sondas de recorrência — e nas
  * escritas que a levam junto (excluir a conta) ou mudam o ciclo do cartão.
@@ -243,8 +261,15 @@ async function seedWithSeries(world: ClientWorld): Promise<SeriesScenario> {
         value: 90,
         dueDate: '2026-10-14',
     });
+    const report = await world.ok('reports.create', {
+        profileId: scenario.profileId,
+        name: 'Por categoria e tag',
+        filter: { period: { anchor: { kind: 'reference' }, previousMonths: 2, basis: 'due' } },
+        layout: { format: 'table', primary: 'category', secondary: 'tag' },
+    });
     return {
         ...scenario,
+        reportId: report.id,
         recurrenceId: first.recurrenceId ?? '',
         seriesFirstId: first.id,
         businessId: business.profile.id,

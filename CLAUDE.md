@@ -79,6 +79,37 @@ const workareaId = request.workareaId;
 
 **Por quê:** as telas já foram aprovadas e as decisões de interface (tema claro/escuro, mês de referência fixo, entrada/saída sem depender só da cor) valem para todas; ignorá-las gera retrabalho e inconsistência entre desktop e celular.
 
+## Versionamento — obrigatório em toda alteração
+
+Cada pacote tem a própria versão SemVer no `package.json`. **Toda alteração de código ajusta, na mesma entrega, a versão de cada pacote que ela tocou** — e só deles.
+
+| Caminho alterado | Versão a ajustar |
+|------------------|------------------|
+| `apps/desktop/**` | `apps/desktop/package.json` |
+| `packages/client/**` | `packages/client/package.json` |
+| `packages/core/**` | `packages/core/package.json` |
+| `packages/sqlite-better/**` ou `db/migrations/**` (banco) | `packages/sqlite-better/package.json` |
+| `packages/tokens/**` | `packages/tokens/package.json` |
+| qualquer um dos acima | `package.json` da raiz (versão do produto) |
+
+O incremento segue o tipo do commit (Conventional Commits):
+
+- `feat` → minor (`1.4.2` → `1.5.0`).
+- `fix`, `perf`, `refactor`, `style` → patch (`1.4.2` → `1.4.3`).
+- `BREAKING CHANGE` ou `!` no tipo → major (`1.4.2` → `2.0.0`).
+- `docs`, `test`, `chore`, `ci`, `build` → sem alteração de versão.
+- A raiz recebe o maior incremento entre os pacotes alterados.
+- Pacote novo nasce em `1.0.0`.
+
+Exemplos:
+
+- Melhoria de layout no desktop (`style(desktop)`): só `apps/desktop` e a raiz sobem patch.
+- Nova feature com migration, rota no core e tela (`feat`): `sqlite-better`, `core`, `client` (se os hooks/queries mudarem), `desktop` e a raiz sobem minor.
+
+Uma entrega com vários commits sobe a versão uma vez por commit, conforme o tipo de cada um. Antes de dar a entrega por concluída, confira com `git diff --stat` quais pacotes foram tocados e se cada um teve a versão ajustada.
+
+**Por quê:** a versão de cada pacote precisa refletir o histórico dele; ajustar depois, em lote, leva a números trocados entre pacotes e a versões que não correspondem a nenhum commit.
+
 ## Git
 
 - **Commit:** pelo comando `/commit` (`.claude/commands/commit.md`), que monta a mensagem em Conventional Commits/PT-BR e só commita após pedido explícito do usuário.

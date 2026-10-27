@@ -5,9 +5,8 @@ import { launchApp, removeUserData } from './launchApp.ts';
 /*
  * Cadastro de sócios (desktop-mvp-plan Fase 13.7) no app empacotado: o exemplo do mockup
  * `DesktopSocios` — Gustavo (60%) e Ana (40%) no Estúdio GO —, a soma ao vivo que só libera o
- * salvar em 100%, "Aportou" e "Deveria ter aportado", e a remoção de um sócio com aporte, que
- * passa a aparecer como entrada sem sócio no relatório. Os cliques usam `dispatchEvent`, pelo motivo explicado
- * em `firstUse.ts`.
+ * salvar em 100% e a remoção de um sócio com aporte, que deixa o lançamento sem sócio. Os cliques
+ * usam `dispatchEvent`, pelo motivo explicado em `firstUse.ts`.
  */
 
 /** Ids do cenário semeado. */
@@ -66,7 +65,7 @@ async function addPartner(page: Page, name: string): Promise<void> {
     await expect(page.getByLabel(`Participação de ${name}`)).toHaveValue('0');
 }
 
-test('sócios: soma ao vivo até 100%, aportou × deveria e remoção que deixa o aporte sem sócio', async () => {
+test('sócios: soma ao vivo até 100% e remoção que deixa o aporte sem sócio', async () => {
     const { app, window: page, userData } = await launchApp();
     try {
         const seeded = await seedBusiness(page);
@@ -89,7 +88,7 @@ test('sócios: soma ao vivo até 100%, aportou × deveria e remoção que deixa 
         // A tabela recomeça do gravado, com os dois sócios.
         await expect(page.getByLabel('Participação de Ana')).toHaveValue('40');
 
-        // Um aporte do Gustavo: "Aportou" e "Deveria ter aportado" acompanham.
+        // Um aporte do Gustavo: removê-lo avisa que o lançamento fica sem sócio.
         const period = currentPeriod(new Date());
         await page.evaluate(
             async ({ seeded, period }) => {
@@ -112,21 +111,18 @@ test('sócios: soma ao vivo até 100%, aportou × deveria e remoção que deixa 
         );
         await page.reload();
         await openPartners(page);
-        const list = page.getByRole('region', { name: 'Lista de sócios' });
-        await expect(list).toContainText('R$ 3.200,00');
-        await expect(list).toContainText('R$ 1.920,00');
-        await expect(list).toContainText('R$ 1.280,00');
-
         // Remover Gustavo avisa do aporte, que fica sem sócio ao salvar.
         await page.getByRole('button', { name: 'Remover Gustavo' }).dispatchEvent('click');
-        await expect(page.getByText('Ao salvar, o lançamento vinculado a Gustavo fica “sem sócio atribuído” e sai da divisão.')).toBeVisible();
+        await expect(page.getByText('Ao salvar, o lançamento vinculado a Gustavo fica “sem sócio atribuído”.')).toBeVisible();
         await page.getByLabel('Participação de Ana').fill('100');
         await page.getByRole('button', { name: 'Salvar', exact: true }).dispatchEvent('click');
         await expect(page.getByText('Sócios salvos.')).toBeVisible();
 
-        await page.getByRole('link', { name: 'Ver relatório por sócio →' }).dispatchEvent('click');
-        await expect(page.getByRole('heading', { name: 'Por sócio', level: 1 })).toBeVisible();
-        await expect(page.getByRole('group', { name: /^Entradas sem sócio/ })).toContainText('1 lançamento · fora da divisão');
+        const partnerId = await page.evaluate(async ({ profileId, period }) => {
+            const list = await window.finance.core.call('transactions.listByPeriod', { profileId, period });
+            return list.ok ? list.data[0]?.partnerId : undefined;
+        }, { profileId: seeded.profileId, period });
+        expect(partnerId).toBeNull();
     } finally {
         await app.close();
         removeUserData(userData);

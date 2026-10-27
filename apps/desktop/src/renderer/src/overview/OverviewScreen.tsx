@@ -1,21 +1,14 @@
 import {
-    balanceEvolutionRows,
     describeGoalListItem,
-    formatMoney,
     goalInView,
     overviewAccountRows,
     overviewCardRows,
     overviewKpis,
     overviewNotes,
-    topCategories,
     useAccounts,
-    useBalanceEvolution,
-    useCategoryReport,
     useCreditCards,
     useGoals,
-    useMonthSummary,
     useNotes,
-    type BalanceEvolutionRow,
     type OverviewAccountRow,
     type OverviewCardRow,
     type OverviewKpi,
@@ -23,27 +16,22 @@ import {
     type OverviewNotes,
 } from '@finance/client';
 import type { GoalProgressResponse } from '@finance/core';
-import type { XAxisTickContentProps } from 'recharts';
-import { Bar, BarChart, ReferenceLine, XAxis, YAxis } from 'recharts';
 import { Link } from '@tanstack/react-router';
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { ProgressBar } from '@/components/ProgressBar';
 import { EmptyState, QueryState, Skeleton } from '@/components/states';
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ViewToggle } from '@/components/ViewToggle';
 import { cn } from '@/lib/cn';
 import { StatusTag } from '@/components/entityUi';
 import { useActiveProfile } from '@/shell/activeProfile';
 import { useReferenceMonth } from '@/shell/useReferenceMonth';
 
 /**
- * Visão geral (mockup `Main`, D2; desktop-mvp-plan Fase 10): os indicadores do mês, a evolução
- * do saldo, as maiores categorias, os resumos de contas e cartões e, desde a Fase 13.2 (pedido do
- * usuário, sem mockup), o resumo das metas e os títulos das anotações. Cada bloco tem a própria
- * consulta e o próprio estado de carregando e de erro, para que um relatório lento não segure a
- * tela inteira; os números e as frases vêm do `overviewView` do `client`, que o celular também
- * usa.
+ * Visão geral (mockup `Main`, D2; desktop-mvp-plan Fase 10): os indicadores de saldo, os resumos
+ * de contas e cartões e, desde a Fase 13.2 (pedido do usuário, sem mockup), o resumo das metas e
+ * os títulos das anotações. Os indicadores de receitas, despesas e faturas, a evolução do saldo e
+ * as maiores categorias saíram com os relatórios fixos (reports-design, Fase 15). Cada bloco tem a
+ * própria consulta e o próprio estado de carregando e de erro; os números e as frases vêm do
+ * `overviewView` do `client`, que o celular também usa.
  *
  * @return A tela da Visão geral.
  */
@@ -56,10 +44,6 @@ export function OverviewScreen(): ReactNode {
         <>
             <h1 className="text-24 font-semibold">Visão geral</h1>
             <OverviewKpis profileId={profile.id} period={period} />
-            <div className="grid grid-cols-3 gap-4">
-                <BalanceEvolution profileId={profile.id} period={period} currency={profile.currency} />
-                <TopCategories profileId={profile.id} period={period} />
-            </div>
             <div className="grid grid-cols-2 items-start gap-4">
                 <Panel title="Contas" hint="consolidado · previsto">
                     <QueryState query={accounts} loading={<PanelRowsSkeleton />}>
@@ -89,8 +73,7 @@ interface MonthScope {
 }
 
 /**
- * Os cinco indicadores. Dependem de duas consultas — o total das contas e o resumo do mês —, e
- * só aparecem com as duas, para que a fileira não se monte aos pedaços.
+ * Os indicadores de saldo, do total da lista de contas — o mesmo número do rodapé de Contas.
  *
  * @param props.profileId Perfil ativo.
  * @param props.period Mês de referência.
@@ -98,46 +81,35 @@ interface MonthScope {
  */
 function OverviewKpis({ profileId, period }: MonthScope): ReactNode {
     const accounts = useAccounts({ profileId, period });
-    const summary = useMonthSummary({ profileId, period });
     const loading = (
-        <div role="status" aria-busy="true" aria-label="Carregando indicadores" className="grid grid-cols-5 gap-4">
-            {[0, 1, 2, 3, 4].map((index) => (
+        <div role="status" aria-busy="true" aria-label="Carregando indicadores" className="grid grid-cols-2 gap-4">
+            {[0, 1].map((index) => (
                 <Skeleton key={index} className="h-26.5 rounded-10" />
             ))}
         </div>
     );
     return (
         <QueryState query={accounts} loading={loading}>
-            {(list) => (
-                <QueryState query={summary} loading={loading}>
-                    {(month) => {
-                        const kpis = overviewKpis(list, month);
-                        return (
-                            <section aria-label="Indicadores" className="grid grid-cols-5 gap-4">
-                                <KpiCard kpi={kpis.consolidated} />
-                                <KpiCard kpi={kpis.projected} />
-                                <KpiCard kpi={kpis.income} />
-                                <KpiCard kpi={kpis.expenses} />
-                                <KpiCard kpi={kpis.openInvoices} />
-                            </section>
-                        );
-                    }}
-                </QueryState>
-            )}
+            {(list) => {
+                const kpis = overviewKpis(list);
+                return (
+                    <section aria-label="Indicadores" className="grid grid-cols-2 gap-4">
+                        <KpiCard kpi={kpis.consolidated} />
+                        <KpiCard kpi={kpis.projected} />
+                    </section>
+                );
+            }}
         </QueryState>
     );
 }
 
 /**
  * Classe de cada tom de indicador. O previsto tem peso menor que o consolidado (decisão de
- * interface 6 dos mockups); entrada e saída têm cor, mas o sinal e a seta do rótulo já as
- * distinguem (decisão 7).
+ * interface 6 dos mockups).
  */
 const KPI_TONES: Readonly<Record<OverviewKpiTone, string>> = {
     strong: 'font-semibold text-ink',
     projected: 'text-ink2',
-    in: 'font-semibold text-in',
-    out: 'font-semibold text-out',
 };
 
 /**
@@ -154,191 +126,6 @@ function KpiCard({ kpi }: { readonly kpi: OverviewKpi }): ReactNode {
             <span className={cn('text-24 tabular-nums', KPI_TONES[kpi.tone])}>{kpi.value}</span>
             <span className="text-12 text-muted">{kpi.sub}</span>
         </div>
-    );
-}
-
-/** Como a evolução do saldo aparece: o gráfico ou a tabela equivalente. */
-type EvolutionView = 'chart' | 'table';
-
-/**
- * Séries do gráfico. As duas usam o `accent`: o previsto se distingue pelo contorno tracejado,
- * e não por outra cor, como no mockup — a diferença não depende só da cor.
- */
-const EVOLUTION_SERIES = {
-    consolidated: { label: 'Consolidado', color: 'accent' },
-    projected: { label: 'Previsto', color: 'accent' },
-} as const satisfies ChartConfig;
-
-/**
- * Evolução do saldo: consolidado e previsto do perfil no fim de cada um dos 6 meses até o de
- * referência (reports-design §5), com a alternância Gráfico/Tabela do mockup. A tabela é a
- * mesma informação do gráfico, para quem não lê o gráfico (desktop-mvp-plan §2, Gráficos).
- *
- * @param props.profileId Perfil ativo.
- * @param props.period Mês de referência.
- * @param props.currency Moeda do perfil, para formatar o valor da dica do gráfico.
- * @return O bloco da evolução do saldo.
- */
-function BalanceEvolution({ profileId, period, currency }: MonthScope & { readonly currency: string }): ReactNode {
-    // A quantidade de meses é a padrão do núcleo, a do mockup.
-    const evolution = useBalanceEvolution({ profileId, period });
-    const [view, setView] = useState<EvolutionView>('chart');
-    return (
-        <section aria-labelledby="overview-evolution" className="col-span-2 flex flex-col gap-3.5 rounded-10 border border-line bg-surface p-5">
-            <div className="flex items-center justify-between">
-                <h2 id="overview-evolution" className="text-16 font-semibold">
-                    Evolução do saldo
-                </h2>
-                <div role="group" aria-label="Exibição" className="flex gap-1">
-                    <ViewToggle pressed={view === 'chart'} onClick={() => { setView('chart'); }}>
-                        Gráfico
-                    </ViewToggle>
-                    <ViewToggle pressed={view === 'table'} onClick={() => { setView('table'); }}>
-                        Tabela
-                    </ViewToggle>
-                </div>
-            </div>
-            <QueryState query={evolution} loading={<Skeleton className="h-65" />}>
-                {(data) => {
-                    const rows = balanceEvolutionRows(data);
-                    return view === 'chart' ? <EvolutionChart rows={rows} currency={currency} /> : <EvolutionTable rows={rows} />;
-                }}
-            </QueryState>
-        </section>
-    );
-}
-
-/**
- * Gráfico de barras agrupadas: consolidado cheio e previsto tracejado, lado a lado por mês, com
- * o mês de referência em destaque no eixo. Sem eixo de valores, como no mockup: o valor exato
- * está na dica e na tabela. A linha do zero aparece quando algum saldo fica negativo.
- *
- * @param props.rows Meses da série, já formatados.
- * @param props.currency Moeda do perfil.
- * @return A legenda e o gráfico.
- */
-function EvolutionChart({ rows, currency }: { readonly rows: readonly BalanceEvolutionRow[]; readonly currency: string }): ReactNode {
-    const negative = rows.some((row) => row.consolidated < 0 || row.projected < 0);
-    return (
-        <>
-            <div className="flex gap-4 text-12 text-muted">
-                <span className="flex items-center gap-1.5">
-                    <span aria-hidden="true" className="size-3 rounded-2 bg-accent" />
-                    Consolidado
-                </span>
-                <span className="flex items-center gap-1.5">
-                    <span aria-hidden="true" className="size-3 rounded-2 border-[1.5px] border-dashed border-accent" />
-                    Previsto
-                </span>
-            </div>
-            <ChartContainer config={EVOLUTION_SERIES} className="aspect-auto h-60" role="img" aria-label="Gráfico da evolução do saldo; os valores estão na tabela">
-                <BarChart data={[...rows]} barGap={6} barCategoryGap="20%" margin={{ top: 4, right: 8, bottom: 0, left: 8 }}>
-                    <XAxis dataKey="label" tickLine={false} axisLine={{ stroke: 'var(--color-line)' }} interval={0} tick={(props: XAxisTickContentProps) => <EvolutionTick {...props} rows={rows} />} />
-                    <YAxis hide domain={negative ? ['auto', 'auto'] : [0, 'auto']} />
-                    {negative && <ReferenceLine y={0} stroke="var(--color-line)" />}
-                    <ChartTooltip
-                        cursor={{ fill: 'var(--color-track)' }}
-                        content={(props) => <ChartTooltipContent {...props} formatValue={(amount) => formatMoney({ amount, currency })} />}
-                    />
-                    <Bar dataKey="consolidated" fill="var(--color-consolidated)" radius={[3, 3, 0, 0]} isAnimationActive={false} />
-                    <Bar dataKey="projected" fill="transparent" stroke="var(--color-projected)" strokeWidth={1.5} strokeDasharray="4 3" radius={[3, 3, 0, 0]} isAnimationActive={false} />
-                </BarChart>
-            </ChartContainer>
-        </>
-    );
-}
-
-/**
- * Rótulo do eixo dos meses: só o mês abreviado, com o de referência em destaque — o ano está
- * na dica e na tabela.
- *
- * @param props.x Posição horizontal calculada pelo Recharts.
- * @param props.y Posição vertical calculada pelo Recharts.
- * @param props.payload Item do eixo; o índice aponta a linha da série.
- * @param props.rows Meses da série.
- * @return O texto do rótulo.
- */
-function EvolutionTick({ x, y, payload, rows }: XAxisTickContentProps & { readonly rows: readonly BalanceEvolutionRow[] }): ReactNode {
-    const row = rows[payload.index];
-    return (
-        <text x={x} y={y} dy={14} textAnchor="middle" className={cn('text-12', row?.isReference === true ? 'fill-ink font-semibold' : 'fill-muted')}>
-            {row?.axisLabel}
-        </text>
-    );
-}
-
-/**
- * Tabela equivalente ao gráfico, com o mês de referência em destaque.
- *
- * @param props.rows Meses da série, já formatados.
- * @return A tabela.
- */
-function EvolutionTable({ rows }: { readonly rows: readonly BalanceEvolutionRow[] }): ReactNode {
-    return (
-        <Table aria-label="Evolução do saldo">
-            <TableHeader>
-                <TableRow>
-                    <TableHead>Mês</TableHead>
-                    <TableHead className="text-right">Consolidado</TableHead>
-                    <TableHead className="text-right">Previsto</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {rows.map((row) => (
-                    <TableRow key={row.period} aria-current={row.isReference ? 'date' : undefined} className={cn(row.isReference && 'font-semibold')}>
-                        <TableCell>{row.label}</TableCell>
-                        <TableCell className="text-right tabular-nums">{row.consolidatedText}</TableCell>
-                        <TableCell className="text-right text-ink2 tabular-nums">{row.projectedText}</TableCell>
-                    </TableRow>
-                ))}
-            </TableBody>
-        </Table>
-    );
-}
-
-/**
- * Maiores categorias de despesa do mês, lidas do relatório por categoria, com o link para ele.
- * A comparação é a padrão do relatório, para que a consulta seja a mesma que a tela do
- * relatório abre primeiro.
- *
- * @param props.profileId Perfil ativo.
- * @param props.period Mês de referência.
- * @return O bloco das maiores categorias.
- */
-function TopCategories({ profileId, period }: MonthScope): ReactNode {
-    const report = useCategoryReport({ profileId, period, comparison: 'previousMonth' });
-    return (
-        <section aria-labelledby="overview-top-categories" className="flex flex-col gap-3.5 rounded-10 border border-line bg-surface p-5">
-            <h2 id="overview-top-categories" className="text-16 font-semibold">
-                Maiores categorias
-            </h2>
-            <QueryState query={report} loading={<Skeleton className="h-40" />}>
-                {(data) => {
-                    const top = topCategories(data);
-                    if (top.length === 0) {
-                        return <p className="text-13 text-muted">Nenhuma despesa neste mês.</p>;
-                    }
-                    return (
-                        <ul aria-label="Maiores categorias" className="flex flex-col gap-3.5">
-                            {top.map((category) => (
-                                <li key={category.categoryId} className="flex flex-col gap-1">
-                                    <span className="flex justify-between gap-3 text-14">
-                                        <span className="truncate">{category.name}</span>
-                                        <span className="shrink-0 tabular-nums">{category.amount}</span>
-                                    </span>
-                                    <span aria-hidden="true" className="h-1.5 overflow-hidden rounded-3 bg-track">
-                                        <span className="block h-full rounded-3 bg-out" style={{ width: `${String(Math.round(category.barRatio * 1000) / 10)}%` }} />
-                                    </span>
-                                </li>
-                            ))}
-                        </ul>
-                    );
-                }}
-            </QueryState>
-            <Link to="/reports/category" className="mt-auto text-13 text-accent hover:text-soft-ink">
-                Abrir relatório por categoria →
-            </Link>
-        </section>
     );
 }
 

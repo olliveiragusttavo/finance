@@ -280,72 +280,40 @@ export function useInvoicesByCards(inputs: readonly CoreInput<'invoices.listByCa
 }
 
 /**
- * @param input Perfil e mês; `null` deixa a consulta parada.
- * @return Os indicadores da Visão geral.
+ * @param input Perfil; `null` deixa a consulta parada.
+ * @return Os relatórios salvos do perfil, por nome — a lista da página de Relatórios.
  */
-export function useMonthSummary(input: CoreInput<'reports.monthSummary'> | null): Query<'reports.monthSummary'> {
-    return useCoreQuery('reports.monthSummary', input);
+export function useReports(input: CoreInput<'reports.list'> | null): Query<'reports.list'> {
+    return useCoreQuery('reports.list', input);
 }
 
 /**
- * @param input Perfil, mês e quantidade de meses; `null` deixa a consulta parada.
- * @return A evolução do saldo consolidado e previsto.
+ * @param input Relatório; `null` no editor de um relatório novo.
+ * @return A definição salva, para o editor reabrir.
  */
-export function useBalanceEvolution(input: CoreInput<'reports.balanceEvolution'> | null): Query<'reports.balanceEvolution'> {
-    return useCoreQuery('reports.balanceEvolution', input);
+export function useReport(input: CoreInput<'reports.get'> | null): Query<'reports.get'> {
+    return useCoreQuery('reports.get', input);
 }
 
 /**
- * @param input Perfil, mês e modo de comparação; `null` deixa a consulta parada.
- * @return O relatório por categoria.
+ * @param input Relatório e mês de referência; `null` sem relatório aberto.
+ * @return O resultado do relatório salvo.
  */
-export function useCategoryReport(input: CoreInput<'reports.byCategory'> | null): Query<'reports.byCategory'> {
-    return useCoreQuery('reports.byCategory', input);
+export function useReportRun(input: CoreInput<'reports.run'> | null): Query<'reports.run'> {
+    return useCoreQuery('reports.run', input);
 }
 
 /**
- * @param input Perfil, mês e categoria ou subcategoria; `null` sem nada selecionado.
- * @return Os lançamentos do drill-down, pelo mês do pagamento.
+ * @param input Perfil, mês, filtro e formato do editor; `null` enquanto o rascunho tem erro.
+ * @return O resultado ao vivo do que o editor está montando, sem salvar.
  */
-export function useCategoryTransactions(input: CoreInput<'reports.categoryTransactions'> | null): Query<'reports.categoryTransactions'> {
-    return useCoreQuery('reports.categoryTransactions', input);
-}
-
-/**
- * @param input Perfil e mês; `null` deixa a consulta parada.
- * @return O impacto do cartão.
- */
-export function useCardImpact(input: CoreInput<'reports.cardImpact'> | null): Query<'reports.cardImpact'> {
-    return useCoreQuery('reports.cardImpact', input);
-}
-
-/**
- * @param input Perfil, mês e conta (sem ela, as contas do total); `null` deixa a consulta parada.
- * @return Os extratos encadeados dos cinco meses do fluxo por conta.
- */
-export function useAccountFlow(input: CoreInput<'reports.accountFlow'> | null): Query<'reports.accountFlow'> {
-    return useCoreQuery('reports.accountFlow', input);
-}
-
-/**
- * @param input Perfil, mês e período; `null` deixa a consulta parada.
- * @return As tags com lançamento no período, com o total líquido e a divisão por categoria.
- */
-export function useTagReport(input: CoreInput<'reports.byTag'> | null): Query<'reports.byTag'> {
-    return useCoreQuery('reports.byTag', input);
-}
-
-/**
- * @param input Perfil, mês, período e a tag aberta; `null` enquanto nenhuma tag está aberta.
- * @return Os lançamentos da tag e o total líquido.
- */
-export function useTagTransactions(input: CoreInput<'reports.tagTransactions'> | null): Query<'reports.tagTransactions'> {
-    return useCoreQuery('reports.tagTransactions', input);
+export function useReportPreview(input: CoreInput<'reports.preview'> | null): Query<'reports.preview'> {
+    return useCoreQuery('reports.preview', input);
 }
 
 /**
  * @param input Perfil empresarial e mês; `null` deixa a consulta parada (perfil pessoal).
- * @return Quanto cada sócio pagou e deveria pagar, as despesas sem sócio e o acerto.
+ * @return Os aportes de cada sócio contra o que deveria pela participação, e o acerto.
  */
 export function usePartnerReport(input: CoreInput<'reports.byPartner'> | null): Query<'reports.byPartner'> {
     return useCoreQuery('reports.byPartner', input);
@@ -353,8 +321,16 @@ export function usePartnerReport(input: CoreInput<'reports.byPartner'> | null): 
 
 /**
  * @param input Perfil empresarial e mês; `null` deixa a consulta parada.
- * @return As despesas do mês sem sócio e o total delas.
+ * @return As entradas do mês sem sócio e o total delas.
  */
 export function useEntriesWithoutPartner(input: CoreInput<'reports.entriesWithoutPartner'> | null): Query<'reports.entriesWithoutPartner'> {
     return useCoreQuery('reports.entriesWithoutPartner', input);
+}
+
+/**
+ * @param input Perfil e janela da média; `null` deixa a consulta parada.
+ * @return A projeção do saldo dos próximos meses.
+ */
+export function useBalanceProjection(input: CoreInput<'reports.balanceProjection'> | null): Query<'reports.balanceProjection'> {
+    return useCoreQuery('reports.balanceProjection', input);
 }

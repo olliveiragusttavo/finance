@@ -1,5 +1,4 @@
-import type { CategoryScope } from '../domain/report/CategoryScope.ts';
-import type { AccountId, BankStatementId, GoalId, InvoiceId, ProfileId, RecurrenceId, TagId, TransactionId } from '../domain/shared/ids.ts';
+import type { AccountId, BankStatementId, GoalId, InvoiceId, ProfileId, RecurrenceId, TransactionId } from '../domain/shared/ids.ts';
 import type { LocalDate } from '../domain/shared/LocalDate.ts';
 import type { YearMonth } from '../domain/shared/YearMonth.ts';
 import type { Transaction } from '../domain/transaction/Transaction.ts';
@@ -94,33 +93,9 @@ export interface TransactionRepository {
     listByProfileBetween(profileId: ProfileId, from: LocalDate, to: LocalDate): readonly Transaction[];
 
     /**
-     * Lista do drill-down do relatório por categoria. Não reaproveita o
-     * `listByProfileBetween`, que filtra por `due_date`: a lista precisa somar exatamente o
-     * valor da linha do relatório, então usa o mesmo mês de pagamento (reports-design §2).
-     *
-     * @param profileId Perfil dono.
-     * @param period Mês de pagamento.
-     * @param scope Categoria inteira ou uma subcategoria.
-     * @return As despesas vivas do escopo que pesam no mês, por data.
-     */
-    listExpensesByPaymentPeriod(profileId: ProfileId, period: YearMonth, scope: CategoryScope): readonly Transaction[];
-
-    /**
-     * Lista de lançamentos do relatório por tag, com o mesmo mês de pagamento e os mesmos tipos
-     * das somas da tag (`ReportRepository.tagTotalsByCategory`), para que a lista some o total
-     * (desktop-mvp-plan §3.5, T5).
-     *
-     * @param profileId Perfil dono.
-     * @param tagId Tag consultada.
-     * @param period Mês de pagamento; `null` para todos, futuros incluídos.
-     * @return As receitas e despesas vivas com a tag, por data.
-     */
-    listIncomeAndExpensesByTag(profileId: ProfileId, tagId: TagId, period: YearMonth | null): readonly Transaction[];
-
-    /**
      * Lista "Entradas sem sócio" do relatório por sócio, com o mesmo mês de pagamento e o mesmo
-     * critério de "sem sócio" das somas (`ReportRepository.contributionTotalsByPartner`), para que
-     * a lista some o valor do indicador.
+     * critério de "sem sócio" das somas (`FixedReportRepository.contributionTotalsByPartner`), para
+     * que a lista some o valor do indicador.
      *
      * @param profileId Perfil empresarial.
      * @param period Mês de pagamento.

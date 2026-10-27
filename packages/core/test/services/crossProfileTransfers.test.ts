@@ -102,28 +102,6 @@ describe('Regra de negócio (Transferência entre perfis): transferência para a
         expect(businessList[0]?.profileId).toBe(personal);
     });
 
-    it('Regra de negócio (Relatórios): conta como despesa na origem e receita no destino; a interna continua fora', async () => {
-        const { world, personal, business, personalAccount, businessAccount, base } = setup();
-        const internal = world.account(personal);
-        const account = { kind: 'account', accountId: personalAccount } as const;
-        await world.create(base, { source: account, type: 'transference', value: 500, charges: 8, dueDate: '2026-10-05', paymentDate: '2026-10-05', destinationAccountId: businessAccount });
-        await world.create(base, { source: account, type: 'transference', value: 300, dueDate: '2026-10-06', paymentDate: '2026-10-06', destinationAccountId: internal });
-
-        const personalSummary = await world.ok('reports.monthSummary', { profileId: personal, period: '2026-10' });
-        expect(personalSummary.expenses).toEqualMoney('508');
-        expect(personalSummary.expenseCount).toBe(1);
-        expect(personalSummary.income).toEqualMoney('0');
-
-        const businessSummary = await world.ok('reports.monthSummary', { profileId: business, period: '2026-10' });
-        expect(businessSummary.income).toEqualMoney('500');
-        expect(businessSummary.incomeCount).toBe(1);
-        expect(businessSummary.expenses).toEqualMoney('0');
-
-        // O relatório por categoria continua só com despesas (reports-design R2).
-        const byCategory = await world.ok('reports.byCategory', { profileId: personal, period: '2026-10' });
-        expect(byCategory.total.amount).toEqualMoney('0');
-    });
-
     it('trava a moeda do perfil que só recebe transferências', async () => {
         const { world, business, personalAccount, businessAccount, base } = setup();
         await world.create(base, {

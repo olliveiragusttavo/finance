@@ -57,8 +57,9 @@ function ShellLayout(): ReactNode {
                 {/* Só a tela rola, abaixo da barra: o cabeçalho fixo das listagens gruda no topo
                     desta área, e não por baixo da barra (desktop-mvp-plan Fase 13.3). A tela em
                     painéis (`PaneLayout`) não cresce com o conteúdo: ocupa a área, e cada painel
-                    rola sozinho. */}
-                <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+                    rola sozinho. É `relative` para que nada posicionado de forma absoluta na tela
+                    escape desta rolagem e estique a janela, levando o menu junto. */}
+                <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto">
                     <main className="flex flex-1 flex-col gap-5 px-8 py-6 has-[[data-pane-layout]]:min-h-0">
                         <Outlet />
                     </main>

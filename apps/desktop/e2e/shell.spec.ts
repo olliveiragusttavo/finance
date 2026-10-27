@@ -75,16 +75,10 @@ test('o menu leva a todas as telas e o mês de referência acompanha a navegaç�
         await expect(month).toHaveCount(0);
         await expect(page.getByRole('button', { name: '+ Lançamento' })).toBeVisible();
 
-        // Relatórios abrem a página com a lista dos relatórios; "Por sócio" só no perfil empresarial.
+        // Relatórios abrem a página com a lista; sem relatório na URL, abre o primeiro fixo, a projeção de saldo.
         await openMenuItem(page, 'Relatórios');
-        const reports = page.getByRole('region', { name: 'Lista de relatórios' });
-        await expect(page.getByRole('heading', { level: 1 })).toHaveText('Por categoria');
-        await expect(reports.getByRole('link', { name: 'Por categoria' })).toHaveAttribute('aria-current', 'page');
-        await expect(reports.getByRole('link', { name: 'Fluxo por conta' })).toBeVisible();
-        await expect(reports.getByRole('link', { name: 'Por sócio' })).toHaveCount(0);
-        await expect(page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('link', { name: 'Por categoria' })).toHaveCount(0);
-        await reports.getByRole('link', { name: 'Por tag', exact: true }).dispatchEvent('click');
-        await expect(page.getByRole('heading', { level: 1 })).toHaveText('Por tag');
+        await expect(page.getByRole('heading', { level: 1 })).toHaveText('Relatórios');
+        await expect(page.getByRole('region', { name: 'Relatório aberto' }).getByRole('heading', { name: 'Projeção de saldo', level: 2 })).toBeVisible();
         await expect(month).toHaveText(formatMonthLong(today));
     } finally {
         await app.close();
@@ -92,7 +86,7 @@ test('o menu leva a todas as telas e o mês de referência acompanha a navegaç�
     }
 });
 
-test('trocar de perfil mostra "Por sócio" e Sócios no empresarial e é lembrado ao reabrir; tema e mês também', async () => {
+test('trocar de perfil mostra Sócios no empresarial e é lembrado ao reabrir; tema e mês também', async () => {
     const { app, window: page, userData } = await launchApp();
     try {
         await seedProfiles(page);
@@ -104,7 +98,6 @@ test('trocar de perfil mostra "Por sócio" e Sócios no empresarial e é lembrad
         await page.getByTestId('profile-switcher').press('Enter');
         await page.getByRole('menuitemradio', { name: /Estúdio GO/ }).dispatchEvent('click');
         await expect(page.getByTestId('profile-switcher')).toContainText('Empresarial · BRL');
-        await expect(page.getByRole('region', { name: 'Lista de relatórios' }).getByRole('link', { name: 'Por sócio' })).toBeVisible();
         await expect(menu.getByRole('link', { name: 'Sócios', exact: true })).toBeVisible();
 
         await page.getByRole('button', { name: 'Seguir o sistema' }).press('Enter');

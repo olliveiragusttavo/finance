@@ -73,10 +73,11 @@ export function invoiceDueKeySql(invoice: string, card: string): string {
 }
 
 /**
- * Fonte única do **mês de pagamento** de todos os relatórios — o único lugar a mudar quando a
- * regra for refinada (desktop-mvp-plan §8).
- * Regra de negócio (Relatórios — reports-design §2): todo relatório agrupa pelo mês em que o
- * dinheiro de fato sai ou entra na conta (regime de caixa):
+ * Fonte única do **mês de pagamento** do relatório fixo por sócio — o único lugar a mudar quando
+ * a regra for refinada (desktop-mvp-plan §8). Os relatórios personalizados escolhem a data na
+ * definição (reports-design F3) e não passam por aqui.
+ * Regra de negócio (Relatórios — reports-design §8, P1): os aportes contam no mês em que o
+ * dinheiro de fato entra na conta (regime de caixa):
  *
  * - transação de conta: mês do **extrato** em que ela está, que é o do `payment_date`
  *   quando paga e o do `due_date` em aberto (`Transaction.cashDate`) — ler o extrato, e não
@@ -85,8 +86,8 @@ export function invoiceDueKeySql(invoice: string, card: string): string {
  * - compra no cartão com fatura em aberto: mês do **vencimento** da fatura.
  *
  * São duas CTEs encadeadas, e não uma expressão solta, porque o critério da compra no
- * cartão depende da fatura: `report_invoices` dá o mês de pagamento de cada fatura (o
- * impacto do cartão lê só ela) e `report_transactions` aplica o critério a cada transação.
+ * cartão depende da fatura: `report_invoices` dá o mês de pagamento de cada fatura e
+ * `report_transactions` aplica o critério a cada transação.
  * Filtram o perfil (`:profileId`), o soft delete de toda tabela envolvida e o arco exclusivo
  * íntegro, pelos mesmos motivos do `SqliteBalanceLedgerRepository`. Uma fatura cujo extrato
  * de pagamento foi excluído volta a contar como em aberto, como no saldo.
@@ -119,43 +120,6 @@ export const REPORT_SOURCES_CTE = `
 `;
 
 /**
- * Transferências que atravessam a fronteira do perfil (`:profileId`), já com o sentido que
- * têm para ele: `type` é `:income` na que chega de outro perfil e `:expense` na que sai para
- * outro perfil.
- * Regra de negócio (Relatórios — transferência entre perfis): dentro do perfil a
- * transferência soma zero e fica fora (reports-design R2/C3), mas entre perfis o dinheiro de
- * fato sai de um e entra no outro, então cada perfil a vê como saída ou entrada. Os
- * encargos são custo da origem (database-design §4.13, Encargos): a saída leva valor e
- * encargos; a entrada, só o valor.
- *
- * A saída vem de `report_transactions`, que já recortou a origem pelo perfil. A entrada não
- * pode vir de lá — a origem dela é de outro perfil —, então repete o recorte do lado do
- * destino: extrato e as duas contas vivos. As duas pernas usam o mês do extrato de origem,
- * que é o da data de caixa (`Transaction.cashDate`), o mesmo em que a transferência entra no
- * destino; a transferência entre perfis sempre sai de uma conta
- * (`TransactionComposer.requireDestination`).
- *
- * Uso: `WITH ${REPORT_SOURCES_CTE}, ${CROSS_PROFILE_TRANSFERS_CTE} SELECT ... FROM
- * cross_profile_transfers cpt ...`, com `:transference`, `:income` e `:expense` nos parâmetros.
- */
-export const CROSS_PROFILE_TRANSFERS_CTE = `
-    cross_profile_transfers AS (
-        SELECT rt.payment_key, :expense AS type, rt.value, rt.charges
-        FROM report_transactions rt
-        JOIN accounts da ON da.id = rt.destination_account_id AND da.deleted_at IS NULL
-        WHERE rt.type = :transference AND rt.invoice_id IS NULL AND da.profile_id <> :profileId
-        UNION ALL
-        SELECT bs.year * 100 + bs.month AS payment_key, :income AS type, t.value, 0 AS charges
-        FROM transactions t
-        JOIN bank_statements bs ON bs.id = t.bank_statement_id AND bs.deleted_at IS NULL
-        JOIN accounts oa ON oa.id = bs.account_id AND oa.deleted_at IS NULL
-        JOIN accounts da ON da.id = t.destination_account_id AND da.deleted_at IS NULL
-        WHERE t.deleted_at IS NULL AND t.type = :transference AND t.invoice_id IS NULL
-            AND da.profile_id = :profileId AND oa.profile_id <> :profileId
-    )
-`;
-
-/**
  * Entradas de um perfil empresarial (`:profileId`) que podem ser aporte de sócio, com o mês de
  * pagamento e o efeito no saldo de cada uma.
  * Regra de negócio (Sócios — aportes, reports-design §8): toda despesa é paga com o dinheiro da
@@ -165,8 +129,8 @@ export const CROSS_PROFILE_TRANSFERS_CTE = `
  * entrada: o dinheiro já era da empresa.
  *
  * A receita vem de `report_transactions`, que já recortou o perfil e o mês de pagamento. A
- * transferência é uma linha do perfil de origem e repete o recorte do lado do destino, como a
- * `CROSS_PROFILE_TRANSFERS_CTE`. O `partner_id` é o da própria transação: na transferência, um
+ * transferência é uma linha do perfil de origem e repete o recorte do lado do destino: extrato e
+ * as duas contas vivos, a origem em outro perfil. O `partner_id` é o da própria transação: na transferência, um
  * sócio do perfil de destino (`TransactionComposer.assertPartner`).
  *
  * Uso: `WITH ${REPORT_SOURCES_CTE}, ${PARTNER_ENTRIES_CTE} SELECT ... FROM partner_entries pe ...`,
@@ -187,24 +151,3 @@ export const PARTNER_ENTRIES_CTE = `
             AND da.profile_id = :profileId AND oa.profile_id <> :profileId
     )
 `;
-
-/**
- * Placeholders nomeados para uma lista de competências num `IN (...)`. Existe porque a porta
- * `Database` só aceita parâmetros escalares, e montar o texto com os valores abriria espaço
- * para SQL montado à mão.
- *
- * @param periods Competências da lista; não pode ser vazia.
- * @param prefix Prefixo dos nomes dos parâmetros, para não colidir com outros da consulta.
- * @return O trecho `:p0, :p1, ...` e os parâmetros com as chaves de cada competência.
- * @throws {Error} Quando a lista é vazia — `IN ()` é erro de sintaxe no SQLite.
- */
-export function periodListSql(periods: readonly YearMonth[], prefix = 'period'): { readonly sql: string; readonly params: Readonly<Record<string, number>> } {
-    if (periods.length === 0) {
-        throw new Error('periodListSql exige ao menos uma competência');
-    }
-    const params: Record<string, number> = {};
-    periods.forEach((period, index) => {
-        params[`${prefix}${index}`] = periodKey(period);
-    });
-    return { sql: Object.keys(params).map((name) => `:${name}`).join(', '), params };
-}

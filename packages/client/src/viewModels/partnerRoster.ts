@@ -1,5 +1,4 @@
-import { allocateByShares, Currency, Money, PARTNER_NAME_MAX_LENGTH, type CoreInput, type MoneyResponse, type PartnerReportResponse, type PartnerResponse } from '@finance/core';
-import { formatMoney } from '../format/money.ts';
+import { PARTNER_NAME_MAX_LENGTH, type CoreInput, type PartnerResponse } from '@finance/core';
 
 /** 100% em centésimos de ponto percentual, a unidade em que a soma é conferida (como no núcleo). */
 const FULL_SHARE = 100 * 100;
@@ -27,10 +26,6 @@ export interface PartnerRosterRow {
     readonly label: string;
     /** `60%`, `33,33%`; `0%` enquanto o campo é inválido. */
     readonly share: string;
-    /** Quanto aportou em todos os períodos; `—` enquanto o relatório carrega. */
-    readonly contributed: string;
-    /** Parte do total de aportes pela participação digitada; `—` enquanto o relatório carrega. */
-    readonly expected: string;
     readonly nameError: string | null;
     readonly percentageError: string | null;
 }
@@ -62,8 +57,6 @@ export interface PartnerRosterView {
     readonly status: PartnerSumStatus;
     /** Aviso dos lançamentos que ficam sem sócio ao salvar; `null` quando ninguém com lançamento sai. */
     readonly removedWarning: string | null;
-    /** O total de aportes dos sócios do formulário, a base da divisão; `—` enquanto o relatório carrega. */
-    readonly base: string;
     /** Se o formulário difere do que está gravado. */
     readonly dirty: boolean;
     /** Se "Salvar" está liberado: há mudança, todo campo é válido e a soma fecha 100%. */
@@ -75,8 +68,6 @@ export interface PartnerRosterInput {
     readonly draft: readonly PartnerDraftRow[];
     /** Sócios gravados, como a rota `partners.list` os devolve. */
     readonly saved: readonly PartnerResponse[];
-    /** Relatório por sócio, para "Aportou" e "Deveria ter aportado"; `undefined` enquanto carrega. */
-    readonly report: PartnerReportResponse | undefined;
 }
 
 /**
@@ -110,31 +101,22 @@ export function parsePercentageInput(text: string): number | null {
  * precisa dar 100% para salvar, e a tela mostra a soma ao vivo com a barra de divisão. Remover
  * um sócio com lançamentos deixa esses lançamentos sem sócio atribuído, e o aviso diz quantos
  * antes de salvar.
- * Regra de negócio (Sócios — aportes, reports-design §8): "Deveria ter aportado" divide o total de
- * aportes de todos os períodos pela participação digitada, pela mesma `allocateByShares` do
- * relatório, para que a prévia e o relatório gravado nunca discordem. O sócio removido no
- * formulário sai da base, como sairá ao salvar: os aportes dele ficam sem sócio.
  *
- * @param input Formulário, sócios gravados e o relatório por sócio.
+ * @param input Formulário e sócios gravados.
  * @return A tela pronta.
  */
 export function buildPartnerRosterView(input: PartnerRosterInput): PartnerRosterView {
-    const { draft, saved, report } = input;
+    const { draft, saved } = input;
     const shares = draft.map((row) => parsePercentageInput(row.percentage) ?? 0);
     const total = shares.reduce((sum, share) => sum + share, 0);
-    const expected = report === undefined ? null : previewExpected(draft, shares, total === FULL_SHARE, report);
     const colors = colorSlots(draft, saved);
     const rows = draft.map((row, index): PartnerRosterRow => {
         const share = shares[index] ?? 0;
-        const contributed = report === undefined ? null : contributedOf(row, report);
-        const expectedCents = expected?.cents[index];
         return {
             key: row.key,
             color: (colors.slots[index] ?? index) % PARTNER_COLOR_COUNT,
             label: labelOf(row),
             share: `${formatPercentage(share)}%`,
-            contributed: contributed === null ? '—' : formatMoney(contributed),
-            expected: expected === null || expectedCents === undefined ? '—' : formatMoney(fromMinor(expectedCents, expected.currency)),
             nameError: nameError(row.name),
             percentageError: parsePercentageInput(row.percentage) === null ? 'Use um número de 0 a 100, com até duas casas decimais.' : null,
         };
@@ -149,7 +131,6 @@ export function buildPartnerRosterView(input: PartnerRosterInput): PartnerRoster
         barLabel: rows.map((row) => `${row.label} ${row.share}`).join(', '),
         status: sumStatus(draft.length, total),
         removedWarning: removedWarning(draft, saved),
-        base: expected === null ? '—' : formatMoney(fromMinor(expected.baseCents, expected.currency)),
         dirty,
         canSave: dirty && valid && (draft.length === 0 || total === FULL_SHARE),
     };
@@ -227,62 +208,6 @@ function nameError(name: string): string | null {
 }
 
 /**
- * @param row Linha do formulário.
- * @param report Relatório por sócio.
- * @return Quanto o sócio aportou; zero para o sócio novo, que ainda não aportou nada.
- */
-function contributedOf(row: PartnerDraftRow, report: PartnerReportResponse): MoneyResponse {
-    const line = row.id === null ? undefined : report.partners.find((partner) => partner.partnerId === row.id);
-    return line?.contributed ?? { amount: 0, currency: report.contributions.currency };
-}
-
-/**
- * Divide a base do formulário pela participação digitada. A ordem da divisão é a do relatório —
- * maior participação primeiro, desempate pelo nome —, porque o centavo da sobra vai para quem
- * vem antes nos empates; dividir na ordem das linhas daria outro centavo que o relatório.
- *
- * @param draft Formulário.
- * @param shares Participação de cada linha em centésimos.
- * @param complete Se as participações somam 100%.
- * @param report Relatório por sócio.
- * @return A parte de cada linha em unidades menores, na ordem do formulário, a base e a moeda.
- */
-function previewExpected(
-    draft: readonly PartnerDraftRow[],
-    shares: readonly number[],
-    complete: boolean,
-    report: PartnerReportResponse,
-): { readonly cents: readonly number[]; readonly baseCents: number; readonly currency: Currency } {
-    const currency = Currency.of(report.contributions.currency);
-    const baseCents = draft.reduce((sum, row) => sum + toMinor(row.id === null ? 0 : contributedOf(row, report).amount, currency), 0);
-    const order = draft.map((row, index) => ({ index, share: shares[index] ?? 0, name: row.name.trim().toLowerCase() })).sort((a, b) => b.share - a.share || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
-    const parts = allocateByShares(baseCents, order.map((entry) => entry.share / FULL_SHARE), complete);
-    const cents = new Array<number>(draft.length).fill(0);
-    order.forEach((entry, position) => {
-        cents[entry.index] = parts[position] ?? 0;
-    });
-    return { cents, baseCents, currency };
-}
-
-/**
- * @param amount Valor já arredondado pelo núcleo.
- * @param currency Moeda do perfil.
- * @return O valor em unidades menores inteiras.
- */
-function toMinor(amount: number, currency: Currency): number {
-    return Math.round(amount * 10 ** currency.minorUnits);
-}
-
-/**
- * @param cents Unidades menores.
- * @param currency Moeda do perfil.
- * @return O valor serializável para formatar.
- */
-function fromMinor(cents: number, currency: Currency): MoneyResponse {
-    return { amount: Money.of(cents / 10 ** currency.minorUnits, currency).rounded().amount, currency: currency.code };
-}
-
-/**
  * Largura de um sócio na barra. Com a soma acima de 100% as partes são reduzidas na proporção,
  * para que a barra continue mostrando a divisão inteira em vez de cortar o último sócio.
  *
@@ -301,7 +226,7 @@ function segmentWidth(share: number, total: number): number {
  */
 function sumStatus(count: number, total: number): PartnerSumStatus {
     if (count === 0) {
-        return { kind: 'empty', text: 'Sem sócios, as despesas do perfil ficam todas sem sócio atribuído no relatório.' };
+        return { kind: 'empty', text: 'Sem sócios, as entradas do perfil ficam todas sem sócio atribuído.' };
     }
     if (total === FULL_SHARE) {
         return { kind: 'ok', text: 'A soma dá 100%. Pode salvar.' };
@@ -327,8 +252,8 @@ function removedWarning(draft: readonly PartnerDraftRow[], saved: readonly Partn
     const count = removed.reduce((sum, partner) => sum + partner.transactionCount, 0);
     const names = joinNames(removed.map((partner) => partner.name));
     return count === 1
-        ? `Ao salvar, o lançamento vinculado a ${names} fica “sem sócio atribuído” e sai da divisão.`
-        : `Ao salvar, os ${String(count)} lançamentos vinculados a ${names} ficam “sem sócio atribuído” e saem da divisão.`;
+        ? `Ao salvar, o lançamento vinculado a ${names} fica “sem sócio atribuído”.`
+        : `Ao salvar, os ${String(count)} lançamentos vinculados a ${names} ficam “sem sócio atribuído”.`;
 }
 
 /**

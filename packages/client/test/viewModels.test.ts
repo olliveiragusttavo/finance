@@ -1,7 +1,5 @@
-import type { CardImpactResponse, CreditCardResponse, MoneyResponse } from '@finance/core';
 import { describe, expect, it } from 'vitest';
 import {
-    buildCardImpactGrid,
     buildStatementTable,
     buildTransactionTable,
     compareTransactionRows,
@@ -23,14 +21,6 @@ import { ClientWorld, type Scenario } from './support/ClientWorld.ts';
  */
 function transactionRowsOf(table: TransactionTable): readonly TransactionRow[] {
     return table.rows.flatMap((row) => (row.kind === 'transaction' ? [row] : []));
-}
-
-/**
- * @param amount Valor.
- * @return Dinheiro em BRL como vem do núcleo.
- */
-function brl(amount: number): MoneyResponse {
-    return { amount, currency: 'BRL' };
 }
 
 /**
@@ -249,82 +239,5 @@ describe('extrato da conta', () => {
         const statement = { ...source.statement, paidInvoices: source.statement.paidInvoices.map((invoice) => ({ ...invoice, paymentDate: null })) };
         const rows = buildStatementTable({ ...source, statement }).rows;
         expect(rows.at(-1)).toEqual(expect.objectContaining({ date: '—', name: 'Fatura Roxinho · set' }));
-    });
-});
-
-const CARD: CreditCardResponse = { id: 'card', profileId: 'p', accountId: 'acc', name: 'Nubank Roxinho', limit: brl(5000), closingDay: 3, dueDay: 10, disabled: false };
-
-/**
- * @param period Mês.
- * @param weight Peso do mês.
- * @param invoices Faturas da célula do cartão.
- * @return Um mês da grade.
- */
-function month(period: string, weight: number | null, invoices: CardImpactResponse['months'][number]['cells'][number]['invoices']): CardImpactResponse['months'][number] {
-    const total = brl(invoices.reduce((sum, invoice) => sum + invoice.total.amount, 0));
-    return { period, cells: [{ creditCardId: 'card', invoices, total }], total, income: brl(weight === null ? 0 : 9500), weight };
-}
-
-const CARD_IMPACT: CardImpactResponse = {
-    period: '2026-10',
-    creditCards: [CARD],
-    months: [
-        month('2026-07', 0.366, [{ invoiceId: 'i7', invoicePeriod: '2026-07', total: brl(2890), situation: { kind: 'paid', paidIn: '2026-07', paymentDate: '2026-07-09' } }]),
-        month('2026-08', null, []),
-        month('2026-09', 0.338, [{ invoiceId: 'i9', invoicePeriod: '2026-09', total: brl(2611.25), situation: { kind: 'paid', paidIn: '2026-09', paymentDate: null } }]),
-        month('2026-10', 0.322, [
-            { invoiceId: 'i9b', invoicePeriod: '2026-09', total: brl(100), situation: { kind: 'paid', paidIn: '2026-10', paymentDate: '2026-10-07' } },
-            { invoiceId: 'i10', invoicePeriod: '2026-10', total: brl(2449.75), situation: { kind: 'open', dueDate: '2026-10-10' } },
-        ]),
-        month('2026-11', 0.097, [
-            { invoiceId: 'i11', invoicePeriod: '2026-11', total: brl(800), situation: { kind: 'receiving', dueDate: '2026-11-10' } },
-            { invoiceId: 'i12', invoicePeriod: '2026-12', total: brl(63.42), situation: { kind: 'future', dueDate: '2026-11-30' } },
-        ]),
-    ],
-    reference: { total: brl(2549.75), creditCards: 1, unpaid: 1, weight: 0.322, income: brl(9500) },
-    previousAverage: { total: brl(1833.75), weight: null },
-};
-
-describe('grade do impacto do cartão', () => {
-    it('nomeia a conta pagadora no cabeçalho e descreve cada situação como o mockup', () => {
-        const grid = buildCardImpactGrid(CARD_IMPACT, [{ id: 'acc', name: 'Nubank' }]);
-        expect(grid.columns).toEqual([{ creditCardId: 'card', name: 'Nubank Roxinho', title: 'Nubank Roxinho · paga com Nubank', disabled: false }]);
-        expect(grid.rows.map((row) => [row.label, row.isReference, row.isNext, row.cells[0]?.amount, row.cells[0]?.notes.map((note) => `${note.text} (${note.tone})`), row.weight])).toEqual([
-            ['jul/2026', false, false, 'R$ 2.890,00', ['paga no extrato de jul (muted)'], '36,6%'],
-            ['ago/2026', false, false, '', [], '—'],
-            ['set/2026', false, false, 'R$ 2.611,25', ['paga no extrato de set (muted)'], '33,8%'],
-            ['out/2026', true, false, 'R$ 2.549,75', ['Paga em 07/10 (ok)', 'Em aberto · vence 10/10 (warn)'], '32,2%'],
-            ['nov/2026', false, true, 'R$ 863,42', ['Aberta (neutral)', 'Futura (neutral)'], '9,7%'],
-        ]);
-    });
-
-    it('cada fatura leva a sua competência para o link, que pode não ser o mês da linha', () => {
-        const october = buildCardImpactGrid(CARD_IMPACT, []).rows[3];
-        expect(october?.cells[0]?.notes.map((note) => [note.invoicePeriod, note.invoiceLabel])).toEqual([
-            ['2026-09', 'fatura de set/2026'],
-            ['2026-10', 'fatura de out/2026'],
-        ]);
-    });
-
-    it('fatura paga sem o dia gravado mostra o mês do extrato também no mês de referência', () => {
-        const months = CARD_IMPACT.months.map((candidate) => candidate.period !== '2026-10' ? candidate : month('2026-10', 0.322, [
-            { invoiceId: 'i10', invoicePeriod: '2026-10', total: brl(612.3), situation: { kind: 'paid', paidIn: '2026-10', paymentDate: null } },
-        ]));
-        const october = buildCardImpactGrid({ ...CARD_IMPACT, months }, []).rows[3];
-        expect(october?.cells[0]?.notes.map((note) => `${note.text} (${note.tone})`)).toEqual(['Paga no extrato de out (ok)']);
-    });
-
-    it('Regra de negócio (Relatórios, C3): sem receita o peso é "—", nunca 0% nem ∞', () => {
-        const grid = buildCardImpactGrid(CARD_IMPACT, []);
-        expect(grid.rows[1]?.weightShare).toBeNull();
-        expect(grid.kpis).toEqual({
-            invoices: { label: 'Faturas de out/2026', value: 'R$ 2.549,75', sub: '1 cartão · 1 em aberto' },
-            weight: { label: 'Peso nas entradas do mês', value: '32,2%', sub: 'das entradas de R$ 9.500,00' },
-            average: { label: 'Média dos 3 meses anteriores', value: 'R$ 1.833,75', sub: 'sem entradas no período' },
-        });
-    });
-
-    it('sinaliza o perfil sem cartão para a tela mostrar o estado vazio', () => {
-        expect(buildCardImpactGrid({ ...CARD_IMPACT, creditCards: [] }, []).empty).toBe(true);
     });
 });

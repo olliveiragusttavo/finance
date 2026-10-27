@@ -1,9 +1,21 @@
-import { Currency, Money, roundHalfAwayFromZero, type EntriesWithoutPartnerResponse, type MoneyResponse, type PartnerReportResponse } from '@finance/core';
+import {
+    Currency,
+    Money,
+    roundHalfAwayFromZero,
+    type AccountResponse,
+    type CategoryBranchResponse,
+    type CreditCardResponse,
+    type EntriesWithoutPartnerResponse,
+    type MoneyResponse,
+    type PartnerReportResponse,
+    type TagResponse,
+    type TransactionResponse,
+} from '@finance/core';
 import { formatMonthShort } from '../format/dates.ts';
 import { formatMoney } from '../format/money.ts';
 import { formatPercent } from '../format/percent.ts';
-import { buildCategoryTransactionList, type CategoryTransactionRow, type CategoryTransactionsSource } from './categoryReport.ts';
 import type { OtherProfileAccount } from './otherProfileAccounts.ts';
+import { buildTransactionTable, NO_TRANSACTION_FILTERS, type TransactionDirection } from './transactionTable.ts';
 
 /** Um indicador do topo. */
 export interface PartnerKpi {
@@ -114,11 +126,36 @@ export function buildPartnerReportView(report: PartnerReportResponse): PartnerRe
     };
 }
 
-/** Uma linha da lista de entradas sem sócio. */
-export type UnassignedEntryRow = CategoryTransactionRow;
+/**
+ * Uma linha da lista de entradas sem sócio: a mesma linha da tabela de Transações, para que o
+ * lançamento apareça igual em toda tela.
+ */
+export interface UnassignedEntryRow {
+    readonly id: string;
+    readonly transaction: TransactionResponse;
+    /** `03/10`: o vencimento, a mesma data que a tela de Transações mostra. */
+    readonly date: string;
+    readonly name: string;
+    /** `Receitas › Serviços`. */
+    readonly category: string;
+    /** `Nubank`, ou a conta de origem da transferência recebida, com o perfil dela. */
+    readonly container: string;
+    /** Nomes das tags, na ordem do lançamento. */
+    readonly tags: readonly string[];
+    /** `+R$ 4.500,00`. */
+    readonly amountText: string;
+    readonly direction: TransactionDirection;
+}
 
 /** Cadastros da lista de entradas sem sócio. */
-export interface UnassignedEntrySource extends CategoryTransactionsSource {
+export interface UnassignedEntrySource {
+    readonly profileId: string;
+    /** Todas as contas do perfil, desativadas incluídas. */
+    readonly accounts: readonly Pick<AccountResponse, 'id' | 'name'>[];
+    /** Cartões do perfil; a conta pagadora é exigida pela linha de Transações que a lista reaproveita. */
+    readonly creditCards: readonly Pick<CreditCardResponse, 'id' | 'name' | 'accountId'>[];
+    readonly categories: readonly CategoryBranchResponse[];
+    readonly tags: readonly Pick<TagResponse, 'id' | 'name'>[];
     /**
      * Contas dos outros perfis, para nomear a origem da transferência que chega de lá — a linha é
      * do perfil de origem, e a conta dela não está nas contas deste perfil.
@@ -146,7 +183,27 @@ export interface UnassignedEntryList {
  * @return As linhas, por data, e o total.
  */
 export function buildUnassignedEntryList(response: EntriesWithoutPartnerResponse, source: UnassignedEntrySource): UnassignedEntryList {
-    return { rows: buildCategoryTransactionList(response, source).rows, totalText: formatMoney(response.total, 'always') };
+    // A situação não aparece nesta lista, então as faturas não são necessárias; sem elas, a
+    // tabela nunca agrupa, e toda linha é um lançamento.
+    const table = buildTransactionTable({ ...source, transactions: response.transactions, invoices: [] }, NO_TRANSACTION_FILTERS);
+    const tagNames = new Map(source.tags.map((tag) => [tag.id, tag.name]));
+    return {
+        rows: table.rows.flatMap((row) => (row.kind !== 'transaction' ? [] : [{
+            id: row.id,
+            transaction: row.transaction,
+            date: row.date,
+            name: row.name,
+            category: row.category,
+            container: row.container,
+            tags: row.transaction.tagIds.flatMap((id) => {
+                const name = tagNames.get(id);
+                return name === undefined ? [] : [name];
+            }),
+            amountText: row.amountText,
+            direction: row.direction,
+        }])),
+        totalText: formatMoney(response.total, 'always'),
+    };
 }
 
 /** Tolerância da soma das participações, a mesma do núcleo. */

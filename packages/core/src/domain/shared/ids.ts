@@ -29,6 +29,7 @@ export type TagId = Brand<Uuid, 'TagId'>;
 export type TransactionTagId = Brand<Uuid, 'TransactionTagId'>;
 export type RecurrenceTagId = Brand<Uuid, 'RecurrenceTagId'>;
 export type NoteId = Brand<Uuid, 'NoteId'>;
+export type ReportDefinitionId = Brand<Uuid, 'ReportDefinitionId'>;
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -76,3 +77,4 @@ export const GoalId = idParser<GoalId>('goalId');
 export const RecurrenceId = idParser<RecurrenceId>('recurrenceId');
 export const TagId = idParser<TagId>('tagId');
 export const NoteId = idParser<NoteId>('noteId');
+export const ReportDefinitionId = idParser<ReportDefinitionId>('reportId');

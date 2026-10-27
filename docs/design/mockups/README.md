@@ -28,7 +28,7 @@ Cada tela é um arquivo `screens/*.dc.html` (HTML de um editor de design):
 3. **Contas e Cartões são seções separadas**, cada uma com item próprio no menu:
    lista com resumo do mês (saldo da conta / total e situação da fatura) → clique abre o detalhe.
 4. **Listas em vez de abas** no topo para escolher entidades (contas, cartões, tags, metas, tipos de cadastro).
-5. **Relatórios** é um item do menu lateral do desktop, como Contas e Cartões: abre a página com a lista dos relatórios à esquerda e o relatório aberto à direita. Os mockups ainda desenham os relatórios como subitens do menu; a lista na página prevaleceu, a pedido, porque vai receber os relatórios personalizados. "Por sócio" só existe em perfil empresarial.
+5. **Relatórios** é um item do menu lateral do desktop, como Contas e Cartões: abre a página com a lista dos relatórios à esquerda e o relatório aberto à direita. Os relatórios são os **personalizados**, montados pelo usuário num editor (desktop-mvp-plan Fase 15), mais dois **fixos** no topo da lista, que o editor não expressa: a projeção de saldo, em todo perfil, e a distribuição por sócio, no empresarial (reports-design §8 e §9). Os mockups `DesktopRel*` desenham os relatórios fixos do MVP e não são mais referência de conteúdo; a distribuição por sócio segue a tela que já divergia do `DesktopRelSocio` (aportes no lugar de despesas). As telas de relatório ainda não têm mockup.
 6. **Consolidado e previsto** sempre juntos; previsto com peso menor.
 7. Entrada/saída distinguíveis **sem depender só da cor**: sinal (+/−), ⇄ para transferência, rótulos.
 8. Números com algarismos tabulares e alinhados à direita nas tabelas.

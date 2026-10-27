@@ -1,13 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
-import { formatMonthShort } from '@finance/client';
 import { currentPeriod, shiftPeriod } from '../src/renderer/src/shell/referenceMonth.ts';
 import { completeFirstUse } from './firstUse.ts';
 import { launchApp, removeUserData } from './launchApp.ts';
 
 /*
- * Visão geral (desktop-mvp-plan Fase 10) no app empacotado: os indicadores, a evolução do saldo
- * na tabela equivalente ao gráfico, as maiores categorias e os resumos de contas e cartões, com
- * a navegação para os detalhes. Os cliques usam `dispatchEvent`, pelo motivo explicado em
+ * Visão geral (desktop-mvp-plan Fase 10) no app empacotado: os indicadores de saldo e os resumos
+ * de contas e cartões, com a navegação para os detalhes. Os cliques usam `dispatchEvent`, pelo motivo explicado em
  * `firstUse.ts`.
  */
 
@@ -63,43 +61,22 @@ function kpi(page: Page, label: string): ReturnType<Page['getByRole']> {
     return page.getByRole('region', { name: 'Indicadores' }).getByRole('group', { name: label });
 }
 
-test('visão geral: indicadores, evolução do saldo, maiores categorias e resumos com navegação', async () => {
+test('visão geral: indicadores de saldo e resumos com navegação', async () => {
     const { app, window: page, userData } = await launchApp();
     const period = currentPeriod(new Date());
     const month = period.slice(5);
     try {
         await completeFirstUse(page, { profileName: 'Pessoal', accountName: 'Nubank', openingBalance: '1.000,00' });
         await expect(page.getByRole('heading', { name: 'Visão geral', level: 1 })).toBeVisible();
-        await expect(page.getByText('Nenhuma despesa neste mês.')).toBeVisible();
         await expect(page.getByRole('region', { name: 'Cartões' })).toContainText('Nenhum cartão');
 
         await seedMonth(page);
-        // Regra de negócio (Relatórios): a Farmácia do mês anterior conta neste mês, o da fatura
-        // paga; o Notebook cai na fatura que vence no mês seguinte e fica fora.
+        // A Farmácia do mês anterior sai da conta neste mês, com a fatura paga; o Notebook cai na
+        // fatura que vence no mês seguinte e fica fora do previsto deste mês.
         await expect(kpi(page, 'Saldo consolidado')).toContainText('R$ 10.350,00');
         await expect(kpi(page, 'Saldo consolidado')).toContainText('Já pago/recebido · 1 conta');
         await expect(kpi(page, 'Saldo previsto')).toContainText('R$ 8.050,00');
-        await expect(kpi(page, '↑ Receitas')).toContainText('+R$ 9.500,00');
-        await expect(kpi(page, '↑ Receitas')).toContainText('1 lançamento');
-        await expect(kpi(page, '↓ Despesas')).toContainText('−R$ 2.450,00');
-        await expect(kpi(page, '↓ Despesas')).toContainText('Sem despesas no mês anterior');
-        await expect(kpi(page, 'Faturas em aberto')).toContainText('Nenhuma vence neste mês');
-
-        const categories = page.getByRole('list', { name: 'Maiores categorias' });
-        await expect(categories.getByRole('listitem')).toHaveCount(1);
-        await expect(categories).toContainText('Alimentação');
-        await expect(categories).toContainText('R$ 2.450,00');
-
-        // O gráfico desenha as duas séries nos seis meses; os valores são conferidos na tabela.
-        const chart = page.getByRole('img', { name: /Gráfico da evolução do saldo/ });
-        await expect(chart.locator('.recharts-bar-rectangle')).toHaveCount(12);
-        await page.getByRole('button', { name: 'Tabela', exact: true }).dispatchEvent('click');
-        await expect(page.getByRole('button', { name: 'Tabela', exact: true })).toHaveAttribute('aria-pressed', 'true');
-        const evolution = page.getByRole('table', { name: 'Evolução do saldo' });
-        await expect(evolution.getByRole('row')).toHaveCount(7);
-        await expect(evolution.getByRole('row').nth(6)).toContainText(formatMonthShort(period));
-        await expect(evolution.getByRole('row').nth(6)).toContainText('R$ 10.350,00');
-        await expect(evolution.getByRole('row').nth(5)).toContainText(`${formatMonthShort(shiftPeriod(period, -1))}R$ 1.000,00`);
+        await expect(kpi(page, '↑ Receitas')).toHaveCount(0);
 
         const accounts = page.getByRole('region', { name: 'Contas' });
         await expect(accounts).toContainText('previsto R$ 8.050,00');
@@ -114,13 +91,9 @@ test('visão geral: indicadores, evolução do saldo, maiores categorias e resum
         await cards.getByRole('link', { name: /Roxinho/ }).dispatchEvent('click');
         await expect(page).toHaveURL(/#\/cards\?.*card=/);
         await page.goBack();
-        await page.getByRole('link', { name: 'Abrir relatório por categoria →' }).dispatchEvent('click');
-        await expect(page).toHaveURL(/#\/reports\/category/);
-        await page.goBack();
 
         // O mês anterior não tem lançamento nenhum: os indicadores seguem o mês de referência.
         await page.getByRole('button', { name: 'Mês anterior' }).dispatchEvent('click');
-        await expect(kpi(page, '↑ Receitas')).toContainText('Nenhum lançamento');
         await expect(kpi(page, 'Saldo consolidado')).toContainText('R$ 1.000,00');
     } finally {
         await app.close();

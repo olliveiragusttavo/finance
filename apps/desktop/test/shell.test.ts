@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isItemActive, MENU, menuFor, showsReferenceMonth, trailFor, visibleReports, type MenuItem } from '../src/renderer/src/shell/navigation.ts';
+import { isItemActive, MENU, menuFor, showsReferenceMonth, trailFor, type MenuItem } from '../src/renderer/src/shell/navigation.ts';
 import { pickActiveProfile } from '../src/renderer/src/shell/pickActiveProfile.ts';
 import { currentPeriod, parseShellSearch, resolveReferenceMonth, shiftPeriod } from '../src/renderer/src/shell/referenceMonth.ts';
 import { shortcutFor, type KeyPress } from '../src/renderer/src/shell/shortcuts.ts';
@@ -47,18 +47,16 @@ describe('menu do shell (desktop-mvp-plan Fase 4)', () => {
         expect(isItemActive(menuItem('Visão geral'), '/accounts')).toBe(false);
         expect(isItemActive(menuItem('Contas'), '/accounts/123')).toBe(true);
         expect(isItemActive(menuItem('Contas'), '/accountsx')).toBe(false);
-        expect(isItemActive(menuItem('Relatórios'), '/reports/tag')).toBe(true);
-    });
-
-    it('a lista de relatórios segue a ordem dos mockups, e "Por sócio" só no perfil empresarial', () => {
-        expect(visibleReports('personal').map((report) => report.label)).toEqual(['Por categoria', 'Fluxo por conta', 'Impacto do cartão', 'Por tag']);
-        expect(visibleReports('business').map((report) => report.label)).toEqual(['Por categoria', 'Fluxo por conta', 'Impacto do cartão', 'Por sócio', 'Por tag']);
+        expect(isItemActive(menuItem('Relatórios'), '/reports')).toBe(true);
+        // O editor de relatórios fica dentro da seção.
+        expect(isItemActive(menuItem('Relatórios'), '/reports/edit')).toBe(true);
     });
 
     it('esconde o mês de referência só nos cadastros, em Dispositivos e Ajustes, e na importação dentro de Ajustes', () => {
         const hidden = MENU.filter((item) => !showsReferenceMonth(item.to)).map((item) => item.label);
         expect(hidden).toEqual(['Categorias', 'Sócios', 'Tags', 'Anotações', 'Perfis', 'Dispositivos', 'Ajustes']);
-        expect(showsReferenceMonth('/reports/partner')).toBe(true);
+        // O resultado ao vivo do editor depende do mês de referência.
+        expect(showsReferenceMonth('/reports/edit')).toBe(true);
         expect(showsReferenceMonth('/settings/import')).toBe(false);
     });
 

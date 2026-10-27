@@ -1,5 +1,5 @@
 import type { PartnerLine, PartnerReport, PartnerSettlement } from '../../domain/report/PartnerReport.ts';
-import type { EntriesWithoutPartnerView } from '../../services/report/ReportViews.ts';
+import type { EntriesWithoutPartnerView } from '../../services/report/FixedReportViews.ts';
 import { toMoneyResponse, type MoneyResponse } from '../shared/MoneyResponse.ts';
 import { toTransactionResponse, type TransactionResponse } from '../transactions/TransactionResponse.ts';
 

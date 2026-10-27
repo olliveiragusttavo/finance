@@ -1480,9 +1480,10 @@ as condições são verificadas no `TransactionComposer`:
 
 A linha continua única e pertence ao perfil de **origem**: subcategoria, tags e meta são
 dele. O perfil de destino a vê na lista de transações do mês e no extrato da conta, só para
-leitura — editar, pagar ou excluir é no perfil de origem. Nos relatórios ela conta como
-despesa na origem (valor + encargos) e receita no destino (só o valor), porque para cada
-perfil o dinheiro de fato saiu ou entrou ([reports-design.md](reports-design.md), R2 e C3).
+leitura — editar, pagar ou excluir é no perfil de origem. Nos relatórios personalizados ela
+entra nos dois perfis: na origem como transferência que sai, no destino pela conta de destino e
+sem a classificação da origem
+([reports-design.md §2.2](reports-design.md#22-atributos-da-transação)).
 Excluir a conta de destino apaga a transferência junto, como numa transferência interna, e
 recalcula a conta de origem no outro perfil.
 
@@ -1517,7 +1518,7 @@ entidade ao editar; o formulário só mostra o tipo atual.
 da participação societária da [§4.2](#42-partners). Toda despesa de um perfil empresarial é
 paga com o dinheiro da empresa, e o sócio aparece no dinheiro que **entra** nela: a receita
 do perfil empresarial e a transferência que chega a ele vinda de outro perfil
-([reports-design §8](reports-design.md#8-por-sócio-reportsbypartner-reportsentrieswithoutpartner)).
+(desktop-mvp-plan Fase 13.8).
 Na transferência entre perfis a linha é do perfil de **origem** — um perfil pessoal, tipicamente —,
 mas o sócio é do perfil de **destino**; é a única referência a sócio que atravessa perfis, como a
 própria conta de destino. Ele não faz parte de nenhum arco exclusivo e é anulável mesmo no aporte,

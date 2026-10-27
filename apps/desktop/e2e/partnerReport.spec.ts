@@ -3,7 +3,8 @@ import { currentPeriod } from '../src/renderer/src/shell/referenceMonth.ts';
 import { launchApp, removeUserData } from './launchApp.ts';
 
 /*
- * Relatório por sócio (desktop-mvp-plan Fases 13.6 e 13.8) no app empacotado: o exemplo dos
+ * Distribuição por sócio (reports-design §8; desktop-mvp-plan Fases 13.6 e 13.8), fixada no topo
+ * dos Relatórios do perfil empresarial, no app empacotado: o exemplo dos
  * aportes — Matheus (60%) e Gustavo (40%) aportam R$ 1.000,00 cada, e Matheus deveria ter aportado
  * R$ 1.200,00 —, a lista de entradas sem sócio com a receita de serviço e o Pix vindo do perfil
  * pessoal, e o campo "Sócio que aportou" do lançamento, que só aparece na receita. Os cliques usam
@@ -137,9 +138,10 @@ test('por sócio: aportes de todos os períodos, acerto, entradas sem sócio e o
         );
         await page.reload();
 
+        // O relatório fica fixado no topo dos Relatórios do perfil empresarial.
         await page.getByRole('link', { name: 'Relatórios', exact: true }).dispatchEvent('click');
-        await page.getByRole('link', { name: 'Por sócio', exact: true }).dispatchEvent('click');
-        await expect(page.getByRole('heading', { name: 'Por sócio', level: 1 })).toBeVisible();
+        await page.getByRole('list', { name: 'Relatórios fixos' }).getByRole('link', { name: 'Distribuição por sócio', exact: true }).dispatchEvent('click');
+        await expect(page.getByRole('heading', { name: 'Distribuição por sócio', level: 2 })).toBeVisible();
 
         await expect(page.getByRole('group', { name: 'Total de aportes' })).toContainText('R$ 1.000,00');
         await expect(page.getByRole('group', { name: /^Entradas sem sócio/ })).toContainText('R$ 5.000,00');

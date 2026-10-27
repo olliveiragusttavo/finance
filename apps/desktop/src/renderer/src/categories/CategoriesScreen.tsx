@@ -36,7 +36,7 @@ type CategoryDialogState =
  *
  * Diverge do mockup em três pontos, decididos com o usuário: sem "Mover para" (o núcleo não
  * move subcategoria entre categorias), sem o total do mês (a tela não depende do mês de
- * referência, decisão de interface 2 — o relatório por categoria mostra os valores) e sem
+ * referência, decisão de interface 2 — os relatórios mostram os valores) e sem
  * reordenar (o núcleo não guarda ordem de categorias).
  *
  * @return A tela de categorias.
@@ -215,8 +215,8 @@ function CategoryLink({ category, current }: { readonly category: CategoryBranch
 }
 
 /**
- * Detalhe da categoria aberta: cabeçalho com renomear e excluir, os números de todo o período, o
- * atalho para o relatório e a tabela das subcategorias com a criação na última linha.
+ * Detalhe da categoria aberta: cabeçalho com renomear e excluir, os números de todo o período e a
+ * tabela das subcategorias com a criação na última linha.
  *
  * @param props.category Categoria aberta.
  * @param props.onOpen Abre um diálogo da tela.
@@ -262,9 +262,6 @@ function CategoryDetail({ category, onOpen }: { readonly category: CategoryBranc
                         <dd className="text-20 font-semibold tabular-nums">{categoryTransactionCount(category)}</dd>
                     </div>
                 </dl>
-                <Link to="/reports/category" search={{ category: category.id }} className="pb-1 text-13 text-accent hover:text-soft-ink">
-                    Ver no relatório por categoria →
-                </Link>
             </div>
             <SubCategoryTable category={category} onOpen={onOpen} />
             <p className="rounded-8 bg-soft px-3 py-2.5 text-13 text-soft-ink">

@@ -13,7 +13,6 @@ import {
     formatProfileSummary,
     summarizeNote,
     formatProfileType,
-    formatVariation,
     parseMoneyInput,
 } from '../src/index.ts';
 
@@ -93,19 +92,6 @@ describe('percentual e variação', () => {
         [-0.12, 'always', 0, '−12%'],
     ] as const)('%d (%s, %d casa) → %s', (ratio, sign, decimals, expected) => {
         expect(formatPercent(ratio, { sign, decimals })).toBe(expected);
-    });
-
-    it('mostra seta, valor com sinal e percentual, como a tabela do relatório', () => {
-        expect(formatVariation({ absolute: brl(162.4), change: { kind: 'ratio', ratio: 0.16569 } }))
-            .toEqual({ direction: 'up', arrow: '▲', absolute: '+R$ 162,40', percent: '+16,6%' });
-        expect(formatVariation({ absolute: brl(-122.68), change: { kind: 'ratio', ratio: -0.2011 } }))
-            .toEqual({ direction: 'down', arrow: '▼', absolute: '−R$ 122,68', percent: '−20,1%' });
-        expect(formatVariation({ absolute: brl(0), change: { kind: 'ratio', ratio: 0 } }))
-            .toEqual({ direction: 'flat', arrow: '=', absolute: 'R$ 0,00', percent: '0%' });
-    });
-
-    it('Regra de negócio (Relatórios, R6): base zero aparece como "novo", não ∞ nem 0%', () => {
-        expect(formatVariation({ absolute: brl(80), change: { kind: 'new' } }).percent).toBe('novo');
     });
 });
 
