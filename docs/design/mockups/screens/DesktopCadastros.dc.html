@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<title>Cadastros</title>
+<title>Cadastros — categorias</title>
 <script src="./support.js"></script>
 </head>
 <body>
@@ -11,8 +11,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
 <style>
 body{margin:0}
-.light{--bg:#F4F5F2;--surface:#FFFFFF;--surface2:#FAFAF8;--line:#DDE1DC;--line2:#EEF0EC;--ink:#1B1F1D;--ink2:#3D4541;--muted:#5A625E;--accent:#1F5F8B;--on-accent:#FFFFFF;--soft:#E6EEF4;--soft-ink:#163F5C;--in:#1F5F8B;--out:#A04A12;--warn-bg:#FFF1D6;--warn-ink:#5C3D00;--ok-bg:#E2F1E8;--ok-ink:#1E5A3F;--track:#EEF0EC;--danger:#9B2C1F;--dot:#2E7D5B}
-.dark{--bg:#111413;--surface:#1A1E1C;--surface2:#151917;--line:#2E3431;--line2:#242926;--ink:#E7EAE7;--ink2:#C3C9C5;--muted:#9AA29E;--accent:#6AAAD8;--on-accent:#0B1A24;--soft:#1D3040;--soft-ink:#B5D7F0;--in:#7DB8E2;--out:#E89A63;--warn-bg:#3A2C10;--warn-ink:#F2D38F;--ok-bg:#16302A;--ok-ink:#8FD9B4;--track:#2A302D;--danger:#F08A7A;--dot:#5BC08F}
+.light{--bg:#F4F5F2;--surface:#FFFFFF;--surface2:#FAFAF8;--line:#DDE1DC;--line2:#EEF0EC;--ink:#1B1F1D;--ink2:#3D4541;--muted:#5A625E;--accent:#1F5F8B;--on-accent:#FFFFFF;--soft:#E6EEF4;--soft-ink:#163F5C;--warn-bg:#FFF1D6;--warn-ink:#5C3D00;--ok-bg:#E2F1E8;--ok-ink:#1E5A3F;--track:#EEF0EC;--danger:#9B2C1F;--dot:#2E7D5B;--out:#A04A12;--in:#1F5F8B}
+.dark{--bg:#111413;--surface:#1A1E1C;--surface2:#151917;--line:#2E3431;--line2:#242926;--ink:#E7EAE7;--ink2:#C3C9C5;--muted:#9AA29E;--accent:#6AAAD8;--on-accent:#0B1A24;--soft:#1D3040;--soft-ink:#B5D7F0;--warn-bg:#3A2C10;--warn-ink:#F2D38F;--ok-bg:#16302A;--ok-ink:#8FD9B4;--track:#2A302D;--danger:#F08A7A;--dot:#5BC08F;--out:#E89A63;--in:#7DB8E2}
 a{color:var(--accent);text-decoration:none}a:hover{color:var(--soft-ink)}
 .n{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
 button,input,select{font:inherit;color:inherit}button{cursor:pointer}
@@ -33,25 +33,44 @@ button,input,select{font:inherit;color:inherit}button{cursor:pointer}
 .month button{border:0;background:none;padding:8px 12px}
 .month span{font-size:14px;font-weight:600;min-width:150px;text-align:center}
 .link{border:0;background:none;color:var(--accent);font-size:13px;padding:8px}
-.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 12px;font-size:13px;display:inline-flex;align-items:center;gap:6px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 12px;font-size:13px;display:inline-flex;align-items:center;gap:6px;color:var(--ink)}
 .btn-p{border:0;border-radius:8px;background:var(--accent);color:var(--on-accent);padding:9px 16px;font-size:14px;font-weight:500}
-main{padding:24px 32px;display:flex;flex-direction:column;gap:20px;min-width:0;flex-grow:1}
+.btn-d{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 12px;font-size:13px;color:var(--danger)}
 h1{margin:0;font-size:20px;font-weight:600}
 h2{margin:0;font-size:22px;font-weight:600}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:10px}
 .sm{font-size:12px;color:var(--muted)}
 .muted{color:var(--muted)}
 .stack{display:flex;flex-direction:column}
 .split{display:flex;flex-grow:1;min-height:0}
-.pane{width:300px;flex-shrink:0;border-right:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column}
+.pane{width:220px;flex-shrink:0;border-right:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column}
 .panehd{padding:20px 20px 12px}
 .li{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 20px;border-top:1px solid var(--line2);color:var(--ink);font-size:14px}
 .li.on{background:var(--soft);box-shadow:inset 3px 0 0 var(--accent);font-weight:600}
-.cat{padding:0;display:flex;flex-direction:column}
-.cathd{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line2)}
-.subi{display:flex;justify-content:space-between;align-items:center;padding:9px 16px 9px 28px;font-size:13px;border-bottom:1px solid var(--line2)}
-.subi:last-child{border-bottom:0}
-.ic{border:0;background:none;color:var(--muted);padding:4px 8px;font-size:13px}
+.cats{width:290px;flex-shrink:0;border-right:1px solid var(--line);background:var(--surface2);display:flex;flex-direction:column}
+.catshd{padding:16px 16px 10px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid var(--line)}
+.search{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:0 10px}
+.search input{border:0;outline:0;background:none;height:36px;flex-grow:1;font-size:14px}
+.ci{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;padding:10px 16px;border:0;border-bottom:1px solid var(--line2);background:none;text-align:left;font-size:14px}
+.ci:hover{background:var(--surface)}
+.ci.on{background:var(--surface);box-shadow:inset 3px 0 0 var(--accent);font-weight:600}
+.ci .meta{font-size:12px;color:var(--muted);font-weight:400;text-align:right}
+.ci .hit{font-size:11px;color:var(--soft-ink);background:var(--soft);border-radius:999px;padding:1px 7px;font-weight:500}
+.det{flex-grow:1;min-width:0;padding:24px 28px;display:flex;flex-direction:column;gap:18px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.clip{overflow:hidden}
+.t{display:grid;grid-template-columns:20px minmax(0,1.6fr) 100px 120px 170px 72px;gap:12px;padding:9px 16px;border-bottom:1px solid var(--line2);font-size:14px;align-items:center}
+.t:last-child{border-bottom:0}
+.th{color:var(--muted);font-size:12px;background:var(--surface2);border-bottom:1px solid var(--line)}
+.t.match{background:var(--soft)}
+.r{text-align:right}
+.grip{color:var(--muted);cursor:grab;font-size:12px;letter-spacing:-2px}
+.inp{border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:var(--bg);font-size:13px;width:100%;box-sizing:border-box}
+.ic{width:32px;height:32px;border:0;background:none;border-radius:6px;color:var(--muted);display:inline-flex;align-items:center;justify-content:center}
+.ic:hover{background:var(--track);color:var(--ink)}
+.ic.del:hover{color:var(--danger)}
+.kp{display:flex;gap:24px;flex-wrap:wrap;font-size:13px}
+.kp b{font-size:18px;font-weight:600;display:block}
+.out{color:var(--out)}.in{color:var(--in)}
 .note{background:var(--soft);color:var(--soft-ink);border-radius:8px;padding:10px 12px;font-size:13px}
 </style>
 </helmet>
@@ -82,28 +101,62 @@ h2{margin:0;font-size:22px;font-weight:600}
 <div class="panehd"><h1>Cadastros</h1></div>
 <a href="DesktopContas.dc.html" class="li"><span>Contas</span><span class="sm">4</span></a>
 <a href="DesktopCartoes.dc.html" class="li"><span>Cartões</span><span class="sm">2</span></a>
-<a href="#" class="li on" aria-current="true"><span>Categorias</span><span class="sm">8 · 17 sub</span></a>
+<a href="DesktopCadastros.dc.html" class="li on" aria-current="true"><span>Categorias</span><span class="sm n">{{catCount}}</span></a>
 <a href="DesktopTags.dc.html" class="li"><span>Tags</span><span class="sm">3</span></a>
 <a href="#" class="li"><span>Perfis</span><span class="sm">2</span></a>
 <a href="DesktopAnotacoes.dc.html" class="li"><span>Anotações</span><span class="sm">2</span></a>
 <div class="sm" style="padding: 14px 20px; border-top: 1px solid var(--line2)">Sócios aparecem aqui só em perfil empresarial.</div>
 </section>
-<main>
-<div class="row" style="justify-content: space-between">
-<div class="stack" style="gap: 4px"><h2>Categorias</h2><span class="sm">Toda transação aponta para uma subcategoria</span></div>
-<div class="row"><button type="button" class="btn">Reordenar</button><button type="button" class="btn-p">+ Nova categoria</button></div>
+
+<section class="cats" aria-label="Categorias">
+<div class="catshd">
+<div class="row" style="justify-content: space-between"><span style="font-weight: 600">Categorias</span><button type="button" class="btn">+ Nova</button></div>
+<label class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="color: var(--muted)"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><span style="position: absolute; left: -9999px">Buscar categoria ou subcategoria</span><input type="text" placeholder="Buscar categoria ou subcategoria" value="{{q}}" onChange="{{setQ}}"></label>
+<span class="sm n">{{listInfo}}</span>
 </div>
-<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start">
-<section class="card cat"><div class="cathd"><span style="font-weight: 600">Moradia</span><button type="button" class="ic" aria-label="Editar Moradia">Editar</button></div><div class="subi"><span>Aluguel</span><span class="sm">12 lanç.</span></div><div class="subi"><span>Condomínio</span><span class="sm">12 lanç.</span></div><div class="subi"><span>Energia</span><span class="sm">12 lanç.</span></div><div class="subi"><button type="button" class="ic" style="padding: 0; color: var(--accent)">+ Subcategoria</button></div></section>
-<section class="card cat"><div class="cathd"><span style="font-weight: 600">Alimentação</span><button type="button" class="ic" aria-label="Editar Alimentação">Editar</button></div><div class="subi"><span>Mercado</span><span class="sm">[n] lanç.</span></div><div class="subi"><span>Restaurantes</span><span class="sm">[n] lanç.</span></div><div class="subi"><span>Delivery</span><span class="sm">[n] lanç.</span></div><div class="subi"><button type="button" class="ic" style="padding: 0; color: var(--accent)">+ Subcategoria</button></div></section>
-<section class="card cat"><div class="cathd"><span style="font-weight: 600">Transporte</span><button type="button" class="ic" aria-label="Editar Transporte">Editar</button></div><div class="subi"><span>Combustível</span><span class="sm">[n] lanç.</span></div><div class="subi"><span>App de transporte</span><span class="sm">[n] lanç.</span></div><div class="subi"><button type="button" class="ic" style="padding: 0; color: var(--accent)">+ Subcategoria</button></div></section>
-<section class="card cat"><div class="cathd"><span style="font-weight: 600">Assinaturas</span><button type="button" class="ic" aria-label="Editar Assinaturas">Editar</button></div><div class="subi"><span>Streaming</span><span class="sm">[n] lanç.</span></div><div class="subi"><span>Software</span><span class="sm">[n] lanç.</span></div><div class="subi"><button type="button" class="ic" style="padding: 0; color: var(--accent)">+ Subcategoria</button></div></section>
-<section class="card cat"><div class="cathd"><span style="font-weight: 600">Compras</span><button type="button" class="ic" aria-label="Editar Compras">Editar</button></div><div class="subi"><span>Eletrônicos</span><span class="sm">[n] lanç.</span></div><div class="subi"><span>Vestuário</span><span class="sm">[n] lanç.</span></div><div class="subi"><button type="button" class="ic" style="padding: 0; color: var(--accent)">+ Subcategoria</button></div></section>
-<section class="card cat"><div class="cathd"><span style="font-weight: 600">Saúde</span><button type="button" class="ic" aria-label="Editar Saúde">Editar</button></div><div class="subi"><span>Farmácia</span><span class="sm">[n] lanç.</span></div><div class="subi"><span>Plano</span><span class="sm">[n] lanç.</span></div><div class="subi"><button type="button" class="ic" style="padding: 0; color: var(--accent)">+ Subcategoria</button></div></section>
-<section class="card cat"><div class="cathd"><span style="font-weight: 600">Renda</span><button type="button" class="ic" aria-label="Editar Renda">Editar</button></div><div class="subi"><span>Salário</span><span class="sm">[n] lanç.</span></div><div class="subi"><span>Freelance</span><span class="sm">[n] lanç.</span></div><div class="subi"><button type="button" class="ic" style="padding: 0; color: var(--accent)">+ Subcategoria</button></div></section>
-<section class="card cat"><div class="cathd"><span style="font-weight: 600">Investimentos</span><button type="button" class="ic" aria-label="Editar Investimentos">Editar</button></div><div class="subi"><span>Aporte</span><span class="sm">[n] lanç.</span></div><div class="subi"><button type="button" class="ic" style="padding: 0; color: var(--accent)">+ Subcategoria</button></div></section>
+<div role="listbox" aria-label="Categorias">
+<sc-for list="{{cats}}" as="c" hint-placeholder-count="11">
+<button type="button" role="option" aria-selected="{{c.selected}}" class="ci {{c.cls}}" onClick="{{c.pick}}">
+<span class="stack" style="gap: 2px; min-width: 0"><span>{{c.name}}</span><sc-if value="{{c.hasHit}}" hint-placeholder-val="{{ false }}"><span><span class="hit">{{c.hitText}}</span></span></sc-if></span>
+<span class="meta n">{{c.subs}} sub<br>{{c.lanc}} lanç.</span>
+</button>
+</sc-for>
+<sc-if value="{{noResults}}" hint-placeholder-val="{{ false }}"><div class="sm" style="padding: 16px">Nada encontrado para “{{q}}”.</div></sc-if>
 </div>
-<div class="note">Nomes são únicos no perfil, sem diferenciar maiúsculas. Excluir uma subcategoria em uso pede para mover os lançamentos antes.</div>
+</section>
+
+<main class="det" aria-label="Detalhe da categoria">
+<div class="row" style="justify-content: space-between; align-items: flex-start">
+<div class="stack" style="gap: 4px"><span class="sm">Categoria</span><h2>{{selName}}</h2></div>
+<div class="row" style="gap: 8px"><button type="button" class="btn">Renomear</button><button type="button" class="btn-d">Excluir categoria</button></div>
+</div>
+<div class="kp n">
+<span><span class="sm">Subcategorias</span><b>{{selSubs}}</b></span>
+<span><span class="sm">Lançamentos (todo o período)</span><b>{{selLanc}}</b></span>
+<span><span class="sm">Total em {{monthShort}}</span><b class="out">{{selTotal}}</b></span>
+<a href="DesktopRelCategoria.dc.html" style="align-self: flex-end; font-size: 13px">Ver no relatório por categoria →</a>
+</div>
+
+<section class="card clip" aria-label="Subcategorias">
+<div class="t th"><span></span><span>Subcategoria</span><span class="r">Lançamentos</span><span class="r">Total em {{monthShort}}</span><span>Mover para</span><span></span></div>
+<sc-for list="{{subs}}" as="s" hint-placeholder-count="5">
+<div class="t n {{s.cls}}">
+<span class="grip" aria-hidden="true" title="Arraste para reordenar">⋮⋮</span>
+<span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{s.name}}</span>
+<span class="r">{{s.n}}</span>
+<span class="r {{s.vc}}">{{s.total}}</span>
+<select class="inp" aria-label="{{s.moveAria}}"><option>Manter em {{selName}}</option><sc-for list="{{others}}" as="o" hint-placeholder-count="4"><option>{{o}}</option></sc-for></select>
+<span class="row" style="gap: 0; justify-content: flex-end"><button type="button" class="ic" aria-label="{{s.renAria}}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></button><button type="button" class="ic del" aria-label="{{s.delAria}}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg></button></span>
+</div>
+</sc-for>
+<form class="t" style="background: var(--surface2)" onSubmit="{{addSub}}">
+<span class="muted" aria-hidden="true">+</span>
+<label style="grid-column: span 3"><span style="position: absolute; left: -9999px">Nova subcategoria em {{selName}}</span><input class="inp" type="text" maxlength="45" placeholder="Nova subcategoria em {{selName}}" value="{{draft}}" onChange="{{setDraft}}"></label>
+<button type="submit" class="btn" style="justify-content: center">Adicionar</button>
+<span></span>
+</form>
+</section>
+<div class="note">Mover uma subcategoria leva todos os lançamentos dela junto. Excluir uma subcategoria com lançamentos pede para escolher outra subcategoria para recebê-los. Arraste ⋮⋮ para reordenar.</div>
 </main>
 </div>
 </div>
@@ -117,15 +170,50 @@ const M = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto
 const base = 2026 * 12 + 9;
 const idx = s.idx ?? base;
 const dark = s.dark ?? (this.props.dark ?? false);
+const DATA0 = {"Alimentação":[["Almoço",100,1500],["Café da manhã/Lanche",91,48],["Outros",25,67]],"Base1":[["Consultoria",3,0],["Contabilidade",55,200],["Serviços",5,45.95]],"Carro":[["Combustível",42,200],["Estacionamento",9,0],["Manutenção",32,335.95],["Outros",5,0],["Seguro",72,202.65]],"Compras":[["Eletrônicos",73,178],["Jogos",14,11.61],["Mangá",2,0],["Móveis",15,0],["Outros",45,1286.55],["Presente",42,533.33]],"Empresa":[["INSS",72,178.31],["Impostos",73,540],["Outros",2,0],["Serviços",80,326.4]],"Família":[["Anim. estimação",25,0],["Outros",4,0]],"Moradia":[["Fixas",216,948.57],["Manutenção",13,44],["Mercado",68,226.15],["Outros",8,0]],"Outros":[["Ajuste",11,0],["Empréstimo",15,0],["Estorno",17,-39.41],["Outros",7,0],["Pagamentos",8,0],["Taxas",9,0],["Uber",3,0]],"Pessoal":[["Barbearia",15,45],["Lazer",116,189.57],["Outros",5,0],["Saúde",7,0],["Terapia",12,0],["Vestuário",29,37.13]],"Serviços":[["Academia",94,379.9],["Anuais",4,0],["Assinaturas",221,151.8],["Família",63,30],["Outros",2,0]],"Viagem":[["Alimentação",20,0],["Hospedagem",4,0],["Lazer",12,0],["Outros",8,0],["Transporte",17,0]]};
+const DATA = s.data || DATA0;
+const names = Object.keys(DATA).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+const q = s.q || '';
+const norm = (t) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const nq = norm(q.trim());
+const fmtN = (v) => v.toLocaleString('pt-BR');
+const brl = (v) => v === 0 ? '—' : (v < 0 ? '+R$ ' : '−R$ ') + Math.abs(v).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const visible = names.filter(c => !nq || norm(c).indexOf(nq) >= 0 || DATA[c].some(x => norm(x[0]).indexOf(nq) >= 0));
+let sel = s.sel || 'Outros';
+if (visible.length && visible.indexOf(sel) < 0) sel = visible[0];
+const cats = visible.map(c => {
+const hits = nq ? DATA[c].filter(x => norm(x[0]).indexOf(nq) >= 0).length : 0;
+return {name: c, subs: DATA[c].length, lanc: fmtN(DATA[c].reduce((t, x) => t + x[1], 0)),
+cls: c === sel ? 'on' : '', selected: c === sel ? 'true' : 'false',
+hasHit: hits > 0, hitText: hits + (hits === 1 ? ' subcategoria' : ' subcategorias'),
+pick: () => this.setState({ sel: c, draft: '' })};
+});
+const list = DATA[sel] || [];
+const subs = list.map(x => ({name: x[0], n: fmtN(x[1]), total: brl(x[2]), vc: x[2] > 0 ? 'out' : (x[2] < 0 ? 'in' : 'muted'),
+cls: nq && norm(x[0]).indexOf(nq) >= 0 ? 'match' : '',
+moveAria: 'Mover ' + x[0] + ' para outra categoria', renAria: 'Renomear ' + x[0], delAria: 'Excluir ' + x[0]}));
+const totalSel = list.reduce((t, x) => t + x[2], 0);
+const allSubs = names.reduce((t, c) => t + DATA[c].length, 0);
+const draft = s.draft || '';
 return {
 themeClass: dark ? 'dark' : 'light',
 themeLabel: dark ? 'Tema claro' : 'Tema escuro',
 toggleTheme: () => this.setState({ dark: !dark }),
 monthLabel: M[idx % 12] + ' de ' + Math.floor(idx / 12),
+monthShort: M[idx % 12].slice(0, 3).toLowerCase() + '/' + Math.floor(idx / 12),
 prevMonth: () => this.setState({ idx: idx - 1 }),
 nextMonth: () => this.setState({ idx: idx + 1 }),
 goToday: () => this.setState({ idx: base }),
-notCurrent: idx !== base
+notCurrent: idx !== base,
+catCount: names.length + ' · ' + allSubs + ' sub',
+q, setQ: (e) => this.setState({ q: e.target.value }),
+listInfo: nq ? visible.length + ' de ' + names.length + ' categorias' : names.length + ' categorias · ' + allSubs + ' subcategorias',
+cats, noResults: visible.length === 0,
+selName: visible.length ? sel : '—',
+selSubs: list.length, selLanc: fmtN(list.reduce((t, x) => t + x[1], 0)), selTotal: brl(totalSel),
+subs, others: names.filter(c => c !== sel),
+draft, setDraft: (e) => this.setState({ draft: e.target.value }),
+addSub: (e) => { e.preventDefault(); const nm = draft.trim(); if (!nm || !DATA[sel]) return; if (DATA[sel].some(x => norm(x[0]) === norm(nm))) return; const d = Object.assign({}, DATA); d[sel] = DATA[sel].concat([[nm, 0, 0]]); this.setState({ data: d, draft: '' }); }
 };
 }
 }

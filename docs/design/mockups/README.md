@@ -28,7 +28,7 @@ Cada tela é um arquivo `screens/*.dc.html` (HTML de um editor de design):
 3. **Contas e Cartões são seções separadas**, cada uma com item próprio no menu:
    lista com resumo do mês (saldo da conta / total e situação da fatura) → clique abre o detalhe.
 4. **Listas em vez de abas** no topo para escolher entidades (contas, cartões, tags, metas, tipos de cadastro).
-5. **Relatórios** é um item do menu lateral do desktop, como Contas e Cartões: abre a página com a lista dos relatórios à esquerda e o relatório aberto à direita. Os relatórios são os **personalizados**, montados pelo usuário num editor (desktop-mvp-plan Fase 15), mais dois **fixos** no topo da lista, que o editor não expressa: a projeção de saldo, em todo perfil, e a distribuição por sócio, no empresarial (reports-design §8 e §9). Os mockups `DesktopRel*` desenham os relatórios fixos do MVP e não são mais referência de conteúdo; a distribuição por sócio segue a tela que já divergia do `DesktopRelSocio` (aportes no lugar de despesas). As telas de relatório ainda não têm mockup.
+5. **Relatórios** são subitens de "Relatórios" no menu lateral do desktop. "Por sócio" só existe em perfil empresarial.
 6. **Consolidado e previsto** sempre juntos; previsto com peso menor.
 7. Entrada/saída distinguíveis **sem depender só da cor**: sinal (+/−), ⇄ para transferência, rótulos.
 8. Números com algarismos tabulares e alinhados à direita nas tabelas.
@@ -68,7 +68,8 @@ Fonte: IBM Plex Sans.
 
 | Arquivo | Tela |
 |---|---|
-| Main | D2 Visão geral |
+| DesktopVisaoGeral2 | **D2 Visão geral — versão atual (usar esta)**, 1920px, menu igual ao app implementado |
+| Main | D2 Visão geral — versão antiga, substituída por DesktopVisaoGeral2 |
 | DesktopTransacoes | D3 Transações (tabela densa + painel de edição) |
 | DesktopContas | Contas → extrato do mês |
 | DesktopCartoes | Cartões → fatura do mês |
@@ -78,7 +79,8 @@ Fonte: IBM Plex Sans.
 | DesktopRelCartao | D6 Impacto do cartão |
 | DesktopRelSocio | D7 Relatório por sócio (empresarial) |
 | DesktopRelTag | D8 Relatório por tag |
-| DesktopCadastros | D10 Cadastros |
+| DesktopCadastros | D10 Categorias — opção A: lista de categorias + detalhe com tabela de subcategorias (recomendada) |
+| DesktopCategoriasArvore | D10 Categorias — opção B: árvore recolhível (alternativa; escolher uma) |
 | DesktopDispositivos | D10 Dispositivos e convite (QR + código) |
 | DesktopAjustes | Ajustes |
 | DesktopPrimeiroUso | Primeiro uso |
@@ -88,6 +90,24 @@ Fonte: IBM Plex Sans.
 | DesktopImportArquivo | Importar 1/3 · Arquivo (tipo, separadores, prévia bruta) |
 | DesktopImportMapear | Importar 2/3 · Ligar colunas aos campos (arrastar e soltar) |
 | DesktopImportRevisar | Importar 3/3 · Revisar (perfil por conta, contas, cartões, categorias, recorrências) |
+
+### Visão geral (DesktopVisaoGeral2)
+
+Substitui a D2 anterior. Layout fluido para telas largas (desenhado em 1920px):
+
+- **Selo de atrasados** ao lado do título (não ocupa a largura toda): "⚠ N atrasados · R$ X a pagar · R$ Y a receber".
+  Lançamentos com vencimento antes de hoje e sem pagamento. Clique abre um painel (popover) com cada item
+  (nome, data, "há N dias", conta, valor) e ação "Marcar como pago/recebido" com "Desfazer".
+  Rodapé indica o que ainda vence até o fim do mês. Sem atrasos: selo verde "Nada atrasado".
+- **Indicadores (5):** saldo consolidado (previsto na mesma caixa), patrimônio (inclui investimentos fora do total),
+  gastos do mês (vs média de 6 meses), entradas do mês, próximas faturas.
+- **Gastos por mês** (6 meses, barras + linha da média) e **Para onde foi no mês** (top 5 categorias + "outras").
+  Sem links para relatórios (relatórios removidos do app).
+- **Próximos 30 dias:** vencimentos a pagar/receber, transferências e faturas, com totais no rodapé.
+- **Contas** compactas (saldo zero esmaecido; investimentos fora do total em grupo próprio),
+  **Cartões** (fatura do mês + próxima em aberto), **Metas** (alerta "Prazo vencido"; ritmo necessário),
+  **Anotações** (recentes, bloco pequeno).
+- Botão de tema alterna Seguir o sistema → Claro → Escuro.
 
 ### Importação (desktop)
 

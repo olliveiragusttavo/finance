@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Visão geral — proposta</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+.light{--bg:#F4F5F2;--surface:#FFFFFF;--surface2:#FAFAF8;--line:#DDE1DC;--line2:#EEF0EC;--ink:#1B1F1D;--ink2:#3D4541;--muted:#5A625E;--accent:#1F5F8B;--on-accent:#FFFFFF;--soft:#E6EEF4;--soft-ink:#163F5C;--in:#1F5F8B;--out:#A04A12;--warn-bg:#FFF1D6;--warn-ink:#5C3D00;--ok-bg:#E2F1E8;--ok-ink:#1E5A3F;--track:#EEF0EC;--bar:#C9D6E0;--dot:#2E7D5B}
+.dark{--bg:#161918;--surface:#1D201F;--surface2:#191C1B;--line:#2E3431;--line2:#262A28;--ink:#E7EAE7;--ink2:#C3C9C5;--muted:#9AA29E;--accent:#6AAAD8;--on-accent:#0B1A24;--soft:#1D3040;--soft-ink:#B5D7F0;--in:#7DB8E2;--out:#E89A63;--warn-bg:#3A2C10;--warn-ink:#F2D38F;--ok-bg:#16302A;--ok-ink:#8FD9B4;--track:#2A302D;--bar:#3A5468;--dot:#5BC08F}
+a{color:var(--accent);text-decoration:none}a:hover{color:var(--soft-ink)}
+.n{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+button{font:inherit;color:inherit;cursor:pointer}
+.app{min-height:100vh;display:flex;font-family:'IBM Plex Sans',system-ui,sans-serif;color:var(--ink);background:var(--bg)}
+.side{width:232px;flex-shrink:0;background:var(--surface2);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:20px 12px;gap:18px;box-sizing:border-box}
+.brand{font-weight:600;font-size:17px;padding:0 10px}
+.prof{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-size:14px;text-align:left}
+.nav{display:flex;flex-direction:column;gap:2px;font-size:14px}
+.nav a{padding:9px 12px;border-radius:6px;color:var(--ink)}
+.nav a.on{background:var(--soft);color:var(--soft-ink);font-weight:500}
+.nav .sep{height:1px;background:var(--line);margin:8px 10px}
+.sync{margin-top:auto;padding:12px 10px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+.col{flex-grow:1;min-width:0;display:flex;flex-direction:column}
+.top{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 32px;background:var(--surface2);border-bottom:1px solid var(--line)}
+.row{display:flex;align-items:center;gap:10px}
+.month{display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.month button{border:0;background:none;padding:8px 12px}
+.month span{font-size:14px;font-weight:600;min-width:150px;text-align:center}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 12px;font-size:13px;display:inline-flex;align-items:center;gap:6px;color:var(--ink)}
+.btn-p{border:0;border-radius:8px;background:var(--accent);color:var(--on-accent);padding:9px 16px;font-size:14px;font-weight:500}
+main{padding:24px 32px 32px;display:flex;flex-direction:column;gap:16px;min-width:0}
+h1{margin:0;font-size:24px;font-weight:600}
+h2{margin:0;font-size:15px;font-weight:600}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;min-width:0}
+.hd{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 18px 10px}
+.hd a{font-size:12px}
+.sm{font-size:12px;color:var(--muted)}
+.muted{color:var(--muted)}
+.stack{display:flex;flex-direction:column}
+.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px}
+.kpi{padding:14px 18px;display:flex;flex-direction:column;gap:4px}
+.kpi .lbl{font-size:13px;color:var(--muted)}
+.kpi .big{font-size:24px;font-weight:600}
+.kpi .sub{font-size:12px;color:var(--muted)}
+.grid2{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:16px}
+.grid4{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+.chart{position:relative;height:200px;margin:8px 18px 0;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:18px;align-items:end;border-bottom:1px solid var(--line)}
+.bcol{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px;height:100%}
+.bcol .v{font-size:12px;color:var(--muted)}
+.bcol .b{width:100%;max-width:64px;background:var(--bar);border-radius:4px 4px 0 0}
+.bcol.cur .b{background:var(--accent)}
+.bcol.cur .v{color:var(--ink);font-weight:600}
+.avg{position:absolute;left:0;right:0;border-top:1.5px dashed var(--muted);pointer-events:none}
+.avg span{position:absolute;right:0;top:-20px;font-size:11px;color:var(--muted);background:var(--surface);padding:0 4px}
+.xl{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:18px;margin:6px 18px 14px;font-size:12px;color:var(--muted);text-align:center}
+.xl .cur{color:var(--ink);font-weight:600}
+.cb{display:flex;flex-direction:column;gap:5px;padding:7px 18px}
+.cb .l{display:flex;justify-content:space-between;font-size:13px}
+.track{height:8px;background:var(--track);border-radius:4px}
+.track>div{height:100%;background:var(--out);border-radius:4px}
+.li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 18px;border-top:1px solid var(--line2);font-size:13px;color:var(--ink)}
+.li:hover{background:var(--surface2)}
+.li .nm{display:flex;flex-direction:column;min-width:0}
+.li .nm span:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dim{color:var(--muted)}
+.date{width:42px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;line-height:1.1;font-size:11px;color:var(--muted)}
+.date b{font-size:16px;color:var(--ink);font-weight:600}
+.in{color:var(--in)}.out{color:var(--out)}
+.pill{font-size:11px;border-radius:999px;padding:2px 8px;white-space:nowrap;background:var(--track);color:var(--ink2)}
+.ok{background:var(--ok-bg);color:var(--ok-ink)}.warn{background:var(--warn-bg);color:var(--warn-ink)}
+.grp{padding:10px 18px 4px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;border-top:1px solid var(--line2)}
+.mbar{height:6px;background:var(--track);border-radius:3px}
+.mbar>div{height:100%;background:var(--accent);border-radius:3px}
+.sumrow{display:flex;justify-content:space-between;padding:10px 18px;font-size:13px;border-top:1px solid var(--line);background:var(--surface2);border-radius:0 0 10px 10px}
+.mini{border:0;background:none;color:var(--accent);font-size:12px;padding:4px 6px;border-radius:6px}
+.mini:hover{background:var(--soft)}
+.badge{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--warn-ink);background:var(--warn-bg);color:var(--warn-ink);border-radius:999px;padding:5px 12px;font-size:13px;font-weight:500}
+.badge.ok-b{border-color:var(--ok-ink);background:var(--ok-bg);color:var(--ok-ink)}
+.pop{position:absolute;top:calc(100% + 8px);left:0;z-index:5;width:520px;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.35);overflow:hidden}
+.phd{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;font-size:13px;border-bottom:1px solid var(--line)}
+.x{width:28px;height:28px;border:0;background:none;border-radius:6px;color:var(--muted)}
+.pr{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:9px 14px;border-bottom:1px solid var(--line2);font-size:13px}
+.pfoot{display:flex;justify-content:space-between;align-items:center;padding:9px 14px;background:var(--surface2);font-size:12px}
+.late{font-weight:600;color:var(--warn-ink)}
+.act{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:5px 10px;font-size:12px;color:var(--ink)}
+.act:hover{border-color:var(--accent);color:var(--accent)}
+.toast{display:inline-flex;align-items:center;gap:6px}
+</style>
+</helmet>
+<div class="app {{themeClass}}">
+<nav aria-label="Navegação principal" class="side">
+<div class="brand">Finanças</div>
+<button type="button" class="prof"><span class="stack" style="gap: 2px"><span style="font-weight: 600">Pessoal</span><span class="sm">Pessoal · BRL</span></span><span aria-hidden="true">▾</span></button>
+<div class="nav">
+<a href="DesktopVisaoGeral2.dc.html" class="on" aria-current="page">Visão geral</a>
+<a href="DesktopTransacoes.dc.html">Transações</a>
+<a href="DesktopContas.dc.html">Contas</a>
+<a href="DesktopCartoes.dc.html">Cartões</a>
+<a href="DesktopRelCategoria.dc.html">Relatórios</a>
+<a href="DesktopMetas.dc.html">Metas</a>
+<span class="sep" aria-hidden="true"></span>
+<a href="DesktopCadastros.dc.html">Categorias</a>
+<a href="DesktopTags.dc.html">Tags</a>
+<a href="DesktopAnotacoes.dc.html">Anotações</a>
+<a href="#">Perfis</a>
+<span class="sep" aria-hidden="true"></span>
+<a href="DesktopDispositivos.dc.html">Dispositivos</a>
+<a href="DesktopAjustes.dc.html">Ajustes</a>
+</div>
+<div class="sync">Dados só neste aparelho</div>
+</nav>
+<div class="col">
+<div class="top">
+<div class="row"><span class="sm">Mês de referência</span><div class="month"><button type="button" aria-label="Mês anterior">‹</button><span>Outubro de 2026</span><button type="button" aria-label="Próximo mês">›</button></div></div>
+<div class="row"><button type="button" class="btn" onClick="{{toggleTheme}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/></svg>{{themeLabel}}</button><button type="button" class="btn-p">+ Lançamento</button></div>
+</div>
+<main>
+<div class="row" style="justify-content: space-between; align-items: center">
+<div class="row" style="gap: 14px; align-items: center">
+<h1>Visão geral</h1>
+<div style="position: relative">
+<sc-if value="{{hasLate}}" hint-placeholder-val="{{ true }}">
+<button type="button" class="badge" onClick="{{toggleOpen}}" aria-expanded="{{openAttr}}" aria-controls="atrasados"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/></svg><span class="n">{{lateTitle}}</span><span class="n" style="opacity: .8">· {{lateShort}}</span><span aria-hidden="true">{{chev}}</span></button>
+</sc-if>
+<sc-if value="{{noLate}}" hint-placeholder-val="{{ false }}">
+<span class="badge ok-b" role="status"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Nada atrasado</span>
+</sc-if>
+<sc-if value="{{showPop}}" hint-placeholder-val="{{ false }}">
+<section id="atrasados" class="pop" role="dialog" aria-label="Lançamentos atrasados">
+<div class="phd"><span style="font-weight: 600">Venceram e não foram marcados como pagos</span><button type="button" class="x" onClick="{{toggleOpen}}" aria-label="Fechar">✕</button></div>
+<sc-for list="{{late}}" as="l" hint-placeholder-count="3">
+<div class="pr n">
+<span class="stack" style="min-width: 0"><span style="font-weight: 500">{{l.name}}</span><span class="sm">{{l.date}} · <span class="late">{{l.ago}}</span> · {{l.where}}</span></span>
+<span class="{{l.vc}}" style="font-weight: 600; white-space: nowrap">{{l.value}}</span>
+<button type="button" class="act" onClick="{{l.pay}}">{{l.action}}</button>
+</div>
+</sc-for>
+<div class="pfoot"><span class="muted">Nada mais vence até 31/10.</span><a href="DesktopTransacoes.dc.html">Ver pendentes →</a></div>
+</section>
+</sc-if>
+</div>
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{ false }}"><span class="toast n sm"><span>{{toast}}</span><button type="button" class="mini" onClick="{{undo}}">Desfazer</button></span></sc-if>
+</div>
+<span class="sm">Hoje, 27/10/2026</span>
+</div>
+
+<section class="kpis" aria-label="Indicadores do mês">
+<div class="card kpi"><span class="lbl">Saldo consolidado</span><span class="big n">R$ 203,80</span><span class="sub">3 contas no total · previsto igual</span></div>
+<div class="card kpi"><span class="lbl">Patrimônio</span><span class="big n">R$ 20.170,97</span><span class="sub">inclui CDB, fora do saldo total</span></div>
+<div class="card kpi"><span class="lbl">↓ Gastos em outubro</span><span class="big n out">R$ 6.494,20</span><span class="sub n">18% abaixo da média de 6 meses</span></div>
+<div class="card kpi"><span class="lbl">↑ Entradas em outubro</span><span class="big n in">R$ [valor]</span><span class="sub">receitas + transferências recebidas</span></div>
+<div class="card kpi"><span class="lbl">Próximas faturas</span><span class="big n">R$ 1.911,61</span><span class="sub">2 cartões · vencem 15/11</span></div>
+</section>
+
+<div class="grid2">
+<section class="card" aria-label="Gastos por mês">
+<div class="hd"><h2>Gastos por mês</h2><span class="sm">despesas da conta e dos cartões</span></div>
+<div class="chart" role="img" aria-label="Gastos de maio a outubro de 2026: 7.615, 6.933, 6.732, 10.076, 9.777 e 6.494 reais; média 7.938">
+<div class="avg" style="bottom: 70.9%"><span class="n">média R$ 7.938</span></div>
+<div class="bcol"><span class="v n">7.615</span><div class="b" style="height: 68%"></div></div>
+<div class="bcol"><span class="v n">6.933</span><div class="b" style="height: 62%"></div></div>
+<div class="bcol"><span class="v n">6.732</span><div class="b" style="height: 60%"></div></div>
+<div class="bcol"><span class="v n">10.076</span><div class="b" style="height: 90%"></div></div>
+<div class="bcol"><span class="v n">9.777</span><div class="b" style="height: 87%"></div></div>
+<div class="bcol cur"><span class="v n">6.494</span><div class="b" style="height: 58%"></div></div>
+</div>
+<div class="xl"><span>mai</span><span>jun</span><span>jul</span><span>ago</span><span>set</span><span class="cur">out</span></div>
+</section>
+
+<section class="card" aria-label="Para onde foi o dinheiro">
+<div class="hd"><h2>Para onde foi em outubro</h2></div>
+<div class="cb"><div class="l"><span>Compras</span><span class="n">R$ 2.009,49 <span class="muted">· 31%</span></span></div><div class="track"><div style="width: 100%"></div></div></div>
+<div class="cb"><div class="l"><span>Alimentação</span><span class="n">R$ 1.615,00 <span class="muted">· 25%</span></span></div><div class="track"><div style="width: 80%"></div></div></div>
+<div class="cb"><div class="l"><span>Moradia</span><span class="n">R$ 1.218,72 <span class="muted">· 19%</span></span></div><div class="track"><div style="width: 61%"></div></div></div>
+<div class="cb"><div class="l"><span>Carro</span><span class="n">R$ 738,60 <span class="muted">· 11%</span></span></div><div class="track"><div style="width: 37%"></div></div></div>
+<div class="cb"><div class="l"><span>Serviços</span><span class="n">R$ 561,70 <span class="muted">· 9%</span></span></div><div class="track"><div style="width: 28%"></div></div></div>
+<div class="cb" style="padding-bottom: 14px"><div class="l muted"><span>Outras 1 categoria</span><span class="n">R$ 271,70 · 4%</span></div></div>
+</section>
+</div>
+
+<div class="grid4">
+<section class="card" aria-label="Próximos vencimentos">
+<div class="hd"><h2>Próximos 30 dias</h2><a href="DesktopTransacoes.dc.html">Pendentes →</a></div>
+<a href="#" class="li"><span class="row" style="gap: 12px; min-width: 0"><span class="date"><b>01</b>nov</span><span class="nm"><span>CDB</span><span class="sm">Rendimentos · CDB</span></span></span><span class="n in">+R$ 85,85</span></a>
+<a href="#" class="li"><span class="row" style="gap: 12px; min-width: 0"><span class="date"><b>10</b>nov</span><span class="nm"><span>Energia</span><span class="sm">Banco Inter</span></span></span><span class="n out">−R$ 66,16</span></a>
+<a href="#" class="li"><span class="row" style="gap: 12px; min-width: 0"><span class="date"><b>10</b>nov</span><span class="nm"><span>Água</span><span class="sm">Banco Inter</span></span></span><span class="n out">−R$ 58,22</span></a>
+<a href="#" class="li"><span class="row" style="gap: 12px; min-width: 0"><span class="date"><b>11</b>nov</span><span class="nm"><span>Distribuição de lucros</span><span class="sm">OlliveiraGusttavo → Banco Inter</span></span></span><span class="n">⇄ R$ 8.073,69</span></a>
+<a href="#" class="li"><span class="row" style="gap: 12px; min-width: 0"><span class="date"><b>11</b>nov</span><span class="nm"><span>Almoço</span><span class="sm">Banco Inter · fixa</span></span></span><span class="n out">−R$ 1.000,00</span></a>
+<a href="#" class="li"><span class="row" style="gap: 12px; min-width: 0"><span class="date"><b>11</b>nov</span><span class="nm"><span>Aluguel</span><span class="sm">Banco Inter · fixa</span></span></span><span class="n out">−R$ 800,00</span></a>
+<a href="#" class="li"><span class="row" style="gap: 12px; min-width: 0"><span class="date"><b>11</b>nov</span><span class="nm"><span>Crossfit</span><span class="sm">Banco Inter · fixa</span></span></span><span class="n out">−R$ 200,00</span></a>
+<a href="DesktopCartoes.dc.html" class="li"><span class="row" style="gap: 12px; min-width: 0"><span class="date"><b>15</b>nov</span><span class="nm"><span>Fatura Banco Inter</span><span class="sm">em aberto · nov/2026</span></span></span><span class="n out">−R$ 1.162,01</span></a>
+<a href="DesktopCartoes.dc.html" class="li"><span class="row" style="gap: 12px; min-width: 0"><span class="date"><b>15</b>nov</span><span class="nm"><span>Fatura NuBank</span><span class="sm">em aberto · nov/2026</span></span></span><span class="n out">−R$ 749,60</span></a>
+<a href="#" class="li"><span class="row" style="gap: 12px; min-width: 0"><span class="date"><b>20</b>nov</span><span class="nm"><span>Seguro</span><span class="sm">Banco Inter · Carro</span></span></span><span class="n out">−R$ 202,65</span></a>
+<div class="sumrow n"><span class="muted">A pagar <b class="out">R$ 4.238,64</b></span><span class="muted">A receber <b class="in">R$ 8.225,54</b></span></div>
+</section>
+
+<section class="card" aria-label="Contas">
+<div class="hd"><h2>Contas</h2><span class="sm">consolidado · previsto</span></div>
+<a href="DesktopContas.dc.html" class="li"><span class="nm"><span style="font-weight: 500">Banco Inter</span><span class="sm">Corrente</span></span><span class="stack" style="align-items: flex-end"><span class="n" style="font-weight: 600">R$ 203,80</span><span class="sm n">R$ 203,80</span></span></a>
+<a href="DesktopContas.dc.html" class="li dim"><span>Carteira</span><span class="n">R$ 0,00</span></a>
+<a href="DesktopContas.dc.html" class="li dim"><span>NuBank</span><span class="n">R$ 0,00</span></a>
+<div class="grp">Investimentos · fora do total</div>
+<a href="DesktopContas.dc.html" class="li"><span class="nm"><span>CDB</span><span class="sm">Investimentos</span></span><span class="n">R$ 19.967,17</span></a>
+<div class="sumrow n"><span class="muted">Total no saldo</span><b>R$ 203,80</b></div>
+</section>
+
+<section class="card" aria-label="Cartões">
+<div class="hd"><h2>Cartões</h2><a href="DesktopCartoes.dc.html">Faturas →</a></div>
+<a href="DesktopCartoes.dc.html" class="li" style="flex-direction: column; align-items: stretch; gap: 8px; padding: 12px 18px">
+<span class="row" style="justify-content: space-between"><span style="font-weight: 500">Banco Inter</span><span class="sm">paga com Banco Inter</span></span>
+<span class="row" style="justify-content: space-between"><span class="sm">out · vence 15/10</span><span class="row" style="gap: 8px"><span class="pill ok">Paga</span><span class="n">R$ 2.347,96</span></span></span>
+<span class="row" style="justify-content: space-between"><span class="sm">nov · vence 15/11</span><span class="row" style="gap: 8px"><span class="pill warn">Aberta</span><span class="n" style="font-weight: 600">R$ 1.162,01</span></span></span>
+</a>
+<a href="DesktopCartoes.dc.html" class="li" style="flex-direction: column; align-items: stretch; gap: 8px; padding: 12px 18px">
+<span class="row" style="justify-content: space-between"><span style="font-weight: 500">NuBank</span><span class="sm">paga com Banco Inter</span></span>
+<span class="row" style="justify-content: space-between"><span class="sm">out · vence 15/10</span><span class="row" style="gap: 8px"><span class="pill ok">Paga</span><span class="n">R$ 893,54</span></span></span>
+<span class="row" style="justify-content: space-between"><span class="sm">nov · vence 15/11</span><span class="row" style="gap: 8px"><span class="pill warn">Aberta</span><span class="n" style="font-weight: 600">R$ 749,60</span></span></span>
+</a>
+</section>
+
+<div class="stack" style="gap: 16px">
+<section class="card" aria-label="Metas">
+<div class="hd"><h2>Metas</h2><a href="DesktopMetas.dc.html">Todas →</a></div>
+<a href="DesktopMetas.dc.html" class="li" style="flex-direction: column; align-items: stretch; gap: 6px; padding: 12px 18px">
+<span class="row" style="justify-content: space-between"><span style="font-weight: 500">Aposentadoria</span><span class="n" style="font-weight: 600">10%</span></span>
+<span class="mbar"><div style="width: 10%"></div></span>
+<span class="sm n">R$ 19.967,17 de R$ 200.000,00 · até 31/12/2030</span>
+<span class="sm n">Ritmo necessário ≈ R$ 3.600,66/mês</span>
+</a>
+<a href="DesktopMetas.dc.html" class="li" style="flex-direction: column; align-items: stretch; gap: 6px; padding: 12px 18px">
+<span class="row" style="justify-content: space-between"><span style="font-weight: 500">40% 2020</span><span class="row" style="gap: 8px"><span class="pill warn">Prazo vencido</span><span class="n" style="font-weight: 600">47%</span></span></span>
+<span class="mbar"><div style="width: 47%"></div></span>
+<span class="sm n">R$ 7.514,27 de R$ 16.000,00 · prazo era 31/12/2020</span>
+</a>
+</section>
+<section class="card" aria-label="Anotações">
+<div class="hd"><h2>Anotações</h2><a href="DesktopAnotacoes.dc.html">Todas →</a></div>
+<a href="DesktopAnotacoes.dc.html" class="li" style="padding-bottom: 12px"><span class="nm"><span>Dividendos</span><span class="sm">[primeira linha do texto]</span></span><span class="muted" aria-hidden="true">›</span></a>
+</section>
+</div>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":true},"$preview":{"width":1920,"height":1180}}'>
+class Component extends DCLogic {
+renderVals() {
+const s = this.state || {};
+const mode = s.mode || 'system';
+const sysDark = this.props.dark ?? true;
+const dark = mode === 'dark' || (mode === 'system' && sysDark);
+const next = { system: 'light', light: 'dark', dark: 'system' };
+const label = { system: 'Seguir o sistema', light: 'Tema claro', dark: 'Tema escuro' };
+const ALL = [
+{id:'cf',date:'11/10/2026',days:16,name:'Crossfit',kind:'Despesa · Serviços › Academia · fixa',where:'Banco Inter',v:200,out:true},
+{id:'sg',date:'20/10/2026',days:7,name:'Seguro',kind:'Despesa · Carro › Seguro · fixa',where:'Banco Inter',v:202.65,out:true},
+{id:'cb',date:'10/10/2026',days:17,name:'Cashback • Inter Cell',kind:'Receita · Cashback · fixa',where:'Banco Inter',v:6,out:false}];
+const paid = s.paid || [];
+const brl = (v) => 'R$ ' + v.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const rest = ALL.filter(x => paid.indexOf(x.id) < 0);
+const toPay = rest.filter(x => x.out).reduce((t, x) => t + x.v, 0);
+const toGet = rest.filter(x => !x.out).reduce((t, x) => t + x.v, 0);
+const open = s.open ?? false;
+const lastId = s.last;
+const lastItem = ALL.find(x => x.id === lastId);
+const parts = [];
+if (toPay) parts.push(brl(toPay) + ' a pagar');
+if (toGet) parts.push(brl(toGet) + ' a receber');
+return {
+themeClass: dark ? 'dark' : 'light',
+themeLabel: label[mode],
+toggleTheme: () => this.setState({ mode: next[mode] }),
+hasLate: rest.length > 0, noLate: rest.length === 0,
+lateTitle: rest.length === 1 ? '1 atrasado' : rest.length + ' atrasados',
+lateShort: parts.join(' · '), chev: open ? '▴' : '▾', showPop: open && rest.length > 0,
+open, openAttr: open ? 'true' : 'false', toggleLabel: open ? 'Ocultar' : 'Ver lançamentos',
+toggleOpen: () => this.setState({ open: !open }),
+late: rest.map(x => ({
+date: x.date, ago: 'há ' + x.days + ' dias', name: x.name, kind: x.kind, where: x.where,
+value: (x.out ? '−' : '+') + brl(x.v), vc: x.out ? 'out' : 'in',
+action: x.out ? 'Marcar como pago' : 'Marcar como recebido',
+pay: () => this.setState({ paid: paid.concat([x.id]), last: x.id })
+})),
+hasToast: !!lastItem, noToast: !lastItem,
+toast: lastItem ? lastItem.name + (lastItem.out ? ' marcado como pago' : ' marcado como recebido') + ' em 27/10/2026.' : '',
+undo: () => this.setState({ paid: paid.filter(id => id !== lastId), last: null })
+};
+}
+}
+</script>
+</body>
+</html>
