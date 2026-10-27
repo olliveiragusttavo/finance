@@ -68,6 +68,7 @@ export class ReportService {
      * @throws {NameConflictError} Quando o perfil já tem um relatório com o nome.
      * @throws {InvalidValueError} Quando o nome ou o filtro é inválido.
      * @throws {BusinessRuleViolation} `report-dimensions-repeated` quando as dimensões se repetem.
+     * @throws {BusinessRuleViolation} `report-pie-secondary` quando a pizza traz dimensão secundária.
      */
     public create(command: CreateReportCommand): ReportDefinition {
         return this.unitOfWork.run(() => {
@@ -97,6 +98,7 @@ export class ReportService {
      * @throws {NameConflictError} Quando outro relatório do perfil já tem o nome.
      * @throws {InvalidValueError} Quando o nome ou o filtro é inválido.
      * @throws {BusinessRuleViolation} `report-dimensions-repeated` quando as dimensões se repetem.
+     * @throws {BusinessRuleViolation} `report-pie-secondary` quando a pizza traz dimensão secundária.
      */
     public update(command: UpdateReportCommand): ReportDefinition {
         return this.unitOfWork.run(() => {
@@ -142,6 +144,7 @@ export class ReportService {
      * @throws {NotFoundError} Quando o perfil ou um cadastro do filtro não existe.
      * @throws {InvalidValueError} Quando o filtro é inválido.
      * @throws {BusinessRuleViolation} `report-dimensions-repeated` quando as dimensões se repetem.
+     * @throws {BusinessRuleViolation} `report-pie-secondary` quando a pizza traz dimensão secundária.
      */
     public preview(command: PreviewReportCommand): ReportResult {
         return this.unitOfWork.run(() => {
@@ -179,7 +182,7 @@ export class ReportService {
     private execute(profileId: ProfileId, filter: ReportFilter, layout: ReportLayout, reference: YearMonth): ReportResult {
         const profile = this.profiles.require(profileId);
         const window = filter.windowFor(reference);
-        const scope = { profileId, filter, window };
+        const scope = { profileId, filter, window, flow: layout.measuresFlow() };
         const cells = this.queries.aggregate(scope, layout.dimensions());
         const grand = this.queries.aggregate(scope, [])[0];
         return buildReportResult(layout, window, {

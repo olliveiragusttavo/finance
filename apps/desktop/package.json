@@ -1,6 +1,6 @@
 {
     "name": "@finance/desktop",
-    "version": "1.0.0",
+    "version": "1.23.0",
     "description": "Finanças pessoais: contas, cartões, transações e relatórios.",
     "author": {
         "name": "Gustavo",

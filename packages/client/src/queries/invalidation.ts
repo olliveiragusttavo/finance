@@ -1,11 +1,11 @@
 import type { ReadRoute, WriteRoute } from './routes.ts';
 
 /**
- * Resultados dos relatórios personalizados: somam transações e mostram os nomes de categoria,
- * conta, cartão, tag, sócio e meta de cada grupo (reports-design §3), então mudam com o dinheiro
- * e com os cadastros.
+ * Resultados dos relatórios: os personalizados somam transações e mostram os nomes de categoria,
+ * conta, cartão, tag, sócio e meta de cada grupo (reports-design §3); os fixos somam os aportes
+ * por sócio e os saldos das contas (§8 e §9). Todos mudam com o dinheiro e com os cadastros.
  */
-const REPORT_RESULTS: readonly ReadRoute[] = ['reports.run', 'reports.preview'];
+const REPORT_RESULTS: readonly ReadRoute[] = ['reports.run', 'reports.preview', 'reports.byPartner', 'reports.entriesWithoutPartner', 'reports.balanceProjection'];
 
 /**
  * Leituras que mostram nomes de categoria e subcategoria.

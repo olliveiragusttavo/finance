@@ -8,6 +8,12 @@ export interface ReportQueryScope {
     readonly profileId: ProfileId;
     readonly filter: ReportFilter;
     readonly window: ReportWindow;
+    /**
+     * Somar o efeito no saldo de cada movimento (entrada positiva, saída negativa) em vez do
+     * `value` gravado (reports-design L8); vale em toda consulta do relatório, inclusive nas de
+     * total, em que a dimensão de entrada e saída não está.
+     */
+    readonly flow: boolean;
 }
 
 /** Cadastros que o filtro de um relatório referencia por id (reports-design §2.2). */

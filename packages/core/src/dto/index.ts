@@ -40,3 +40,5 @@ export * from './goals/GoalResponse.ts';
 export * from './imports/ImportResponse.ts';
 export * from './reports/ReportDefinitionResponse.ts';
 export * from './reports/ReportResultResponse.ts';
+export * from './reports/PartnerReportResponse.ts';
+export * from './reports/BalanceProjectionResponse.ts';

@@ -36,6 +36,7 @@ export interface ReportLayoutResponse {
     readonly primary: ReportDimension;
     readonly secondary: ReportDimension | null;
     readonly measure: ReportMeasure;
+    readonly analysis: boolean;
 }
 
 /** Definição de relatório serializável. */
@@ -82,7 +83,7 @@ export function toReportFilterResponse(filter: ReportFilter): ReportFilterRespon
  * @return O formato serializável.
  */
 export function toReportLayoutResponse(layout: ReportLayout): ReportLayoutResponse {
-    return { format: layout.format, primary: layout.primary, secondary: layout.secondary, measure: layout.measure };
+    return { format: layout.format, primary: layout.primary, secondary: layout.secondary, measure: layout.measure, analysis: layout.analysis };
 }
 
 /**

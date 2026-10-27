@@ -17,7 +17,7 @@ import { PartnersScreen } from './partners/PartnersScreen.tsx';
 import { ProfilesScreen } from './profiles/ProfilesScreen.tsx';
 import { ReportEditorScreen } from './reports/ReportEditorScreen.tsx';
 import { ReportsScreen } from './reports/ReportsScreen.tsx';
-import { parseReportsSearch, type ReportsSearch } from './reports/reportsSearch.ts';
+import { parseReportEditorSearch, parseReportsSearch, type ReportsSearch } from './reports/reportsSearch.ts';
 import { blankScreen } from './screens/BlankScreen.tsx';
 import { ImportScreen } from './import/ImportScreen.tsx';
 import { SettingsScreen } from './settings/SettingsScreen.tsx';
@@ -96,7 +96,7 @@ const routeTree = rootRoute.addChildren([
             getParentRoute: () => shellRoute,
             path: '/reports/edit' satisfies AppPath,
             component: ReportEditorScreen,
-            validateSearch: (search: Record<string, unknown>): ReportsSearch => parseReportsSearch(search),
+            validateSearch: (search: Record<string, unknown>): ReportsSearch => parseReportEditorSearch(search),
         }),
         createRoute({
             getParentRoute: () => shellRoute,

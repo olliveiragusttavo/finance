@@ -161,6 +161,21 @@ describe('execução do relatório — filtros (reports-design §2.2)', () => {
         ]);
     });
 
+    it('Regra de negócio (Relatórios, L6): agrupa em fixas, parceladas e avulsas pelo tipo da série', async () => {
+        const s = await scene();
+        const base = { profileId: s.profileId, subCategoryId: s.rent };
+        const account = { kind: 'account', accountId: s.accountId } as const;
+        await s.world.create(base, { source: account, name: 'Streaming', value: 40, dueDate: '2026-10-08', repeat: { kind: 'fixed', frequency: 'monthly', endAt: null } });
+        await s.world.create(base, { source: account, name: 'Geladeira', value: 900, dueDate: '2026-10-15', repeat: { kind: 'installments', frequency: 'monthly', installments: 3, valueType: 'total' } });
+        const byRecurrence = await preview(s.world, s.profileId, october('due', { types: ['expense'] }), { format: 'table', primary: 'recurrence', secondary: 'month' });
+        expect(lines(byRecurrence)).toEqual([
+            ['fixed', null, 40, 1],
+            ['installments', null, 300, 1],
+            ['single', null, 1690, 4],
+        ]);
+        expect(byRecurrence.total.total.amount).toBe(2030);
+    });
+
     it('Regra de negócio (Relatórios, A8): o valor mínimo e o máximo são inclusivos e valem sobre o valor com sinal', async () => {
         const s = await scene();
         const noRefund = await preview(s.world, s.profileId, october('due', { types: ['expense'], minValue: 0, maxValue: 200 }), BY_SUBCATEGORY);
@@ -313,5 +328,112 @@ describe('execução do relatório — janela e formato', () => {
         const result = await preview(s.world, s.profileId, october('due', { types: ['investment'] }), BY_SUBCATEGORY);
         expect(result.rows).toEqual([]);
         expect(result.total).toEqual({ total: { amount: 0, currency: 'BRL' }, count: 0 });
+    });
+});
+
+describe('execução do relatório — entrada e saída e transferências entre perfis (reports-design L8 e §2.2)', () => {
+    /** Ids do cenário de dois perfis. */
+    interface FlowScene {
+        readonly world: TestWorld;
+        readonly personal: string;
+        readonly business: string;
+        readonly checking: string;
+        readonly brokerage: string;
+        readonly companyAccount: string;
+        readonly personalCategory: string;
+    }
+
+    /**
+     * Cenário de outubro de 2026 no perfil pessoal:
+     * - salário de R$ 5.000,00 e despesa de R$ 300,00 na conta corrente;
+     * - estorno de R$ 50,00 na mesma despesa;
+     * - transferência de R$ 500,00 (TED de R$ 8,00) da corrente para a corretora, ambas do perfil;
+     * - transferência de R$ 200,00 da corrente para a conta da empresa;
+     * - transferência de R$ 1.000,00 da conta da empresa para a corrente, com a subcategoria e a
+     *   tag do perfil empresarial.
+     *
+     * @return O cenário com os ids.
+     */
+    async function flowScene(): Promise<FlowScene> {
+        const world = new TestWorld('2026-10-15');
+        const personal = world.profile();
+        const business = world.profile({ type: 'business' });
+        const checking = world.account(personal, { name: 'Corrente' });
+        const brokerage = world.account(personal, { name: 'Corretora' });
+        const companyAccount = world.account(business, { name: 'Empresa' });
+        const { categoryId: personalCategory, subCategoryId } = world.namedSubCategory(personal, 'Movimentos', 'Geral');
+        const base = { profileId: personal, subCategoryId };
+        const source = { kind: 'account', accountId: checking } as const;
+        await world.create(base, { source, type: 'income', value: 5000, dueDate: '2026-10-01' });
+        await world.create(base, { source, value: 300, dueDate: '2026-10-02' });
+        await world.create(base, { source, value: -50, dueDate: '2026-10-03' });
+        await world.create(base, { source, type: 'transference', value: 500, charges: 8, dueDate: '2026-10-04', destinationAccountId: brokerage });
+        await world.create(base, { source, type: 'transference', value: 200, dueDate: '2026-10-05', destinationAccountId: companyAccount });
+        const companyTag = (await world.ok('tags.create', { profileId: business, name: 'aporte' })).id;
+        await world.create(
+            { profileId: business, subCategoryId: world.subCategory(business) },
+            { source: { kind: 'account', accountId: companyAccount }, type: 'transference', value: 1000, dueDate: '2026-10-06', destinationAccountId: checking, tagIds: [companyTag] },
+        );
+        return { world, personal, business, checking, brokerage, companyAccount, personalCategory };
+    }
+
+    it('Regra de negócio (Relatórios, L8): entrada e saída pelo efeito no saldo, com a transferência interna nos dois lados', async () => {
+        const s = await flowScene();
+        const result = await preview(s.world, s.personal, october('due'), { format: 'table', primary: 'flow' });
+        // Entra: salário, estorno, a chegada na corretora e a transferência da empresa. Sai: a
+        // despesa, a saída da corrente para a corretora e a transferência para a empresa.
+        expect(lines(result)).toEqual([
+            ['in', null, 6550, 4],
+            ['out', null, -1000, 3],
+        ]);
+        // O total é o líquido, com cada transação contada uma vez.
+        expect(result.total.total.amount).toBe(5550);
+        expect(result.total.count).toBe(6);
+    });
+
+    it('Regra de negócio (Relatórios, L8): com a entrada e saída nas colunas, o total da linha é o líquido', async () => {
+        const s = await flowScene();
+        const result = await preview(s.world, s.personal, october('due'), { format: 'table', primary: 'source', secondary: 'flow' });
+        const checking = result.rows.find((row) => row.group.key === s.checking);
+        const brokerage = result.rows.find((row) => row.group.key === s.brokerage);
+        // Corrente: +5.000 +50 +1.000 −300 −500 −200; a corretora só recebe os R$ 500,00.
+        expect(checking?.cells.map((cell) => cell.total.amount)).toEqual([6050, -1000]);
+        expect(checking?.total.total.amount).toBe(5050);
+        expect(brokerage?.total.total.amount).toBe(500);
+        expect(result.columnTotals.map((cell) => cell.total.amount)).toEqual([6550, -1000]);
+    });
+
+    it('Regra de negócio (Relatórios, L8 e A3): com entrada e saída, o filtro de conta vale para cada movimento', async () => {
+        const s = await flowScene();
+        const checking = await preview(s.world, s.personal, october('due', { accountIds: [s.checking] }), { format: 'table', primary: 'flow' });
+        // A chegada na corretora não é da corrente; a saída para ela é.
+        expect(lines(checking)).toEqual([
+            ['in', null, 6050, 3],
+            ['out', null, -1000, 3],
+        ]);
+        const brokerage = await preview(s.world, s.personal, october('due', { accountIds: [s.brokerage] }), { format: 'table', primary: 'flow' });
+        expect(lines(brokerage)).toEqual([['in', null, 500, 1]]);
+        // Com a origem nas linhas, só a conta filtrada aparece.
+        const bySource = await preview(s.world, s.personal, october('due', { accountIds: [s.checking] }), { format: 'table', primary: 'source', secondary: 'flow' });
+        expect(bySource.rows.map((row) => row.group.key)).toEqual([s.checking]);
+    });
+
+    it('Regra de negócio (Relatórios, §2.2): a transferência recebida de outro perfil entra no destino, pela conta de destino e sem a classificação de lá', async () => {
+        const s = await flowScene();
+        const transfers = october('due', { types: ['transference'] });
+        const byCategory = await preview(s.world, s.personal, transfers, { format: 'table', primary: 'category' });
+        expect(lines(byCategory)).toEqual([
+            [s.personalCategory, 'Movimentos', 700, 2],
+            [null, null, 1000, 1],
+        ]);
+        const bySource = await preview(s.world, s.personal, transfers, { format: 'table', primary: 'source' });
+        expect(lines(bySource)).toEqual([[s.checking, 'Corrente', 1700, 3]]);
+        const byTag = await preview(s.world, s.personal, transfers, { format: 'table', primary: 'tag' });
+        expect(lines(byTag)).toEqual([[null, null, 1700, 3]]);
+        const byAccount = await preview(s.world, s.personal, october('due', { types: ['transference'], accountIds: [s.checking] }), BY_SUBCATEGORY);
+        expect(byAccount.total.total.amount).toBe(1700);
+        // A empresa vê a que mandou e a que recebeu do perfil pessoal.
+        const company = await preview(s.world, s.business, transfers, { format: 'table', primary: 'source' });
+        expect(lines(company)).toEqual([[s.companyAccount, 'Empresa', 1200, 2]]);
     });
 });

@@ -28,7 +28,8 @@ export function PaneLayout({ children }: { readonly children: ReactNode }): Reac
 /**
  * A lista lateral: cabeçalho e rodapé fixos, e só a lista no meio rola. Os totais ficam no
  * rodapé, porque são o resumo da lista inteira — rolá-los junto os esconderia justamente quando a
- * lista é longa.
+ * lista é longa. A área que rola é `relative` pelo mesmo motivo do `DetailPane`: conter o que se
+ * posiciona de forma absoluta dentro dela.
  *
  * @param props.label Nome acessível do painel.
  * @param props.width Largura do painel, a do mockup (`w-95`).
@@ -53,7 +54,7 @@ export function ListPane({
     return (
         <section aria-label={label} className={cn('flex shrink-0 flex-col border-r border-line bg-surface', width)}>
             <div className="shrink-0">{header}</div>
-            <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+            <div className="relative min-h-0 flex-1 overflow-y-auto">{children}</div>
             {footer !== undefined && <div className="shrink-0 border-t border-line">{footer}</div>}
         </section>
     );
@@ -63,7 +64,9 @@ export function ListPane({
  * O detalhe à direita, com a rolagem própria. O conteúdo fica numa coluna interna, e não direto
  * no painel que rola: num contêiner flex de altura fixa, as seções com `overflow` diferente de
  * `visible` encolheriam para caber, em vez de rolar. É também o contêiner em que o cabeçalho fixo
- * das listagens de movimentos gruda.
+ * das listagens de movimentos gruda. É `relative` para conter o que se posiciona de forma absoluta
+ * lá dentro (o `<select>` nativo escondido do Radix, o texto `sr-only`): sem isso, eles se medem
+ * pela página, escapam da rolagem do painel e esticam a janela inteira, levando o menu junto.
  *
  * @param props.label Nome acessível do painel; sem ele, o painel é só um contêiner.
  * @param props.children O detalhe.
@@ -71,7 +74,7 @@ export function ListPane({
  */
 export function DetailPane({ label, children }: { readonly label?: string; readonly children: ReactNode }): ReactNode {
     const content = <div className="flex min-h-full flex-col gap-5 px-8 py-6">{children}</div>;
-    const className = 'min-w-0 flex-1 overflow-y-auto';
+    const className = 'relative min-w-0 flex-1 overflow-y-auto';
     return label === undefined ? (
         <div className={className}>{content}</div>
     ) : (

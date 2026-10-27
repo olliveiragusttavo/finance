@@ -310,3 +310,27 @@ export function useReportRun(input: CoreInput<'reports.run'> | null): Query<'rep
 export function useReportPreview(input: CoreInput<'reports.preview'> | null): Query<'reports.preview'> {
     return useCoreQuery('reports.preview', input);
 }
+
+/**
+ * @param input Perfil empresarial e mês; `null` deixa a consulta parada (perfil pessoal).
+ * @return Os aportes de cada sócio contra o que deveria pela participação, e o acerto.
+ */
+export function usePartnerReport(input: CoreInput<'reports.byPartner'> | null): Query<'reports.byPartner'> {
+    return useCoreQuery('reports.byPartner', input);
+}
+
+/**
+ * @param input Perfil empresarial e mês; `null` deixa a consulta parada.
+ * @return As entradas do mês sem sócio e o total delas.
+ */
+export function useEntriesWithoutPartner(input: CoreInput<'reports.entriesWithoutPartner'> | null): Query<'reports.entriesWithoutPartner'> {
+    return useCoreQuery('reports.entriesWithoutPartner', input);
+}
+
+/**
+ * @param input Perfil e janela da média; `null` deixa a consulta parada.
+ * @return A projeção do saldo dos próximos meses.
+ */
+export function useBalanceProjection(input: CoreInput<'reports.balanceProjection'> | null): Query<'reports.balanceProjection'> {
+    return useCoreQuery('reports.balanceProjection', input);
+}

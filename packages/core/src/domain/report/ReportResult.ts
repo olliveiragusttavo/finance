@@ -4,7 +4,7 @@ import { Money } from '../shared/Money.ts';
 import type { YearMonth } from '../shared/YearMonth.ts';
 import { TRANSACTION_TYPES } from '../transaction/TransactionType.ts';
 import type { ReportWindow } from './ReportFilter.ts';
-import type { ReportDimension, ReportLayout, ReportMeasure } from './ReportLayout.ts';
+import { REPORT_FLOW_GROUPS, REPORT_RECURRENCE_GROUPS, type ReportDimension, type ReportLayout, type ReportMeasure } from './ReportLayout.ts';
 
 /**
  * Um grupo de uma dimensão. A chave é o id do cadastro (categoria, conta, tag...), o mês
@@ -83,10 +83,21 @@ export interface ReportResult {
 const STATUS_ORDER: readonly string[] = ['paid', 'open'];
 
 /**
+ * Dimensões de grupos fechados, que seguem a ordem do domínio em vez da medida: com poucos grupos
+ * conhecidos, a posição estável facilita comparar dois relatórios lado a lado.
+ */
+const FIXED_ORDERS: Readonly<Partial<Record<ReportDimension, readonly string[]>>> = {
+    type: TRANSACTION_TYPES,
+    status: STATUS_ORDER,
+    recurrence: REPORT_RECURRENCE_GROUPS,
+    flow: REPORT_FLOW_GROUPS,
+};
+
+/**
  * Monta a grade do relatório a partir das somas do banco: ordena os grupos, completa os meses e
  * as combinações sem lançamento com zero e põe cada total no lugar.
  * Regra de negócio (Relatórios, §3 "Ordem"): o mês é cronológico e traz todos os meses da janela;
- * tipo e situação seguem a ordem do domínio; as demais dimensões vão do maior número para o menor
+ * tipo, situação, recorrência e entrada × saída seguem a ordem do domínio; as demais dimensões vão do maior número para o menor
  * na medida escolhida, com desempate pelo rótulo, e o grupo "sem" fica por último.
  *
  * @param layout Formato da definição: as dimensões e a medida.
@@ -139,8 +150,8 @@ function orderGroups(dimension: ReportDimension, totals: readonly ReportAggregat
         return monthsOf(window).map((month) => ({ key: month.toString(), label: null }));
     }
     const present = totals.map((row) => ({ group: row.groups[position] ?? { key: null, label: null }, row }));
-    if (dimension === 'type' || dimension === 'status') {
-        const order: readonly string[] = dimension === 'type' ? TRANSACTION_TYPES : STATUS_ORDER;
+    const order = FIXED_ORDERS[dimension];
+    if (order !== undefined) {
         return present.map((entry) => entry.group).sort((a, b) => order.indexOf(a.key ?? '') - order.indexOf(b.key ?? ''));
     }
     const weight = (row: ReportAggregateRow): number => (measure === 'sum' ? Math.abs(row.total) : row.count);

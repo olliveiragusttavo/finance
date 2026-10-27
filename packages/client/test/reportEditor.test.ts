@@ -6,6 +6,7 @@ import {
     draftFromDefinition,
     emptyReportDraft,
     readReportDraft,
+    describeReportAnalysis,
     reportDimensionsFor,
     toCreateReportInput,
     type ReportDraft,
@@ -51,7 +52,7 @@ describe('editor de relatórios (reports-design §2 e §3)', () => {
                 minValue: null,
                 maxValue: null,
             },
-            layout: { format: 'table', primary: 'category', secondary: null, measure: 'sum' },
+            layout: { format: 'table', primary: 'category', secondary: null, measure: 'sum', analysis: false },
         });
     });
 
@@ -83,12 +84,21 @@ describe('editor de relatórios (reports-design §2 e §3)', () => {
     it('Regra de negócio (Relatórios, L5): a segunda divisão não repete a primeira', () => {
         const reading = readReportDraft(draft({ primary: 'month', secondary: 'month' }), 'BRL');
         expect(reading.errors.secondary).toBe('Escolha uma divisão diferente da primeira.');
+        const pie = readReportDraft(draft({ format: 'pie', primary: 'month', secondary: 'month' }), 'BRL');
+        expect(pie.errors.secondary).toBeUndefined();
+        expect(pie.query?.layout).toMatchObject({ format: 'pie', secondary: null });
         expect(reading.query).toBeNull();
     });
 
     it('Regra de negócio (Perfis): agrupar por sócio só no perfil empresarial', () => {
         expect(reportDimensionsFor('personal')).not.toContain('partner');
         expect(reportDimensionsFor('business')).toContain('partner');
+        expect(reportDimensionsFor('personal')).toContain('recurrence');
+        expect(describeReportAnalysis({ format: 'table', primary: 'month', secondary: 'flow', measure: 'sum' })).toEqual([
+            'O resultado: o total das entradas menos o das saídas.',
+            'A variação de cada valor em relação ao mês anterior, quando há mais de um mês.',
+        ]);
+        expect(describeReportAnalysis({ format: 'pie', primary: 'flow', secondary: 'month', measure: 'count' })).toEqual([]);
     });
 
     it('reabre a definição salva no editor e a regrava igual', async () => {
@@ -110,7 +120,7 @@ describe('editor de relatórios (reports-design §2 e §3)', () => {
             profileId: 'p',
             name: 'Mensal',
             filter: { ...readReportDraft(draft(), 'BRL').query?.filter ?? fail(), period: { anchor: { kind: 'reference' }, previousMonths: 0, basis: 'payment' } },
-            layout: { format: 'table', primary: 'category', secondary: null, measure: 'sum' },
+            layout: { format: 'table', primary: 'category', secondary: null, measure: 'sum', analysis: false },
         };
         expect(draftFromDefinition(definition, '2027-01', 'BRL')).toMatchObject({ anchor: 'reference', fixedMonth: '2027-01', secondary: 'none' });
     });

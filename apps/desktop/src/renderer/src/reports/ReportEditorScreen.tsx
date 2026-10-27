@@ -1,4 +1,5 @@
 import {
+    describeReportAnalysis,
     draftFromDefinition,
     emptyReportDraft,
     formatTransactionType,
@@ -46,7 +47,7 @@ import { reportRejection } from '@/lib/coreErrorField';
 import { useActiveProfile } from '@/shell/activeProfile';
 import { useReferenceMonth } from '@/shell/useReferenceMonth';
 import { ReportResult } from './ReportResult.tsx';
-import { parseReportsSearch } from './reportsSearch.ts';
+import { parseReportEditorSearch } from './reportsSearch.ts';
 import { useReportLookups } from './useReportLookups.ts';
 
 /** Campo do editor de cada campo que o núcleo pode apontar numa recusa. */
@@ -69,7 +70,7 @@ const FIELD_BY_CORE_FIELD: Readonly<Partial<Record<string, ReportDraftField>>> =
  * @return O editor.
  */
 export function ReportEditorScreen(): ReactNode {
-    const search = useSearch({ strict: false, select: (raw: Readonly<Record<string, unknown>>) => parseReportsSearch(raw) });
+    const search = useSearch({ strict: false, select: (raw: Readonly<Record<string, unknown>>) => parseReportEditorSearch(raw) });
     const definition = useReport(search.report === undefined ? null : { id: search.report });
     const lookups = useReportLookups();
     if (search.report === undefined) {
@@ -177,7 +178,9 @@ function ReportEditor({ definition, lookups }: { readonly definition: ReportDefi
                     <span className="text-12 text-muted">Relatórios</span>
                     <h1 className="text-20 font-semibold">{definition === null ? 'Novo relatório' : 'Editar relatório'}</h1>
                 </div>
-                <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 pb-5">
+                {/* `relative`: o Radix põe um <select> nativo escondido, absoluto, para cada Select dentro de um
+                    form; sem conter, eles escapam da rolagem e esticam a janela inteira, levando o menu junto. */}
+                <div className="relative flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 pb-5">
                     <Field id="report-name" label="Nome" error={fieldError(errors.name)}>
                         <Input
                             id="report-name"
@@ -219,7 +222,7 @@ function ReportEditor({ definition, lookups }: { readonly definition: ReportDefi
                     <p className="rounded-8 bg-warn-bg px-3 py-2.5 text-13 text-warn-ink">Corrija os campos marcados para ver o resultado.</p>
                 ) : (
                     <QueryState query={preview} loading={<Skeleton className="h-60" />}>
-                        {(data) => <ReportResult result={data} format={draft.format} name={draft.name.trim() === '' ? 'Novo relatório' : draft.name.trim()} currency={profile.currency} />}
+                        {(data) => <ReportResult result={data} format={draft.format} name={draft.name.trim() === '' ? 'Novo relatório' : draft.name.trim()} currency={profile.currency} analysis={draft.analysis} />}
                     </QueryState>
                 )}
             </DetailPane>
@@ -438,7 +441,8 @@ function FilterSection({ draft, errors, lookups, onChange }: SectionProps & { re
 /**
  * Formato (reports-design §3): tabela ou gráfico, a primeira divisão (linhas ou eixo), a segunda
  * (colunas ou séries) e a medida. Os rótulos mudam com o formato para dizer onde cada divisão
- * aparece.
+ * aparece; na pizza a segunda divisão some, porque ela não vale lá (L7). A análise (L9) diz embaixo
+ * da caixa o que acrescenta no formato escolhido, porque isso muda com as divisões.
  *
  * @param props Rascunho, erros e a mudança.
  * @return A seção.
@@ -448,6 +452,8 @@ function LayoutSection({ draft, errors, onChange }: SectionProps): ReactNode {
     const dimensions = reportDimensionsFor(profile.type);
     const dimensionOptions = dimensions.map((dimension) => ({ value: dimension, label: REPORT_DIMENSION_LABELS[dimension] }));
     const table = draft.format === 'table';
+    const pie = draft.format === 'pie';
+    const analyses = describeReportAnalysis(draft);
     return (
         <section aria-labelledby="report-layout-title" className="flex flex-col gap-3">
             <div id="report-layout-title">
@@ -462,19 +468,21 @@ function LayoutSection({ draft, errors, onChange }: SectionProps): ReactNode {
             />
             <SelectField<ReportDimension>
                 id="report-primary"
-                label={table ? 'Linhas' : 'Eixo'}
+                label={table ? 'Linhas' : pie ? 'Fatias' : 'Eixo'}
                 value={draft.primary}
                 options={dimensionOptions}
                 onChange={(primary) => { onChange({ primary }); }}
             />
-            <SelectField<ReportDimension | typeof NO_SECONDARY>
-                id="report-secondary"
-                label={table ? 'Colunas' : 'Séries'}
-                value={draft.secondary}
-                options={[{ value: NO_SECONDARY, label: table ? 'Só o total' : 'Uma série só' }, ...dimensionOptions]}
-                onChange={(secondary) => { onChange({ secondary }); }}
-                error={errors.secondary}
-            />
+            {!pie && (
+                <SelectField<ReportDimension | typeof NO_SECONDARY>
+                    id="report-secondary"
+                    label={table ? 'Colunas' : 'Séries'}
+                    value={draft.secondary}
+                    options={[{ value: NO_SECONDARY, label: table ? 'Só o total' : 'Uma série só' }, ...dimensionOptions]}
+                    onChange={(secondary) => { onChange({ secondary }); }}
+                    error={errors.secondary}
+                />
+            )}
             <SelectField
                 id="report-measure"
                 label="Medida"
@@ -483,6 +491,30 @@ function LayoutSection({ draft, errors, onChange }: SectionProps): ReactNode {
                 onChange={(measure) => { onChange({ measure }); }}
                 hint={draft.measure === 'sum' ? 'Soma o valor dos lançamentos; estornos abatem, encargos ficam de fora.' : undefined}
             />
+            <div className="flex items-start gap-2 text-14">
+                <input
+                    id="report-analysis"
+                    type="checkbox"
+                    className="mt-1 accent-accent"
+                    aria-describedby="report-analysis-hint"
+                    checked={draft.analysis}
+                    onChange={(event) => { onChange({ analysis: event.target.checked }); }}
+                />
+                <div className="flex flex-col gap-0.5">
+                    <label htmlFor="report-analysis">Análise</label>
+                    {analyses.length === 0 ? (
+                        <p id="report-analysis-hint" className="text-12 text-muted">
+                            Este formato ainda não tem análise.
+                        </p>
+                    ) : (
+                        <ul id="report-analysis-hint" className="flex flex-col gap-0.5 text-12 text-muted">
+                            {analyses.map((analysis) => (
+                                <li key={analysis}>{analysis}</li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            </div>
         </section>
     );
 }

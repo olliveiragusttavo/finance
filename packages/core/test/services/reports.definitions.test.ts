@@ -77,7 +77,7 @@ describe('cadastro de relatórios (reports-design §4)', () => {
             minValue: null,
             maxValue: null,
         });
-        expect(created.layout).toEqual({ format: 'table', primary: 'category', secondary: null, measure: 'sum' });
+        expect(created.layout).toEqual({ format: 'table', primary: 'category', secondary: null, measure: 'sum', analysis: false });
         expect((await world.ok('reports.list', { profileId })).map((definition) => definition.name)).toEqual(['aluguel', 'Viagens']);
         expect(await world.ok('reports.get', { id: created.id })).toEqual(created);
     });
@@ -138,6 +138,22 @@ describe('cadastro de relatórios (reports-design §4)', () => {
         const { world, profileId } = await setup();
         const failure = await world.failure('reports.create', report(profileId, { layout: { format: 'bar', primary: 'month', secondary: 'month' } }));
         expect(failure).toMatchObject({ code: 'BUSINESS_RULE_VIOLATION', details: { rule: 'report-dimensions-repeated' } });
+    });
+
+    it('Regra de negócio (Relatórios, L9): a análise é gravada, e a definição de antes dela lê sem análise', async () => {
+        const { world, profileId } = await setup();
+        const created = await world.ok('reports.create', report(profileId, { layout: { format: 'table', primary: 'flow', analysis: true } }));
+        expect((await world.ok('reports.get', { id: created.id })).layout.analysis).toBe(true);
+        world.database.run("UPDATE report_definitions SET definition = json_remove(definition, '$.layout.analysis') WHERE id = :id", { id: created.id });
+        expect((await world.ok('reports.get', { id: created.id })).layout.analysis).toBe(false);
+    });
+
+    it('Regra de negócio (Relatórios, L7): a pizza só tem a dimensão principal', async () => {
+        const { world, profileId } = await setup();
+        const failure = await world.failure('reports.create', report(profileId, { layout: { format: 'pie', primary: 'category', secondary: 'month' } }));
+        expect(failure).toMatchObject({ code: 'BUSINESS_RULE_VIOLATION', details: { rule: 'report-pie-secondary' } });
+        const created = await world.ok('reports.create', report(profileId, { layout: { format: 'pie', primary: 'category' } }));
+        expect(created.layout).toMatchObject({ format: 'pie', secondary: null });
     });
 
     it('recusa janela acima de 36 meses, mínimo acima do máximo e campo desconhecido', async () => {

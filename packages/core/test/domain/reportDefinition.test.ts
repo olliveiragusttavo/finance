@@ -38,7 +38,7 @@ function filterProps(overrides: Partial<ReportFilterProps> = {}): ReportFilterPr
  * @return Um formato de tabela agrupado pela categoria, somando o valor.
  */
 function layout(overrides: Partial<ReportLayoutProps> = {}): ReportLayout {
-    return ReportLayout.create({ format: 'table', primary: 'category', secondary: null, measure: 'sum', ...overrides });
+    return ReportLayout.create({ format: 'table', primary: 'category', secondary: null, measure: 'sum', analysis: false, ...overrides });
 }
 
 /**
@@ -125,13 +125,16 @@ describe('montagem do resultado (reports-design §3)', () => {
         expect(result.rows.map((line) => line.group.key)).toEqual(['Padaria', 'Mercado']);
     });
 
-    it('tipo e situação seguem a ordem do domínio, não a do valor', () => {
+    it('tipo, situação e recorrência seguem a ordem do domínio, não a do valor', () => {
         const types = [row(['investment'], 1000), row(['expense'], 10), row(['income'], 5)];
         const byType = buildReportResult(layout({ primary: 'type' }), window, aggregation({ cells: types, primaryTotals: types }), BRL);
         expect(byType.rows.map((line) => line.group.key)).toEqual(['income', 'expense', 'investment']);
         const status = [row(['open'], 1000), row(['paid'], 10)];
         const byStatus = buildReportResult(layout({ primary: 'status' }), window, aggregation({ cells: status, primaryTotals: status }), BRL);
         expect(byStatus.rows.map((line) => line.group.key)).toEqual(['paid', 'open']);
+        const recurrence = [row(['single'], 1000), row(['installments'], 10), row(['fixed'], 5)];
+        const byRecurrence = buildReportResult(layout({ primary: 'recurrence' }), window, aggregation({ cells: recurrence, primaryTotals: recurrence }), BRL);
+        expect(byRecurrence.rows.map((line) => line.group.key)).toEqual(['fixed', 'installments', 'single']);
     });
 
     it('com secundária, completa as combinações sem lançamento com zero e põe cada total no lugar', () => {

@@ -37,6 +37,8 @@ export const REPORT_DIMENSION_LABELS: Readonly<Record<ReportDimension, string>> 
     tag: 'Tag',
     partner: 'Sócio',
     status: 'Situação',
+    recurrence: 'Recorrência',
+    flow: 'Entrada ou saída',
 };
 
 /** Rótulo de cada formato. */
@@ -44,6 +46,7 @@ export const REPORT_FORMAT_LABELS: Readonly<Record<ReportFormat, string>> = {
     table: 'Tabela',
     bar: 'Gráfico de barras',
     line: 'Gráfico de linha',
+    pie: 'Gráfico de pizza',
 };
 
 /** Rótulo de cada medida. */
@@ -73,7 +76,7 @@ export const REPORT_TAG_MATCH_LABELS: Readonly<Record<ReportTagMatch, string>> =
 };
 
 /** Ordem das dimensões nos seletores: o tempo primeiro, depois a classificação e a origem. */
-const DIMENSION_ORDER: readonly ReportDimension[] = ['month', 'category', 'subCategory', 'type', 'source', 'tag', 'partner', 'status'];
+const DIMENSION_ORDER: readonly ReportDimension[] = ['month', 'category', 'subCategory', 'type', 'flow', 'recurrence', 'source', 'tag', 'partner', 'status'];
 
 /**
  * Regra de negócio (Perfis): sócio só existe em perfil empresarial (database-design §4.2), então
@@ -84,6 +87,28 @@ const DIMENSION_ORDER: readonly ReportDimension[] = ['month', 'category', 'subCa
  */
 export function reportDimensionsFor(profileType: ProfileResponse['type']): readonly ReportDimension[] {
     return DIMENSION_ORDER.filter((dimension) => dimension !== 'partner' || profileType === 'business');
+}
+
+/**
+ * Regra de negócio (Relatórios, L9): o que a análise acrescenta depende do formato. Fica junto
+ * do editor para que o campo diga, antes de salvar, o que vai aparecer na configuração escolhida.
+ *
+ * @param draft Formato do rascunho.
+ * @return Uma frase por análise que a configuração ganha; vazio quando nenhuma se aplica.
+ */
+export function describeReportAnalysis(draft: Pick<ReportDraft, 'format' | 'primary' | 'secondary' | 'measure'>): readonly string[] {
+    const secondary = draft.format === 'pie' ? NO_SECONDARY : draft.secondary;
+    const dimensions = [draft.primary, secondary];
+    const analyses: string[] = [];
+    if (dimensions.includes('flow') && draft.measure === 'sum') {
+        analyses.push('O resultado: o total das entradas menos o das saídas.');
+    }
+    if (dimensions.includes('month') && draft.format !== 'pie') {
+        analyses.push(draft.format === 'table'
+            ? 'A variação de cada valor em relação ao mês anterior, quando há mais de um mês.'
+            : 'Na tabela do gráfico, a variação de cada valor em relação ao mês anterior, quando há mais de um mês.');
+    }
+    return analyses;
 }
 
 /** Valor da dimensão secundária no seletor quando não há segunda divisão. */
@@ -119,6 +144,7 @@ export interface ReportDraft {
     readonly primary: ReportDimension;
     readonly secondary: ReportDimension | typeof NO_SECONDARY;
     readonly measure: ReportMeasure;
+    readonly analysis: boolean;
 }
 
 /** Campos do rascunho que podem ter erro. */
@@ -177,6 +203,7 @@ export function emptyReportDraft(reference: string): ReportDraft {
         primary: 'category',
         secondary: NO_SECONDARY,
         measure: 'sum',
+        analysis: false,
     };
 }
 
@@ -211,14 +238,15 @@ export function draftFromDefinition(definition: ReportDefinitionResponse, refere
         primary: layout.primary,
         secondary: layout.secondary ?? NO_SECONDARY,
         measure: layout.measure,
+        analysis: layout.analysis,
     };
 }
 
 /**
  * Lê o rascunho pelas mesmas regras do núcleo, para que o formulário aponte o campo antes de a
  * rota recusar.
- * Regra de negócio (Relatórios, F2 e L5): de 0 a 35 meses anteriores; a segunda divisão não
- * repete a primeira; o mínimo não passa do máximo.
+ * Regra de negócio (Relatórios, F2, L5 e L7): de 0 a 35 meses anteriores; a segunda divisão não
+ * repete a primeira e não vale na pizza; o mínimo não passa do máximo.
  *
  * @param draft Formulário do editor.
  * @param currency Moeda do perfil, para ler os valores-limite.
@@ -250,7 +278,10 @@ export function readReportDraft(draft: ReportDraft, currency: string): ReportDra
     } else if (maxValue !== null && minValue !== undefined && minValue !== null && minValue > maxValue) {
         errors.maxValue = 'O máximo precisa ser maior ou igual ao mínimo.';
     }
-    if (draft.secondary === draft.primary) {
+    // Regra de negócio (Relatórios, L7): a pizza não tem segunda divisão. O campo fica guardado no
+    // rascunho, escondido, para que voltar a barras ou tabela recupere a escolha.
+    const secondary = draft.format === 'pie' || draft.secondary === NO_SECONDARY ? null : draft.secondary;
+    if (secondary === draft.primary) {
         errors.secondary = 'Escolha uma divisão diferente da primeira.';
     }
     const queryValid = errors.fixedMonth === undefined && errors.previousMonths === undefined && errors.minValue === undefined && errors.maxValue === undefined && errors.secondary === undefined;
@@ -274,7 +305,7 @@ export function readReportDraft(draft: ReportDraft, currency: string): ReportDra
                     minValue: minValue ?? null,
                     maxValue: maxValue ?? null,
                 },
-                layout: { format: draft.format, primary: draft.primary, secondary: draft.secondary === NO_SECONDARY ? null : draft.secondary, measure: draft.measure },
+                layout: { format: draft.format, primary: draft.primary, secondary, measure: draft.measure, analysis: draft.analysis },
             }
             : null,
     };

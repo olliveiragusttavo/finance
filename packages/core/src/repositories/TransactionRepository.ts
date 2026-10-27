@@ -91,4 +91,16 @@ export interface TransactionRepository {
      * transferências de outros perfis que chegam a uma conta dele (com o `profileId` da origem).
      */
     listByProfileBetween(profileId: ProfileId, from: LocalDate, to: LocalDate): readonly Transaction[];
+
+    /**
+     * Lista "Entradas sem sócio" do relatório por sócio, com o mesmo mês de pagamento e o mesmo
+     * critério de "sem sócio" das somas (`FixedReportRepository.contributionTotalsByPartner`), para
+     * que a lista some o valor do indicador.
+     *
+     * @param profileId Perfil empresarial.
+     * @param period Mês de pagamento.
+     * @return As receitas do perfil e as transferências que chegam a ele de outro perfil, vivas,
+     * do mês e sem sócio vivo do perfil, por data. As transferências são linhas do perfil de origem.
+     */
+    listEntriesWithoutPartner(profileId: ProfileId, period: YearMonth): readonly Transaction[];
 }

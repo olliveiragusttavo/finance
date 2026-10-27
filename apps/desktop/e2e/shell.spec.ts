@@ -75,10 +75,10 @@ test('o menu leva a todas as telas e o mês de referência acompanha a navegaç�
         await expect(month).toHaveCount(0);
         await expect(page.getByRole('button', { name: '+ Lançamento' })).toBeVisible();
 
-        // Relatórios abrem a página com a lista dos relatórios salvos; sem nenhum, o convite a criar.
+        // Relatórios abrem a página com a lista; sem relatório na URL, abre o primeiro fixo, a projeção de saldo.
         await openMenuItem(page, 'Relatórios');
         await expect(page.getByRole('heading', { level: 1 })).toHaveText('Relatórios');
-        await expect(page.getByRole('region', { name: 'Relatório aberto' })).toContainText('Nenhum relatório');
+        await expect(page.getByRole('region', { name: 'Relatório aberto' }).getByRole('heading', { name: 'Projeção de saldo', level: 2 })).toBeVisible();
         await expect(month).toHaveText(formatMonthLong(today));
     } finally {
         await app.close();

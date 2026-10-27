@@ -68,15 +68,19 @@ export const reportFilterSchema = z
         maxValue: data.maxValue,
     }));
 
-/** Formato do relatório (reports-design §3); também lê o JSON gravado. */
+/**
+ * Formato do relatório (reports-design §3); também lê o JSON gravado. A análise tem padrão
+ * desligado, para que a definição gravada antes dela continue lendo na `version: 1`.
+ */
 export const reportLayoutSchema = z
     .strictObject({
         format: z.enum(REPORT_FORMATS),
         primary: z.enum(REPORT_DIMENSIONS),
         secondary: z.enum(REPORT_DIMENSIONS).nullable().default(null),
         measure: z.enum(REPORT_MEASURES).default('sum'),
+        analysis: z.boolean().default(false),
     })
-    .transform((data): ReportLayoutProps => ({ format: data.format, primary: data.primary, secondary: data.secondary, measure: data.measure }));
+    .transform((data): ReportLayoutProps => ({ format: data.format, primary: data.primary, secondary: data.secondary, measure: data.measure, analysis: data.analysis }));
 
 /**
  * O JSON da coluna `report_definitions.definition`. A versão vem primeiro para que uma mudança

@@ -1481,7 +1481,8 @@ as condições são verificadas no `TransactionComposer`:
 A linha continua única e pertence ao perfil de **origem**: subcategoria, tags e meta são
 dele. O perfil de destino a vê na lista de transações do mês e no extrato da conta, só para
 leitura — editar, pagar ou excluir é no perfil de origem. Nos relatórios personalizados ela
-entra só no perfil de origem, como transferência, porque o relatório lê as linhas do perfil
+entra nos dois perfis: na origem como transferência que sai, no destino pela conta de destino e
+sem a classificação da origem
 ([reports-design.md §2.2](reports-design.md#22-atributos-da-transação)).
 Excluir a conta de destino apaga a transferência junto, como numa transferência interna, e
 recalcula a conta de origem no outro perfil.

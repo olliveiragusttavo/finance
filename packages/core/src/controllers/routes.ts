@@ -17,6 +17,8 @@ import type { OnboardingResponse } from '../dto/onboarding/OnboardingResponse.ts
 import type { ProfileBalancesResponse } from '../dto/profiles/ProfileBalancesResponse.ts';
 import type { ProfileResponse } from '../dto/profiles/ProfileResponse.ts';
 import type { NoteResponse } from '../dto/notes/NoteResponse.ts';
+import type { BalanceProjectionResponse } from '../dto/reports/BalanceProjectionResponse.ts';
+import type { EntriesWithoutPartnerResponse, PartnerReportResponse } from '../dto/reports/PartnerReportResponse.ts';
 import type { ReportDefinitionResponse } from '../dto/reports/ReportDefinitionResponse.ts';
 import type { ReportResultResponse } from '../dto/reports/ReportResultResponse.ts';
 import type { ProfileInvoiceResponse, StatementResponse } from '../dto/statements/StatementResponse.ts';
@@ -53,6 +55,7 @@ import type {
     runReportRequest,
     updateReportRequest,
 } from '../requests/reportRequests.ts';
+import type { balanceProjectionRequest, entriesWithoutPartnerRequest, partnerReportRequest } from '../requests/fixedReportRequests.ts';
 import type {
     listRecurrencesRequest,
     planCreateRequest,
@@ -159,6 +162,9 @@ export interface CoreRoutes {
     'reports.delete': { input: z.input<typeof reportIdRequest>; output: null };
     'reports.run': { input: z.input<typeof runReportRequest>; output: ReportResultResponse };
     'reports.preview': { input: z.input<typeof previewReportRequest>; output: ReportResultResponse };
+    'reports.byPartner': { input: z.input<typeof partnerReportRequest>; output: PartnerReportResponse };
+    'reports.entriesWithoutPartner': { input: z.input<typeof entriesWithoutPartnerRequest>; output: EntriesWithoutPartnerResponse };
+    'reports.balanceProjection': { input: z.input<typeof balanceProjectionRequest>; output: BalanceProjectionResponse };
     'imports.run': { input: z.input<typeof runImportRequest>; output: ImportResponse };
 }
 

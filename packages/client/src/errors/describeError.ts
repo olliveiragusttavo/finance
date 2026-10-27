@@ -45,6 +45,7 @@ const RULE_MESSAGES: Readonly<Record<BusinessRule, string>> = {
     'recurrence-scope-requires-series': 'Este lançamento não faz parte de uma série.',
     'reference-outside-profile': 'O item escolhido pertence a outro perfil.',
     'report-dimensions-repeated': 'Escolha uma segunda divisão diferente da primeira.',
+    'report-pie-secondary': 'O gráfico de pizza divide só pela primeira divisão.',
     'sub-category-in-use': 'Esta subcategoria tem lançamentos. Escolha para onde movê-los antes de excluir.',
     'transaction-move-currency-mismatch': 'Só dá para mover o lançamento para um perfil com a mesma moeda deste.',
     'transaction-type-locked': 'O tipo do lançamento não muda depois de criado. Exclua-o e lance de novo com o outro tipo.',

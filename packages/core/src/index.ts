@@ -29,8 +29,21 @@ export {
     type ReportStatusFilter,
     type ReportTagMatch,
 } from './domain/report/ReportFilter.ts';
-export { REPORT_DIMENSIONS, REPORT_FORMATS, REPORT_MEASURES, type ReportDimension, type ReportFormat, type ReportMeasure } from './domain/report/ReportLayout.ts';
+export {
+    REPORT_DIMENSIONS,
+    REPORT_FLOW_GROUPS,
+    REPORT_FORMATS,
+    REPORT_MEASURES,
+    REPORT_RECURRENCE_GROUPS,
+    type ReportDimension,
+    type ReportFlowGroup,
+    type ReportFormat,
+    type ReportMeasure,
+    type ReportRecurrenceGroup,
+} from './domain/report/ReportLayout.ts';
 export { REPORT_NAME_MAX_LENGTH } from './domain/report/ReportDefinition.ts';
+// Janelas da média da projeção de saldo: a tela oferece as mesmas que a Request aceita (reports-design §9).
+export { BALANCE_PROJECTION_BASES, type BalanceProjectionBasis } from './domain/report/BalanceProjection.ts';
 export { PARTNER_NAME_MAX_LENGTH } from './domain/partner/Partner.ts';
 // Regras puras do tipo da transação: o formulário de lançamento mostra o sinal do efeito e pede
 // a conta de destino e a meta pela mesma regra que o núcleo aplica, sem reimplementá-la na UI.

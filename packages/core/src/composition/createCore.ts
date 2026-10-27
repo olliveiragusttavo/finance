@@ -10,6 +10,7 @@ import { ProfileController } from '../controllers/ProfileController.ts';
 import { ImportController } from '../controllers/ImportController.ts';
 import type { CoreApi, CoreRoute, RouteHandlers } from '../controllers/routes.ts';
 import { StatementController } from '../controllers/StatementController.ts';
+import { FixedReportController } from '../controllers/FixedReportController.ts';
 import { ReportController } from '../controllers/ReportController.ts';
 import { TagController } from '../controllers/TagController.ts';
 import { PartnerController } from '../controllers/PartnerController.ts';
@@ -33,6 +34,7 @@ import { SqlitePartnerRepository } from '../infrastructure/sqlite/SqlitePartnerR
 import { SqliteProfileRepository } from '../infrastructure/sqlite/SqliteProfileRepository.ts';
 import { SqliteReferenceRepository } from '../infrastructure/sqlite/SqliteReferenceRepository.ts';
 import { SqliteRecurrenceRepository } from '../infrastructure/sqlite/SqliteRecurrenceRepository.ts';
+import { SqliteFixedReportRepository } from '../infrastructure/sqlite/SqliteFixedReportRepository.ts';
 import { SqliteReportDefinitionRepository } from '../infrastructure/sqlite/SqliteReportDefinitionRepository.ts';
 import { SqliteReportQueryRepository } from '../infrastructure/sqlite/SqliteReportQueryRepository.ts';
 import { SqliteTagRepository } from '../infrastructure/sqlite/SqliteTagRepository.ts';
@@ -55,6 +57,7 @@ import { NoteService } from '../services/note/NoteService.ts';
 import { OnboardingService } from '../services/onboarding/OnboardingService.ts';
 import { ProfileService } from '../services/profile/ProfileService.ts';
 import { StatementConsolidationService } from '../services/statement/StatementConsolidationService.ts';
+import { FixedReportService } from '../services/report/FixedReportService.ts';
 import { ReportService } from '../services/report/ReportService.ts';
 import { TagService } from '../services/tag/TagService.ts';
 import { PartnerService } from '../services/partner/PartnerService.ts';
@@ -168,6 +171,7 @@ export function createCore(ports: CorePorts): Core {
     const recurrenceRepository = new SqliteRecurrenceRepository(database, clock);
     const reportDefinitions = new SqliteReportDefinitionRepository(database, clock);
     const reportQueries = new SqliteReportQueryRepository(database);
+    const fixedReports = new SqliteFixedReportRepository(database);
 
     const recalculation = new BalanceRecalculationService(unitOfWork, accounts, statements, invoices, ledger, clock);
     const impacts = new ImpactCalculator(invoices, creditCards);
@@ -188,6 +192,7 @@ export function createCore(ports: CorePorts): Core {
     const cascadeDeletion = new CascadeDeletionService(unitOfWork, deletions, accounts, creditCards, invoices, transactions, recalculation);
     const balances = new AccountBalanceService(unitOfWork, profiles, accounts, recalculation);
     const reportService = new ReportService(unitOfWork, ids, profileService, reportDefinitions, reportQueries);
+    const fixedReportService = new FixedReportService(unitOfWork, clock, profileService, partners, transactions, fixedReports, balances);
     const integrity = new BalanceIntegrityService(unitOfWork, accounts, statements, invoices, recalculation, clock);
     const importService = new ImportService(
         unitOfWork, clock, ids, composer, transactions, accounts, creditCards, invoices, categories, tags,
@@ -207,6 +212,7 @@ export function createCore(ports: CorePorts): Core {
     const partnerController = new PartnerController(partnerService, onUnexpected);
     const noteController = new NoteController(noteService, onUnexpected);
     const reportController = new ReportController(reportService, onUnexpected);
+    const fixedReportController = new FixedReportController(fixedReportService, onUnexpected);
     const goalController = new GoalController(goalService, onUnexpected);
     const importController = new ImportController(importService, onUnexpected);
 
@@ -286,6 +292,9 @@ export function createCore(ports: CorePorts): Core {
         'reports.delete': (raw) => reportController.delete(raw),
         'reports.run': (raw) => reportController.run(raw),
         'reports.preview': (raw) => reportController.preview(raw),
+        'reports.byPartner': (raw) => fixedReportController.byPartner(raw),
+        'reports.entriesWithoutPartner': (raw) => fixedReportController.entriesWithoutPartner(raw),
+        'reports.balanceProjection': (raw) => fixedReportController.balanceProjection(raw),
         'imports.run': (raw) => importController.run(raw),
     };
 

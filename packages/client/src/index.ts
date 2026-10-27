@@ -32,6 +32,9 @@ export * from './viewModels/overviewView.ts';
 // Relatórios personalizados (reports-design): o editor e a visualização do resultado.
 export * from './viewModels/reportEditor.ts';
 export * from './viewModels/reportView.ts';
+// Relatórios fixos (reports-design §8 e §9): por sócio e projeção de saldo.
+export * from './viewModels/partnerReport.ts';
+export * from './viewModels/balanceProjection.ts';
 // Importação de transações (import-design): leitura do arquivo, ligação de colunas e revisão.
 export * from './import/csv.ts';
 export * from './import/cellFormats.ts';
