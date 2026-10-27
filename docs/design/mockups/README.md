@@ -103,7 +103,8 @@ Substitui a D2 anterior. Layout fluido para telas largas (desenhado em 1920px):
   gastos do mês (vs média de 6 meses), entradas do mês, próximas faturas.
 - **Gastos por mês** (6 meses, barras + linha da média) e **Para onde foi no mês** (top 5 categorias + "outras").
   Sem links para relatórios (relatórios removidos do app).
-- **Próximos 30 dias:** vencimentos a pagar/receber, transferências e faturas, com totais no rodapé.
+- ~~**Próximos 30 dias**~~ — **removido na implementação**, a pedido: o que está em aberto até o fim do mês
+  fica no painel do selo, embaixo dos atrasados (desktop-mvp-plan Fase 15.1).
 - **Contas** compactas (saldo zero esmaecido; investimentos fora do total em grupo próprio),
   **Cartões** (fatura do mês + próxima em aberto), **Metas** (alerta "Prazo vencido"; ritmo necessário),
   **Anotações** (recentes, bloco pequeno).

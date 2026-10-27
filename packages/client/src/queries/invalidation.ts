@@ -8,9 +8,17 @@ import type { ReadRoute, WriteRoute } from './routes.ts';
 const REPORT_RESULTS: readonly ReadRoute[] = ['reports.run', 'reports.preview', 'reports.byPartner', 'reports.entriesWithoutPartner', 'reports.balanceProjection'];
 
 /**
- * Leituras que mostram nomes de categoria e subcategoria.
+ * Resumos da Visão geral: os gastos e as entradas do mês, as maiores categorias, os lançamentos e
+ * as faturas em aberto e as próximas faturas. Mudam com o dinheiro e com os nomes de conta,
+ * cartão e categoria que mostram.
  */
-const CATEGORY_NAMES: readonly ReadRoute[] = ['categories.tree', ...REPORT_RESULTS];
+const OVERVIEW_RESULTS: readonly ReadRoute[] = ['overview.spending', 'overview.pending', 'overview.nextInvoices'];
+
+/**
+ * Leituras que mostram nomes de categoria e subcategoria. Os gastos da Visão geral mostram o nome
+ * de cada categoria.
+ */
+const CATEGORY_NAMES: readonly ReadRoute[] = ['categories.tree', 'overview.spending', ...REPORT_RESULTS];
 
 /**
  * Leituras que carregam transações inteiras (com a subcategoria e as tags de cada uma);
@@ -78,6 +86,7 @@ const MONEY: readonly ReadRoute[] = [
     'invoices.listByCard',
     'integrity.verifyBalances',
     ...REPORT_RESULTS,
+    ...OVERVIEW_RESULTS,
     // O uso de cada tag (contagem, total, último uso) sai dos lançamentos.
     'tags.list',
     // Quantos lançamentos cada sócio pagou, o número do aviso de remoção do cadastro.

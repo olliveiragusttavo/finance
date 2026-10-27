@@ -334,3 +334,27 @@ export function useEntriesWithoutPartner(input: CoreInput<'reports.entriesWithou
 export function useBalanceProjection(input: CoreInput<'reports.balanceProjection'> | null): Query<'reports.balanceProjection'> {
     return useCoreQuery('reports.balanceProjection', input);
 }
+
+/**
+ * @param input Perfil e mês de referência; `null` deixa a consulta parada.
+ * @return Gastos dos seis meses, entradas do mês e as maiores categorias da Visão geral.
+ */
+export function useOverviewSpending(input: CoreInput<'overview.spending'> | null): Query<'overview.spending'> {
+    return useCoreQuery('overview.spending', input);
+}
+
+/**
+ * @param input Perfil; `null` deixa a consulta parada.
+ * @return Os atrasados e o que ainda vence até o fim do mês de hoje, para o selo da Visão geral.
+ */
+export function useOverviewPending(input: CoreInput<'overview.pending'> | null): Query<'overview.pending'> {
+    return useCoreQuery('overview.pending', input);
+}
+
+/**
+ * @param input Perfil; `null` deixa a consulta parada.
+ * @return A próxima fatura em aberto de cada cartão.
+ */
+export function useNextInvoices(input: CoreInput<'overview.nextInvoices'> | null): Query<'overview.nextInvoices'> {
+    return useCoreQuery('overview.nextInvoices', input);
+}

@@ -1043,6 +1043,51 @@ como histórico.
 - [ ] Mockup das telas de relatório (lista, editor e resultado) para revisar o layout provisório
 - [ ] Próximos passos do design ([reports-design §7](reports-design.md#7-próximos-passos))
 
+
+### Fase 15.1 — Visão geral nova
+
+Entrou depois da Fase 15, a pedido, a partir do mockup `DesktopVisaoGeral2`, que substituiu o `Main`.
+**Decisões** (perguntadas antes do código):
+
+- **Gastos sem os relatórios:** "Gastos por mês" e "Para onde foi no mês" são um resumo próprio da
+  Visão geral (rota `overview.spending`), sem definição salva nem link para Relatórios.
+- **Mês dos gastos:** o regime de caixa da regra-mestra antiga ([§3.1](#31-regra-mestra-o-período-é-o-do-pagamento)).
+  O lançamento de conta conta no mês do extrato (pagamento, ou vencimento em aberto). A compra no
+  cartão conta no mês do **vencimento da fatura**, paga ou não: pagar com atraso não muda o mês. Gasto é a
+  despesa, pelo `value` sem os encargos, como nos relatórios. Entradas são as receitas e as
+  transferências vindas de outro perfil; as transferências internas ficam fora. A média é a dos
+  seis meses do gráfico, desde o primeiro com gasto, e só entram categorias com gasto positivo
+  (as 5 maiores mais "outras").
+- **Atrasados:** o que venceu **antes de hoje** sem pagamento, de qualquer mês, inclusive a
+  **fatura inteira** em aberto com valor a pagar. A compra no cartão não aparece sozinha. A
+  transferência que chega de outro perfil aparece só para consulta, sem "Marcar como recebido",
+  porque quem a paga é a origem. A fatura leva à tela Cartões, porque o pagamento pede conta,
+  valor e data. Marcar grava o pagamento com a data de hoje, e o "Desfazer" volta a pendente.
+- **Sem "Próximos 30 dias":** a lista saiu. O que está **em aberto até o fim do mês** de hoje
+  fica no painel do selo, embaixo dos atrasados. Sem atraso, o selo verde ainda abre o painel
+  quando há algo em aberto.
+- **Tokens:** ficam os atuais; as cores do tema escuro do mockup e o `--bar` serão tratados
+  junto da aparência do sistema. As barras dos meses anteriores usam `accent` com opacidade.
+- **Média do gráfico:** o valor fica numa legenda embaixo, e não sobre a linha, porque cobria a
+  barra do mês.
+
+**Núcleo**
+- [x] Domínio `domain/overview/SpendingSummary.ts` (janela, média, maiores categorias) e
+  `PendingItems.ts` (atrasados × em aberto até o fim do mês, faturas com valor a pagar,
+  próxima fatura por cartão)
+- [x] `SqliteOverviewRepository` (CTE `overview_flows` com o mês de cada receita e despesa),
+  `OverviewService` e as rotas `overview.spending`, `overview.pending` e `overview.nextInvoices`
+- [x] Testes: `test/services/overview.test.ts`
+
+**Client e desktop**
+- [x] `overviewView.ts`: indicadores de saldo (com o previsto), patrimônio, gastos, entradas e
+  próximas faturas, gráfico, categorias, contas separadas pelo total, cartões com a fatura do mês
+  e a próxima, metas com "Prazo vencido" e ritmo, selo e painel. Hooks, `ROUTE_KINDS` e
+  invalidação com as rotas novas
+- [x] `OverviewScreen.tsx` reescrita: grade fluida até 1920px (5 indicadores em telas largas)
+- [x] Testes: `client` (`test/overviewView.test.ts`, `test/invalidation.test.ts`) e ponta a ponta
+  (`e2e/overview.spec.ts`: indicadores, marcar como pago pelo selo e desfazer, resumos e navegação)
+
 ---
 
 ## 7. Critério de pronto do MVP
