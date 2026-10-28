@@ -6,7 +6,7 @@
  * duplicaria o mapa. `integrity.verifyBalances` também não tem: quem a chama é o shell na
  * abertura, não uma tela.
  */
-import type { CoreInput, CoreOutput, InvoiceResponse } from '@finance/core';
+import type { CoreInput, CoreOutput, InvoiceResponse, StatementResponse } from '@finance/core';
 import type { UseQueryResult } from '@tanstack/react-query';
 import type { CoreCallError } from '../errors/CoreCallError.ts';
 import type { ReadRoute } from '../queries/routes.ts';
@@ -204,6 +204,37 @@ export function useDeletePlan(input: CoreInput<'recurrences.planDelete'> | null)
  */
 export function useStatement(input: CoreInput<'statements.get'> | null): Query<'statements.get'> {
     return useCoreQuery('statements.get', input);
+}
+
+/** Extratos de várias contas juntos, o primeiro erro e se alguma consulta ainda carrega. */
+export interface AccountsStatements {
+    readonly statements: readonly StatementResponse[];
+    readonly pending: boolean;
+    readonly error: CoreCallError | null;
+}
+
+/**
+ * Junta os extratos que já chegaram. Fica fora do hook para ser estável, o que mantém a
+ * identidade do resultado entre renders (`useCoreQueries`).
+ *
+ * @param results Uma consulta de `statements.get` por conta.
+ * @return Os extratos carregados, se algum ainda carrega e o primeiro erro.
+ */
+function joinStatements(results: readonly Query<'statements.get'>[]): AccountsStatements {
+    return {
+        statements: results.flatMap((result) => (result.data === undefined ? [] : [result.data])),
+        pending: results.some((result) => result.isPending),
+        error: results.find((result) => result.error !== null)?.error ?? null,
+    };
+}
+
+/**
+ * @param inputs Uma conta e o mês por consulta.
+ * @return Os extratos do mês das contas pedidas — o saldo do dia do Calendário soma os extratos
+ * das contas do total, e um hook por conta quebraria as regras dos hooks.
+ */
+export function useStatements(inputs: readonly CoreInput<'statements.get'>[]): AccountsStatements {
+    return useCoreQueries('statements.get', inputs, joinStatements);
 }
 
 /**

@@ -10,6 +10,7 @@ import type { ProfileResponse } from '@finance/core';
 export type AppPath =
     | '/'
     | '/transactions'
+    | '/calendar'
     | '/accounts'
     | '/cards'
     | '/reports'
@@ -46,6 +47,8 @@ export interface MenuItem {
 export const MENU: readonly MenuItem[] = [
     { label: 'Visão geral', to: '/', section: '/', businessOnly: false },
     { label: 'Transações', to: '/transactions', section: '/transactions', businessOnly: false },
+    // Logo abaixo de Transações, como no mockup `DesktopCalendario`: são os mesmos lançamentos por dia.
+    { label: 'Calendário', to: '/calendar', section: '/calendar', businessOnly: false },
     { label: 'Contas', to: '/accounts', section: '/accounts', businessOnly: false },
     { label: 'Cartões', to: '/cards', section: '/cards', businessOnly: false },
     { label: 'Relatórios', to: '/reports', section: '/reports', businessOnly: false },

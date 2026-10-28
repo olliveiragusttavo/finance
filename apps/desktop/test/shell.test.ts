@@ -22,6 +22,7 @@ describe('menu do shell (desktop-mvp-plan Fase 4)', () => {
         expect(MENU.map((item) => item.label)).toEqual([
             'Visão geral',
             'Transações',
+            'Calendário',
             'Contas',
             'Cartões',
             'Relatórios',

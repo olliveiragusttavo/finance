@@ -207,12 +207,13 @@ export function TransactionsScreen(): ReactNode {
  * Faturas em que caíram as compras no cartão do mês, para a situação "Na fatura"/"Fat. paga". Uma
  * consulta por cartão, a partir da fatura mais antiga que o mês usa — `invoices.listByCard` traz
  * dali em diante as que existem.
+ * Exportado porque o Calendário monta a mesma tabela agrupada e precisa da mesma situação das compras.
  *
  * @param transactions Lançamentos do mês; `undefined` enquanto carregam.
  * @return As faturas conhecidas, com identidade estável entre renders; enquanto carregam, a
  * tabela mostra as compras como "Na fatura", o caso conservador (`buildTransactionTable`).
  */
-function useMonthInvoices(transactions: readonly TransactionResponse[] | undefined): readonly InvoiceResponse[] {
+export function useMonthInvoices(transactions: readonly TransactionResponse[] | undefined): readonly InvoiceResponse[] {
     const inputs = useMemo(() => {
         const earliest = new Map<string, string>();
         for (const { container } of transactions ?? []) {

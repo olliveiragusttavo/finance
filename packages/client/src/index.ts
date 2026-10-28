@@ -29,6 +29,8 @@ export * from './viewModels/movementList.ts';
 export * from './viewModels/goalView.ts';
 export * from './viewModels/listViews.ts';
 export * from './viewModels/overviewView.ts';
+// Calendário do mês (mockup `DesktopCalendario`): receitas × despesas e saldo do dia.
+export * from './viewModels/calendarView.ts';
 // Relatórios personalizados (reports-design): o editor e a visualização do resultado.
 export * from './viewModels/reportEditor.ts';
 export * from './viewModels/reportView.ts';

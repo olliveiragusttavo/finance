@@ -4,6 +4,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AccountsScreen } from './accounts/AccountsScreen.tsx';
 import { parseAccountsSearch, type AccountsSearch } from './accounts/accountsSearch.ts';
+import { CalendarScreen } from './calendar/CalendarScreen.tsx';
 import { CardsScreen } from './cards/CardsScreen.tsx';
 import { parseCardsSearch, type CardsSearch } from './cards/cardsSearch.ts';
 import { CategoriesScreen } from './categories/CategoriesScreen.tsx';
@@ -73,6 +74,8 @@ const routeTree = rootRoute.addChildren([
             component: TransactionsScreen,
             validateSearch: (search: Record<string, unknown>): TransactionsSearch => parseTransactionsSearch(search),
         }),
+        // Calendário do mês (mockup `DesktopCalendario`), fora do plano do MVP.
+        createRoute({ getParentRoute: () => shellRoute, path: '/calendar' satisfies AppPath, component: CalendarScreen }),
         createRoute({
             getParentRoute: () => shellRoute,
             path: '/accounts' satisfies AppPath,
