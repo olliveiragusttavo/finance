@@ -389,3 +389,44 @@ export function useOverviewPending(input: CoreInput<'overview.pending'> | null):
 export function useNextInvoices(input: CoreInput<'overview.nextInvoices'> | null): Query<'overview.nextInvoices'> {
     return useCoreQuery('overview.nextInvoices', input);
 }
+
+/** Uma leitura por mês do período, alinhadas com os meses pedidos. */
+export interface PeriodsQuery<T> {
+    /** Um resultado por mês, na ordem das entradas; `null` enquanto algum ainda carrega. */
+    readonly data: readonly T[] | null;
+    readonly error: CoreCallError | null;
+}
+
+/**
+ * Junta as consultas de cada mês só quando todas chegaram: o Extrato soma o período inteiro, e um
+ * mês faltando mostraria um total errado em vez de "carregando". Fica fora do hook para ser
+ * estável, o que mantém a identidade do resultado entre renders (`useCoreQueries`).
+ *
+ * @param results Uma consulta por mês.
+ * @return Os dados de todos os meses, ou `null` enquanto algum carrega, e o primeiro erro.
+ */
+function joinPeriods<T>(results: readonly UseQueryResult<T, CoreCallError>[]): PeriodsQuery<T> {
+    const data = results.flatMap((result) => (result.data === undefined ? [] : [result.data]));
+    return {
+        data: data.length === results.length ? data : null,
+        error: results.find((result) => result.error !== null)?.error ?? null,
+    };
+}
+
+/**
+ * @param inputs Perfil e mês por consulta, um por mês do período.
+ * @return As transações de cada mês pelo vencimento — o Extrato monta a tabela de Transações de
+ * cada mês, e um hook por mês quebraria as regras dos hooks.
+ */
+export function useTransactionsByPeriods(inputs: readonly CoreInput<'transactions.listByPeriod'>[]): PeriodsQuery<CoreOutput<'transactions.listByPeriod'>> {
+    return useCoreQueries('transactions.listByPeriod', inputs, joinPeriods<CoreOutput<'transactions.listByPeriod'>>);
+}
+
+/**
+ * @param inputs Perfil e mês por consulta, um por mês do período.
+ * @return As faturas que pesam em cada mês, para a linha da fatura na tabela agrupada de cada mês
+ * do Extrato.
+ */
+export function useProfileInvoicesByPeriods(inputs: readonly CoreInput<'statements.profileInvoices'>[]): PeriodsQuery<CoreOutput<'statements.profileInvoices'>> {
+    return useCoreQueries('statements.profileInvoices', inputs, joinPeriods<CoreOutput<'statements.profileInvoices'>>);
+}

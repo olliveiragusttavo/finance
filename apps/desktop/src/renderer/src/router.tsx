@@ -22,6 +22,8 @@ import { parseReportEditorSearch, parseReportsSearch, type ReportsSearch } from 
 import { blankScreen } from './screens/BlankScreen.tsx';
 import { ImportScreen } from './import/ImportScreen.tsx';
 import { SettingsScreen } from './settings/SettingsScreen.tsx';
+import { StatementScreen } from './statement/StatementScreen.tsx';
+import { parseStatementSearch, type StatementSearch } from './statement/statementSearch.ts';
 import { AppShell } from './shell/AppShell.tsx';
 import { TagsScreen } from './tags/TagsScreen.tsx';
 import { TransactionsScreen } from './transactions/TransactionsScreen.tsx';
@@ -73,6 +75,13 @@ const routeTree = rootRoute.addChildren([
             path: '/transactions' satisfies AppPath,
             component: TransactionsScreen,
             validateSearch: (search: Record<string, unknown>): TransactionsSearch => parseTransactionsSearch(search),
+        }),
+        // Extrato em vários meses, dia × mês (mockup `DesktopExtrato`), fora do plano do MVP.
+        createRoute({
+            getParentRoute: () => shellRoute,
+            path: '/statement' satisfies AppPath,
+            component: StatementScreen,
+            validateSearch: (search: Record<string, unknown>): StatementSearch => parseStatementSearch(search),
         }),
         // Calendário do mês (mockup `DesktopCalendario`), fora do plano do MVP.
         createRoute({ getParentRoute: () => shellRoute, path: '/calendar' satisfies AppPath, component: CalendarScreen }),

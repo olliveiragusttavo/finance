@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Extrato por dia</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+.light{--bg:#F4F5F2;--surface:#FFFFFF;--surface2:#FAFAF8;--line:#DDE1DC;--line2:#EEF0EC;--ink:#1B1F1D;--ink2:#3D4541;--muted:#5A625E;--accent:#1F5F8B;--on-accent:#FFFFFF;--soft:#E6EEF4;--soft-ink:#163F5C;--in:#1F5F8B;--out:#A04A12;--in-rgb:31,95,139;--out-rgb:160,74,18;--warn-bg:#FFE2A8;--warn-ink:#4A3000;--warn-line:#B07700;--track:#EEF0EC;--hatch:#E9ECE8}
+.dark{--bg:#161918;--surface:#1D201F;--surface2:#191C1B;--line:#2E3431;--line2:#262A28;--ink:#E7EAE7;--ink2:#C3C9C5;--muted:#9AA29E;--accent:#6AAAD8;--on-accent:#0B1A24;--soft:#1D3040;--soft-ink:#B5D7F0;--in:#7DB8E2;--out:#E89A63;--in-rgb:106,170,216;--out-rgb:232,154,99;--warn-bg:#F2C14E;--warn-ink:#1F1600;--warn-line:#F2C14E;--track:#2A302D;--hatch:#222624}
+a{color:var(--accent);text-decoration:none}a:hover{color:var(--soft-ink)}
+.n{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+button,select,input{font:inherit;color:inherit}button{cursor:pointer}
+.app{min-height:100vh;display:flex;font-family:'IBM Plex Sans',system-ui,sans-serif;color:var(--ink);background:var(--bg)}
+.side{width:232px;flex-shrink:0;background:var(--surface2);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:20px 12px;gap:18px;box-sizing:border-box}
+.brand{font-weight:600;font-size:17px;padding:0 10px}
+.prof{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-size:14px;text-align:left}
+.nav{display:flex;flex-direction:column;gap:2px;font-size:14px}
+.nav a{padding:9px 12px;border-radius:6px;color:var(--ink)}
+.nav a.on{background:var(--soft);color:var(--soft-ink);font-weight:500}
+.nav .sep{height:1px;background:var(--line);margin:8px 10px}
+.sync{margin-top:auto;padding:12px 10px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+.col{flex-grow:1;min-width:0;display:flex;flex-direction:column}
+.top{position:sticky;top:0;z-index:4;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 32px;background:var(--surface2);border-bottom:1px solid var(--line)}
+.row{display:flex;align-items:center;gap:10px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 12px;font-size:13px;display:inline-flex;align-items:center;gap:6px;color:var(--ink)}
+.btn-p{border:0;border-radius:8px;background:var(--accent);color:var(--on-accent);padding:9px 16px;font-size:14px;font-weight:500}
+main{padding:20px 32px 28px;display:flex;flex-direction:column;gap:14px;min-width:0}
+h1{margin:0;font-size:24px;font-weight:600}
+.sm{font-size:12px;color:var(--muted)}
+.muted{color:var(--muted)}
+.stack{display:flex;flex-direction:column}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button,.seg a{border:0;background:none;padding:7px 12px;font-size:13px;color:var(--ink2)}
+.seg>*+*{border-left:1px solid var(--line)!important}
+.seg .on{background:var(--soft);color:var(--soft-ink);font-weight:600}
+.filters{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+.inp{border:1px solid var(--line);border-radius:6px;padding:7px 9px;background:var(--bg);font-size:13px;color:var(--ink);min-width:130px}
+.detail{display:flex;align-items:center;gap:22px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 16px;font-size:13px}
+.detail b{font-size:15px}
+.tw{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:auto;max-height:1010px}
+table{border-collapse:separate;border-spacing:0;width:100%;font-size:13px}
+th,td{padding:0;border-bottom:1px solid var(--line2);border-right:1px solid var(--line2)}
+thead th{position:sticky;top:0;z-index:2;background:var(--surface2);font-weight:500;color:var(--muted);font-size:12px;padding:8px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+thead th.cur{color:var(--soft-ink);background:var(--soft);font-weight:600}
+th.dcol{position:sticky;left:0;z-index:1;background:var(--surface2);text-align:center;width:52px;min-width:52px;color:var(--muted);font-weight:500;font-size:12px}
+thead th.dcol{z-index:3}
+td .c{display:block;width:100%;height:28px;border:0;background:none;text-align:right;padding:0 8px;font-weight:600;white-space:nowrap;box-sizing:border-box}
+td .c:hover{outline:2px solid var(--accent);outline-offset:-2px}
+td .c.pos{color:var(--in)}td .c.neg{color:var(--out)}td .c.zero{color:var(--muted)}
+td .c.pend{font-weight:500;opacity:.8;background-image:linear-gradient(currentColor,currentColor);background-size:calc(100% - 16px) 1px;background-position:right 8px bottom 5px;background-repeat:no-repeat}
+td .c.late{background:var(--warn-bg);color:var(--warn-ink);box-shadow:inset 0 0 0 1.5px var(--warn-line)}
+td .c.sel{outline:2px solid var(--accent);outline-offset:-2px}
+td .c.today{box-shadow:inset 3px 0 0 var(--accent)}
+td.na{background:repeating-linear-gradient(135deg,var(--hatch) 0 4px,transparent 4px 8px)}
+tfoot th,tfoot td{position:sticky;background:var(--surface2);font-size:12px;padding:6px 8px;text-align:right;white-space:nowrap}
+tfoot tr:nth-child(1) th,tfoot tr:nth-child(1) td{bottom:84px;border-top:1px solid var(--line)}
+tfoot tr:nth-child(2) th,tfoot tr:nth-child(2) td{bottom:56px}
+tfoot tr:nth-child(3) th,tfoot tr:nth-child(3) td{bottom:28px;font-weight:600;font-size:13px}
+tfoot tr:nth-child(4) th,tfoot tr:nth-child(4) td{bottom:0;color:var(--muted)}
+tfoot th{text-align:left;color:var(--muted);font-weight:500;left:0;z-index:2}
+.in{color:var(--in)}.out{color:var(--out)}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--muted);align-items:center}
+.lg{display:inline-flex;align-items:center;gap:6px}
+.lg i{display:inline-block;width:46px;height:20px;border-radius:4px;font-style:normal;font-size:11px;font-weight:600;text-align:right;padding:2px 5px;box-sizing:border-box}
+</style>
+</helmet>
+<div class="app {{themeClass}}">
+<nav aria-label="Navegação principal" class="side">
+<div class="brand">Finanças</div>
+<button type="button" class="prof"><span class="stack" style="gap: 2px"><span style="font-weight: 600">Pessoal</span><span class="sm">Pessoal · BRL</span></span><span aria-hidden="true">▾</span></button>
+<div class="nav">
+<a href="DesktopVisaoGeral2.dc.html">Visão geral</a>
+<a href="DesktopTransacoes.dc.html">Transações</a>
+<a href="DesktopExtrato.dc.html" class="on" aria-current="page">Extrato</a>
+<a href="DesktopCalendario.dc.html">Calendário</a>
+<a href="DesktopContas.dc.html">Contas</a>
+<a href="DesktopCartoes.dc.html">Cartões</a>
+<a href="DesktopMetas.dc.html">Metas</a>
+<span class="sep" aria-hidden="true"></span>
+<a href="DesktopCadastros.dc.html">Categorias</a>
+<a href="DesktopTags.dc.html">Tags</a>
+<a href="DesktopAnotacoes.dc.html">Anotações</a>
+<a href="#">Perfis</a>
+<span class="sep" aria-hidden="true"></span>
+<a href="DesktopDispositivos.dc.html">Dispositivos</a>
+<a href="DesktopAjustes.dc.html">Ajustes</a>
+</div>
+<div class="sync">Dados só neste aparelho</div>
+</nav>
+<div class="col">
+<div class="top">
+<div class="row"><span class="sm">Período</span><span style="font-weight: 600" class="n">{{periodLabel}}</span><span class="sm">· o mês de referência vira o período neste relatório</span></div>
+<div class="row"><button type="button" class="btn" onClick="{{toggleTheme}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/></svg>{{themeLabel}}</button><button type="button" class="btn-p">+ Lançamento</button></div>
+</div>
+<main>
+<div class="row" style="justify-content: space-between; align-items: flex-end; flex-wrap: wrap">
+<div class="stack" style="gap: 2px"><h1>Extrato</h1><span class="sm">Resultado de cada dia (receitas − despesas), com os mesmos filtros de Transações. Valores em R$.</span></div>
+<div class="row"><span class="sm">Ver como</span><div class="seg" role="group" aria-label="Visualização"><a href="DesktopTransacoes.dc.html">Lista</a><button type="button" class="on" aria-pressed="true">Tabela por dia</button></div><button type="button" class="btn">Exportar CSV</button></div>
+</div>
+
+<div class="filters" role="group" aria-label="Filtros">
+<div class="f"><span>Período</span><div class="seg" role="group" aria-label="Período"><sc-for list="{{presets}}" as="p" hint-placeholder-count="4"><button type="button" class="{{p.cls}}" onClick="{{p.pick}}" aria-pressed="{{p.pressed}}">{{p.label}}</button></sc-for></div></div>
+<label class="f"><span>De</span><select class="inp" aria-label="Mês inicial"><option>{{fromLabel}}</option></select></label>
+<label class="f"><span>Até</span><select class="inp" aria-label="Mês final"><option>{{toLabel}}</option></select></label>
+<div class="f"><span>Tipo</span><div class="seg" role="group" aria-label="Tipo"><button type="button" class="{{tAll}}" onClick="{{setAll}}">Tudo</button><button type="button" class="{{tR}}" onClick="{{setR}}">Receitas</button><button type="button" class="{{tD}}" onClick="{{setD}}">Despesas</button></div></div>
+<label class="f"><span>Conta ou cartão</span><select class="inp"><option>Todas</option></select></label>
+<label class="f"><span>Categoria</span><select class="inp"><option>Todas</option></select></label>
+<label class="f"><span>Tag</span><select class="inp"><option>Todas</option></select></label>
+<label class="f"><span>Situação</span><select class="inp"><option>Todas</option></select></label>
+<label class="f" style="flex-grow: 1"><span>Buscar</span><input class="inp" type="text" placeholder="nome ou descrição"></label>
+</div>
+
+<div class="detail n" aria-live="polite">
+<span class="stack"><span class="sm">{{selWeek}}</span><b>{{selDate}}</b></span>
+<span class="stack"><span class="sm">Lançamentos</span><b>{{selCount}}</b></span>
+<span class="stack"><span class="sm">Receitas</span><b class="in">{{selR}}</b></span>
+<span class="stack"><span class="sm">Despesas</span><b class="out">{{selD}}</b></span>
+<span class="stack"><span class="sm">Resultado do dia</span><b class="{{selNetCls}}">{{selNet}}</b></span>
+<span class="stack"><span class="sm">Situação</span><b>{{selSt}}</b></span>
+<a href="DesktopTransacoes.dc.html" style="margin-left: auto">Ver lançamentos do dia em Transações →</a>
+</div>
+
+<div class="legend">
+<span class="lg"><i style="color: var(--in)">+500</i>resultado positivo</span>
+<span class="lg"><i style="color: var(--out)">−1.830</i>negativo</span>
+<span class="lg"><i class="n" style="color: var(--out); opacity: .8; text-decoration: underline">−66</i>tem lançamento a vencer</span>
+<span class="lg"><i style="background: var(--warn-bg); color: var(--warn-ink); box-shadow: inset 0 0 0 1.5px var(--warn-line)">−200</i>tem lançamento atrasado</span>
+<span class="lg"><i style="background: repeating-linear-gradient(135deg,var(--hatch) 0 4px,transparent 4px 8px)"></i>dia não existe no mês</span>
+<span>· vazio = sem movimento · clique numa célula para ver o dia</span>
+<label class="row" style="gap: 6px; margin-left: auto; color: var(--ink)"><input type="checkbox" checked="{{heat}}" onChange="{{toggleHeat}}">Colorir pela intensidade</label>
+</div>
+
+<div class="tw">
+<table aria-label="Resultado por dia e mês">
+<thead><tr><th class="dcol" scope="col">Dia</th><sc-for list="{{months}}" as="m" hint-placeholder-count="12"><th scope="col" class="{{m.cls}}">{{m.label}}</th></sc-for></tr></thead>
+<tbody>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="31">
+<tr><th class="dcol n" scope="row">{{r.d}}</th>
+<sc-for list="{{r.cells}}" as="c" hint-placeholder-count="12">
+<td class="{{c.td}}"><sc-if value="{{c.has}}" hint-placeholder-val="{{ false }}"><button type="button" class="c n {{c.cls}}" style="{{c.bg}}" onClick="{{c.pick}}" aria-label="{{c.aria}}">{{c.v}}</button></sc-if></td>
+</sc-for></tr>
+</sc-for>
+</tbody>
+<tfoot>
+<tr><th scope="row">Receitas</th><sc-for list="{{months}}" as="m" hint-placeholder-count="12"><td class="n in">{{m.r}}</td></sc-for></tr>
+<tr><th scope="row">Despesas</th><sc-for list="{{months}}" as="m" hint-placeholder-count="12"><td class="n out">{{m.dd}}</td></sc-for></tr>
+<tr><th scope="row">Resultado</th><sc-for list="{{months}}" as="m" hint-placeholder-count="12"><td class="n {{m.netCls}}">{{m.net}}</td></sc-for></tr>
+<tr><th scope="row">Lançamentos</th><sc-for list="{{months}}" as="m" hint-placeholder-count="12"><td class="n">{{m.cnt}}</td></sc-for></tr>
+</tfoot>
+</table>
+</div>
+<span class="sm">Transferências entre contas do mesmo perfil não mudam o resultado do dia (saem de uma conta e entram na outra). Ao filtrar uma conta, elas passam a contar.</span>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":true},"$preview":{"width":1920,"height":1500}}'>
+class Component extends DCLogic {
+renderVals() {
+const s = this.state || {};
+const tm = s.mode || 'system';
+const dark = tm === 'dark' || (tm === 'system' && (this.props.dark ?? true));
+const nextT = { system: 'light', light: 'dark', dark: 'system' };
+const tLabel = { system: 'Seguir o sistema', light: 'Tema claro', dark: 'Tema escuro' };
+const DATA = {"2025-11":{"26":[0,118.19,0,0,0,3],"24":[0,37.0,0,0,0,2],"23":[0,85.4,0,0,0,2],"21":[0,20.0,0,0,0,1],"20":[500.0,214.0,0,0,0,3],"19":[0,12.0,0,0,0,1],"17":[0,6.0,0,0,0,1],"16":[0,929.94,0,0,0,5],"15":[0,4236.61,0,0,0,26],"14":[0,231.0,0,0,0,2],"13":[0,100.0,0,0,0,1],"11":[0,1830.0,0,0,0,4],"10":[6.0,188.05,0,0,0,5],"9":[0,52.49,0,0,0,1],"8":[0,115.8,0,0,0,1],"7":[73.27,70.0,0,0,0,2]},"2025-12":{"31":[0,55.7,0,0,0,2],"30":[78.5,18.0,0,0,0,2],"24":[0,9.0,0,0,0,1],"23":[0,15.0,0,0,0,1],"22":[0,9.0,0,0,0,1],"20":[0,250.9,0,0,0,1],"16":[0,699.94,0,0,0,1],"15":[0,1288.0,0,0,0,14],"14":[0,21.7,0,0,0,1],"11":[0,2174.0,0,0,0,7],"10":[6.0,131.75,0,0,0,3],"1":[30.98,0,0,0,0,1]},"2026-01":{"31":[0,5.38,0,0,0,1],"20":[0,202.65,0,0,0,1],"16":[0,1003.94,0,0,0,4],"15":[0,2637.8,0,0,0,19],"14":[0,92.4,0,0,0,1],"13":[0,15.0,0,0,0,1],"11":[0,1950.0,0,0,0,3],"10":[6.0,106.21,0,0,0,3],"1":[77.9,0,0,0,0,1]},"2026-02":{"28":[0,50.0,0,0,0,1],"26":[0,18.0,0,0,0,1],"22":[0,67.0,0,0,0,1],"21":[0,258.88,0,0,0,3],"20":[0,322.15,0,0,0,4],"18":[0,6.0,0,0,0,1],"17":[0,49.81,0,0,0,3],"16":[0,754.56,0,0,0,2],"15":[0,1499.25,0,0,0,15],"14":[0,139.97,0,0,0,2],"13":[0,261.76,0,0,0,2],"12":[0,590.0,0,0,0,1],"11":[0,2286.96,0,0,0,6],"10":[6.0,761.37,0,0,0,4],"6":[0,32.9,0,0,0,2],"1":[109.89,0,0,0,0,1]},"2026-03":{"31":[0,8.0,0,0,0,1],"30":[0,12.0,0,0,0,1],"29":[0,5.2,0,0,0,1],"28":[0,15.2,0,0,0,1],"27":[0,155.81,0,0,0,3],"26":[0,8.0,0,0,0,1],"25":[0,12.0,0,0,0,1],"24":[0,12.0,0,0,0,1],"20":[0,202.65,0,0,0,1],"19":[0,7.0,0,0,0,1],"18":[0,12.0,0,0,0,1],"17":[194.45,8.0,0,0,0,2],"16":[0,699.94,0,0,0,1],"15":[0,3334.09,0,0,0,15],"14":[0,57.82,0,0,0,1],"13":[0,38.0,0,0,0,1],"11":[0,2206.0,0,0,0,5],"10":[6.0,894.82,0,0,0,4],"7":[0,31.99,0,0,0,3],"3":[0,31.36,0,0,0,1],"1":[107.96,0,0,0,0,1]},"2026-04":{"29":[0,60.44,0,0,0,2],"25":[0,12.0,0,0,0,1],"24":[0,30.0,0,0,0,1],"22":[0,20.0,0,0,0,1],"20":[187.0,202.65,0,0,0,2],"16":[0,917.15,0,0,0,4],"15":[0,2719.53,0,0,0,22],"13":[0,234.55,0,0,0,2],"11":[0,2055.55,0,0,0,6],"10":[6.0,175.38,0,0,0,6],"9":[0,48.0,0,0,0,2],"7":[0,127.0,0,0,0,2],"6":[0,107.89,0,0,0,1],"4":[0,40.2,0,0,0,2],"3":[0,54.28,0,0,0,1],"2":[0,96.0,0,0,0,2],"1":[100.73,18.5,0,0,0,2]},"2026-05":{"30":[0,147.5,0,0,0,3],"24":[0,107.8,0,0,0,1],"20":[0,202.65,0,0,0,1],"16":[0,1189.89,0,0,0,5],"15":[250.0,3827.24,0,0,0,26],"11":[0,1950.0,0,0,0,3],"10":[2.4,167.73,0,0,0,3],"9":[0,22.5,0,0,0,1],"1":[123.58,0,0,0,0,1]},"2026-06":{"30":[0,20.0,0,0,0,2],"27":[0,17.0,0,0,0,1],"26":[0,12.0,0,0,0,1],"25":[0,15.0,0,0,0,1],"24":[0,23.5,0,0,0,2],"23":[0,12.0,0,0,0,1],"22":[0,12.0,0,0,0,1],"21":[0,27.59,0,0,0,2],"20":[0,209.65,0,0,0,2],"18":[50.0,88.5,0,0,0,5],"16":[0,865.47,0,0,0,3],"15":[0,4271.49,0,0,0,24],"11":[0,1200.0,0,0,0,3],"10":[3.0,158.68,0,0,0,3],"1":[151.71,0,0,0,0,1]},"2026-07":{"28":[100.0,118.0,0,0,0,3],"23":[0,12.0,0,0,0,1],"22":[0,70.0,0,0,0,1],"20":[0,214.65,0,0,0,2],"19":[0,6.1,0,0,0,1],"18":[0,31.0,0,0,0,2],"17":[0,12.0,0,0,0,1],"16":[0,38.77,0,0,0,5],"15":[67.5,3644.03,0,0,0,18],"13":[0,53.0,0,0,0,2],"11":[0,2135.0,0,0,0,4],"10":[3.0,226.36,0,0,0,6],"9":[0,12.0,0,0,0,1],"8":[0,12.0,0,0,0,1],"7":[0,78.1,0,0,0,1],"4":[0,63.0,0,0,0,2],"3":[750.0,6.0,0,0,0,2],"5":[100.0,0,0,0,0,1],"1":[161.89,0,0,0,0,1]},"2026-08":{"22":[0,40.97,0,0,0,1],"21":[0,154.9,0,0,0,2],"20":[0,337.53,0,0,0,5],"19":[0,7.5,0,0,0,1],"16":[0,736.65,0,0,0,2],"15":[0,4317.15,0,0,0,34],"14":[0,56.4,0,0,0,2],"11":[0,2200.0,0,0,0,3],"10":[6.0,162.23,0,0,0,4],"9":[20.0,80.0,0,0,0,4],"8":[349.78,304.59,0,0,0,8],"7":[160.0,86.5,0,0,0,3],"6":[0,346.57,0,0,0,6],"5":[255.3,134.8,0,0,0,5],"4":[311.5,721.13,0,0,0,9],"3":[0,187.06,0,0,0,3],"1":[230.77,201.89,0,0,0,4]},"2026-09":{"25":[0,21.26,0,0,0,2],"21":[0,64.05,0,0,0,2],"20":[0,202.65,0,0,0,1],"19":[0,43.9,0,0,0,1],"16":[0,912.86,0,0,0,4],"15":[200.0,6180.4,0,0,0,28],"12":[0,63.68,0,0,0,3],"11":[0,2000.0,0,0,0,3],"10":[506.0,139.13,0,0,0,4],"6":[0,82.2,0,0,0,2],"5":[0,67.0,0,0,0,1],"1":[271.64,0,0,0,0,1]},"2026-10":{"20":[0,0,0,202.65,2,1],"16":[0,892.18,0,0,0,4],"15":[200.0,2547.96,0,0,0,24],"12":[27.0,12.0,0,0,0,2],"11":[0,2300.0,0,200.0,2,3],"10":[500.0,148.57,6.0,0,2,4],"6":[0,36.0,0,0,0,1],"5":[0,66.99,0,0,0,2],"4":[0,46.0,0,0,0,1],"3":[0,30.24,0,0,0,1],"2":[0,11.61,0,0,0,1],"1":[85.85,0,0,0,0,1]},"2026-11":{"20":[0,0,0,202.65,1,1],"16":[0,0,0,749.6,1,3],"15":[140.0,0,60.0,1162.01,1,12],"11":[0,0,0,2000.0,1,3],"10":[500.0,0,6.0,124.38,1,4],"1":[0,0,85.85,0,1,1]},"2026-12":{"20":[0,0,0,202.65,1,1],"16":[0,0,0,736.65,1,2],"15":[0,0,0,1015.13,1,6],"11":[0,0,0,2000.0,1,3],"10":[0,0,506.0,124.38,1,4],"31":[500.0,0,3645.3,0,1,4],"1":[0,0,85.85,0,1,1]},"2027-01":{"20":[0,0,0,202.65,1,1],"16":[0,0,0,736.65,1,2],"15":[0,0,0,1015.13,1,6],"11":[0,0,0,2000.0,1,3],"10":[0,0,6.0,124.38,1,3],"1":[0,0,85.85,0,1,1]},"2027-02":{"20":[0,0,0,202.65,1,1],"16":[0,0,0,736.65,1,2],"15":[0,0,0,1015.13,1,6],"11":[0,0,0,2000.0,1,3],"10":[0,0,6.0,124.38,1,3],"1":[0,0,85.85,0,1,1]},"2027-03":{"20":[0,0,0,202.65,1,1],"16":[0,0,0,736.65,1,2],"15":[0,0,0,1015.13,1,6],"11":[0,0,0,2000.0,1,3],"10":[0,0,6.0,124.38,1,3],"1":[0,0,85.85,0,1,1]},"2027-04":{"20":[0,0,0,202.65,1,1],"16":[0,0,0,736.65,1,2],"15":[0,0,0,1015.13,1,6],"11":[0,0,0,2000.0,1,3],"10":[0,0,6.0,124.38,1,3],"1":[0,0,85.85,0,1,1]}};
+const KEYS = Object.keys(DATA).sort();
+const MN = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+const WD = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+const ref = KEYS.indexOf('2026-10');
+const PRE = [{id:'3',label:'Últimos 3 meses',a:ref-2,b:ref},{id:'6',label:'Últimos 6 meses',a:ref-5,b:ref},{id:'12',label:'Últimos 12 meses',a:ref-11,b:ref},{id:'f6',label:'Próximos 6 meses',a:ref+1,b:ref+6}];
+const pre = PRE.find(p => p.id === (s.pre || '12'));
+const ks = KEYS.slice(pre.a, pre.b + 1);
+const typ = s.typ || 'all';
+const heat = s.heat ?? true;
+const lab = (k) => MN[+k.slice(5) - 1] + '/' + k.slice(2, 4);
+const fmt = (v) => (v < 0 ? '−' : (v > 0 ? '+' : '')) + Math.abs(v).toLocaleString('pt-BR', {minimumFractionDigits: v % 1 ? 2 : 0, maximumFractionDigits: 2});
+const fmt2 = (v) => (v < 0 ? '−' : '') + Math.abs(v).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const val = (c) => { const r = c[0] + c[2], d = c[1] + c[3]; return typ === 'R' ? r : (typ === 'D' ? -d : r - d); };
+const relevant = (c) => typ === 'R' ? (c[0] + c[2]) > 0 : (typ === 'D' ? (c[1] + c[3]) > 0 : true);
+let maxAbs = 1;
+ks.forEach(k => Object.values(DATA[k]).forEach(c => { if (relevant(c)) maxAbs = Math.max(maxAbs, Math.abs(val(c))); }));
+const sel = s.sel || { k: '2026-10', d: 15 };
+const rows = [];
+for (let d = 1; d <= 31; d++) {
+rows.push({ d: String(d).padStart(2, '0'), cells: ks.map(k => {
+const y = +k.slice(0, 4), m = +k.slice(5) - 1;
+const nd = new Date(y, m + 1, 0).getDate();
+if (d > nd) return { td: 'na', has: false };
+const c = DATA[k][d];
+if (!c || !relevant(c)) return { td: '', has: false };
+const v = val(c);
+const st = c[4];
+const a = Math.min(1, Math.sqrt(Math.abs(v) / maxAbs)) * 0.38 + 0.05;
+const bg = heat && st !== 2 && v !== 0 ? 'background: rgba(var(' + (v > 0 ? '--in-rgb' : '--out-rgb') + '),' + a.toFixed(2) + ')' : '';
+const isSel = sel.k === k && sel.d === d;
+const isToday = k === '2026-10' && d === 28;
+return { td: '', has: true, v: fmt(v), bg,
+cls: (v > 0 ? 'pos ' : (v < 0 ? 'neg ' : 'zero ')) + (st === 2 ? 'late ' : (st === 1 ? 'pend ' : '')) + (isSel ? 'sel ' : '') + (isToday ? 'today' : ''),
+aria: d + ' de ' + lab(k) + ': resultado ' + fmt2(v) + ', ' + c[5] + ' lançamentos' + (st === 2 ? ', com atrasado' : (st === 1 ? ', com lançamento a vencer' : '')),
+pick: () => this.setState({ sel: { k, d } }) };
+}) });
+}
+const months = ks.map(k => {
+let r = 0, dd = 0, cnt = 0;
+Object.values(DATA[k]).forEach(c => { r += c[0] + c[2]; dd += c[1] + c[3]; cnt += c[5]; });
+const net = typ === 'R' ? r : (typ === 'D' ? -dd : r - dd);
+return { label: lab(k), cls: k === '2026-10' ? 'cur' : '', r: typ === 'D' ? '—' : fmt2(r), dd: typ === 'R' ? '—' : '−' + fmt2(dd), net: fmt(net), netCls: net >= 0 ? 'in' : 'out', cnt: String(cnt) };
+});
+const sc = (DATA[sel.k] || {})[sel.d] || [0, 0, 0, 0, 0, 0];
+const sy = +sel.k.slice(0, 4), sm = +sel.k.slice(5) - 1;
+const sNet = sc[0] + sc[2] - sc[1] - sc[3];
+const ST = ['Tudo pago', 'Tem lançamento a vencer', 'Tem lançamento atrasado'];
+return {
+themeClass: dark ? 'dark' : 'light', themeLabel: tLabel[tm], toggleTheme: () => this.setState({ mode: nextT[tm] }),
+periodLabel: lab(ks[0]) + ' – ' + lab(ks[ks.length - 1]) + ' (' + ks.length + ' meses)',
+presets: PRE.map(p => ({ label: p.label, cls: p.id === pre.id ? 'on' : '', pressed: p.id === pre.id ? 'true' : 'false', pick: () => this.setState({ pre: p.id }) })),
+fromLabel: lab(ks[0]), toLabel: lab(ks[ks.length - 1]),
+tAll: typ === 'all' ? 'on' : '', tR: typ === 'R' ? 'on' : '', tD: typ === 'D' ? 'on' : '',
+setAll: () => this.setState({ typ: 'all' }), setR: () => this.setState({ typ: 'R' }), setD: () => this.setState({ typ: 'D' }),
+heat, toggleHeat: () => this.setState({ heat: !heat }),
+months, rows,
+selWeek: WD[new Date(sy, sm, sel.d).getDay()], selDate: String(sel.d).padStart(2, '0') + '/' + sel.k.slice(5) + '/' + sel.k.slice(0, 4),
+selCount: String(sc[5]), selR: '+' + fmt2(sc[0] + sc[2]), selD: '−' + fmt2(sc[1] + sc[3]),
+selNet: (sNet >= 0 ? '+' : '') + fmt2(sNet), selNetCls: sNet >= 0 ? 'in' : 'out', selSt: sc[5] ? ST[sc[4]] : 'Sem movimento'
+};
+}
+}
+</script>
+</body>
+</html>

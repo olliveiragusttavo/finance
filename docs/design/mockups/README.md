@@ -71,6 +71,7 @@ Fonte: IBM Plex Sans.
 | DesktopVisaoGeral2 | **D2 Visão geral — versão atual (usar esta)**, 1920px, menu igual ao app implementado |
 | Main | D2 Visão geral — versão antiga, substituída por DesktopVisaoGeral2 |
 | DesktopTransacoes | D3 Transações (tabela densa + painel de edição) |
+| DesktopExtrato | Extrato: resultado de cada dia numa tabela dia × mês, com os filtros de Transações e período de vários meses (1920px) |
 | DesktopContas | Contas → extrato do mês |
 | DesktopCartoes | Cartões → fatura do mês |
 | DesktopMetas | D9 Metas |

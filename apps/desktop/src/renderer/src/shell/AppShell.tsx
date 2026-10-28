@@ -1,6 +1,6 @@
 import { Outlet, useLocation } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
-import { showsReferenceMonth } from './navigation.ts';
+import { showsPeriodRange, showsReferenceMonth } from './navigation.ts';
 import type { ShortcutAction } from './shortcuts.ts';
 import { Sidebar } from './Sidebar.tsx';
 import { TopBar } from './TopBar.tsx';
@@ -53,7 +53,7 @@ function ShellLayout(): ReactNode {
         <div className="flex h-full">
             <Sidebar />
             <div className="flex min-w-0 flex-1 flex-col">
-                <TopBar showMonth={showMonth} />
+                <TopBar showMonth={showMonth} showRange={showsPeriodRange(pathname)} />
                 {/* Só a tela rola, abaixo da barra: o cabeçalho fixo das listagens gruda no topo
                     desta área, e não por baixo da barra (desktop-mvp-plan Fase 13.3). A tela em
                     painéis (`PaneLayout`) não cresce com o conteúdo: ocupa a área, e cada painel

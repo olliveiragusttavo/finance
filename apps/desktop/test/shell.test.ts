@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isItemActive, MENU, menuFor, showsReferenceMonth, trailFor, type MenuItem } from '../src/renderer/src/shell/navigation.ts';
+import { isItemActive, MENU, menuFor, showsPeriodRange, showsReferenceMonth, trailFor, type MenuItem } from '../src/renderer/src/shell/navigation.ts';
 import { pickActiveProfile } from '../src/renderer/src/shell/pickActiveProfile.ts';
 import { currentPeriod, parseShellSearch, resolveReferenceMonth, shiftPeriod } from '../src/renderer/src/shell/referenceMonth.ts';
 import { shortcutFor, type KeyPress } from '../src/renderer/src/shell/shortcuts.ts';
@@ -22,6 +22,7 @@ describe('menu do shell (desktop-mvp-plan Fase 4)', () => {
         expect(MENU.map((item) => item.label)).toEqual([
             'Visão geral',
             'Transações',
+            'Extrato',
             'Calendário',
             'Contas',
             'Cartões',
@@ -53,12 +54,16 @@ describe('menu do shell (desktop-mvp-plan Fase 4)', () => {
         expect(isItemActive(menuItem('Relatórios'), '/reports/edit')).toBe(true);
     });
 
-    it('esconde o mês de referência só nos cadastros, em Dispositivos e Ajustes, e na importação dentro de Ajustes', () => {
+    it('esconde o mês de referência só no Extrato, nos cadastros, em Dispositivos e Ajustes, e na importação dentro de Ajustes', () => {
         const hidden = MENU.filter((item) => !showsReferenceMonth(item.to)).map((item) => item.label);
-        expect(hidden).toEqual(['Categorias', 'Sócios', 'Tags', 'Anotações', 'Perfis', 'Dispositivos', 'Ajustes']);
+        expect(hidden).toEqual(['Extrato', 'Categorias', 'Sócios', 'Tags', 'Anotações', 'Perfis', 'Dispositivos', 'Ajustes']);
         // O resultado ao vivo do editor depende do mês de referência.
         expect(showsReferenceMonth('/reports/edit')).toBe(true);
         expect(showsReferenceMonth('/settings/import')).toBe(false);
+    });
+
+    it('Regra de interface (mockup DesktopExtrato): no Extrato, a barra mostra o período no lugar do mês', () => {
+        expect(MENU.filter((item) => showsPeriodRange(item.to)).map((item) => item.label)).toEqual(['Extrato']);
     });
 
     it('mostra o caminho "Ajustes › Importar dados" no lugar do mês, com Ajustes marcado no menu', () => {
