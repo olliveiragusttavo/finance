@@ -6,7 +6,7 @@
  * duplicaria o mapa. `integrity.verifyBalances` também não tem: quem a chama é o shell na
  * abertura, não uma tela.
  */
-import type { CoreInput, CoreOutput, InvoiceResponse } from '@finance/core';
+import type { CoreInput, CoreOutput, InvoiceResponse, StatementResponse } from '@finance/core';
 import type { UseQueryResult } from '@tanstack/react-query';
 import type { CoreCallError } from '../errors/CoreCallError.ts';
 import type { ReadRoute } from '../queries/routes.ts';
@@ -206,6 +206,37 @@ export function useStatement(input: CoreInput<'statements.get'> | null): Query<'
     return useCoreQuery('statements.get', input);
 }
 
+/** Extratos de várias contas juntos, o primeiro erro e se alguma consulta ainda carrega. */
+export interface AccountsStatements {
+    readonly statements: readonly StatementResponse[];
+    readonly pending: boolean;
+    readonly error: CoreCallError | null;
+}
+
+/**
+ * Junta os extratos que já chegaram. Fica fora do hook para ser estável, o que mantém a
+ * identidade do resultado entre renders (`useCoreQueries`).
+ *
+ * @param results Uma consulta de `statements.get` por conta.
+ * @return Os extratos carregados, se algum ainda carrega e o primeiro erro.
+ */
+function joinStatements(results: readonly Query<'statements.get'>[]): AccountsStatements {
+    return {
+        statements: results.flatMap((result) => (result.data === undefined ? [] : [result.data])),
+        pending: results.some((result) => result.isPending),
+        error: results.find((result) => result.error !== null)?.error ?? null,
+    };
+}
+
+/**
+ * @param inputs Uma conta e o mês por consulta.
+ * @return Os extratos do mês das contas pedidas — o saldo do dia do Calendário soma os extratos
+ * das contas do total, e um hook por conta quebraria as regras dos hooks.
+ */
+export function useStatements(inputs: readonly CoreInput<'statements.get'>[]): AccountsStatements {
+    return useCoreQueries('statements.get', inputs, joinStatements);
+}
+
 /**
  * Faturas do perfil numa rota só, em vez de um `useStatement` por conta: a tabela agrupada de
  * Transações precisa das faturas de todas as contas, e a rota está no grupo `MONEY` de
@@ -333,4 +364,69 @@ export function useEntriesWithoutPartner(input: CoreInput<'reports.entriesWithou
  */
 export function useBalanceProjection(input: CoreInput<'reports.balanceProjection'> | null): Query<'reports.balanceProjection'> {
     return useCoreQuery('reports.balanceProjection', input);
+}
+
+/**
+ * @param input Perfil e mês de referência; `null` deixa a consulta parada.
+ * @return Gastos dos seis meses, entradas do mês e as maiores categorias da Visão geral.
+ */
+export function useOverviewSpending(input: CoreInput<'overview.spending'> | null): Query<'overview.spending'> {
+    return useCoreQuery('overview.spending', input);
+}
+
+/**
+ * @param input Perfil; `null` deixa a consulta parada.
+ * @return Os atrasados e o que ainda vence até o fim do mês de hoje, para o selo da Visão geral.
+ */
+export function useOverviewPending(input: CoreInput<'overview.pending'> | null): Query<'overview.pending'> {
+    return useCoreQuery('overview.pending', input);
+}
+
+/**
+ * @param input Perfil; `null` deixa a consulta parada.
+ * @return A próxima fatura em aberto de cada cartão.
+ */
+export function useNextInvoices(input: CoreInput<'overview.nextInvoices'> | null): Query<'overview.nextInvoices'> {
+    return useCoreQuery('overview.nextInvoices', input);
+}
+
+/** Uma leitura por mês do período, alinhadas com os meses pedidos. */
+export interface PeriodsQuery<T> {
+    /** Um resultado por mês, na ordem das entradas; `null` enquanto algum ainda carrega. */
+    readonly data: readonly T[] | null;
+    readonly error: CoreCallError | null;
+}
+
+/**
+ * Junta as consultas de cada mês só quando todas chegaram: o Extrato soma o período inteiro, e um
+ * mês faltando mostraria um total errado em vez de "carregando". Fica fora do hook para ser
+ * estável, o que mantém a identidade do resultado entre renders (`useCoreQueries`).
+ *
+ * @param results Uma consulta por mês.
+ * @return Os dados de todos os meses, ou `null` enquanto algum carrega, e o primeiro erro.
+ */
+function joinPeriods<T>(results: readonly UseQueryResult<T, CoreCallError>[]): PeriodsQuery<T> {
+    const data = results.flatMap((result) => (result.data === undefined ? [] : [result.data]));
+    return {
+        data: data.length === results.length ? data : null,
+        error: results.find((result) => result.error !== null)?.error ?? null,
+    };
+}
+
+/**
+ * @param inputs Perfil e mês por consulta, um por mês do período.
+ * @return As transações de cada mês pelo vencimento — o Extrato monta a tabela de Transações de
+ * cada mês, e um hook por mês quebraria as regras dos hooks.
+ */
+export function useTransactionsByPeriods(inputs: readonly CoreInput<'transactions.listByPeriod'>[]): PeriodsQuery<CoreOutput<'transactions.listByPeriod'>> {
+    return useCoreQueries('transactions.listByPeriod', inputs, joinPeriods<CoreOutput<'transactions.listByPeriod'>>);
+}
+
+/**
+ * @param inputs Perfil e mês por consulta, um por mês do período.
+ * @return As faturas que pesam em cada mês, para a linha da fatura na tabela agrupada de cada mês
+ * do Extrato.
+ */
+export function useProfileInvoicesByPeriods(inputs: readonly CoreInput<'statements.profileInvoices'>[]): PeriodsQuery<CoreOutput<'statements.profileInvoices'>> {
+    return useCoreQueries('statements.profileInvoices', inputs, joinPeriods<CoreOutput<'statements.profileInvoices'>>);
 }

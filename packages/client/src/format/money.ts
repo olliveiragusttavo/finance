@@ -33,6 +33,35 @@ export function formatMoney(money: MoneyResponse, sign: MoneySign = 'negative'):
 }
 
 /**
+ * Valor compacto para células estreitas, sem símbolo e sem os centavos quando são zero: `+500`,
+ * `−1.830`, `−66,50`. Existe para a tabela dia × mês do Extrato, onde doze colunas de
+ * `−R$ 1.830,00` não cabem na tela; o sinal continua sempre presente, porque a entrada e a saída
+ * não podem depender só da cor (decisão de interface 7 dos mockups). O arredondamento é o mesmo
+ * do `formatMoney`, para que a célula e o rodapé nunca discordem num centavo.
+ *
+ * @param money Valor como veio do núcleo.
+ * @return O texto compacto; o zero sai como `0`, sem sinal.
+ */
+export function formatMoneyCompact(money: MoneyResponse): string {
+    const { negative, digits } = splitAmount(money.amount, money.currency);
+    const trimmed = digits.replace(/,0+$/, '');
+    return `${signPrefix(negative, digits, 'always')}${trimmed}`;
+}
+
+/**
+ * Valor sem símbolo, com os centavos e só o `−` nos negativos: `9.500,00`, `−2.787,32`. É o dos
+ * totais no rodapé da tabela dia × mês do Extrato, onde a coluna já diz que é dinheiro e o
+ * símbolo em cada célula só tiraria espaço.
+ *
+ * @param money Valor como veio do núcleo.
+ * @return O texto sem símbolo.
+ */
+export function formatMoneyDigits(money: MoneyResponse): string {
+    const { negative, digits } = splitAmount(money.amount, money.currency);
+    return `${signPrefix(negative, digits, 'negative')}${digits}`;
+}
+
+/**
  * Valor para um campo de edição, sem símbolo: `1.234,56`, `-23,90`. O sinal é o hífen
  * comum, que o usuário digita no teclado e o `parseMoneyInput` lê de volta.
  *

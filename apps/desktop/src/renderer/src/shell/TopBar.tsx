@@ -1,8 +1,9 @@
-import { formatMonthLong } from '@finance/client';
-import { Link, useLocation } from '@tanstack/react-router';
+import { formatMonthLong, formatStatementRange, statementPeriods } from '@finance/client';
+import { Link, useLocation, useSearch } from '@tanstack/react-router';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
+import { parseStatementSearch, resolveStatementRange } from '@/statement/statementSearch';
 import { trailFor } from './navigation.ts';
 import { ThemeMenu } from './ThemeMenu.tsx';
 import { useTransactionPanel } from './TransactionPanel.tsx';
@@ -14,13 +15,14 @@ import { useReferenceMonth } from './useReferenceMonth.ts';
  *
  * @param props.showMonth Se a tela depende de período; nas telas de configuração o mês some e
  * a barra mantém só as ações — e, nas telas dentro de outra, o caminho até ela.
+ * @param props.showRange Se a tela tem um período de vários meses (Extrato), mostrado no lugar do mês.
  * @return A barra, acima da área que rola (`AppShell`).
  */
-export function TopBar({ showMonth }: { readonly showMonth: boolean }): ReactNode {
+export function TopBar({ showMonth, showRange }: { readonly showMonth: boolean; readonly showRange: boolean }): ReactNode {
     const panel = useTransactionPanel();
     return (
         <header className="flex shrink-0 items-center justify-between gap-4 border-b border-line bg-surface px-8 py-3">
-            {showMonth ? <MonthPicker /> : <Trail />}
+            {showMonth ? <MonthPicker /> : showRange ? <PeriodRange /> : <Trail />}
             <div className="flex items-center gap-2.5">
                 <ThemeMenu />
                 <Button onClick={panel.openNew} aria-keyshortcuts="N">
@@ -60,6 +62,26 @@ function Trail(): ReactNode {
                 </span>
             ))}
         </nav>
+    );
+}
+
+/**
+ * Período do Extrato (mockup `DesktopExtrato`): só o rótulo, porque o período se escolhe nos
+ * filtros da tela; a frase ao lado explica por que o ‹ mês › sumiu.
+ *
+ * @return O período aberto, lido da mesma URL que a tela lê.
+ */
+function PeriodRange(): ReactNode {
+    const search = useSearch({ strict: false, select: (raw: Readonly<Record<string, unknown>>) => parseStatementSearch(raw) });
+    const range = resolveStatementRange(search, new Date());
+    return (
+        <div className="flex items-center gap-2.5">
+            <span className="text-12 text-muted">Período</span>
+            <span data-testid="statement-period" className="text-14 font-semibold">
+                {formatStatementRange(statementPeriods(range.from, range.to))}
+            </span>
+            <span className="text-12 text-muted">· o mês de referência vira o período neste relatório</span>
+        </div>
     );
 }
 

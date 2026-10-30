@@ -10,6 +10,8 @@ import type { ProfileResponse } from '@finance/core';
 export type AppPath =
     | '/'
     | '/transactions'
+    | '/statement'
+    | '/calendar'
     | '/accounts'
     | '/cards'
     | '/reports'
@@ -46,6 +48,10 @@ export interface MenuItem {
 export const MENU: readonly MenuItem[] = [
     { label: 'Visão geral', to: '/', section: '/', businessOnly: false },
     { label: 'Transações', to: '/transactions', section: '/transactions', businessOnly: false },
+    // Entre Transações e Calendário, como no mockup `DesktopExtrato`: os mesmos lançamentos em vários meses.
+    { label: 'Extrato', to: '/statement', section: '/statement', businessOnly: false },
+    // Logo abaixo de Transações, como no mockup `DesktopCalendario`: são os mesmos lançamentos por dia.
+    { label: 'Calendário', to: '/calendar', section: '/calendar', businessOnly: false },
     { label: 'Contas', to: '/accounts', section: '/accounts', businessOnly: false },
     { label: 'Cartões', to: '/cards', section: '/cards', businessOnly: false },
     { label: 'Relatórios', to: '/reports', section: '/reports', businessOnly: false },
@@ -80,6 +86,13 @@ export function menuFor(profileType: ProfileResponse['type']): readonly MenuItem
  */
 const PATHS_WITHOUT_REFERENCE_MONTH: ReadonlySet<string> = new Set<AppPath>(['/categories', '/partners', '/tags', '/notes', '/profiles', '/devices', '/settings', '/settings/import']);
 
+/**
+ * Telas que mostram um período de vários meses no lugar do mês de referência. Regra de interface
+ * (mockup `DesktopExtrato`): no Extrato o mês de referência vira o período, escolhido nos filtros
+ * da própria tela, e a barra superior só o mostra — um ‹ › de um mês só não diria nada ali.
+ */
+const PATHS_WITH_PERIOD_RANGE: ReadonlySet<string> = new Set<AppPath>(['/statement']);
+
 /** Um passo do caminho "Ajustes › Importar dados"; o último não tem link. */
 export interface TrailStep {
     readonly label: string;
@@ -104,10 +117,19 @@ export function trailFor(pathname: string): readonly TrailStep[] {
 
 /**
  * @param pathname Caminho atual do roteador.
- * @return Se a barra superior mostra o mês de referência e se os atalhos `[` `]` valem.
+ * @return Se a barra superior mostra o mês de referência e se os atalhos `[` `]` valem; nas telas
+ * com período de vários meses, não.
  */
 export function showsReferenceMonth(pathname: string): boolean {
-    return !PATHS_WITHOUT_REFERENCE_MONTH.has(pathname);
+    return !PATHS_WITHOUT_REFERENCE_MONTH.has(pathname) && !PATHS_WITH_PERIOD_RANGE.has(pathname);
+}
+
+/**
+ * @param pathname Caminho atual do roteador.
+ * @return Se a barra superior mostra o período de vários meses da tela no lugar do mês.
+ */
+export function showsPeriodRange(pathname: string): boolean {
+    return PATHS_WITH_PERIOD_RANGE.has(pathname);
 }
 
 /**

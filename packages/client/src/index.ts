@@ -9,7 +9,7 @@ export { invalidatedBy, isRehearsalRoute, REHEARSAL_ROUTES, type RehearsalRoute 
 export { CoreClientProvider, useCoreClient } from './hooks/CoreClientContext.tsx';
 export { callOrThrow, createQueryClient, invalidateAfter, invalidateAllCoreQueries, useCoreMutation, useCoreQueries, useCoreQuery } from './hooks/coreHooks.ts';
 export * from './hooks/routeHooks.ts';
-export { formatMoney, formatMoneyForInput, MINUS, type MoneySign } from './format/money.ts';
+export { formatMoney, formatMoneyCompact, formatMoneyDigits, formatMoneyForInput, MINUS, type MoneySign } from './format/money.ts';
 export { formatDate, formatDayMonth, formatMonthAbbreviation, formatMonthLong, formatMonthShort } from './format/dates.ts';
 export { formatPercent } from './format/percent.ts';
 export { formatProfileSummary, formatProfileType } from './format/profile.ts';
@@ -29,6 +29,10 @@ export * from './viewModels/movementList.ts';
 export * from './viewModels/goalView.ts';
 export * from './viewModels/listViews.ts';
 export * from './viewModels/overviewView.ts';
+// Calendário do mês (mockup `DesktopCalendario`): receitas × despesas e saldo do dia.
+export * from './viewModels/calendarView.ts';
+// Extrato em vários meses (mockup `DesktopExtrato`): o resultado de cada dia numa tabela dia × mês.
+export * from './viewModels/dailyStatementView.ts';
 // Relatórios personalizados (reports-design): o editor e a visualização do resultado.
 export * from './viewModels/reportEditor.ts';
 export * from './viewModels/reportView.ts';

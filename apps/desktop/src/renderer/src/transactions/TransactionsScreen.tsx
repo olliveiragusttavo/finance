@@ -207,12 +207,13 @@ export function TransactionsScreen(): ReactNode {
  * Faturas em que caíram as compras no cartão do mês, para a situação "Na fatura"/"Fat. paga". Uma
  * consulta por cartão, a partir da fatura mais antiga que o mês usa — `invoices.listByCard` traz
  * dali em diante as que existem.
+ * Exportado porque o Calendário monta a mesma tabela agrupada e precisa da mesma situação das compras.
  *
  * @param transactions Lançamentos do mês; `undefined` enquanto carregam.
  * @return As faturas conhecidas, com identidade estável entre renders; enquanto carregam, a
  * tabela mostra as compras como "Na fatura", o caso conservador (`buildTransactionTable`).
  */
-function useMonthInvoices(transactions: readonly TransactionResponse[] | undefined): readonly InvoiceResponse[] {
+export function useMonthInvoices(transactions: readonly TransactionResponse[] | undefined): readonly InvoiceResponse[] {
     const inputs = useMemo(() => {
         const earliest = new Map<string, string>();
         for (const { container } of transactions ?? []) {
@@ -297,6 +298,53 @@ function FilterBar({
                     }}
                 />
             </label>
+            <TransactionFilterFields filters={filters} accounts={accounts} creditCards={creditCards} categories={categories} tags={tags} onChange={onChange} />
+            <p aria-live="polite" className="ml-auto pb-2 text-muted">
+                {summary === null ? (
+                    'Carregando…'
+                ) : result === undefined ? (
+                    count
+                ) : (
+                    <>
+                        {count} · resultado <span className="font-semibold text-ink tabular-nums">{result}</span>
+                    </>
+                )}
+            </p>
+        </div>
+    );
+}
+
+/**
+ * Os campos de cadastro da barra de filtros — conta ou cartão, categoria, tag e situação —, sem a
+ * busca nem a linha-resumo. Exportado porque o Extrato (mockup `DesktopExtrato`) filtra os mesmos
+ * lançamentos com os mesmos campos, e uma cópia deixaria as duas telas oferecendo opções
+ * diferentes para o mesmo filtro.
+ *
+ * @param props.filters Filtros atuais.
+ * @param props.accounts Contas do perfil.
+ * @param props.creditCards Cartões do perfil.
+ * @param props.categories Árvore de categorias.
+ * @param props.tags Tags do perfil.
+ * @param props.onChange Recebe os filtros novos.
+ * @return Os campos, lado a lado no contêiner de quem chama.
+ */
+export function TransactionFilterFields({
+    filters,
+    accounts,
+    creditCards,
+    categories,
+    tags,
+    onChange,
+}: {
+    readonly filters: TransactionFilters;
+    readonly accounts: readonly AccountInPeriodResponse[];
+    readonly creditCards: readonly CreditCardInPeriodResponse[];
+    readonly categories: readonly CategoryBranchResponse[];
+    readonly tags: readonly TagResponse[];
+    readonly onChange: (filters: TransactionFilters) => void;
+}): ReactNode {
+    return (
+        <>
             <FilterCombobox
                 label="Conta ou cartão"
                 width="w-43"
@@ -357,18 +405,7 @@ function FilterBar({
                     </SelectItem>
                 ))}
             </FilterSelect>
-            <p aria-live="polite" className="ml-auto pb-2 text-muted">
-                {summary === null ? (
-                    'Carregando…'
-                ) : result === undefined ? (
-                    count
-                ) : (
-                    <>
-                        {count} · resultado <span className="font-semibold text-ink tabular-nums">{result}</span>
-                    </>
-                )}
-            </p>
-        </div>
+        </>
     );
 }
 

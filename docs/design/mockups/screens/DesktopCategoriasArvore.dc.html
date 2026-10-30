@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Cadastros — categorias em árvore</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+.light{--bg:#F4F5F2;--surface:#FFFFFF;--surface2:#FAFAF8;--line:#DDE1DC;--line2:#EEF0EC;--ink:#1B1F1D;--ink2:#3D4541;--muted:#5A625E;--accent:#1F5F8B;--on-accent:#FFFFFF;--soft:#E6EEF4;--soft-ink:#163F5C;--track:#EEF0EC;--danger:#9B2C1F;--dot:#2E7D5B;--out:#A04A12;--in:#1F5F8B}
+.dark{--bg:#111413;--surface:#1A1E1C;--surface2:#151917;--line:#2E3431;--line2:#242926;--ink:#E7EAE7;--ink2:#C3C9C5;--muted:#9AA29E;--accent:#6AAAD8;--on-accent:#0B1A24;--soft:#1D3040;--soft-ink:#B5D7F0;--track:#2A302D;--danger:#F08A7A;--dot:#5BC08F;--out:#E89A63;--in:#7DB8E2}
+a{color:var(--accent);text-decoration:none}a:hover{color:var(--soft-ink)}
+.n{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+button,input{font:inherit;color:inherit}button{cursor:pointer}
+.app{min-height:100vh;display:flex;font-family:'IBM Plex Sans',system-ui,sans-serif;color:var(--ink);background:var(--bg)}
+.side{width:232px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:20px 14px;gap:20px;box-sizing:border-box}
+.brand{font-weight:600;font-size:17px;padding:0 8px}
+.prof{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-size:14px;text-align:left}
+.nav{display:flex;flex-direction:column;gap:2px;font-size:14px}
+.nav a{padding:9px 12px;border-radius:6px;color:var(--ink)}
+.nav a.on{background:var(--soft);color:var(--soft-ink);font-weight:500}
+.sync{margin-top:auto;padding:12px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.dotl{display:flex;align-items:center;gap:6px;color:var(--ink)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--dot);flex-shrink:0}
+.col{flex-grow:1;min-width:0;display:flex;flex-direction:column}
+.top{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 32px;background:var(--surface);border-bottom:1px solid var(--line)}
+.row{display:flex;align-items:center;gap:10px}
+.month{display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.month button{border:0;background:none;padding:8px 12px}
+.month span{font-size:14px;font-weight:600;min-width:150px;text-align:center}
+.link{border:0;background:none;color:var(--accent);font-size:13px;padding:8px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 12px;font-size:13px;display:inline-flex;align-items:center;gap:6px;color:var(--ink)}
+.btn-p{border:0;border-radius:8px;background:var(--accent);color:var(--on-accent);padding:9px 16px;font-size:14px;font-weight:500}
+h1{margin:0;font-size:20px;font-weight:600}
+h2{margin:0;font-size:22px;font-weight:600}
+.sm{font-size:12px;color:var(--muted)}
+.muted{color:var(--muted)}
+.stack{display:flex;flex-direction:column}
+.split{display:flex;flex-grow:1;min-height:0}
+.pane{width:220px;flex-shrink:0;border-right:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column}
+.panehd{padding:20px 20px 12px}
+.li{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 20px;border-top:1px solid var(--line2);color:var(--ink);font-size:14px}
+.li.on{background:var(--soft);box-shadow:inset 3px 0 0 var(--accent);font-weight:600}
+main{padding:24px 32px;display:flex;flex-direction:column;gap:16px;min-width:0;flex-grow:1}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.clip{overflow:hidden}
+.search{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:0 10px;width:320px}
+.search input{border:0;outline:0;background:none;height:36px;flex-grow:1;font-size:14px}
+.t{display:grid;grid-template-columns:minmax(0,2.6fr) 110px 130px 96px;gap:12px;padding:0 16px;min-height:40px;border-bottom:1px solid var(--line2);font-size:14px;align-items:center}
+.th{color:var(--muted);font-size:12px;background:var(--surface2);border-bottom:1px solid var(--line);min-height:36px}
+.cat{background:var(--surface)}
+.cat .nm{font-weight:600}
+.sub{background:var(--surface2)}
+.sub .nm{padding-left:34px}
+.sub.match{background:var(--soft)}
+.tg{display:flex;align-items:center;gap:8px;border:0;background:none;padding:8px 0;text-align:left;min-width:0;width:100%}
+.chev{width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;color:var(--muted);transition:transform .15s}
+.chev.open{transform:rotate(90deg)}
+.peek{font-size:12px;color:var(--muted);font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cnt{font-size:11px;border-radius:999px;padding:1px 7px;background:var(--track);color:var(--ink2);font-weight:500;flex-shrink:0}
+.r{text-align:right}
+.ic{width:30px;height:30px;border:0;background:none;border-radius:6px;color:var(--muted);display:inline-flex;align-items:center;justify-content:center}
+.ic:hover{background:var(--track);color:var(--ink)}
+.out{color:var(--out)}.in{color:var(--in)}
+.add{display:flex;gap:8px;padding:6px 16px 8px 50px;background:var(--surface2);border-bottom:1px solid var(--line2)}
+.add input{border:1px dashed var(--line);border-radius:6px;background:var(--surface);padding:5px 8px;font-size:13px;width:280px}
+</style>
+</helmet>
+<div class="app {{themeClass}}">
+<nav aria-label="Navegação principal" class="side">
+<div class="brand">Finanças</div>
+<button type="button" class="prof"><span class="stack" style="gap: 2px"><span style="font-weight: 500">Gustavo</span><span class="sm">Pessoal · BRL</span></span><span aria-hidden="true">▾</span></button>
+<div class="nav">
+<a href="Main.dc.html">Visão geral</a>
+<a href="DesktopTransacoes.dc.html">Transações</a>
+<a href="DesktopContas.dc.html">Contas</a>
+<a href="DesktopCartoes.dc.html">Cartões</a>
+<a href="DesktopRelCategoria.dc.html">Relatórios</a>
+<a href="DesktopMetas.dc.html">Metas</a>
+<a href="DesktopCadastros.dc.html" class="on" aria-current="page">Cadastros</a>
+<a href="DesktopDispositivos.dc.html">Dispositivos</a>
+<a href="DesktopAjustes.dc.html">Ajustes</a>
+</div>
+<div class="sync"><span class="dotl"><span class="dot" aria-hidden="true"></span>Sincronizado com iPhone de Gustavo · agora</span><span>Dados só neste aparelho e nos seus dispositivos pareados</span></div>
+</nav>
+<div class="col">
+<div class="top">
+<div class="row"><span class="sm">Mês de referência</span><div class="month"><button type="button" aria-label="Mês anterior" onClick="{{prevMonth}}">‹</button><span>{{monthLabel}}</span><button type="button" aria-label="Próximo mês" onClick="{{nextMonth}}">›</button></div><sc-if value="{{notCurrent}}" hint-placeholder-val="{{ false }}"><button type="button" class="link" onClick="{{goToday}}">Voltar ao mês atual</button></sc-if></div>
+<div class="row"><button type="button" class="btn" onClick="{{toggleTheme}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/></svg>{{themeLabel}}</button><button type="button" class="btn-p">+ Lançamento</button></div>
+</div>
+<div class="split">
+<section class="pane" aria-label="Tipos de cadastro">
+<div class="panehd"><h1>Cadastros</h1></div>
+<a href="DesktopContas.dc.html" class="li"><span>Contas</span><span class="sm">4</span></a>
+<a href="DesktopCartoes.dc.html" class="li"><span>Cartões</span><span class="sm">2</span></a>
+<a href="DesktopCategoriasArvore.dc.html" class="li on" aria-current="true"><span>Categorias</span><span class="sm">11 · 50 sub</span></a>
+<a href="DesktopTags.dc.html" class="li"><span>Tags</span><span class="sm">3</span></a>
+<a href="#" class="li"><span>Perfis</span><span class="sm">2</span></a>
+<a href="DesktopAnotacoes.dc.html" class="li"><span>Anotações</span><span class="sm">2</span></a>
+</section>
+<main>
+<div class="row" style="justify-content: space-between; align-items: flex-end">
+<div class="stack" style="gap: 4px"><h2>Categorias</h2><span class="sm">Toda transação aponta para uma subcategoria</span></div>
+<button type="button" class="btn-p">+ Nova categoria</button>
+</div>
+<div class="row" style="justify-content: space-between">
+<label class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="color: var(--muted)"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><span style="position: absolute; left: -9999px">Buscar</span><input type="text" placeholder="Buscar categoria ou subcategoria" value="{{q}}" onChange="{{setQ}}"></label>
+<div class="row" style="gap: 8px"><span class="sm n">{{info}}</span><button type="button" class="btn" onClick="{{expandAll}}">Expandir tudo</button><button type="button" class="btn" onClick="{{collapseAll}}">Recolher tudo</button></div>
+</div>
+<section class="card clip" role="treegrid" aria-label="Categorias e subcategorias">
+<div class="t th" role="row"><span>Categoria › subcategoria</span><span class="r">Lançamentos</span><span class="r">Total em {{monthShort}}</span><span></span></div>
+<sc-for list="{{tree}}" as="c" hint-placeholder-count="11">
+<div class="t cat" role="row" aria-expanded="{{c.expanded}}">
+<button type="button" class="tg" onClick="{{c.toggle}}"><span class="chev {{c.chevCls}}" aria-hidden="true">›</span><span class="nm">{{c.name}}</span><span class="cnt n">{{c.subCount}}</span><sc-if value="{{c.closed}}" hint-placeholder-val="{{ true }}"><span class="peek">{{c.peek}}</span></sc-if></button>
+<span class="r n">{{c.lanc}}</span>
+<span class="r n {{c.vc}}" style="font-weight: 600">{{c.total}}</span>
+<span class="row" style="gap: 0; justify-content: flex-end"><button type="button" class="ic" aria-label="{{c.renAria}}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></button><button type="button" class="ic" aria-label="{{c.moreAria}}">⋯</button></span>
+</div>
+<sc-if value="{{c.open}}" hint-placeholder-val="{{ false }}">
+<sc-for list="{{c.subs}}" as="s" hint-placeholder-count="4">
+<div class="t sub {{s.cls}}" role="row">
+<span class="nm">{{s.name}}</span>
+<span class="r n">{{s.n}}</span>
+<span class="r n {{s.vc}}">{{s.total}}</span>
+<span class="row" style="gap: 0; justify-content: flex-end"><button type="button" class="ic" aria-label="{{s.renAria}}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></button><button type="button" class="ic" aria-label="{{s.moreAria}}">⋯</button></span>
+</div>
+</sc-for>
+<div class="add"><label><span style="position: absolute; left: -9999px">Nova subcategoria em {{c.name}}</span><input type="text" maxlength="45" placeholder="+ Nova subcategoria em {{c.name}}"></label></div>
+</sc-if>
+</sc-for>
+</section>
+<span class="sm">“⋯” abre: mover para outra categoria, excluir. Recolhida, a linha mostra as subcategorias em texto, sem ocupar altura.</span>
+</main>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":true},"$preview":{"width":1440,"height":1300}}'>
+class Component extends DCLogic {
+renderVals() {
+const s = this.state || {};
+const M = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const base = 2026 * 12 + 9;
+const idx = s.idx ?? base;
+const dark = s.dark ?? (this.props.dark ?? true);
+const DATA = {"Alimentação":[["Almoço",100,1500],["Café da manhã/Lanche",91,48],["Outros",25,67]],"Base1":[["Consultoria",3,0],["Contabilidade",55,200],["Serviços",5,45.95]],"Carro":[["Combustível",42,200],["Estacionamento",9,0],["Manutenção",32,335.95],["Outros",5,0],["Seguro",72,202.65]],"Compras":[["Eletrônicos",73,178],["Jogos",14,11.61],["Mangá",2,0],["Móveis",15,0],["Outros",45,1286.55],["Presente",42,533.33]],"Empresa":[["INSS",72,178.31],["Impostos",73,540],["Outros",2,0],["Serviços",80,326.4]],"Família":[["Anim. estimação",25,0],["Outros",4,0]],"Moradia":[["Fixas",216,948.57],["Manutenção",13,44],["Mercado",68,226.15],["Outros",8,0]],"Outros":[["Ajuste",11,0],["Empréstimo",15,0],["Estorno",17,-39.41],["Outros",7,0],["Pagamentos",8,0],["Taxas",9,0],["Uber",3,0]],"Pessoal":[["Barbearia",15,45],["Lazer",116,189.57],["Outros",5,0],["Saúde",7,0],["Terapia",12,0],["Vestuário",29,37.13]],"Serviços":[["Academia",94,379.9],["Anuais",4,0],["Assinaturas",221,151.8],["Família",63,30],["Outros",2,0]],"Viagem":[["Alimentação",20,0],["Hospedagem",4,0],["Lazer",12,0],["Outros",8,0],["Transporte",17,0]]};
+const names = Object.keys(DATA).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+const q = s.q || '';
+const norm = (t) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const nq = norm(q.trim());
+const open = s.open || { 'Compras': true, 'Família': true };
+const fmtN = (v) => v.toLocaleString('pt-BR');
+const brl = (v) => v === 0 ? '—' : (v < 0 ? '+R$ ' : '−R$ ') + Math.abs(v).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const vc = (v) => v > 0 ? 'out' : (v < 0 ? 'in' : 'muted');
+const visible = names.filter(c => !nq || norm(c).indexOf(nq) >= 0 || DATA[c].some(x => norm(x[0]).indexOf(nq) >= 0));
+const tree = visible.map(c => {
+const isOpen = nq ? true : !!open[c];
+const tot = DATA[c].reduce((t, x) => t + x[2], 0);
+return {
+name: c, subCount: DATA[c].length, open: isOpen, closed: !isOpen, expanded: isOpen ? 'true' : 'false', chevCls: isOpen ? 'open' : '',
+peek: DATA[c].map(x => x[0]).join(' · '),
+lanc: fmtN(DATA[c].reduce((t, x) => t + x[1], 0)), total: brl(tot), vc: vc(tot),
+toggle: () => this.setState({ open: Object.assign({}, open, { [c]: !open[c] }) }),
+renAria: 'Renomear ' + c, moreAria: 'Mais ações para ' + c,
+subs: DATA[c].map(x => ({ name: x[0], n: fmtN(x[1]), total: brl(x[2]), vc: vc(x[2]),
+cls: nq && norm(x[0]).indexOf(nq) >= 0 ? 'match' : '', renAria: 'Renomear ' + x[0], moreAria: 'Mais ações para ' + x[0] }))
+};
+});
+const allOpen = {}; names.forEach(c => { allOpen[c] = true; });
+return {
+themeClass: dark ? 'dark' : 'light',
+themeLabel: dark ? 'Tema claro' : 'Tema escuro',
+toggleTheme: () => this.setState({ dark: !dark }),
+monthLabel: M[idx % 12] + ' de ' + Math.floor(idx / 12),
+monthShort: M[idx % 12].slice(0, 3).toLowerCase() + '/' + Math.floor(idx / 12),
+prevMonth: () => this.setState({ idx: idx - 1 }),
+nextMonth: () => this.setState({ idx: idx + 1 }),
+goToday: () => this.setState({ idx: base }),
+notCurrent: idx !== base,
+q, setQ: (e) => this.setState({ q: e.target.value }),
+info: nq ? visible.length + ' de 11 categorias' : '11 categorias · 50 subcategorias',
+expandAll: () => this.setState({ open: allOpen }),
+collapseAll: () => this.setState({ open: {} }),
+tree
+};
+}
+}
+</script>
+</body>
+</html>

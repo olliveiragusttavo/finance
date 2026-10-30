@@ -4,6 +4,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AccountsScreen } from './accounts/AccountsScreen.tsx';
 import { parseAccountsSearch, type AccountsSearch } from './accounts/accountsSearch.ts';
+import { CalendarScreen } from './calendar/CalendarScreen.tsx';
 import { CardsScreen } from './cards/CardsScreen.tsx';
 import { parseCardsSearch, type CardsSearch } from './cards/cardsSearch.ts';
 import { CategoriesScreen } from './categories/CategoriesScreen.tsx';
@@ -21,6 +22,8 @@ import { parseReportEditorSearch, parseReportsSearch, type ReportsSearch } from 
 import { blankScreen } from './screens/BlankScreen.tsx';
 import { ImportScreen } from './import/ImportScreen.tsx';
 import { SettingsScreen } from './settings/SettingsScreen.tsx';
+import { StatementScreen } from './statement/StatementScreen.tsx';
+import { parseStatementSearch, type StatementSearch } from './statement/statementSearch.ts';
 import { AppShell } from './shell/AppShell.tsx';
 import { TagsScreen } from './tags/TagsScreen.tsx';
 import { TransactionsScreen } from './transactions/TransactionsScreen.tsx';
@@ -73,6 +76,15 @@ const routeTree = rootRoute.addChildren([
             component: TransactionsScreen,
             validateSearch: (search: Record<string, unknown>): TransactionsSearch => parseTransactionsSearch(search),
         }),
+        // Extrato em vários meses, dia × mês (mockup `DesktopExtrato`), fora do plano do MVP.
+        createRoute({
+            getParentRoute: () => shellRoute,
+            path: '/statement' satisfies AppPath,
+            component: StatementScreen,
+            validateSearch: (search: Record<string, unknown>): StatementSearch => parseStatementSearch(search),
+        }),
+        // Calendário do mês (mockup `DesktopCalendario`), fora do plano do MVP.
+        createRoute({ getParentRoute: () => shellRoute, path: '/calendar' satisfies AppPath, component: CalendarScreen }),
         createRoute({
             getParentRoute: () => shellRoute,
             path: '/accounts' satisfies AppPath,

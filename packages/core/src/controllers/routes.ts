@@ -17,6 +17,7 @@ import type { OnboardingResponse } from '../dto/onboarding/OnboardingResponse.ts
 import type { ProfileBalancesResponse } from '../dto/profiles/ProfileBalancesResponse.ts';
 import type { ProfileResponse } from '../dto/profiles/ProfileResponse.ts';
 import type { NoteResponse } from '../dto/notes/NoteResponse.ts';
+import type { OverviewNextInvoicesResponse, OverviewPendingResponse, OverviewSpendingResponse } from '../dto/overview/OverviewResponse.ts';
 import type { BalanceProjectionResponse } from '../dto/reports/BalanceProjectionResponse.ts';
 import type { EntriesWithoutPartnerResponse, PartnerReportResponse } from '../dto/reports/PartnerReportResponse.ts';
 import type { ReportDefinitionResponse } from '../dto/reports/ReportDefinitionResponse.ts';
@@ -56,6 +57,7 @@ import type {
     updateReportRequest,
 } from '../requests/reportRequests.ts';
 import type { balanceProjectionRequest, entriesWithoutPartnerRequest, partnerReportRequest } from '../requests/fixedReportRequests.ts';
+import type { overviewProfileRequest, overviewSpendingRequest } from '../requests/overviewRequests.ts';
 import type {
     listRecurrencesRequest,
     planCreateRequest,
@@ -165,6 +167,9 @@ export interface CoreRoutes {
     'reports.byPartner': { input: z.input<typeof partnerReportRequest>; output: PartnerReportResponse };
     'reports.entriesWithoutPartner': { input: z.input<typeof entriesWithoutPartnerRequest>; output: EntriesWithoutPartnerResponse };
     'reports.balanceProjection': { input: z.input<typeof balanceProjectionRequest>; output: BalanceProjectionResponse };
+    'overview.spending': { input: z.input<typeof overviewSpendingRequest>; output: OverviewSpendingResponse };
+    'overview.pending': { input: z.input<typeof overviewProfileRequest>; output: OverviewPendingResponse };
+    'overview.nextInvoices': { input: z.input<typeof overviewProfileRequest>; output: OverviewNextInvoicesResponse };
     'imports.run': { input: z.input<typeof runImportRequest>; output: ImportResponse };
 }
 
