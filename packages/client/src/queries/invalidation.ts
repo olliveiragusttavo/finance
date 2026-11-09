@@ -28,6 +28,8 @@ const CATEGORY_NAMES: readonly ReadRoute[] = ['categories.tree', 'overview.spend
 const TRANSACTION_CONTENT: readonly ReadRoute[] = [
     'transactions.get',
     'transactions.listByPeriod',
+    // A subcategoria que o autocomplete do "Nome" copia de cada nome.
+    'transactions.nameSuggestions',
     'statements.get',
     'invoices.get',
     'recurrences.occurrences',
@@ -77,6 +79,8 @@ const MONEY: readonly ReadRoute[] = [
     'categories.tree',
     'transactions.get',
     'transactions.listByPeriod',
+    // Os nomes já lançados, com a categoria e a origem do mais recente de cada um.
+    'transactions.nameSuggestions',
     'statements.get',
     // As faturas do mês mudam com as compras, os pagamentos e o cadastro de contas e cartões.
     'statements.profileInvoices',
@@ -102,6 +106,13 @@ const MONEY: readonly ReadRoute[] = [
     'recurrences.preview',
 ];
 
+/**
+ * O cadastro de contas e cartões, mais a lista de perfis: a conta e o cartão padrão do perfil só
+ * valem ativos e vivos (database-design §4.1), então desativar, reativar e excluir mudam o padrão
+ * que o perfil devolve.
+ */
+const SOURCE_REGISTRY: readonly ReadRoute[] = ['profiles.list', ...MONEY];
+
 /** Toda leitura do núcleo; para escritas que mudam o perfil (moeda) ou criam um perfil novo. */
 const EVERYTHING: readonly ReadRoute[] = ['profiles.list', 'notes.list', ...MONEY];
 
@@ -117,17 +128,20 @@ const INVALIDATIONS: Readonly<Record<WriteRoute, readonly ReadRoute[]>> = {
     'profiles.create': ['profiles.list'],
     // A moeda do perfil está em todo valor devolvido.
     'profiles.update': EVERYTHING,
+    // O padrão do atalho "Débito / Crédito" só muda o perfil.
+    'profiles.setDefaultAccount': ['profiles.list'],
+    'profiles.setDefaultCreditCard': ['profiles.list'],
     'onboarding.start': EVERYTHING,
     'accounts.create': MONEY,
     'accounts.update': MONEY,
-    'accounts.disable': MONEY,
-    'accounts.enable': MONEY,
-    'accounts.delete': MONEY,
+    'accounts.disable': SOURCE_REGISTRY,
+    'accounts.enable': SOURCE_REGISTRY,
+    'accounts.delete': SOURCE_REGISTRY,
     'creditCards.create': MONEY,
     'creditCards.update': MONEY,
-    'creditCards.disable': MONEY,
-    'creditCards.enable': MONEY,
-    'creditCards.delete': MONEY,
+    'creditCards.disable': SOURCE_REGISTRY,
+    'creditCards.enable': SOURCE_REGISTRY,
+    'creditCards.delete': SOURCE_REGISTRY,
     'categories.create': CATEGORY_NAMES,
     'categories.update': CATEGORY_NAMES,
     'categories.delete': [...CATEGORY_NAMES, ...TRANSACTION_CONTENT],

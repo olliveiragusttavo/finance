@@ -1,7 +1,7 @@
 import { toOnboardingResponse, type OnboardingResponse } from '../dto/onboarding/OnboardingResponse.ts';
 import { toProfileResponse, type ProfileResponse } from '../dto/profiles/ProfileResponse.ts';
 import { startOnboardingRequest } from '../requests/onboardingRequests.ts';
-import { createProfileRequest, listProfilesRequest, updateProfileRequest } from '../requests/profileRequests.ts';
+import { createProfileRequest, listProfilesRequest, setDefaultAccountRequest, setDefaultCreditCardRequest, updateProfileRequest } from '../requests/profileRequests.ts';
 import type { OnboardingService } from '../services/onboarding/OnboardingService.ts';
 import type { ProfileService } from '../services/profile/ProfileService.ts';
 import { handle, type CoreResult, type UnexpectedErrorListener } from './CoreResult.ts';
@@ -44,6 +44,22 @@ export class ProfileController {
      */
     public update(raw: unknown): Promise<CoreResult<ProfileResponse>> {
         return handle(updateProfileRequest, raw, (command) => toProfileResponse(this.profiles.update(command)), this.onUnexpected);
+    }
+
+    /**
+     * @param raw Entrada com o perfil e a conta padrão (ou `null`).
+     * @return O perfil com a conta padrão nova.
+     */
+    public setDefaultAccount(raw: unknown): Promise<CoreResult<ProfileResponse>> {
+        return handle(setDefaultAccountRequest, raw, (command) => toProfileResponse(this.profiles.setDefaultAccount(command)), this.onUnexpected);
+    }
+
+    /**
+     * @param raw Entrada com o perfil e o cartão padrão (ou `null`).
+     * @return O perfil com o cartão padrão novo.
+     */
+    public setDefaultCreditCard(raw: unknown): Promise<CoreResult<ProfileResponse>> {
+        return handle(setDefaultCreditCardRequest, raw, (command) => toProfileResponse(this.profiles.setDefaultCreditCard(command)), this.onUnexpected);
     }
 
     /**

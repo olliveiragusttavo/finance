@@ -17,6 +17,7 @@ import {
 import { LocalDate } from '../../domain/shared/LocalDate.ts';
 import { Money } from '../../domain/shared/Money.ts';
 import { YearMonth } from '../../domain/shared/YearMonth.ts';
+import { nameSuggestionKey, type SuggestedSource, type TransactionNameSuggestion } from '../../domain/transaction/NameSuggestion.ts';
 import { Transaction } from '../../domain/transaction/Transaction.ts';
 import type { TransactionContainer } from '../../domain/transaction/TransactionContainer.ts';
 import { parseTimestamp, type Clock, type Timestamp } from '../../ports/Clock.ts';
@@ -327,6 +328,36 @@ export class SqliteTransactionRepository implements TransactionRepository {
     }
 
     /**
+     * A ordem é a do cadastro (`created_at`), e não a do vencimento, porque a série cria as
+     * ocorrências futuras de uma vez: pelo vencimento, a parcela de daqui a um ano seria a
+     * "mais recente" e esconderia a mudança feita no lançamento de hoje. O `created_at` tem
+     * resolução de segundos; no empate, desempata a ordem de inserção (`rowid`).
+     * A junção das grafias fica em `foldNameSuggestions`, e não num `PARTITION BY lower(...)`,
+     * porque o `lower()` do SQLite só trata ASCII; por isso o `limit` vale depois da junção.
+     *
+     * @param profileId Perfil consultado.
+     * @param limit Quantos nomes devolver, no máximo.
+     * @return Um item por nome (sem diferenciar acento e maiúscula) e tipo, do mais recente para o mais antigo.
+     */
+    public listNameSuggestions(profileId: ProfileId, limit: number): readonly TransactionNameSuggestion[] {
+        const rows = this.database.all(
+            `SELECT t.name, t.type, t.sub_category_id, bs.account_id, i.credit_card_id
+            FROM transactions t
+            LEFT JOIN bank_statements bs ON bs.id = t.bank_statement_id AND bs.deleted_at IS NULL
+            LEFT JOIN accounts a ON a.id = bs.account_id
+            LEFT JOIN invoices i ON i.id = t.invoice_id AND i.deleted_at IS NULL
+            LEFT JOIN credit_cards c ON c.id = i.credit_card_id
+            WHERE t.deleted_at IS NULL AND COALESCE(a.profile_id, c.profile_id) = :profileId
+            ORDER BY t.created_at DESC, t.rowid DESC`,
+            { profileId },
+        );
+        return foldNameSuggestions(
+            rows.map((row) => new RowReader('transactions', row)),
+            limit,
+        );
+    }
+
+    /**
      * @param row Linha do `SELECT_TRANSACTION`.
      * @return A transação de domínio.
      * @throws {CorruptRowError} Quando `paid` e `payment_date` discordam ou o arco exclusivo
@@ -402,6 +433,53 @@ export class SqliteTransactionRepository implements TransactionRepository {
         }
         throw new CorruptRowError('transactions', `transação ${reader.text('id')} fora de exatamente um contêiner`);
     }
+}
+
+/**
+ * @param reader Leitor de uma linha de `listNameSuggestions`.
+ * @return A conta ou o cartão do lançamento.
+ * @throws {CorruptRowError} Quando a linha não tem conta nem cartão — o arco exclusivo quebrado
+ * que a verificação de integridade procura (database-design §4.13).
+ */
+function suggestedSourceOf(reader: RowReader): SuggestedSource {
+    const accountId = reader.nullableText('account_id');
+    if (accountId !== null) {
+        return { kind: 'account', accountId: AccountId(accountId) };
+    }
+    const creditCardId = reader.nullableText('credit_card_id');
+    if (creditCardId !== null) {
+        return { kind: 'creditCard', creditCardId: CreditCardId(creditCardId) };
+    }
+    throw new CorruptRowError('transactions', 'sugestão de nome sem conta nem cartão');
+}
+
+/**
+ * Junta os lançamentos do mesmo nome (pela `nameSuggestionKey`) e tipo numa sugestão só. A
+ * primeira linha de cada grupo é a cadastrada mais recentemente, porque a consulta já vem
+ * ordenada, e é ela que fornece grafia, categoria e origem.
+ * Regra de negócio (Lançamentos, desktop-mvp-plan Fase 15.2): vale o lançamento cadastrado mais
+ * recente com esse nome, qualquer que seja a grafia.
+ *
+ * @param readers Linhas dos lançamentos vivos do perfil, do cadastro mais recente para o mais antigo.
+ * @param limit Quantos nomes devolver, contados depois da junção.
+ * @return Um item por nome e tipo, com `uses` somando todas as grafias.
+ * @throws {CorruptRowError} Quando uma linha não tem conta nem cartão (`suggestedSourceOf`).
+ */
+function foldNameSuggestions(readers: readonly RowReader[], limit: number): readonly TransactionNameSuggestion[] {
+    const groups = new Map<string, TransactionNameSuggestion>();
+    for (const reader of readers) {
+        const type = decodeEnum(TRANSACTION_TYPE_CODE, reader.number('type'), 'transactions');
+        const name = reader.text('name');
+        const key = `${type}\u0000${nameSuggestionKey(name)}`;
+        const found = groups.get(key);
+        groups.set(
+            key,
+            found === undefined
+                ? { name, type, subCategoryId: SubCategoryId(reader.text('sub_category_id')), source: suggestedSourceOf(reader), uses: 1 }
+                : { ...found, uses: found.uses + 1 },
+        );
+    }
+    return [...groups.values()].slice(0, limit);
 }
 
 /**

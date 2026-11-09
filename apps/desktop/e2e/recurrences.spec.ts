@@ -51,14 +51,18 @@ async function openNew(page: Page): Promise<Locator> {
  *
  * @param page Janela do app.
  * @param column Diálogo do formulário.
- * @param fields O que digitar.
+ * @param fields O que digitar; `credit` passa o atalho para o crédito antes de escolher um cartão.
  */
-async function fillBasics(page: Page, column: Locator, fields: { readonly amount: string; readonly name: string; readonly source: string; readonly date: string; readonly dateLabel: string }): Promise<void> {
+async function fillBasics(page: Page, column: Locator, fields: { readonly amount: string; readonly name: string; readonly source: string; readonly credit?: true; readonly date: string; readonly dateLabel: string }): Promise<void> {
     await column.getByLabel('Valor (BRL)').fill(fields.amount);
     await column.getByLabel('Nome').fill(fields.name);
     await column.getByLabel('Categoria', { exact: true }).dispatchEvent('click');
     await page.getByRole('combobox', { name: 'Buscar categoria' }).fill('mercado');
     await page.getByRole('combobox', { name: 'Buscar categoria' }).press('Enter');
+    if (fields.credit === true) {
+        // No débito a lista de origens só tem contas.
+        await column.getByRole('radio', { name: 'Crédito · cartão' }).dispatchEvent('click');
+    }
     await column.getByLabel('Conta ou cartão').press('Enter');
     await page.getByRole('option', { name: fields.source, exact: true }).dispatchEvent('click');
     await column.getByLabel(fields.dateLabel, { exact: true }).fill(fields.date);
@@ -94,7 +98,7 @@ test('parcelar no cartão: prévia com as faturas, "Rec." 1/3 e as parcelas nos 
         await completeFirstUse(page, { profileName: 'Pessoal', accountName: 'Nubank' });
         await seedCard(page);
         const column = await openNew(page);
-        await fillBasics(page, column, { amount: '1.000,00', name: 'Geladeira', source: 'Roxinho', date: `${period}-06`, dateLabel: 'Data da compra' });
+        await fillBasics(page, column, { amount: '1.000,00', name: 'Geladeira', source: 'Roxinho', credit: true, date: `${period}-06`, dateLabel: 'Data da compra' });
 
         await column.getByRole('radio', { name: 'Parcelado' }).dispatchEvent('click');
         await column.getByLabel('Parcelas').fill('3');

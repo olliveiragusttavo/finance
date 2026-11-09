@@ -130,8 +130,8 @@ describe('atalhos globais', () => {
 });
 
 describe('perfil ativo', () => {
-    const personal = { id: 'a', name: 'Gustavo', type: 'personal', currency: 'BRL' } as const;
-    const business = { id: 'b', name: 'Estúdio GO', type: 'business', currency: 'BRL' } as const;
+    const personal = { id: 'a', name: 'Gustavo', type: 'personal', currency: 'BRL', defaultAccountId: null, defaultCreditCardId: null } as const;
+    const business = { id: 'b', name: 'Estúdio GO', type: 'business', currency: 'BRL', defaultAccountId: null, defaultCreditCardId: null } as const;
 
     it('reabre o último perfil do aparelho e cai no primeiro quando ele não existe mais', () => {
         expect(pickActiveProfile([personal, business], 'b')).toBe(business);

@@ -30,6 +30,7 @@ import type { OccurrencePreviewResponse, RecurrenceResponse } from '../dto/recur
 import type { SeriesPlanResponse } from '../dto/recurrences/SeriesPlanResponse.ts';
 import type { TopUpResponse } from '../dto/recurrences/TopUpResponse.ts';
 import type { TransactionResponse } from '../dto/transactions/TransactionResponse.ts';
+import type { TransactionNameSuggestionResponse } from '../dto/transactions/TransactionNameSuggestionResponse.ts';
 import type { accountIdRequest, createAccountRequest, listAccountsRequest, transferTargetsRequest, updateAccountRequest } from '../requests/accountRequests.ts';
 import type { profileBalancesRequest, rebuildAccountRequest } from '../requests/balanceRequests.ts';
 import type { runImportRequest } from '../requests/importRequests.ts';
@@ -46,7 +47,7 @@ import type { createCreditCardRequest, creditCardIdRequest, listCreditCardsReque
 import type { verifyBalancesRequest } from '../requests/integrityRequests.ts';
 import type { invoiceIdRequest, listInvoicesByCardRequest, payInvoiceRequest, suggestInvoiceRequest } from '../requests/invoiceRequests.ts';
 import type { startOnboardingRequest } from '../requests/onboardingRequests.ts';
-import type { createProfileRequest, listProfilesRequest, updateProfileRequest } from '../requests/profileRequests.ts';
+import type { createProfileRequest, listProfilesRequest, setDefaultAccountRequest, setDefaultCreditCardRequest, updateProfileRequest } from '../requests/profileRequests.ts';
 import type { createNoteRequest, listNotesRequest, noteIdRequest, rewriteNoteRequest } from '../requests/noteRequests.ts';
 import type {
     createReportRequest,
@@ -75,6 +76,7 @@ import type {
     createTransactionRequest,
     deleteTransactionRequest,
     listTransactionsRequest,
+    nameSuggestionsRequest,
     setPaidRequest,
     setPartnerRequest,
     transactionIdRequest,
@@ -92,6 +94,8 @@ export interface CoreRoutes {
     'profiles.list': { input: z.input<typeof listProfilesRequest>; output: readonly ProfileResponse[] };
     'profiles.create': { input: z.input<typeof createProfileRequest>; output: ProfileResponse };
     'profiles.update': { input: z.input<typeof updateProfileRequest>; output: ProfileResponse };
+    'profiles.setDefaultAccount': { input: z.input<typeof setDefaultAccountRequest>; output: ProfileResponse };
+    'profiles.setDefaultCreditCard': { input: z.input<typeof setDefaultCreditCardRequest>; output: ProfileResponse };
     'onboarding.start': { input: z.input<typeof startOnboardingRequest>; output: OnboardingResponse };
     'accounts.list': { input: z.input<typeof listAccountsRequest>; output: AccountListResponse };
     'accounts.transferTargets': { input: z.input<typeof transferTargetsRequest>; output: readonly TransferTargetResponse[] };
@@ -138,6 +142,7 @@ export interface CoreRoutes {
     'transactions.delete': { input: z.input<typeof deleteTransactionRequest>; output: null };
     'transactions.get': { input: z.input<typeof transactionIdRequest>; output: TransactionResponse };
     'transactions.listByPeriod': { input: z.input<typeof listTransactionsRequest>; output: readonly TransactionResponse[] };
+    'transactions.nameSuggestions': { input: z.input<typeof nameSuggestionsRequest>; output: readonly TransactionNameSuggestionResponse[] };
     'transactions.setPaid': { input: z.input<typeof setPaidRequest>; output: TransactionResponse };
     'transactions.setPartner': { input: z.input<typeof setPartnerRequest>; output: TransactionResponse };
     'recurrences.list': { input: z.input<typeof listRecurrencesRequest>; output: readonly RecurrenceResponse[] };

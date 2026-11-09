@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { ProfileId } from '../domain/shared/ids.ts';
-import type { CreateProfileCommand, UpdateProfileCommand } from '../services/profile/ProfileCommands.ts';
+import { AccountId, CreditCardId, ProfileId } from '../domain/shared/ids.ts';
+import type { CreateProfileCommand, SetDefaultAccountCommand, SetDefaultCreditCardCommand, UpdateProfileCommand } from '../services/profile/ProfileCommands.ts';
 import { currencyCodeField, parsedText, registryNameField } from './fields.ts';
 
 /** Sem parâmetros: o seletor de perfil lista todos os perfis do aparelho. */
@@ -16,3 +16,13 @@ export const createProfileRequest = z
 export const updateProfileRequest = z
     .strictObject({ id: parsedText(ProfileId), name: registryNameField, currency: currencyCodeField })
     .transform((data): UpdateProfileCommand => ({ id: data.id, name: data.name, currency: data.currency }));
+
+/** Conta padrão do atalho "Débito"; `null` tira o padrão. */
+export const setDefaultAccountRequest = z
+    .strictObject({ profileId: parsedText(ProfileId), accountId: parsedText(AccountId).nullable() })
+    .transform((data): SetDefaultAccountCommand => ({ profileId: data.profileId, accountId: data.accountId }));
+
+/** Cartão padrão do atalho "Crédito"; `null` tira o padrão. */
+export const setDefaultCreditCardRequest = z
+    .strictObject({ profileId: parsedText(ProfileId), creditCardId: parsedText(CreditCardId).nullable() })
+    .transform((data): SetDefaultCreditCardCommand => ({ profileId: data.profileId, creditCardId: data.creditCardId }));

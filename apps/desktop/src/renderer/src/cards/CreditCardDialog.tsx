@@ -46,6 +46,32 @@ export function useToggleCreditCard(): (creditCard: CreditCardResponse) => void 
     };
 }
 
+/**
+ * Torna o cartão o padrão do perfil, ou deixa de ser, pelo mesmo motivo e com a mesma regra da
+ * conta padrão (`useToggleDefaultAccount`): é o cartão que o atalho "Crédito" do lançamento novo
+ * escolhe (database-design §4.1).
+ *
+ * @return A ação de alternar o cartão padrão.
+ */
+export function useToggleDefaultCreditCard(): (creditCard: Pick<CreditCardResponse, 'id' | 'name'>) => void {
+    const { profile } = useActiveProfile();
+    const setDefault = useCoreMutation('profiles.setDefaultCreditCard');
+    return (creditCard) => {
+        const current = profile.defaultCreditCardId === creditCard.id;
+        setDefault.mutate(
+            { profileId: profile.id, creditCardId: current ? null : creditCard.id },
+            {
+                onSuccess: () => {
+                    toast.success(current ? `${creditCard.name} deixou de ser o cartão padrão.` : `${creditCard.name} agora é o cartão padrão do crédito.`);
+                },
+                onError: (error) => {
+                    toast.error(describeError(error.error).message);
+                },
+            },
+        );
+    };
+}
+
 /** Campo do formulário de cada campo que o núcleo pode apontar numa recusa de cartão. */
 const CREDIT_CARD_FIELD_BY_CORE_FIELD: Readonly<Partial<Record<string, keyof CreditCardFormValues>>> = {
     name: 'name',

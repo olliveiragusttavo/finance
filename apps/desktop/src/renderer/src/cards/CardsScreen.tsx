@@ -36,7 +36,7 @@ import { currentDate } from '@/shell/referenceMonth';
 import { useReferenceMonth } from '@/shell/useReferenceMonth';
 import { MovementGrid } from '@/transactions/MovementGrid';
 import { useTransactionActions } from '@/transactions/useTransactionActions';
-import { CreditCardDialog, useToggleCreditCard } from './CreditCardDialog.tsx';
+import { CreditCardDialog, useToggleCreditCard, useToggleDefaultCreditCard } from './CreditCardDialog.tsx';
 import { creditCardListView, openCreditCard, openInvoicePeriod, parseCardsSearch, shouldDropInvoice, type CardsLocation } from './cardsSearch.ts';
 import { PartialPaymentDialog, PayInvoiceDialog, ReopenInvoiceDialog, type InvoiceActionTarget } from './InvoiceDialogs.tsx';
 
@@ -273,13 +273,16 @@ function CardList({
 }
 
 /**
- * Item da lista: nome e situação da fatura do mês à esquerda, valor a pagar à direita.
+ * Item da lista: nome e situação da fatura do mês à esquerda, valor a pagar à direita. O cartão
+ * padrão do perfil leva o selo "Padrão", para que se saiba qual o atalho "Crédito" do lançamento
+ * escolhe (database-design §4.1).
  *
  * @param props.creditCard Cartão com a fatura do mês.
  * @param props.current Se é o cartão aberto.
  * @return O link que abre a fatura do mês do cartão.
  */
 function CardLink({ creditCard, current }: { readonly creditCard: CreditCardInPeriodResponse; readonly current: boolean }): ReactNode {
+    const { profile } = useActiveProfile();
     const cycle = creditCard.invoiceOfMonth;
     return (
         <Link
@@ -295,6 +298,7 @@ function CardLink({ creditCard, current }: { readonly creditCard: CreditCardInPe
                 <span className={cn('flex items-center gap-2 text-14', current && 'font-semibold')}>
                     <span className="truncate">{creditCard.name}</span>
                     {creditCard.disabled && <StatusTag tone="warn">Desativado</StatusTag>}
+                    {profile.defaultCreditCardId === creditCard.id && <StatusTag tone="neutral">Padrão</StatusTag>}
                 </span>
                 <span className={cn('text-12', cycle.invoice?.status === 'open' ? 'text-warn-ink' : 'text-muted')}>{formatInvoiceSituation(cycle)}</span>
             </span>
@@ -338,6 +342,8 @@ function CardInvoice({
     readonly onDelete: () => void;
     readonly onAction: (action: InvoiceAction, target: InvoiceActionTarget) => void;
 }): ReactNode {
+    const { profile } = useActiveProfile();
+    const toggleDefault = useToggleDefaultCreditCard();
     const cycles = useInvoicesByCard({ creditCardId: creditCard.id, from: invoicePeriod });
     const payingAccountName = accounts.find((account) => account.id === creditCard.accountId)?.name ?? '—';
     const cycle = cycles.data?.[0];
@@ -369,6 +375,15 @@ function CardInvoice({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuItem onSelect={onEdit}>Editar cartão</DropdownMenuItem>
+                            {/* O desativado não aceita lançamentos novos, então não pode ser o padrão (database-design §4.1). */}
+                            <DropdownMenuItem
+                                disabled={creditCard.disabled}
+                                onSelect={() => {
+                                    toggleDefault(creditCard);
+                                }}
+                            >
+                                {profile.defaultCreditCardId === creditCard.id ? 'Deixar de ser o cartão padrão' : 'Usar como cartão padrão (crédito)'}
+                            </DropdownMenuItem>
                             <DropdownMenuItem onSelect={onToggle}>{creditCard.disabled ? 'Reativar cartão' : 'Desativar cartão'}</DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem variant="destructive" onSelect={onDelete}>

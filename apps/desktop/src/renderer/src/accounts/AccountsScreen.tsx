@@ -32,7 +32,7 @@ import { useActiveProfile } from '@/shell/activeProfile';
 import { useReferenceMonth } from '@/shell/useReferenceMonth';
 import { MovementGrid } from '@/transactions/MovementGrid';
 import { useTransactionActions } from '@/transactions/useTransactionActions';
-import { AccountDialog, useToggleAccount } from './AccountDialog.tsx';
+import { AccountDialog, useToggleAccount, useToggleDefaultAccount } from './AccountDialog.tsx';
 import { accountListView, openAccount, parseAccountsSearch } from './accountsSearch.ts';
 
 /**
@@ -225,13 +225,16 @@ function AccountList({
 }
 
 /**
- * Item da lista: nome, tipo e situação à esquerda; consolidado e previsto à direita.
+ * Item da lista: nome, tipo e situação à esquerda; consolidado e previsto à direita. A conta
+ * padrão do perfil leva o selo "Padrão", para que se saiba qual o atalho "Débito" do lançamento
+ * escolhe (database-design §4.1).
  *
  * @param props.account Conta com os saldos do mês.
  * @param props.current Se é a conta aberta.
  * @return O link que abre o extrato da conta.
  */
 function AccountLink({ account, current }: { readonly account: AccountInPeriodResponse; readonly current: boolean }): ReactNode {
+    const { profile } = useActiveProfile();
     const outside = !account.considerBalance;
     return (
         <Link
@@ -248,6 +251,7 @@ function AccountLink({ account, current }: { readonly account: AccountInPeriodRe
                 <span className={cn('flex items-center gap-2 text-14', current && 'font-semibold')}>
                     <span className="truncate">{account.name}</span>
                     {account.disabled && <StatusTag tone="warn">Desativada</StatusTag>}
+                    {profile.defaultAccountId === account.id && <StatusTag tone="neutral">Padrão</StatusTag>}
                 </span>
                 <span className="text-12 text-muted">
                     {formatAccountType(account.type)}
@@ -296,6 +300,7 @@ function AccountStatement({
     readonly onDelete: () => void;
 }): ReactNode {
     const { profile } = useActiveProfile();
+    const toggleDefault = useToggleDefaultAccount();
     const statement = useStatement({ accountId: account.id, period });
     const creditCards = useCreditCards({ profileId: profile.id, period });
     const categories = useCategoryTree({ profileId: profile.id });
@@ -322,6 +327,15 @@ function AccountStatement({
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                            {/* A desativada não aceita lançamentos novos, então não pode ser a padrão (database-design §4.1). */}
+                            <DropdownMenuItem
+                                disabled={account.disabled}
+                                onSelect={() => {
+                                    toggleDefault(account);
+                                }}
+                            >
+                                {profile.defaultAccountId === account.id ? 'Deixar de ser a conta padrão' : 'Usar como conta padrão (débito)'}
+                            </DropdownMenuItem>
                             <DropdownMenuItem onSelect={onToggle}>{account.disabled ? 'Reativar conta' : 'Desativar conta'}</DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem variant="destructive" onSelect={onDelete}>

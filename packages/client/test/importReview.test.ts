@@ -15,8 +15,8 @@ import {
     type ImportRowInput,
 } from '../src/index.ts';
 
-const PERSONAL: ProfileResponse = { id: 'p1', name: 'Gustavo', type: 'personal', currency: 'BRL' };
-const BUSINESS: ProfileResponse = { id: 'p2', name: 'Estúdio', type: 'business', currency: 'BRL' };
+const PERSONAL: ProfileResponse = { id: 'p1', name: 'Gustavo', type: 'personal', currency: 'BRL', defaultAccountId: null, defaultCreditCardId: null };
+const BUSINESS: ProfileResponse = { id: 'p2', name: 'Estúdio', type: 'business', currency: 'BRL', defaultAccountId: null, defaultCreditCardId: null };
 
 /**
  * @param id Id da conta.

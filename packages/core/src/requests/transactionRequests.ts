@@ -156,6 +156,9 @@ export const deleteTransactionRequest = z.strictObject({ id: parsedText(Transact
 
 export const listTransactionsRequest = z.strictObject({ profileId: parsedText(ProfileId), period: yearMonthField });
 
+/** Perfil cujos nomes já lançados o autocomplete do campo "Nome" oferece. */
+export const nameSuggestionsRequest = z.strictObject({ profileId: parsedText(ProfileId) });
+
 export const setPaidRequest = z.strictObject({ id: parsedText(TransactionId), paid: z.boolean() });
 
 /** `null` tira a atribuição: o lançamento volta para a lista "sem sócio" do relatório. */

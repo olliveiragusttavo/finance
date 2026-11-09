@@ -2,6 +2,7 @@ import { BusinessRuleViolation, NotFoundError } from '../../domain/shared/errors
 import { TransactionId, type PartnerId, type ProfileId } from '../../domain/shared/ids.ts';
 import { LocalDate } from '../../domain/shared/LocalDate.ts';
 import type { YearMonth } from '../../domain/shared/YearMonth.ts';
+import type { TransactionNameSuggestion } from '../../domain/transaction/NameSuggestion.ts';
 import { Transaction } from '../../domain/transaction/Transaction.ts';
 import type { TransactionContainer } from '../../domain/transaction/TransactionContainer.ts';
 import type { Clock } from '../../ports/Clock.ts';
@@ -15,6 +16,13 @@ import type { StatementConsolidationService } from '../statement/StatementConsol
 import type { UnitOfWork } from '../UnitOfWork.ts';
 import type { CreateTransactionCommand, EditScope, UpdateTransactionCommand } from './TransactionCommands.ts';
 import type { TransactionComposer } from './TransactionComposer.ts';
+
+/**
+ * Teto de nomes do autocomplete. O formulário filtra no próprio aparelho a cada tecla, então a
+ * lista vem inteira de uma vez; o teto só impede que um histórico de décadas pese no IPC, e os
+ * nomes de fora são os usados há mais tempo.
+ */
+const NAME_SUGGESTION_LIMIT = 1000;
 
 /**
  * CRUD de transações. As regras de montar e conferir um lançamento ficam no
@@ -250,6 +258,21 @@ export class TransactionService {
                 LocalDate.of(period.year, period.month, 1),
                 LocalDate.of(period.year, period.month, period.lengthInDays()),
             );
+        });
+    }
+
+    /**
+     * Nomes já lançados no perfil, para o autocomplete do campo "Nome" do lançamento: escolher
+     * um repete a categoria e a conta ou o cartão do último lançamento com esse nome.
+     *
+     * @param profileId Perfil consultado.
+     * @return Até `NAME_SUGGESTION_LIMIT` nomes, do mais recente para o mais antigo.
+     * @throws {NotFoundError} Quando o perfil não existe.
+     */
+    public nameSuggestions(profileId: ProfileId): readonly TransactionNameSuggestion[] {
+        return this.unitOfWork.run(() => {
+            this.composer.requireProfile(profileId);
+            return this.transactions.listNameSuggestions(profileId, NAME_SUGGESTION_LIMIT);
         });
     }
 }

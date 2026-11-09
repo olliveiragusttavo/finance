@@ -1088,6 +1088,49 @@ Entrou depois da Fase 15, a pedido, a partir do mockup `DesktopVisaoGeral2`, que
 - [x] Testes: `client` (`test/overviewView.test.ts`, `test/invalidation.test.ts`) e ponta a ponta
   (`e2e/overview.spec.ts`: indicadores, marcar como pago pelo selo e desfazer, resumos e navegação)
 
+### Fase 15.2 — Lançamento mais rápido: débito/crédito e nome sugerido
+
+Entrou depois da Fase 15.1, a pedido. O mockup `DesktopTransacoes` não tem estas duas peças; elas
+foram pedidas explicitamente e não mudam o resto do formulário.
+**Decisões** (perguntadas antes do código):
+
+- **Conta e cartão padrão cadastrados:** o perfil guarda uma conta padrão e um cartão padrão
+  (`profiles.default_account_id` e `default_credit_card_id`, migration `0008`, database-design §4.1).
+  Eles ficam numa coluna do perfil, e não num marcador em cada conta, para que haja no máximo um de
+  cada. Quem escolhe é o "⋯" das telas Contas e Cartões ("Usar como conta padrão (débito)" /
+  "Usar como cartão padrão (crédito)"), e a lista mostra o selo "Padrão". A conta ou o cartão
+  desativado ou excluído deixa de valer na leitura, e reativar devolve o padrão.
+- **Atalho "Débito · conta / Crédito · cartão":** fica logo abaixo do tipo, só na **despesa nova**.
+  A despesa nova abre no débito, com a conta padrão já escolhida. O filtro de conta ou cartão da
+  tela continua tendo prioridade. Sem padrão, o atalho só escolhe sozinho quando há uma única opção
+  ativa; senão a origem fica vazia e a dica do campo diz onde definir o padrão. Com o atalho à
+  vista, o campo "Conta ou cartão" lista só o lado escolhido: contas no débito, cartões no
+  crédito. O rótulo do campo não muda; o texto vazio e a busca mudam ("Escolha a conta" /
+  "Escolha o cartão"). A sugestão do nome que vem num cartão passa o atalho para o crédito.
+- **Nome sugerido:** o autocomplete fica no campo **Nome**, só no lançamento novo. Na edição,
+  trocar a categoria porque o nome mudou desfaria em silêncio uma escolha gravada. As sugestões são
+  os nomes já lançados do **mesmo tipo**, sem diferenciar acento e maiúscula: primeiro os que
+  começam pelo texto, depois os que o contêm, até oito. Escolher copia a categoria e a conta ou o
+  cartão do lançamento **cadastrado** mais recente com esse nome, quando eles ainda são escolha
+  válida. O critério é a data de cadastro, e não a de vencimento, para que a parcela futura de uma
+  série não esconda a mudança de hoje.
+
+**Núcleo**
+- [x] Migration `0008_default_sources.sql`; `Profile` com `defaultAccountId` e `defaultCreditCardId`;
+  rotas `profiles.setDefaultAccount` e `profiles.setDefaultCreditCard`, que recusam conta ou cartão
+  de outro perfil ou desativado
+- [x] Rota `transactions.nameSuggestions` (`TransactionRepository.listNameSuggestions`): um item por
+  nome e tipo, com a categoria, a origem e o número de usos
+- [x] Testes: `test/services/profiles.test.ts` e `test/services/nameSuggestions.test.ts`
+
+**Client e desktop**
+- [x] `paymentMethodSource` e `matchNameSuggestions` (`transactionEditor.ts`); hook, `ROUTE_KINDS`
+  e invalidação. Desativar, reativar e excluir conta ou cartão passam a invalidar `profiles.list`
+- [x] `TransactionForm`: atalho `PaymentMethodSelector` e campo `NameAutocomplete`; ação e selo
+  "Padrão" em Contas e Cartões
+- [x] Testes: `client` (`test/transactionEditor.test.ts`, `test/invalidation.test.ts`) e ponta a
+  ponta (`e2e/transactions.spec.ts`: cartão padrão pelo "⋯", atalho e sugestão do nome)
+
 ---
 
 ## 7. Critério de pronto do MVP

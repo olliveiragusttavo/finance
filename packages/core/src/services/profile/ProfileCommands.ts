@@ -1,5 +1,5 @@
 import type { ProfileType } from '../../domain/profile/Profile.ts';
-import type { ProfileId } from '../../domain/shared/ids.ts';
+import type { AccountId, CreditCardId, ProfileId } from '../../domain/shared/ids.ts';
 
 /** Perfil novo, como a camada Request entrega. */
 export interface CreateProfileCommand {
@@ -18,4 +18,18 @@ export interface UpdateProfileCommand {
     readonly id: ProfileId;
     readonly name: string;
     readonly currency: string;
+}
+
+/** Escolha da conta padrão do atalho "Débito" (database-design §4.1). */
+export interface SetDefaultAccountCommand {
+    readonly profileId: ProfileId;
+    /** `null` tira o padrão. */
+    readonly accountId: AccountId | null;
+}
+
+/** Escolha do cartão padrão do atalho "Crédito" (database-design §4.1). */
+export interface SetDefaultCreditCardCommand {
+    readonly profileId: ProfileId;
+    /** `null` tira o padrão. */
+    readonly creditCardId: CreditCardId | null;
 }

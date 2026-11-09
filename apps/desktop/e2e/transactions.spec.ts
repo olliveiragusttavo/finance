@@ -159,14 +159,15 @@ test('lança pelo diálogo, edita, marca pago e exclui pelo teclado', async () =
 
         await column.getByRole('button', { name: 'Salvar' }).dispatchEvent('click');
         await expect(column.getByLabel('Valor (BRL)')).toHaveAccessibleDescription('Informe o valor.');
-        await expect(column.getByLabel('Conta ou cartão')).toHaveAccessibleDescription('Escolha a conta ou o cartão.');
+        // A despesa nova abre no débito; com uma conta só, ela já vem escolhida (database-design §4.1).
+        await expect(column.getByRole('radio', { name: 'Débito · conta' })).toHaveAttribute('aria-checked', 'true');
+        await expect(column.getByLabel('Conta ou cartão')).toContainText('Nubank');
 
         await column.getByLabel('Valor (BRL)').fill('123,45');
         await expect(column.getByText('−R$ 123,45')).toBeVisible();
         await column.getByLabel('Nome').fill('Mercado');
         await chooseCategory(page, column, 'alim merc');
         await expect(column.getByLabel('Categoria', { exact: true })).toContainText('Alimentação › Mercado');
-        await chooseOption(page, column.getByLabel('Conta ou cartão'), 'Nubank');
         await column.getByRole('button', { name: 'Salvar' }).dispatchEvent('click');
 
         await expect(column).toHaveCount(0);
@@ -210,6 +211,53 @@ test('lança pelo diálogo, edita, marca pago e exclui pelo teclado', async () =
     }
 });
 
+test('atalho Débito/Crédito usa a conta e o cartão padrão, e o nome sugere o lançamento anterior', async () => {
+    const { app, window: page, userData } = await launchApp();
+    try {
+        await completeFirstUse(page, { profileName: 'Pessoal', accountName: 'Nubank' });
+        await seed(page, true);
+
+        // Roxinho vira o cartão padrão pelo "⋯" da tela Cartões.
+        await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('link', { name: 'Cartões', exact: true }).dispatchEvent('click');
+        const cards = page.getByRole('list', { name: 'Cartões' });
+        await expect(cards.getByRole('link', { name: /^Roxinho/ })).toHaveAttribute('aria-current', 'page');
+        await page.getByRole('button', { name: 'Mais ações' }).press('Enter');
+        const makeDefault = page.getByRole('menuitem', { name: 'Usar como cartão padrão (crédito)' });
+        await makeDefault.focus();
+        await makeDefault.press('Enter');
+        await expect(cards.getByRole('link', { name: /^Roxinho/ })).toContainText('Padrão');
+
+        await openTransactions(page);
+        await page.keyboard.press('n');
+        const column = page.getByRole('dialog', { name: 'Novo lançamento' });
+        const source = column.getByLabel('Conta ou cartão');
+        // Nubank e Tesouro, nenhuma padrão: o débito deixa a escolha ao usuário e diz como evitá-la.
+        await expect(column.getByRole('radio', { name: 'Débito · conta' })).toHaveAttribute('aria-checked', 'true');
+        await expect(source).toHaveAccessibleDescription('Defina uma conta padrão na tela Contas para ela já vir escolhida no débito.');
+        await column.getByRole('radio', { name: 'Crédito · cartão' }).dispatchEvent('click');
+        await expect(source).toContainText('Roxinho');
+        await expect(column.getByLabel('Fatura', { exact: true })).toBeVisible();
+
+        // "alu" sugere o Aluguel do mês; escolher copia a categoria e a conta dele.
+        const name = column.getByLabel('Nome');
+        await name.fill('alu');
+        const suggestions = page.getByRole('listbox', { name: 'Lançamentos anteriores' });
+        await expect(suggestions.getByRole('option')).toHaveCount(1);
+        await expect(suggestions.getByRole('option', { name: /^Aluguel/ })).toContainText('Alimentação › Mercado · Nubank');
+        await name.press('ArrowDown');
+        await name.press('Enter');
+        await expect(suggestions).toHaveCount(0);
+        await expect(name).toHaveValue('Aluguel');
+        await expect(column.getByLabel('Categoria', { exact: true })).toContainText('Alimentação › Mercado');
+        await expect(source).toContainText('Nubank');
+        await expect(column.getByRole('radio', { name: 'Débito · conta' })).toHaveAttribute('aria-checked', 'true');
+        await expect(column).toBeVisible();
+    } finally {
+        await app.close();
+        removeUserData(userData);
+    }
+});
+
 test('compra no cartão: fatura sugerida, aviso ao escolher a fatura paga, e estorno pelo ±', async () => {
     const { app, window: page, userData } = await launchApp();
     const period = currentPeriod(new Date());
@@ -227,6 +275,11 @@ test('compra no cartão: fatura sugerida, aviso ao escolher a fatura paga, e est
         await expect(column.getByText('estorno', { exact: true })).toBeVisible();
         await column.getByLabel('Nome').fill('Estorno Uber');
         await chooseCategory(page, column, 'restaurantes');
+        // No débito a lista só tem contas; o cartão aparece depois de passar para o crédito.
+        await column.getByLabel('Conta ou cartão').press('Enter');
+        await expect(page.getByRole('listbox', { name: 'Buscar conta' }).getByRole('option')).toHaveText(['Nubank', 'Tesouro']);
+        await page.keyboard.press('Escape');
+        await column.getByRole('radio', { name: 'Crédito · cartão' }).dispatchEvent('click');
         await chooseOption(page, column.getByLabel('Conta ou cartão'), 'Roxinho');
         // Compra no dia 5, depois do fechamento do dia 3: a sugestão é a fatura seguinte.
         await column.getByLabel('Data da compra').fill(`${period}-05`);

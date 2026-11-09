@@ -266,12 +266,15 @@ está no `node_modules`, a partir da raiz do repositório:
 ```sh
 # no container
 pnpm build:desktop
+node apps/desktop/node_modules/electron/install.js
 
 # no host
 env -u ELECTRON_RUN_AS_NODE ./apps/desktop/node_modules/electron/dist/electron --no-sandbox apps/desktop
 ```
 
-O `env -u` evita que o app suba como Node puro quando o terminal é o do VS Code. O
+O `install.js` é o script de pós-instalação do pacote `electron`, que baixa o binário para
+`node_modules/electron/dist/`; sem ele o host não encontra o executável e o comando falha
+com `No such file or directory`. O `env -u` evita que o app suba como Node puro quando o terminal é o do VS Code. O
 `--no-sandbox` é necessário porque o `chrome-sandbox` instalado pelo pnpm não pertence a
 root, e distribuições que restringem namespaces de usuário (Ubuntu 24.04+) fazem o
 Chromium abortar sem ele; o renderer continua isolado (`contextIsolation`, `sandbox: true`

@@ -1,8 +1,10 @@
+import { toTransactionNameSuggestionResponse, type TransactionNameSuggestionResponse } from '../dto/transactions/TransactionNameSuggestionResponse.ts';
 import { toTransactionResponse, type TransactionResponse } from '../dto/transactions/TransactionResponse.ts';
 import {
     createTransactionRequest,
     deleteTransactionRequest,
     listTransactionsRequest,
+    nameSuggestionsRequest,
     setPaidRequest,
     setPartnerRequest,
     transactionIdRequest,
@@ -87,5 +89,13 @@ export class TransactionController {
             ({ profileId, period }) => this.transactions.listByPeriod(profileId, period).map(toTransactionResponse),
             this.onUnexpected,
         );
+    }
+
+    /**
+     * @param raw Entrada com o perfil.
+     * @return Os nomes já lançados no perfil, com a categoria e a origem de cada um.
+     */
+    public nameSuggestions(raw: unknown): Promise<CoreResult<readonly TransactionNameSuggestionResponse[]>> {
+        return handle(nameSuggestionsRequest, raw, ({ profileId }) => this.transactions.nameSuggestions(profileId).map(toTransactionNameSuggestionResponse), this.onUnexpected);
     }
 }

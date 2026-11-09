@@ -13,6 +13,7 @@
 export * from './shared/MoneyResponse.ts';
 export * from './shared/BalancePairResponse.ts';
 export * from './transactions/TransactionResponse.ts';
+export * from './transactions/TransactionNameSuggestionResponse.ts';
 export * from './invoices/InvoiceResponse.ts';
 export * from './invoices/InvoiceDetailResponse.ts';
 export * from './invoices/InvoiceSuggestionResponse.ts';

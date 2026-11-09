@@ -152,6 +152,14 @@ export function useTransactions(input: CoreInput<'transactions.listByPeriod'> | 
 
 /**
  * @param input Perfil; `null` deixa a consulta parada.
+ * @return Os nomes já lançados no perfil, para o autocomplete do campo "Nome" do lançamento.
+ */
+export function useTransactionNameSuggestions(input: CoreInput<'transactions.nameSuggestions'> | null): Query<'transactions.nameSuggestions'> {
+    return useCoreQuery('transactions.nameSuggestions', input);
+}
+
+/**
+ * @param input Perfil; `null` deixa a consulta parada.
  * @return As séries vivas do perfil, para a coluna "Rec." e o subtítulo do painel.
  */
 export function useRecurrences(input: CoreInput<'recurrences.list'> | null): Query<'recurrences.list'> {

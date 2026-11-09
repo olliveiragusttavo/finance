@@ -184,7 +184,7 @@ export function createCore(ports: CorePorts): Core {
     const composer = new TransactionComposer(profiles, accounts, creditCards, transactions, references, categories, tags, goals, consolidation, invoiceService);
     const recurrenceService = new RecurrenceService(unitOfWork, ids, clock, composer, transactions, recurrenceRepository, impacts, recalculation);
     const transactionService = new TransactionService(unitOfWork, ids, composer, accounts, transactions, consolidation, recurrenceService, impacts, recalculation, clock);
-    const profileService = new ProfileService(unitOfWork, ids, profiles);
+    const profileService = new ProfileService(unitOfWork, ids, profiles, accounts, creditCards);
     const accountService = new AccountService(unitOfWork, ids, profileService, accounts, statements, recalculation, goals);
     const creditCardService = new CreditCardService(unitOfWork, ids, profileService, accountService, creditCards, invoices, recalculation, ledger, clock);
     const categoryService = new CategoryService(unitOfWork, ids, profileService, categories);
@@ -226,6 +226,8 @@ export function createCore(ports: CorePorts): Core {
         'profiles.list': (raw) => profileController.list(raw),
         'profiles.create': (raw) => profileController.create(raw),
         'profiles.update': (raw) => profileController.update(raw),
+        'profiles.setDefaultAccount': (raw) => profileController.setDefaultAccount(raw),
+        'profiles.setDefaultCreditCard': (raw) => profileController.setDefaultCreditCard(raw),
         'onboarding.start': (raw) => profileController.startOnboarding(raw),
         'accounts.list': (raw) => accountController.list(raw),
         'accounts.transferTargets': (raw) => accountController.transferTargets(raw),
@@ -272,6 +274,7 @@ export function createCore(ports: CorePorts): Core {
         'transactions.delete': (raw) => transactionController.delete(raw),
         'transactions.get': (raw) => transactionController.get(raw),
         'transactions.listByPeriod': (raw) => transactionController.listByPeriod(raw),
+        'transactions.nameSuggestions': (raw) => transactionController.nameSuggestions(raw),
         'transactions.setPaid': (raw) => transactionController.setPaid(raw),
         'transactions.setPartner': (raw) => transactionController.setPartner(raw),
         'recurrences.list': (raw) => recurrenceController.list(raw),

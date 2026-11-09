@@ -95,6 +95,43 @@ test('extrato: a situação marca pago, a linha edita, e "somente esta" grava se
     }
 });
 
+test('no lançamento novo, trocar o perfil escolhe a conta padrão do perfil escolhido', async () => {
+    const { app, window: page, userData } = await launchApp();
+    const period = currentPeriod(new Date());
+    try {
+        await completeFirstUse(page, { profileName: 'Pessoal', accountName: 'Nubank' });
+        const businessId = await seedMovements(page, period);
+        // Com duas contas, só o padrão decide qual vem escolhida (database-design §4.1).
+        await page.evaluate(async ({ profileId, period }) => {
+            const { core } = window.finance;
+            await core.call('accounts.create', { profileId, name: 'Conta Reserva', type: 'checking' });
+            const accounts = await core.call('accounts.list', { profileId, period });
+            const pj = accounts.ok ? accounts.data.accounts.find((account) => account.name === 'Conta PJ') : undefined;
+            if (pj === undefined) {
+                throw new Error('Conta PJ não encontrada');
+            }
+            const result = await core.call('profiles.setDefaultAccount', { profileId, accountId: pj.id });
+            if (!result.ok) {
+                throw new Error('conta padrão não definida');
+            }
+        }, { profileId: businessId, period });
+        // O seletor de perfis do shell foi lido antes de a empresa existir.
+        await page.reload();
+        await openMenu(page, 'Transações');
+
+        await page.keyboard.press('n');
+        const form = page.getByRole('dialog', { name: 'Novo lançamento' });
+        await expect(form.getByLabel('Conta ou cartão')).toContainText('Nubank');
+        await form.getByLabel('Perfil').press('Enter');
+        await page.getByRole('option', { name: 'Empresa', exact: true }).dispatchEvent('click');
+        await expect(form.getByLabel('Conta ou cartão')).toContainText('Conta PJ');
+        await expect(form.getByRole('radio', { name: 'Débito · conta' })).toHaveAttribute('aria-checked', 'true');
+    } finally {
+        await app.close();
+        removeUserData(userData);
+    }
+});
+
 test('o campo "Perfil" move o lançamento para o outro perfil, com a conta e a categoria de lá', async () => {
     const { app, window: page, userData } = await launchApp();
     const period = currentPeriod(new Date());

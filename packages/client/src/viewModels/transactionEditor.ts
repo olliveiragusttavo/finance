@@ -1,8 +1,17 @@
 import { Currency, LocalDate, Money, originEffect, YearMonth } from '@finance/core';
-import type { AccountResponse, CategoryBranchResponse, CreditCardResponse, InvoiceResponse, MoneyResponse, TransactionResponse } from '@finance/core';
+import type {
+    AccountResponse,
+    CategoryBranchResponse,
+    CreditCardResponse,
+    InvoiceResponse,
+    MoneyResponse,
+    ProfileResponse,
+    TransactionNameSuggestionResponse,
+    TransactionResponse,
+} from '@finance/core';
 import { formatMonthShort } from '../format/dates.ts';
 import { formatMoney } from '../format/money.ts';
-import { matchesAllTerms } from '../format/searchText.ts';
+import { matchesAllTerms, normalizeForSearch } from '../format/searchText.ts';
 import { otherProfileAccountLabel, type OtherProfileAccount } from './otherProfileAccounts.ts';
 import { formatTransactionAmount, type TransactionDirection } from './transactionTable.ts';
 
@@ -107,6 +116,67 @@ export function destinationAccountOptions(params: {
     const others = selectable(params.otherProfileAccounts ?? [], params.currentDestinationId)
         .map((account): SourceOption => ({ kind: 'account', id: account.id, name: otherProfileAccountLabel(account), disabled: account.disabled }));
     return [...own, ...others];
+}
+
+/** Forma de pagamento do atalho do lançamento novo: débito sai de uma conta, crédito de um cartão. */
+export type PaymentMethod = 'debit' | 'credit';
+
+/**
+ * Origem que o atalho "Débito / Crédito" do lançamento novo escolhe.
+ * Regra de negócio (Lançamentos, database-design §4.1): vale a conta (no débito) ou o cartão (no
+ * crédito) padrão do perfil. Sem padrão, vale a única conta ou o único cartão ativo, porque não
+ * há o que escolher; com vários e sem padrão, nenhum — escolher um por conta própria lançaria na
+ * conta errada sem o usuário perceber.
+ *
+ * @param params.method Débito ou crédito.
+ * @param params.defaults Conta e cartão padrão do perfil do lançamento.
+ * @param params.options Origens oferecidas no lançamento novo (`transactionSourceOptions`); o
+ * padrão fora delas não vale, como o de outro perfil depois de trocar o perfil do lançamento.
+ * @return A conta ou o cartão escolhido, ou `null` quando o usuário precisa escolher.
+ */
+export function paymentMethodSource(params: {
+    readonly method: PaymentMethod;
+    readonly defaults: Pick<ProfileResponse, 'defaultAccountId' | 'defaultCreditCardId'>;
+    readonly options: SourceOptions;
+}): SourceOption | null {
+    const credit = params.method === 'credit';
+    const candidates = (credit ? params.options.creditCards : params.options.accounts).filter((option) => !option.disabled);
+    const defaultId = credit ? params.defaults.defaultCreditCardId : params.defaults.defaultAccountId;
+    const chosen = candidates.find((option) => option.id === defaultId);
+    if (chosen !== undefined) {
+        return chosen;
+    }
+    return candidates.length === 1 ? (candidates[0] ?? null) : null;
+}
+
+/** Quantas sugestões o autocomplete do campo "Nome" mostra de uma vez. */
+const NAME_SUGGESTIONS_SHOWN = 8;
+
+/**
+ * Sugestões do autocomplete do campo "Nome" para o que já foi digitado. Os nomes que começam pelo
+ * texto vêm antes dos que só o contêm, cada grupo na ordem do núcleo (do mais recente ao mais
+ * antigo); acento e maiúscula não importam, porque "acougue" tem de achar "Açougue".
+ * Regra de negócio (Lançamentos): só nomes do mesmo tipo, porque escolher a sugestão copia a
+ * categoria, e a categoria de uma receita não serve a uma despesa.
+ *
+ * @param params.suggestions Nomes já lançados no perfil (`transactions.nameSuggestions`).
+ * @param params.query Texto do campo "Nome".
+ * @param params.type Tipo escolhido no formulário.
+ * @return Até oito sugestões; vazio com o campo em branco.
+ */
+export function matchNameSuggestions(params: {
+    readonly suggestions: readonly TransactionNameSuggestionResponse[];
+    readonly query: string;
+    readonly type: TransactionResponse['type'];
+}): readonly TransactionNameSuggestionResponse[] {
+    const query = normalizeForSearch(params.query.trim());
+    if (query === '') {
+        return [];
+    }
+    const ofType = params.suggestions.filter((suggestion) => suggestion.type === params.type);
+    const starting = ofType.filter((suggestion) => normalizeForSearch(suggestion.name).startsWith(query));
+    const containing = ofType.filter((suggestion) => !starting.includes(suggestion) && normalizeForSearch(suggestion.name).includes(query));
+    return [...starting, ...containing].slice(0, NAME_SUGGESTIONS_SHOWN);
 }
 
 /**

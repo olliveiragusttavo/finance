@@ -1,3 +1,4 @@
+import type { TransactionNameSuggestion } from '../domain/transaction/NameSuggestion.ts';
 import type { AccountId, BankStatementId, GoalId, InvoiceId, ProfileId, RecurrenceId, TransactionId } from '../domain/shared/ids.ts';
 import type { LocalDate } from '../domain/shared/LocalDate.ts';
 import type { YearMonth } from '../domain/shared/YearMonth.ts';
@@ -103,4 +104,17 @@ export interface TransactionRepository {
      * do mês e sem sócio vivo do perfil, por data. As transferências são linhas do perfil de origem.
      */
     listEntriesWithoutPartner(profileId: ProfileId, period: YearMonth): readonly Transaction[];
+
+    /**
+     * Nomes já lançados no perfil, para o autocomplete do campo "Nome". O lançamento mais recente
+     * de cada nome decide a categoria e a origem sugeridas, porque é o que reflete o hábito atual
+     * (a assinatura que mudou de cartão continua sugerida no cartão novo).
+     *
+     * @param profileId Perfil consultado; só os lançamentos que saem dele contam, não as
+     * transferências que chegam de outro perfil, cuja categoria e origem são de lá.
+     * @param limit Quantos nomes devolver, no máximo.
+     * @return Um item por nome e tipo — sem diferenciar maiúsculas —, do mais recentemente
+     * cadastrado para o mais antigo; vazio num perfil sem lançamentos.
+     */
+    listNameSuggestions(profileId: ProfileId, limit: number): readonly TransactionNameSuggestion[];
 }

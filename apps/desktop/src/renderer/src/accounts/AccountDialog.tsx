@@ -43,6 +43,33 @@ export function useToggleAccount(): (account: AccountResponse) => void {
 }
 
 /**
+ * Torna a conta a padrão do perfil, ou deixa de ser, conforme a situação atual. Sem confirmação,
+ * como desativar: a ação se desfaz com ela mesma e não muda nenhum saldo.
+ * Regra de negócio (Lançamentos, database-design §4.1): a conta padrão é a que o atalho "Débito"
+ * do lançamento novo escolhe; só uma por perfil, então escolher esta substitui a anterior.
+ *
+ * @return A ação de alternar a conta padrão.
+ */
+export function useToggleDefaultAccount(): (account: Pick<AccountResponse, 'id' | 'name'>) => void {
+    const { profile } = useActiveProfile();
+    const setDefault = useCoreMutation('profiles.setDefaultAccount');
+    return (account) => {
+        const current = profile.defaultAccountId === account.id;
+        setDefault.mutate(
+            { profileId: profile.id, accountId: current ? null : account.id },
+            {
+                onSuccess: () => {
+                    toast.success(current ? `${account.name} deixou de ser a conta padrão.` : `${account.name} agora é a conta padrão do débito.`);
+                },
+                onError: (error) => {
+                    toast.error(describeError(error.error).message);
+                },
+            },
+        );
+    };
+}
+
+/**
  * Campo do formulário de cada campo que o núcleo pode apontar numa recusa de conta.
  */
 const ACCOUNT_FIELD_BY_CORE_FIELD: Readonly<Partial<Record<string, keyof AccountFormValues>>> = {

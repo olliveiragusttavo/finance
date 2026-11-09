@@ -5,12 +5,15 @@ import {
     formatTransactionType,
     invoiceChoices,
     invoiceReopenWarning,
+    matchNameSuggestions,
+    paymentMethodSource,
     previewTransactionValue,
     recalculationNotice,
     subCategoryOptions,
     TRANSACTION_TYPE_ORDER,
     transactionSourceOptions,
 } from '../src/index.ts';
+import type { TransactionNameSuggestionResponse } from '@finance/core';
 import { ClientWorld } from './support/ClientWorld.ts';
 
 const NUBANK = { id: 'nubank', name: 'Nubank', disabled: false };
@@ -183,5 +186,52 @@ describe('confirmação de exclusão (brief §4, regra 9)', () => {
         expect((await deletionOf(partial.id)).description).toBe(
             'O pagamento parcial de R$ 100,00 sai da fatura de nov/2026 do cartão Roxinho: o valor volta a pesar na fatura e retorna à conta Nubank.',
         );
+    });
+});
+
+describe('atalho "Débito / Crédito" do lançamento novo (database-design §4.1)', () => {
+    const options = transactionSourceOptions({ accounts: [NUBANK, TESOURO, OLD], creditCards: [ROXINHO, RETIRED], current: null });
+
+    it('escolhe a conta ou o cartão padrão do perfil', () => {
+        const defaults = { defaultAccountId: TESOURO.id, defaultCreditCardId: ROXINHO.id };
+        expect(paymentMethodSource({ method: 'debit', defaults, options })?.id).toBe(TESOURO.id);
+        expect(paymentMethodSource({ method: 'credit', defaults, options })).toMatchObject({ kind: 'creditCard', id: ROXINHO.id });
+    });
+
+    it('sem padrão, só escolhe quando há uma única opção ativa', () => {
+        const none = { defaultAccountId: null, defaultCreditCardId: null };
+        expect(paymentMethodSource({ method: 'debit', defaults: none, options })).toBeNull();
+        expect(paymentMethodSource({ method: 'credit', defaults: none, options })?.id).toBe(ROXINHO.id);
+    });
+
+    it('ignora o padrão que não está entre as opções, como o de outro perfil', () => {
+        expect(paymentMethodSource({ method: 'debit', defaults: { defaultAccountId: OLD.id, defaultCreditCardId: null }, options })).toBeNull();
+    });
+});
+
+describe('autocomplete do campo "Nome"', () => {
+    /**
+     * @param name Nome lançado.
+     * @param type Tipo do lançamento que o usou.
+     * @return Uma sugestão com categoria e origem fixas, porque o filtro só olha nome e tipo.
+     */
+    function suggestion(name: string, type: TransactionNameSuggestionResponse['type'] = 'expense'): TransactionNameSuggestionResponse {
+        return { name, type, subCategoryId: 'sub', source: { kind: 'account', accountId: NUBANK.id }, uses: 1 };
+    }
+    const suggestions = [suggestion('Supermercado'), suggestion('Mercado'), suggestion('Açougue'), suggestion('Mercado Livre'), suggestion('Mercado', 'income')];
+
+    it('o que começa pelo texto vem antes do que só o contém, mantendo a ordem do núcleo em cada grupo', () => {
+        expect(matchNameSuggestions({ suggestions, query: 'merc', type: 'expense' }).map((item) => item.name)).toEqual(['Mercado', 'Mercado Livre', 'Supermercado']);
+    });
+
+    it('ignora acento e maiúscula, e só sugere nomes do mesmo tipo', () => {
+        expect(matchNameSuggestions({ suggestions, query: 'ACOU', type: 'expense' }).map((item) => item.name)).toEqual(['Açougue']);
+        expect(matchNameSuggestions({ suggestions, query: 'merc', type: 'income' })).toEqual([suggestion('Mercado', 'income')]);
+    });
+
+    it('campo em branco não sugere nada, e mostra no máximo oito', () => {
+        expect(matchNameSuggestions({ suggestions, query: '  ', type: 'expense' })).toEqual([]);
+        const many = Array.from({ length: 12 }, (_item, index) => suggestion(`Loja ${String(index)}`));
+        expect(matchNameSuggestions({ suggestions: many, query: 'loja', type: 'expense' })).toHaveLength(8);
     });
 });

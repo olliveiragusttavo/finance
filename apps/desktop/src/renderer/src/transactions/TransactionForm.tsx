@@ -6,9 +6,12 @@ import {
     goalChoices,
     invoiceChoices,
     invoiceReopenWarning,
+    matchNameSuggestions,
     parseMoneyInput,
+    paymentMethodSource,
     previewTransactionValue,
     recalculationNotice,
+    subCategoryOptions,
     TRANSACTION_TYPE_ORDER,
     transactionSourceOptions,
     useAccounts,
@@ -21,9 +24,12 @@ import {
     usePartners,
     useRecurrences,
     useTags,
+    useTransactionNameSuggestions,
     useTransferTargets,
     type EditScope,
+    type PaymentMethod,
     type SourceOption,
+    type SourceOptions,
 } from '@finance/client';
 import {
     feedsGoal,
@@ -33,12 +39,14 @@ import {
     type CategoryBranchResponse,
     type CreditCardInPeriodResponse,
     type GoalOptionResponse,
+    type ProfileResponse,
     type RecurrenceResponse,
     type TagResponse,
+    type TransactionNameSuggestionResponse,
     type TransactionResponse,
     type TransferTargetResponse,
 } from '@finance/core';
-import { useId, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Controller, useForm, type Resolver } from 'react-hook-form';
 import { toast } from 'sonner';
 import { periodOfDate } from '@/cards/invoiceForms';
@@ -55,6 +63,7 @@ import { StatusTag } from '@/components/entityUi';
 import { useActiveProfile } from '@/shell/activeProfile';
 import { currentDate, shiftPeriod } from '@/shell/referenceMonth';
 import { useReferenceMonth } from '@/shell/useReferenceMonth';
+import { NameAutocomplete } from './NameAutocomplete.tsx';
 import { TagPicker, SubCategoryPicker } from './pickers.tsx';
 import { RepeatSection } from './RepeatSection.tsx';
 import { ScopeDialog } from './ScopeDialog.tsx';
@@ -164,7 +173,24 @@ export function TransactionForm(props: TransactionFormProps): ReactNode {
             </div>
         );
     }
-    return <LoadedTransactionForm {...props} recurrence={recurrences.data?.find((recurrence) => recurrence.id === props.transaction?.recurrenceId) ?? null} />;
+    // O filtro de conta ou cartão da tela vence o padrão: quem filtrou o Nubank lança no Nubank.
+    const initialSource = props.initialSource === undefined || props.initialSource === '' ? debitSourceKey(profile, registries) : props.initialSource;
+    return <LoadedTransactionForm {...props} initialSource={initialSource} recurrence={recurrences.data?.find((recurrence) => recurrence.id === props.transaction?.recurrenceId) ?? null} />;
+}
+
+/**
+ * Origem com que o lançamento novo abre.
+ * Regra de negócio (Lançamentos, database-design §4.1): o lançamento novo abre no débito, com a
+ * conta padrão do perfil já escolhida.
+ *
+ * @param profile Perfil do lançamento, com a conta padrão.
+ * @param registries Contas e cartões do perfil.
+ * @return A chave da conta (`sourceKey`), ou vazio quando o usuário precisa escolher.
+ */
+function debitSourceKey(profile: ProfileResponse, registries: Pick<FormRegistries, 'accounts' | 'creditCards'>): string {
+    const options = transactionSourceOptions({ accounts: registries.accounts, creditCards: registries.creditCards, current: null });
+    const source = paymentMethodSource({ method: 'debit', defaults: profile, options });
+    return source === null ? '' : sourceKey(source);
 }
 
 /** Cadastros de um perfil que o formulário oferece nas escolhas. */
@@ -267,6 +293,20 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
     const { errors } = form.formState;
     const source = parseSourceKey(values.source);
     const options = transactionSourceOptions({ accounts, creditCards, current: transaction?.container ?? null });
+    // Atalho "Débito / Crédito" e autocomplete do nome: só no lançamento novo. Na edição, trocar
+    // a origem ou a categoria porque o nome mudou desfaria em silêncio uma escolha já gravada.
+    const creating = transaction === null;
+    const [method, setMethod] = useState<PaymentMethod>(source?.kind === 'creditCard' ? 'credit' : 'debit');
+    // Perfil escolhido no lançamento novo cuja origem padrão ainda não foi aplicada: os cadastros
+    // dele chegam depois da troca.
+    const [pendingDefault, setPendingDefault] = useState<string | null>(null);
+    // A origem escolhida manda no atalho: escolher um cartão na lista é pagar no crédito.
+    const shownMethod: PaymentMethod = source === null ? method : source.kind === 'creditCard' ? 'credit' : 'debit';
+    // Com o atalho à vista, a lista de origens mostra só o lado dele: contas no débito, cartões no crédito.
+    const sourceFilter: PaymentMethod | null = creating && values.type === 'expense' ? shownMethod : null;
+    const nameSuggestions = useTransactionNameSuggestions(creating ? { profileId: values.profileId } : null);
+    const nameMatches = matchNameSuggestions({ suggestions: nameSuggestions.data ?? [], query: values.name, type: values.type });
+    const subCategories = subCategoryOptions(categories, '');
     // As atingidas num grupo à parte; a arquivada só se este lançamento já está vinculado a ela
     // (desktop-mvp-plan Fase 13.4).
     const goalOptions = goalChoices(goals, transaction?.goalId ?? null).map((choice): ComboboxOption => ({ value: choice.id, label: choice.label, group: choice.group }));
@@ -281,6 +321,70 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
      * @return O id do campo.
      */
     const fieldId = (name: string): string => `${id}-${name}`;
+
+    /**
+     * Aplica a origem padrão do perfil recém-escolhido assim que as contas e os cartões dele
+     * carregam. Sem isso, a despesa nova perde a conta padrão ao trocar de perfil, e a dica do campo
+     * manda definir um padrão que o perfil já tem. Não dá para aplicar em `changeProfile`, porque
+     * ali as opções ainda são as do perfil anterior.
+     * Regra de negócio (Lançamentos, database-design §4.1; desktop-mvp-plan Fase 15.2): o
+     * lançamento novo abre no débito com a conta padrão do seu perfil.
+     */
+    useEffect(() => {
+        if (pendingDefault === null || pendingDefault !== values.profileId || loaded === null) {
+            return;
+        }
+        const chosen = paymentMethodSource({ method: 'debit', defaults: owner, options });
+        form.setValue('source', chosen === null ? '' : sourceKey(chosen));
+        setPendingDefault(null);
+    }, [pendingDefault, values.profileId, loaded, owner, options, form]);
+
+    /**
+     * Troca a origem para a conta ou o cartão do atalho. Sem padrão e com várias opções, a origem
+     * fica vazia, e a dica do campo diz onde definir o padrão.
+     *
+     * @param next Débito ou crédito.
+     */
+    const changeMethod = (next: PaymentMethod): void => {
+        const chosen = paymentMethodSource({ method: next, defaults: owner, options });
+        setMethod(next);
+        form.setValue('source', chosen === null ? '' : sourceKey(chosen));
+        form.setValue('invoicePeriod', '');
+        form.clearErrors('source');
+    };
+
+    /**
+     * Copia a categoria e a origem do lançamento sugerido. Cada uma só é copiada se ainda é
+     * escolha válida — a subcategoria excluída, a conta desativada ou excluída ficam como estão,
+     * em vez de levar o formulário a um valor que o núcleo recusaria.
+     *
+     * @param suggestion Sugestão escolhida no campo "Nome".
+     */
+    const pickName = (suggestion: TransactionNameSuggestionResponse): void => {
+        form.setValue('name', suggestion.name);
+        if (subCategories.some((option) => option.id === suggestion.subCategoryId)) {
+            form.setValue('subCategoryId', suggestion.subCategoryId);
+            form.clearErrors('subCategoryId');
+        }
+        const suggested = suggestedSourceOption(suggestion, options);
+        if (suggested !== null) {
+            // A sugestão no cartão leva o atalho para o crédito, e a lista passa a mostrar os cartões.
+            setMethod(suggested.kind === 'creditCard' ? 'credit' : 'debit');
+            form.setValue('source', sourceKey(suggested));
+            form.setValue('invoicePeriod', '');
+            form.clearErrors('source');
+        }
+    };
+
+    /**
+     * @param suggestion Sugestão da lista.
+     * @return O que escolhê-la copia, para o usuário ver antes de escolher.
+     */
+    const describeSuggestion = (suggestion: TransactionNameSuggestionResponse): string => {
+        const category = subCategories.find((option) => option.id === suggestion.subCategoryId)?.label;
+        const origin = suggestedSourceOption(suggestion, options)?.name;
+        return [category, origin].filter((part) => part !== undefined).join(' · ');
+    };
 
     const [pending, setPending] = useState<PendingSave | null>(null);
 
@@ -325,7 +429,9 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
     /**
      * Troca o perfil do lançamento. Conta, cartão, fatura, destino, categoria, tags e meta são do
      * perfil (database-design §3.8) e não valem no outro, então voltam a ser escolhidos; voltar ao
-     * perfil do lançamento editado devolve as escolhas dele.
+     * perfil do lançamento editado devolve as escolhas dele. No lançamento novo, a origem volta ao
+     * débito com a conta padrão do perfil escolhido (Fase 15.2), aplicada quando os cadastros dele
+     * carregam.
      *
      * @param next Perfil escolhido.
      */
@@ -333,6 +439,10 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
         const original = transaction !== null && next === transaction.profileId ? transactionFormFrom(transaction, today, recurrence) : null;
         form.setValue('profileId', next);
         form.setValue('source', original?.source ?? '');
+        if (creating) {
+            setMethod('debit');
+            setPendingDefault(next);
+        }
         form.setValue('invoicePeriod', original?.invoicePeriod ?? '');
         form.setValue('destinationAccountId', original?.destinationAccountId ?? '');
         form.setValue('subCategoryId', original?.subCategoryId ?? '');
@@ -405,9 +515,30 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
                 </Field>
             )}
             <Controller control={form.control} name="type" render={({ field }) => <TypeSelector value={field.value} onChange={field.onChange} locked={transaction !== null} />} />
+            {creating && values.type === 'expense' && <PaymentMethodSelector value={shownMethod} onChange={changeMethod} creditAvailable={options.creditCards.length > 0} />}
             <AmountField id={fieldId('amount')} form={form} currency={currency} autoFocus={transaction === null} />
             <Field id={fieldId('name')} label="Nome" error={errors.name}>
-                <Input id={fieldId('name')} {...fieldAria(fieldId('name'), errors.name)} {...form.register('name')} />
+                {creating ? (
+                    <Controller
+                        control={form.control}
+                        name="name"
+                        render={({ field }) => (
+                            <NameAutocomplete
+                                id={fieldId('name')}
+                                value={field.value}
+                                onChange={field.onChange}
+                                onBlur={field.onBlur}
+                                inputRef={field.ref}
+                                suggestions={nameMatches}
+                                onPick={pickName}
+                                describe={describeSuggestion}
+                                aria={fieldAria(fieldId('name'), errors.name)}
+                            />
+                        )}
+                    />
+                ) : (
+                    <Input id={fieldId('name')} {...fieldAria(fieldId('name'), errors.name)} {...form.register('name')} />
+                )}
             </Field>
             <Field id={fieldId('category')} label="Categoria" error={errors.subCategoryId}>
                 <Controller
@@ -418,14 +549,14 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
                     )}
                 />
             </Field>
-            <Field id={fieldId('source')} label="Conta ou cartão" error={errors.source}>
+            <Field id={fieldId('source')} label="Conta ou cartão" error={errors.source} hint={creating && source === null ? missingDefaultHint(shownMethod) : undefined}>
                 <Controller
                     control={form.control}
                     name="source"
                     render={({ field }) => (
                         <Combobox
                             id={fieldId('source')}
-                            options={[...sourceChoices('Contas', options.accounts), ...sourceChoices('Cartões', options.creditCards)]}
+                            options={sourceFieldOptions(options, sourceFilter)}
                             value={field.value}
                             onChange={(next) => {
                                 field.onChange(next);
@@ -435,10 +566,8 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
                                 form.setValue('invoicePeriod', container?.kind === 'invoice' && next === sourceKey({ kind: 'creditCard', id: container.creditCardId }) ? container.period : '');
                             }}
                             disabled={loaded === null}
-                            placeholder="Escolha a conta ou o cartão"
-                            searchLabel="Buscar conta ou cartão"
-                            emptyText="Nenhuma conta ou cartão encontrado."
-                            aria={fieldAria(fieldId('source'), errors.source)}
+                            {...SOURCE_FIELD_TEXTS[sourceFilter ?? 'both']}
+                            aria={fieldAria(fieldId('source'), errors.source, creating && source === null)}
                         />
                     )}
                 />
@@ -720,6 +849,68 @@ function GoalDirection({ value, onChange }: { readonly value: boolean; readonly 
     );
 }
 
+/** Rótulo de cada forma de pagamento no atalho, com a origem que ela escolhe. */
+const PAYMENT_METHOD_LABELS: Readonly<Record<PaymentMethod, string>> = {
+    debit: 'Débito · conta',
+    credit: 'Crédito · cartão',
+};
+
+/**
+ * Atalho "Débito / Crédito" da despesa nova, logo abaixo do tipo: escolhe a conta ou o cartão
+ * padrão do perfil sem abrir a lista de origens. Fica só na despesa, a única que se paga no
+ * cartão no dia a dia; as outras saem de uma conta.
+ * Regra de negócio (Lançamentos, database-design §4.1): débito é pagar com a conta padrão;
+ * crédito, com o cartão padrão.
+ *
+ * @param props.value Forma de pagamento mostrada — a da origem escolhida, quando há uma.
+ * @param props.onChange Recebe a forma escolhida.
+ * @param props.creditAvailable `false` quando o perfil não tem cartão ativo: o crédito fica
+ * desabilitado, em vez de levar a uma origem vazia.
+ * @return O atalho.
+ */
+function PaymentMethodSelector({ value, onChange, creditAvailable }: { readonly value: PaymentMethod; readonly onChange: (method: PaymentMethod) => void; readonly creditAvailable: boolean }): ReactNode {
+    const methods: readonly PaymentMethod[] = ['debit', 'credit'];
+    return (
+        <div role="radiogroup" aria-label="Forma de pagamento" className="grid grid-cols-2 gap-0.5 rounded-8 bg-surface2 p-0.5 ring-1 ring-line">
+            {methods.map((method) => (
+                <button
+                    key={method}
+                    type="button"
+                    role="radio"
+                    aria-checked={method === value}
+                    disabled={method === 'credit' && !creditAvailable}
+                    title={method === 'credit' && !creditAvailable ? 'Nenhum cartão ativo neste perfil.' : undefined}
+                    className={cn('rounded-6 px-1 py-1.5 text-12 text-ink2 disabled:cursor-not-allowed disabled:opacity-50', method === value && 'bg-surface font-semibold text-ink ring-1 ring-line')}
+                    onClick={() => {
+                        onChange(method);
+                    }}
+                >
+                    {PAYMENT_METHOD_LABELS[method]}
+                </button>
+            ))}
+        </div>
+    );
+}
+
+/**
+ * @param method Forma de pagamento do atalho.
+ * @return A dica do campo "Conta ou cartão" vazio no lançamento novo: o padrão que poupa a escolha.
+ */
+function missingDefaultHint(method: PaymentMethod): string {
+    return method === 'credit' ? 'Defina um cartão padrão na tela Cartões para ele já vir escolhido no crédito.' : 'Defina uma conta padrão na tela Contas para ela já vir escolhida no débito.';
+}
+
+/**
+ * @param suggestion Sugestão do campo "Nome".
+ * @param options Origens oferecidas no lançamento novo.
+ * @return A conta ou o cartão da sugestão, ou `null` quando ele já não é escolha (desativado ou excluído).
+ */
+function suggestedSourceOption(suggestion: TransactionNameSuggestionResponse, options: SourceOptions): SourceOption | null {
+    const { source } = suggestion;
+    const found = source.kind === 'account' ? options.accounts.find((option) => option.id === source.accountId) : options.creditCards.find((option) => option.id === source.creditCardId);
+    return found ?? null;
+}
+
 /**
  * Rótulo curto de cada tipo no seletor, como no mockup `MobileLancamento` ("Transf.", "Invest."):
  * os quatro nomes inteiros não cabem lado a lado na largura do diálogo. O nome inteiro continua no
@@ -828,6 +1019,28 @@ function AmountField({
             </p>
         </Field>
     );
+}
+
+/** Textos do campo "Conta ou cartão" com as duas listas, só as contas (débito) ou só os cartões (crédito). */
+const SOURCE_FIELD_TEXTS: Readonly<Record<PaymentMethod | 'both', { readonly placeholder: string; readonly searchLabel: string; readonly emptyText: string }>> = {
+    both: { placeholder: 'Escolha a conta ou o cartão', searchLabel: 'Buscar conta ou cartão', emptyText: 'Nenhuma conta ou cartão encontrado.' },
+    debit: { placeholder: 'Escolha a conta', searchLabel: 'Buscar conta', emptyText: 'Nenhuma conta encontrada.' },
+    credit: { placeholder: 'Escolha o cartão', searchLabel: 'Buscar cartão', emptyText: 'Nenhum cartão encontrado.' },
+};
+
+/**
+ * Opções do campo "Conta ou cartão". Com o atalho "Débito / Crédito" à vista, só as do lado
+ * escolhido: misturar contas e cartões numa despesa marcada como débito deixaria escolher um
+ * cartão sem perceber, e a forma de pagamento mostrada não diria a verdade.
+ *
+ * @param options Contas e cartões oferecidos.
+ * @param filter Forma de pagamento do atalho; `null` quando ele não aparece (edição ou outro tipo).
+ * @return As opções do seletor, agrupadas.
+ */
+function sourceFieldOptions(options: SourceOptions, filter: PaymentMethod | null): readonly ComboboxOption[] {
+    const accounts = filter === 'credit' ? [] : sourceChoices('Contas', options.accounts);
+    const creditCards = filter === 'debit' ? [] : sourceChoices('Cartões', options.creditCards);
+    return [...accounts, ...creditCards];
 }
 
 /**

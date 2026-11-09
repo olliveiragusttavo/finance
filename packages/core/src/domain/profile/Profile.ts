@@ -1,5 +1,5 @@
 import type { Currency } from '../shared/Currency.ts';
-import type { ProfileId } from '../shared/ids.ts';
+import type { AccountId, CreditCardId, ProfileId } from '../shared/ids.ts';
 import { requireName } from '../shared/names.ts';
 
 /** Tipo do perfil; controla se sócios existem (database-design §4.1). */
@@ -13,7 +13,17 @@ export interface ProfileProps {
     readonly name: string;
     readonly type: ProfileType;
     readonly currency: Currency;
+    /**
+     * Regra de negócio (Lançamentos, database-design §4.1): conta que o atalho "Débito" do
+     * lançamento novo escolhe. Só vem preenchida quando a conta está viva e ativa; `null` sem padrão.
+     */
+    readonly defaultAccountId: AccountId | null;
+    /** Cartão que o atalho "Crédito" escolhe, com a mesma regra da conta padrão. */
+    readonly defaultCreditCardId: CreditCardId | null;
 }
+
+/** Dados de um perfil novo: ele nasce sem conta nem cartão, então sem padrão. */
+export type NewProfileProps = Omit<ProfileProps, 'defaultAccountId' | 'defaultCreditCardId'>;
 
 /**
  * Raiz do tenant: tudo pertence a um perfil (database-design §3.8). No núcleo de saldos
@@ -25,6 +35,8 @@ export class Profile implements ProfileProps {
     public readonly name: string;
     public readonly type: ProfileType;
     public readonly currency: Currency;
+    public readonly defaultAccountId: AccountId | null;
+    public readonly defaultCreditCardId: CreditCardId | null;
 
     /**
      * @param props Dados do perfil; o construtor é privado para que instâncias venham só de
@@ -36,6 +48,8 @@ export class Profile implements ProfileProps {
         this.name = props.name;
         this.type = props.type;
         this.currency = props.currency;
+        this.defaultAccountId = props.defaultAccountId;
+        this.defaultCreditCardId = props.defaultCreditCardId;
         Object.freeze(this);
     }
 
@@ -44,11 +58,11 @@ export class Profile implements ProfileProps {
      * ISO de três letras em maiúsculas — o mesmo domínio do `ck_profiles_currency`.
      *
      * @param props Dados do perfil, com id já gerado pela aplicação (database-design §3.5).
-     * @return O perfil, com o nome aparado.
+     * @return O perfil, com o nome aparado e sem conta nem cartão padrão.
      * @throws {InvalidValueError} Quando o nome está vazio ou passa de 45 caracteres.
      */
-    public static create(props: ProfileProps): Profile {
-        return new Profile({ ...props, name: requireName(props.name) });
+    public static create(props: NewProfileProps): Profile {
+        return new Profile({ ...props, name: requireName(props.name), defaultAccountId: null, defaultCreditCardId: null });
     }
 
     /**
@@ -100,6 +114,13 @@ export class Profile implements ProfileProps {
      * @return Os dados atuais do perfil.
      */
     private props(): ProfileProps {
-        return { id: this.id, name: this.name, type: this.type, currency: this.currency };
+        return {
+            id: this.id,
+            name: this.name,
+            type: this.type,
+            currency: this.currency,
+            defaultAccountId: this.defaultAccountId,
+            defaultCreditCardId: this.defaultCreditCardId,
+        };
     }
 }

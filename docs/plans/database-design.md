@@ -495,6 +495,18 @@ na camada Service, não pelo banco
 ([§3.7](#37-dinheiro)); as colunas de moeda em `accounts` e `transactions` são rótulos,
 não unidades.
 
+#### A conta e o cartão padrão do lançamento
+
+`default_account_id` e `default_credit_card_id` (migration `0008`) são as origens que o atalho
+"Débito / Crédito" do formulário de lançamento novo escolhe. Ficam no perfil, e não como
+marcador em `accounts` e `credit_cards`, porque a regra é "no máximo um padrão de cada por
+perfil": numa coluna só ela vale por construção, inclusive quando a sincronização mescla
+célula a célula escolhas feitas em dois aparelhos.
+
+A conta ou o cartão tem de ser do próprio perfil e estar ativo quando é escolhido (camada
+Service). Desativado ou excluído depois, deixa de valer como padrão **na leitura**, sem apagar
+a escolha: reativar devolve o padrão.
+
 #### Colunas
 
 | Coluna | Tipo | Restrições | Notas |
@@ -502,8 +514,11 @@ não unidades.
 | `name` | TEXT | NN, `CHECK (length(name) <= 45)` | |
 | `type` | INTEGER | NN, `CHECK (type IN (1, 2))` | enum — `1: personal`, `2: business` |
 | `currency` | TEXT | NN, currency | ISO 4217 (`BRL`, `USD`) |
+| `default_account_id` | TEXT | FK → `accounts`, `ON DELETE SET NULL` | conta padrão (débito); nulo = sem padrão |
+| `default_credit_card_id` | TEXT | FK → `credit_cards`, `ON DELETE SET NULL` | cartão padrão (crédito); nulo = sem padrão |
 
-Sem chaves estrangeiras. Nenhum índice além da chave primária.
+Índices `idx_profiles_default_account_id` e `idx_profiles_default_credit_card_id`, um por chave
+estrangeira (§3).
 
 ### 4.2 partners
 

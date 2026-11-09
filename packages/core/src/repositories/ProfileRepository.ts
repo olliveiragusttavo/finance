@@ -1,5 +1,5 @@
 import type { Profile } from '../domain/profile/Profile.ts';
-import type { ProfileId } from '../domain/shared/ids.ts';
+import type { AccountId, CreditCardId, ProfileId } from '../domain/shared/ids.ts';
 
 /** Acesso aos perfis. */
 export interface ProfileRepository {
@@ -22,6 +22,26 @@ export interface ProfileRepository {
      * @return void
      */
     save(profile: Profile): void;
+
+    /**
+     * Grava a conta padrão à parte do `save`, porque a leitura só devolve o padrão que ainda vale
+     * (conta viva e ativa): regravar o perfil inteiro apagaria a escolha de uma conta apenas
+     * desativada, que reativar deve devolver.
+     *
+     * @param id Perfil dono.
+     * @param accountId Nova conta padrão, já conferida pelo Service; `null` tira o padrão.
+     * @return void
+     */
+    setDefaultAccount(id: ProfileId, accountId: AccountId | null): void;
+
+    /**
+     * Grava o cartão padrão, pelo mesmo motivo do `setDefaultAccount`.
+     *
+     * @param id Perfil dono.
+     * @param creditCardId Novo cartão padrão, já conferido pelo Service; `null` tira o padrão.
+     * @return void
+     */
+    setDefaultCreditCard(id: ProfileId, creditCardId: CreditCardId | null): void;
 
     /**
      * @param id Perfil consultado.

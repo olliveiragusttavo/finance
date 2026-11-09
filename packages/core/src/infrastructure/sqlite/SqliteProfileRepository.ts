@@ -1,13 +1,23 @@
 import { Profile } from '../../domain/profile/Profile.ts';
 import { Currency } from '../../domain/shared/Currency.ts';
-import { ProfileId } from '../../domain/shared/ids.ts';
+import { AccountId, CreditCardId, ProfileId } from '../../domain/shared/ids.ts';
 import type { Clock } from '../../ports/Clock.ts';
 import type { Database, SqlRow } from '../../ports/Database.ts';
 import type { ProfileRepository } from '../../repositories/ProfileRepository.ts';
 import { decodeEnum, PROFILE_TYPE_CODE } from './enumCodes.ts';
 import { RowReader } from './RowReader.ts';
 
-const SELECT_PROFILE = 'SELECT id, name, type, currency FROM profiles';
+// Regra de negócio (Lançamentos, database-design §4.1): a conta e o cartão padrão só valem
+// vivos, ativos e do próprio perfil. O filtro fica na leitura, e não na desativação, para que
+// reativar devolva o padrão e para que uma desativação recebida pela sincronização também o tire.
+const SELECT_PROFILE = `
+    SELECT p.id, p.name, p.type, p.currency,
+        (SELECT a.id FROM accounts a
+            WHERE a.id = p.default_account_id AND a.profile_id = p.id AND a.deleted_at IS NULL AND a.disabled_at IS NULL) AS default_account_id,
+        (SELECT c.id FROM credit_cards c
+            WHERE c.id = p.default_credit_card_id AND c.profile_id = p.id AND c.deleted_at IS NULL AND c.disabled_at IS NULL) AS default_credit_card_id
+    FROM profiles p
+`;
 
 /** Implementação SQLite de `ProfileRepository`. */
 export class SqliteProfileRepository implements ProfileRepository {
@@ -24,7 +34,7 @@ export class SqliteProfileRepository implements ProfileRepository {
      * @return O perfil vivo, ou `null`.
      */
     public findById(id: ProfileId): Profile | null {
-        const row = this.database.get(`${SELECT_PROFILE} WHERE id = :id AND deleted_at IS NULL`, { id });
+        const row = this.database.get(`${SELECT_PROFILE} WHERE p.id = :id AND p.deleted_at IS NULL`, { id });
         return row === undefined ? null : this.toProfile(row);
     }
 
@@ -33,7 +43,7 @@ export class SqliteProfileRepository implements ProfileRepository {
      */
     public list(): readonly Profile[] {
         return this.database
-            .all(`${SELECT_PROFILE} WHERE deleted_at IS NULL ORDER BY name COLLATE NOCASE, id`)
+            .all(`${SELECT_PROFILE} WHERE p.deleted_at IS NULL ORDER BY p.name COLLATE NOCASE, p.id`)
             .map((row) => this.toProfile(row));
     }
 
@@ -59,6 +69,32 @@ export class SqliteProfileRepository implements ProfileRepository {
                 now: this.clock.now(),
             },
         );
+    }
+
+    /**
+     * @param id Perfil dono.
+     * @param accountId Nova conta padrão; `null` tira o padrão.
+     * @return void
+     */
+    public setDefaultAccount(id: ProfileId, accountId: AccountId | null): void {
+        this.database.run('UPDATE profiles SET default_account_id = :accountId, updated_at = :now WHERE id = :id AND deleted_at IS NULL', {
+            id,
+            accountId,
+            now: this.clock.now(),
+        });
+    }
+
+    /**
+     * @param id Perfil dono.
+     * @param creditCardId Novo cartão padrão; `null` tira o padrão.
+     * @return void
+     */
+    public setDefaultCreditCard(id: ProfileId, creditCardId: CreditCardId | null): void {
+        this.database.run('UPDATE profiles SET default_credit_card_id = :creditCardId, updated_at = :now WHERE id = :id AND deleted_at IS NULL', {
+            id,
+            creditCardId,
+            now: this.clock.now(),
+        });
     }
 
     /**
@@ -91,11 +127,15 @@ export class SqliteProfileRepository implements ProfileRepository {
      */
     private toProfile(row: SqlRow): Profile {
         const reader = new RowReader('profiles', row);
+        const defaultId = reader.nullableText('default_account_id');
+        const defaultCardId = reader.nullableText('default_credit_card_id');
         return Profile.restore({
             id: ProfileId(reader.text('id')),
             name: reader.text('name'),
             type: decodeEnum(PROFILE_TYPE_CODE, reader.number('type'), 'profiles'),
             currency: Currency.of(reader.text('currency')),
+            defaultAccountId: defaultId === null ? null : AccountId(defaultId),
+            defaultCreditCardId: defaultCardId === null ? null : CreditCardId(defaultCardId),
         });
     }
 }
