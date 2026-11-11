@@ -30,6 +30,7 @@ export * from './forms/accountForm.ts';
 export * from './forms/creditCardForm.ts';
 export * from './forms/goalForm.ts';
 export * from './forms/nameForm.ts';
+export * from './forms/noteForm.ts';
 export * from './forms/profileForm.ts';
 // Regras do lançamento que decidem quais campos o formulário mostra, as mesmas do núcleo.
 export { feedsGoal, movesToDestination, withdrawsFromGoal } from '@finance/core';

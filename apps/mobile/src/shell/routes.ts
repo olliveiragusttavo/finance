@@ -110,3 +110,14 @@ export function moreTransactionRoute(transactionId: string): `/more/transaction/
 export function categoryRoute(categoryId: string): `/more/category/${string}` {
     return `/more/category/${categoryId}`;
 }
+
+/** Parâmetro da rota do editor de anotação que abre uma anotação nova. */
+export const NEW_NOTE = 'new';
+
+/**
+ * @param noteId Anotação a editar, ou `NEW_NOTE` para escrever uma nova.
+ * @return O caminho do editor, empilhado sobre a lista de Anotações na aba Mais.
+ */
+export function noteRoute(noteId: string): `/more/note/${string}` {
+    return `/more/note/${noteId}`;
+}

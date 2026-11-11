@@ -1,4 +1,4 @@
-import { summarizeNote } from '@finance/client';
+import { summarizeNote } from '../format/note.ts';
 import type { NoteResponse } from '@finance/core';
 import { noteTextField } from '@finance/core/requests';
 

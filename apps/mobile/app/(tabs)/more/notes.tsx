@@ -1,4 +1,4 @@
-import { NotesScreen } from '../../../src/screens/PendingScreens.tsx';
+import { NotesScreen } from '../../../src/screens/NotesScreen.tsx';
 
-/** Rota `/more/notes`: as anotações. */
+/** Rota `/more/notes`: as anotações, empilhadas na aba Mais. */
 export default NotesScreen;

@@ -2,7 +2,6 @@ import type { CategoryBranchResponse } from '@finance/core';
 import { describe, expect, it } from 'vitest';
 import { filterCategories } from '@finance/client';
 import { openCategory, parseCategoriesSearch } from '../src/renderer/src/categories/categoriesSearch.ts';
-import { filterNotes, noteTitle, readNoteForm } from '../src/renderer/src/notes/noteForm.ts';
 import { parseNotesSearch } from '../src/renderer/src/notes/notesSearch.ts';
 
 describe('lista e detalhe de categorias (desktop-mvp-plan Fase 13.12)', () => {
@@ -36,32 +35,7 @@ describe('lista e detalhe de categorias (desktop-mvp-plan Fase 13.12)', () => {
     });
 });
 
-describe('anotações (mockup DesktopAnotacoes)', () => {
-    /**
-     * @param id Id da anotação.
-     * @param text Texto.
-     * @return Uma anotação como `notes.list` a devolve.
-     */
-    const note = (id: string, text: string): { readonly id: string; readonly profileId: string; readonly text: string } => ({ id, profileId: 'p', text });
-    const notes = [note('a', 'IPTU 2027\nCota única vence em fevereiro.'), note('b', 'Reembolsos pendentes\nConferir a tag reembolsável.')];
-
-    it('o editor exige texto, aparado como o núcleo grava; não há limite de tamanho', () => {
-        expect(readNoteForm('  \n Lembrete \n')).toEqual({ ok: true, text: 'Lembrete' });
-        expect(readNoteForm(' \n ')).toEqual({ ok: false, error: 'Escreva a anotação antes de salvar.' });
-        expect(readNoteForm('a'.repeat(20_000)).ok).toBe(true);
-    });
-
-    it('a busca procura no texto inteiro, sem diferenciar maiúsculas nem acentos', () => {
-        expect(filterNotes(notes, 'fevereiro').map((found) => found.id)).toEqual(['a']);
-        expect(filterNotes(notes, 'REEMBOLSAVEL').map((found) => found.id)).toEqual(['b']);
-        expect(filterNotes(notes, '  ')).toEqual(notes);
-        expect(filterNotes(notes, 'aluguel')).toEqual([]);
-    });
-
-    it('o título é a primeira linha', () => {
-        expect(notes.map(noteTitle)).toEqual(['IPTU 2027', 'Reembolsos pendentes']);
-    });
-
+describe('anotação aberta na URL (mockup DesktopAnotacoes)', () => {
     it('a anotação pedida pela URL vem do `note` (a Visão geral leva a ela, Fase 13.2); pedido vazio é descartado', () => {
         expect(parseNotesSearch({ note: 'n1', period: '2026-10' })).toEqual({ note: 'n1' });
         expect(parseNotesSearch({ note: '' })).toEqual({});

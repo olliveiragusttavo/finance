@@ -571,9 +571,23 @@ Como ficou:
 
 ### Fase 16 — Tags e Anotações
 
-- [ ] `MobileTags`: lista + folha de edição
-- [ ] `MobileAnotacoes` e `MobileAnotacaoEditar`: primeira linha como título, editor de texto livre
-- [ ] Testes de tela
+- [x] `MobileTags`: lista + folha de edição
+- [x] `MobileAnotacoes` e `MobileAnotacaoEditar`: primeira linha como título, editor de texto livre
+- [x] Testes de tela
+
+Como ficou:
+
+- **Tags** (`/more/tags`): "Nova tag" no topo, sem folha, para cadastrar várias seguidas; a
+  lista com quantos lançamentos usam cada uma; "Editar tag" numa folha com o nome, os números
+  do painel do desktop, salvar e excluir com o aviso de quantos lançamentos perdem a tag. Sem o
+  atalho "Ver lançamentos em Transações" do desktop: os filtros de Transações do celular não se
+  abrem por link.
+- **Anotações** (`/more/notes` → `/more/note/[id]`, `new` para uma nova): a busca no texto
+  inteiro e os cartões com o título e a prévia; o editor com "Salvar" no cabeçalho, que grava e
+  volta, como o mockup, e "Excluir" com confirmação. Sair com alteração não salva — pelo
+  "voltar" do cabeçalho ou do Android — pergunta antes se salva ou descarta
+  (`usePreventRemove`), como o desktop.
+- **Client:** o `noteForm` (leitura do editor, busca e título) saiu do desktop.
 
 ### Fase 17 — Sócios
 
