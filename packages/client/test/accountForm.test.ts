@@ -1,6 +1,6 @@
 import type { AccountResponse } from '@finance/core';
 import { describe, expect, it } from 'vitest';
-import { ACCOUNT_FIELDS, accountFormFrom, emptyAccountForm, readAccountForm, type AccountFormResult } from '../src/renderer/src/accounts/accountForm.ts';
+import { ACCOUNT_FIELDS, accountFormFrom, emptyAccountForm, readAccountForm, type AccountFormResult } from '../src/index.ts';
 
 /** Id de conta válido no formato do núcleo. */
 const ACCOUNT_ID = '11111111-1111-4111-8111-111111111111';

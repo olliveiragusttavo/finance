@@ -1,7 +1,9 @@
-import { collectIssues, type FieldTarget, formatMoneyForInput, type FormErrors, moneyInputMessage, parseMoneyInput } from '@finance/client';
 import type { AccountResponse, CoreInput } from '@finance/core';
 import { accountContentShape } from '@finance/core/requests';
 import { z } from 'zod';
+import { formatMoneyForInput } from '../format/money.ts';
+import { parseMoneyInput } from '../format/parseMoneyInput.ts';
+import { collectIssues, type FieldTarget, type FormErrors, moneyInputMessage } from './formIssues.ts';
 
 /**
  * Conteúdo do cadastro da conta, comum à criação e à edição: o que falta para virar a entrada
@@ -101,3 +103,15 @@ export function readAccountForm(values: AccountFormValues, profileCurrency: stri
     const initial: FormErrors<AccountField> = balanceError === undefined ? {} : { openingBalance: balanceError };
     return { ok: false, errors: collectIssues(parsed.success ? [] : parsed.error.issues, FIELD_BY_PATH, profileCurrency, initial) };
 }
+
+/**
+ * Campo do formulário de cada campo que o núcleo pode apontar numa recusa de conta. Fica ao lado
+ * do formulário, e não em cada app, para que o desktop e o celular ponham a recusa no mesmo campo.
+ */
+export const ACCOUNT_FIELD_BY_CORE_FIELD: Readonly<Partial<Record<string, AccountField>>> = {
+    name: 'name',
+    type: 'type',
+    currencyLabel: 'currency',
+    considerBalance: 'considerBalance',
+    openingBalance: 'openingBalance',
+};

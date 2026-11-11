@@ -1,4 +1,4 @@
-import { currencyOptionsWith, describeError, formatAccountType, formatMoney, reportRejection, useCoreMutation } from '@finance/client';
+import { ACCOUNT_FIELD_BY_CORE_FIELD, ACCOUNT_FIELDS, type AccountContent, accountFormFrom, type AccountFormValues, currencyOptionsWith, describeError, emptyAccountForm, formatAccountType, formatMoney, readAccountForm, reportRejection, useCoreMutation } from '@finance/client';
 import type { AccountResponse } from '@finance/core';
 import { useState, type ReactNode } from 'react';
 import { Controller, useForm, type Resolver } from 'react-hook-form';
@@ -8,7 +8,6 @@ import { Field, fieldAria, toFieldErrors } from '@/components/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useActiveProfile } from '@/shell/activeProfile';
-import { ACCOUNT_FIELDS, accountFormFrom, emptyAccountForm, readAccountForm, type AccountContent, type AccountFormValues } from './accountForm.ts';
 
 /** Tipos de conta, na ordem do primeiro uso. */
 const ACCOUNT_TYPES: readonly AccountFormValues['type'][] = ['checking', 'investment'];
@@ -66,17 +65,6 @@ export function useToggleDefaultAccount(): (account: Pick<AccountResponse, 'id' 
         );
     };
 }
-
-/**
- * Campo do formulário de cada campo que o núcleo pode apontar numa recusa de conta.
- */
-const ACCOUNT_FIELD_BY_CORE_FIELD: Readonly<Partial<Record<string, keyof AccountFormValues>>> = {
-    name: 'name',
-    type: 'type',
-    currencyLabel: 'currency',
-    considerBalance: 'considerBalance',
-    openingBalance: 'openingBalance',
-};
 
 /**
  * Criar ou editar conta: nome, tipo, moeda, saldo inicial e se entra no total. O cadastro da

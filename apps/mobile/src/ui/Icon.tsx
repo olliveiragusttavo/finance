@@ -4,7 +4,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { useThemeColor } from '../theme/ThemeRoot.tsx';
 
 /** Os ícones dos mockups do celular, pelo papel que têm na tela. */
-export type IconName = 'home' | 'transactions' | 'accounts' | 'cards' | 'more' | 'search' | 'filter' | 'theme' | 'close' | 'check';
+export type IconName = 'home' | 'transactions' | 'accounts' | 'cards' | 'more' | 'search' | 'filter' | 'theme' | 'close' | 'check' | 'plus';
 
 /**
  * Desenho de cada ícone, copiado dos SVGs dos mockups (traço de 1.8 numa grade de 24), para que
@@ -42,6 +42,8 @@ const SHAPES: Readonly<Record<IconName, (stroke: string) => ReactNode>> = {
     ),
     close: () => <Path d="M6 6l12 12M18 6L6 18" />,
     check: () => <Path d="M5 12l5 5 9-10" />,
+    // O "+" dos mockups é texto; como ícone, fica do mesmo tamanho e traço dos outros botões redondos.
+    plus: () => <Path d="M12 5v14M5 12h14" />,
 };
 
 /**

@@ -472,10 +472,28 @@ Como ficou:
 
 ### Fase 12 — Contas e extrato da conta
 
-- [ ] `MobileContas`: lista com consolidado e previsto do mês, saldo zero esmaecido, desativadas à parte, selo "Padrão"
-- [ ] `MobileExtrato`: extrato da conta no mês (`statements.get`), toque na fatura leva a `MobileFatura`
-- [ ] Criar, editar, desativar, reativar, usar como padrão e excluir em cadeia, com o impacto (`accounts.deletionImpact`) antes de confirmar
-- [ ] Testes de tela
+- [x] `MobileContas`: lista com consolidado e previsto do mês, saldo zero esmaecido, desativadas à parte, selo "Padrão"
+- [x] `MobileExtrato`: extrato da conta no mês (`statements.get`), toque na fatura leva a `MobileFatura`
+- [x] Criar, editar, desativar, reativar, usar como padrão e excluir em cadeia, com o impacto (`accounts.deletionImpact`) antes de confirmar
+- [x] Testes de tela
+
+Como ficou:
+
+- **Lista:** as ativas com o saldo do fim do mês e, numa seção "Desativadas", as
+  desativadas. A conta fora do total e a conta zerada (consolidado e previsto) ficam
+  esmaecidas. O total mostra também o previsto (decisão de interface 6); o mockup mostra só
+  o consolidado.
+- **Extrato:** o resumo em 2×2 do mockup, com o previsto também em entradas e saídas, como
+  no desktop, e os movimentos pelo `buildStatementTable` do `client`. O lançamento abre o
+  detalhe **na pilha da aba Contas** (`/accounts/transaction/[id]`), para o "voltar" devolver
+  ao extrato. A fatura leva à aba Cartões até a Fase 13 criar o `MobileFatura`. Sem o link
+  "Ver todos os movimentos" do mockup: o extrato já lista todos.
+- **Ações:** o mockup não desenha as ações da conta; ficam num "⋯" no cabeçalho do extrato,
+  numa folha (editar, padrão, desativar/reativar, excluir), com o "+" da lista para criar.
+  O formulário de conta (`accountForm`, `ACCOUNT_FIELD_BY_CORE_FIELD`) saiu do desktop para o
+  `client`. A exclusão repete o alerta do desktop numa folha (`DeletionSheet`, que a Fase 13
+  reaproveita no cartão): o impacto contado, as contas afetadas, digitar o nome e
+  "Desativar em vez disso".
 
 ### Fase 13 — Cartões, fatura e pagamento
 

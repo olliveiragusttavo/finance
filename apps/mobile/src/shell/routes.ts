@@ -35,3 +35,23 @@ export function transactionRoute(transactionId: string): `/transactions/${string
 export function editTransactionRoute(transactionId: string): { readonly pathname: typeof ROUTES.newTransaction; readonly params: { readonly id: string } } {
     return { pathname: ROUTES.newTransaction, params: { id: transactionId } };
 }
+
+/**
+ * @param accountId Conta.
+ * @return O caminho do extrato da conta, empilhado na aba Contas.
+ */
+export function accountRoute(accountId: string): `/accounts/${string}` {
+    return `/accounts/${accountId}`;
+}
+
+/**
+ * Detalhe do lançamento aberto pelo extrato. Fica na pilha da aba Contas, e não em
+ * `transactionRoute`, para que o "voltar" devolva ao extrato em vez de deixar o usuário na aba
+ * Transações.
+ *
+ * @param transactionId Lançamento.
+ * @return O caminho do detalhe do lançamento na aba Contas.
+ */
+export function accountTransactionRoute(transactionId: string): `/accounts/transaction/${string}` {
+    return `/accounts/transaction/${transactionId}`;
+}
