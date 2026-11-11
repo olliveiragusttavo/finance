@@ -76,6 +76,22 @@ describe('ExpoSqliteDatabase', () => {
         expect(connection.closed).toBe(true);
     });
 
+    it('tira do cache a instrução que falhou, para o erro antigo não reaparecer no close', () => {
+        const connection = new FakeExpoConnection();
+        const database = ExpoSqliteDatabase.wrap(connection);
+        database.exec('CREATE TABLE t (v REAL NOT NULL) STRICT');
+        const insert = 'INSERT INTO t (v) VALUES (:v)';
+
+        expect(database.run(insert, { v: 1.5 })).toEqual({ changes: 1 });
+        // A falha é a última execução da instrução antes do close: o caso que derrubou o app.
+        expect(() => database.run(insert, { v: 'abc' })).toThrow();
+
+        expect(() => {
+            database.close();
+        }).not.toThrow();
+        expect(connection.closed).toBe(true);
+    });
+
     it('roda o núcleo inteiro: abre, migra, lança e confere a integridade', async () => {
         const database = freshDatabase();
         const clock: Clock = { now: () => parseTimestamp('2026-03-15 12:00:00'), today: () => LocalDate.parse('2026-03-15') };

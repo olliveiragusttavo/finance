@@ -11,7 +11,8 @@ import type { ExpoConnection, ExpoExecuteResult, ExpoStatement } from '../../src
  *   `resetSync` ou até o fim do resultado — no `better-sqlite3`, um cursor aberto bloqueia
  *   qualquer outra instrução, então esquecer o `resetSync` falha alto aqui;
  * - `getFirstSync`/`getAllSync` recusam ler de novo sem `resetSync`;
- * - `withTransactionSync` faz `BEGIN`/`COMMIT`, desfaz e propaga a exceção.
+ * - `withTransactionSync` faz `BEGIN`/`COMMIT`, desfaz e propaga a exceção;
+ * - `finalizeSync` lança de novo o erro da última execução, se ela falhou.
  * Não substitui o teste no Hermes (`apps/mobile-contract`), que roda o driver real.
  */
 export class FakeExpoConnection implements ExpoConnection {
@@ -69,6 +70,9 @@ type DriverRow = Record<string, SqlValue>;
 class FakeStatement implements ExpoStatement {
     private cursor: IterableIterator<unknown> | null = null;
 
+    /** Erro da última execução, que o SQLite guarda na instrução até a próxima. */
+    private failure: Error | null = null;
+
     /**
      * @param statement Instrução do `better-sqlite3`.
      * @param onFinalize Aviso ao dublê da conexão, para o teste conferir a finalização.
@@ -80,7 +84,22 @@ class FakeStatement implements ExpoStatement {
      * @return O resultado, com o primeiro passo dado.
      */
     public executeSync<T>(params: Record<string, SqlValue>): ExpoExecuteResult<T> {
+        try {
+            return this.executeFirstStep<T>(params);
+        } catch (error: unknown) {
+            this.failure = error instanceof Error ? error : new Error(String(error));
+            throw error;
+        }
+    }
+
+    /**
+     * @param params Parâmetros no formato do Expo.
+     * @return O resultado, com o primeiro passo dado; separado do `executeSync` para que toda
+     * falha passe pelo registro do erro.
+     */
+    private executeFirstStep<T>(params: Record<string, SqlValue>): ExpoExecuteResult<T> {
         this.closeCursor();
+        this.failure = null;
         const bound = bindable(params);
         if (!this.statement.reader) {
             const changes = this.statement.run(...bound).changes;
@@ -92,10 +111,18 @@ class FakeStatement implements ExpoStatement {
         return new FakeResult<T>(0, first.done === true ? [] : [first.value], first.done === true ? null : this);
     }
 
-    /** Finaliza a instrução. */
+    /**
+     * Finaliza a instrução e, como o `sqlite3_finalize` pelo `expo-sqlite`, lança de novo o erro
+     * da última execução, se ela falhou — o que derrubou o app de contrato no emulador.
+     *
+     * @throws {unknown} O erro da última execução, quando ela falhou.
+     */
     public finalizeSync(): void {
         this.closeCursor();
         this.onFinalize();
+        if (this.failure !== null) {
+            throw this.failure;
+        }
     }
 
     /**

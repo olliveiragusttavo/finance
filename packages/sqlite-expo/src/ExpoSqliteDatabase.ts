@@ -148,9 +148,15 @@ export class ExpoSqliteDatabase implements Database {
      * novo a cada chamada é o custo dominante de consultas pequenas. O driver reinicia a
      * instrução e limpa os parâmetros a cada execução, então reusar é seguro.
      *
+     * Uma instrução cuja execução falhou sai do cache e é finalizada na hora: o SQLite guarda o
+     * erro na instrução, e o `finalizeSync` do `expo-sqlite` o lança de novo. Em cache, a
+     * restrição violada horas antes reaparecia no `close` — no aparelho, como exceção fatal
+     * fora de qualquer `try` (achado do `apps/mobile-contract`, mobile-mvp-plan Fase 3).
+     *
      * @param sql Instrução SQL.
      * @param params Parâmetros nomeados, sem o prefixo.
      * @return O resultado da execução, com o primeiro passo já dado pelo driver.
+     * @throws {unknown} O erro do driver na execução, depois de tirar a instrução do cache.
      */
     private execute<T>(sql: string, params: SqlParams): ExpoExecuteResult<T> {
         let statement = this.statements.get(sql);
@@ -158,7 +164,17 @@ export class ExpoSqliteDatabase implements Database {
             statement = this.connection.prepareSync(sql);
             this.statements.set(sql, statement);
         }
-        return statement.executeSync<T>(prefixParams(params));
+        try {
+            return statement.executeSync<T>(prefixParams(params));
+        } catch (error: unknown) {
+            this.statements.delete(sql);
+            try {
+                statement.finalizeSync();
+            } catch {
+                // O finalize repete o erro da execução, que é o que o chamador precisa ver.
+            }
+            throw error;
+        }
     }
 }
 
