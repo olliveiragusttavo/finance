@@ -1,6 +1,7 @@
 import type { Account } from '../../domain/account/Account.ts';
 import { NotFoundError } from '../../domain/shared/errors.ts';
 import type { AccountId, CreditCardId } from '../../domain/shared/ids.ts';
+import { compareCodeUnits, compareNames } from '../../domain/shared/textOrder.ts';
 import type { AccountRepository } from '../../repositories/AccountRepository.ts';
 import type { CreditCardRepository } from '../../repositories/CreditCardRepository.ts';
 import type { DeletionRepository, DeletionScope } from '../../repositories/DeletionRepository.ts';
@@ -107,13 +108,17 @@ export class CascadeDeletionService {
     }
 
     /**
+     * Ordena as contas afetadas pelo nome com `compareNames`, e não `localeCompare`, porque o
+     * aviso de exclusão precisa listar na mesma ordem no desktop e no celular
+     * (mobile-shell-design §8); o id desempata contas de mesmo nome.
+     *
      * @param scope Escopo calculado.
      * @return O escopo e as contas sobreviventes afetadas.
      */
     private describe(scope: DeletionScope): DeletionImpact {
         return {
             scope,
-            affectedAccounts: this.survivingAccounts(scope).sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id)),
+            affectedAccounts: this.survivingAccounts(scope).sort((a, b) => compareNames(a.name, b.name) || compareCodeUnits(a.id, b.id)),
         };
     }
 

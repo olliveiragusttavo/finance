@@ -2,6 +2,7 @@ import type { MonthAmount } from '../report/ReportTotals.ts';
 import type { Currency } from '../shared/Currency.ts';
 import type { CategoryId } from '../shared/ids.ts';
 import { Money } from '../shared/Money.ts';
+import { compareCodeUnits, compareNames } from '../shared/textOrder.ts';
 import type { YearMonth } from '../shared/YearMonth.ts';
 
 /**
@@ -74,7 +75,9 @@ export function spendingWindow(period: YearMonth): readonly YearMonth[] {
  * mockup, mas começa no primeiro mês com gasto da janela — num perfil que começou a usar o app há
  * dois meses, os meses vazios de antes puxariam a média para baixo e todo mês pareceria "acima da
  * média". A categoria zerada ou negativa (estornos maiores que as compras) fica fora: não tem
- * tamanho de barra nem participação nos gastos.
+ * tamanho de barra nem participação nos gastos. Categorias com o mesmo valor seguem o nome por
+ * `compareNames` e, por fim, o id, para o ranking não mudar entre o desktop e o celular
+ * (mobile-shell-design §8).
  *
  * @param input Somas lidas do banco.
  * @return O resumo pronto.
@@ -89,7 +92,7 @@ export function buildSpendingSummary(input: SpendingSummaryInput): SpendingSumma
     const averaged = firstWithSpending < 0 ? [] : months.slice(firstWithSpending);
     const ranked = input.categories
         .filter((category) => !category.amount.isZero() && !category.amount.isNegative())
-        .sort((a, b) => b.amount.amount - a.amount.amount || a.name.localeCompare(b.name, 'pt-BR'));
+        .sort((a, b) => b.amount.amount - a.amount.amount || compareNames(a.name, b.name) || compareCodeUnits(a.categoryId, b.categoryId));
     const rest = ranked.slice(TOP_CATEGORIES);
     return {
         period: input.period,

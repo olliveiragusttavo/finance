@@ -6,6 +6,9 @@ import tseslint from 'typescript-eslint';
  * Electron, no Hermes do React Native e num servidor, então não pode importar nada do
  * Node nem de uma plataforma, nem ler relógio ou aleatoriedade fora das portas. A regra
  * é verificada por lint, e não por disciplina, porque a quebra só apareceria no celular.
+ * `localeCompare`, `Intl` e `toLocale*` ficam de fora pelo mesmo motivo: dependem do ICU
+ * de cada runtime, e o Chromium e o Hermes ordenam e formatam diferente
+ * (mobile-shell-design §8).
  */
 const coreBoundaryRules = {
     'no-restricted-imports': ['error', {
@@ -19,6 +22,11 @@ const coreBoundaryRules = {
         { selector: "MemberExpression[object.name='Date'][property.name='now']", message: 'Use a porta Clock (backend-design §3.4).' },
         { selector: "MemberExpression[object.name='Math'][property.name='random']", message: 'Use a porta IdGenerator (backend-design §3.4).' },
         { selector: "MemberExpression[object.name='crypto']", message: 'Use a porta IdGenerator: o React Native não tem crypto (backend-design §3.4).' },
+        { selector: "MemberExpression[property.name='localeCompare']", message: 'Use compareNames ou compareCodeUnits de domain/shared/textOrder.ts: localeCompare muda com o ICU do runtime (mobile-shell-design §8).' },
+        { selector: 'MemberExpression[property.name=/^toLocale/]', message: 'toLocale* formata pelo ICU do runtime e diverge entre Chromium e Hermes (mobile-shell-design §8).' },
+    ],
+    'no-restricted-globals': ['error',
+        { name: 'Intl', message: 'Intl difere entre Chromium e Hermes (mobile-shell-design §8); formate no client e ordene com domain/shared/textOrder.ts.' },
     ],
 };
 

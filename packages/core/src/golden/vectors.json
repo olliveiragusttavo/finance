@@ -1,0 +1,1670 @@
+{
+    "money.rounded": [
+        {
+            "input": {
+                "amount": 0,
+                "currency": "BRL"
+            },
+            "output": "0.00"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "BRL"
+            },
+            "output": "0.01"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "BRL"
+            },
+            "output": "-0.01"
+        },
+        {
+            "input": {
+                "amount": 0.015,
+                "currency": "BRL"
+            },
+            "output": "0.02"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "BRL"
+            },
+            "output": "1.01"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "BRL"
+            },
+            "output": "-1.01"
+        },
+        {
+            "input": {
+                "amount": 2.345,
+                "currency": "BRL"
+            },
+            "output": "2.35"
+        },
+        {
+            "input": {
+                "amount": -2.345,
+                "currency": "BRL"
+            },
+            "output": "-2.35"
+        },
+        {
+            "input": {
+                "amount": 1.115,
+                "currency": "BRL"
+            },
+            "output": "1.12"
+        },
+        {
+            "input": {
+                "amount": 8.675,
+                "currency": "BRL"
+            },
+            "output": "8.68"
+        },
+        {
+            "input": {
+                "amount": 10.235,
+                "currency": "BRL"
+            },
+            "output": "10.24"
+        },
+        {
+            "input": {
+                "amount": 0.30000000000000004,
+                "currency": "BRL"
+            },
+            "output": "0.30"
+        },
+        {
+            "input": {
+                "amount": 0.3333333333333333,
+                "currency": "BRL"
+            },
+            "output": "0.33"
+        },
+        {
+            "input": {
+                "amount": -0.6666666666666666,
+                "currency": "BRL"
+            },
+            "output": "-0.67"
+        },
+        {
+            "input": {
+                "amount": 1234.565,
+                "currency": "BRL"
+            },
+            "output": "1234.57"
+        },
+        {
+            "input": {
+                "amount": 99999.995,
+                "currency": "BRL"
+            },
+            "output": "100000.00"
+        },
+        {
+            "input": {
+                "amount": 123456789.125,
+                "currency": "BRL"
+            },
+            "output": "123456789.13"
+        },
+        {
+            "input": {
+                "amount": -987654321.555,
+                "currency": "BRL"
+            },
+            "output": "-987654321.56"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "BRL"
+            },
+            "output": "999999999999.99"
+        },
+        {
+            "input": {
+                "amount": -999999999999.99,
+                "currency": "BRL"
+            },
+            "output": "-999999999999.99"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "JPY"
+            },
+            "output": "0"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "JPY"
+            },
+            "output": "0"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "JPY"
+            },
+            "output": "0"
+        },
+        {
+            "input": {
+                "amount": 0.015,
+                "currency": "JPY"
+            },
+            "output": "0"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "JPY"
+            },
+            "output": "1"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "JPY"
+            },
+            "output": "-1"
+        },
+        {
+            "input": {
+                "amount": 2.345,
+                "currency": "JPY"
+            },
+            "output": "2"
+        },
+        {
+            "input": {
+                "amount": -2.345,
+                "currency": "JPY"
+            },
+            "output": "-2"
+        },
+        {
+            "input": {
+                "amount": 1.115,
+                "currency": "JPY"
+            },
+            "output": "1"
+        },
+        {
+            "input": {
+                "amount": 8.675,
+                "currency": "JPY"
+            },
+            "output": "9"
+        },
+        {
+            "input": {
+                "amount": 10.235,
+                "currency": "JPY"
+            },
+            "output": "10"
+        },
+        {
+            "input": {
+                "amount": 0.30000000000000004,
+                "currency": "JPY"
+            },
+            "output": "0"
+        },
+        {
+            "input": {
+                "amount": 0.3333333333333333,
+                "currency": "JPY"
+            },
+            "output": "0"
+        },
+        {
+            "input": {
+                "amount": -0.6666666666666666,
+                "currency": "JPY"
+            },
+            "output": "-1"
+        },
+        {
+            "input": {
+                "amount": 1234.565,
+                "currency": "JPY"
+            },
+            "output": "1235"
+        },
+        {
+            "input": {
+                "amount": 99999.995,
+                "currency": "JPY"
+            },
+            "output": "100000"
+        },
+        {
+            "input": {
+                "amount": 123456789.125,
+                "currency": "JPY"
+            },
+            "output": "123456789"
+        },
+        {
+            "input": {
+                "amount": -987654321.555,
+                "currency": "JPY"
+            },
+            "output": "-987654322"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "JPY"
+            },
+            "output": "1000000000000"
+        },
+        {
+            "input": {
+                "amount": -999999999999.99,
+                "currency": "JPY"
+            },
+            "output": "-1000000000000"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "BHD"
+            },
+            "output": "0.000"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "BHD"
+            },
+            "output": "0.005"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "BHD"
+            },
+            "output": "-0.005"
+        },
+        {
+            "input": {
+                "amount": 0.015,
+                "currency": "BHD"
+            },
+            "output": "0.015"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "BHD"
+            },
+            "output": "1.005"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "BHD"
+            },
+            "output": "-1.005"
+        },
+        {
+            "input": {
+                "amount": 2.345,
+                "currency": "BHD"
+            },
+            "output": "2.345"
+        },
+        {
+            "input": {
+                "amount": -2.345,
+                "currency": "BHD"
+            },
+            "output": "-2.345"
+        },
+        {
+            "input": {
+                "amount": 1.115,
+                "currency": "BHD"
+            },
+            "output": "1.115"
+        },
+        {
+            "input": {
+                "amount": 8.675,
+                "currency": "BHD"
+            },
+            "output": "8.675"
+        },
+        {
+            "input": {
+                "amount": 10.235,
+                "currency": "BHD"
+            },
+            "output": "10.235"
+        },
+        {
+            "input": {
+                "amount": 0.30000000000000004,
+                "currency": "BHD"
+            },
+            "output": "0.300"
+        },
+        {
+            "input": {
+                "amount": 0.3333333333333333,
+                "currency": "BHD"
+            },
+            "output": "0.333"
+        },
+        {
+            "input": {
+                "amount": -0.6666666666666666,
+                "currency": "BHD"
+            },
+            "output": "-0.667"
+        },
+        {
+            "input": {
+                "amount": 1234.565,
+                "currency": "BHD"
+            },
+            "output": "1234.565"
+        },
+        {
+            "input": {
+                "amount": 99999.995,
+                "currency": "BHD"
+            },
+            "output": "99999.995"
+        },
+        {
+            "input": {
+                "amount": 123456789.125,
+                "currency": "BHD"
+            },
+            "output": "123456789.125"
+        },
+        {
+            "input": {
+                "amount": -987654321.555,
+                "currency": "BHD"
+            },
+            "output": "-987654321.555"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "BHD"
+            },
+            "output": "999999999999.990"
+        },
+        {
+            "input": {
+                "amount": -999999999999.99,
+                "currency": "BHD"
+            },
+            "output": "-999999999999.990"
+        }
+    ],
+    "money.roundHalfAwayFromZero": [
+        {
+            "input": {
+                "value": 0,
+                "decimals": 0
+            },
+            "output": 0
+        },
+        {
+            "input": {
+                "value": 0.005,
+                "decimals": 0
+            },
+            "output": 0
+        },
+        {
+            "input": {
+                "value": -0.005,
+                "decimals": 0
+            },
+            "output": 0
+        },
+        {
+            "input": {
+                "value": 0.015,
+                "decimals": 0
+            },
+            "output": 0
+        },
+        {
+            "input": {
+                "value": 1.005,
+                "decimals": 0
+            },
+            "output": 1
+        },
+        {
+            "input": {
+                "value": -1.005,
+                "decimals": 0
+            },
+            "output": -1
+        },
+        {
+            "input": {
+                "value": 2.345,
+                "decimals": 0
+            },
+            "output": 2
+        },
+        {
+            "input": {
+                "value": -2.345,
+                "decimals": 0
+            },
+            "output": -2
+        },
+        {
+            "input": {
+                "value": 1.115,
+                "decimals": 0
+            },
+            "output": 1
+        },
+        {
+            "input": {
+                "value": 8.675,
+                "decimals": 0
+            },
+            "output": 9
+        },
+        {
+            "input": {
+                "value": 10.235,
+                "decimals": 0
+            },
+            "output": 10
+        },
+        {
+            "input": {
+                "value": 0.30000000000000004,
+                "decimals": 0
+            },
+            "output": 0
+        },
+        {
+            "input": {
+                "value": 0.3333333333333333,
+                "decimals": 0
+            },
+            "output": 0
+        },
+        {
+            "input": {
+                "value": -0.6666666666666666,
+                "decimals": 0
+            },
+            "output": -1
+        },
+        {
+            "input": {
+                "value": 1234.565,
+                "decimals": 0
+            },
+            "output": 1235
+        },
+        {
+            "input": {
+                "value": 99999.995,
+                "decimals": 0
+            },
+            "output": 100000
+        },
+        {
+            "input": {
+                "value": 123456789.125,
+                "decimals": 0
+            },
+            "output": 123456789
+        },
+        {
+            "input": {
+                "value": -987654321.555,
+                "decimals": 0
+            },
+            "output": -987654322
+        },
+        {
+            "input": {
+                "value": 999999999999.99,
+                "decimals": 0
+            },
+            "output": 1000000000000
+        },
+        {
+            "input": {
+                "value": -999999999999.99,
+                "decimals": 0
+            },
+            "output": -1000000000000
+        },
+        {
+            "input": {
+                "value": 0,
+                "decimals": 1
+            },
+            "output": 0
+        },
+        {
+            "input": {
+                "value": 0.005,
+                "decimals": 1
+            },
+            "output": 0
+        },
+        {
+            "input": {
+                "value": -0.005,
+                "decimals": 1
+            },
+            "output": 0
+        },
+        {
+            "input": {
+                "value": 0.015,
+                "decimals": 1
+            },
+            "output": 0
+        },
+        {
+            "input": {
+                "value": 1.005,
+                "decimals": 1
+            },
+            "output": 1
+        },
+        {
+            "input": {
+                "value": -1.005,
+                "decimals": 1
+            },
+            "output": -1
+        },
+        {
+            "input": {
+                "value": 2.345,
+                "decimals": 1
+            },
+            "output": 2.3
+        },
+        {
+            "input": {
+                "value": -2.345,
+                "decimals": 1
+            },
+            "output": -2.3
+        },
+        {
+            "input": {
+                "value": 1.115,
+                "decimals": 1
+            },
+            "output": 1.1
+        },
+        {
+            "input": {
+                "value": 8.675,
+                "decimals": 1
+            },
+            "output": 8.7
+        },
+        {
+            "input": {
+                "value": 10.235,
+                "decimals": 1
+            },
+            "output": 10.2
+        },
+        {
+            "input": {
+                "value": 0.30000000000000004,
+                "decimals": 1
+            },
+            "output": 0.3
+        },
+        {
+            "input": {
+                "value": 0.3333333333333333,
+                "decimals": 1
+            },
+            "output": 0.3
+        },
+        {
+            "input": {
+                "value": -0.6666666666666666,
+                "decimals": 1
+            },
+            "output": -0.7
+        },
+        {
+            "input": {
+                "value": 1234.565,
+                "decimals": 1
+            },
+            "output": 1234.6
+        },
+        {
+            "input": {
+                "value": 99999.995,
+                "decimals": 1
+            },
+            "output": 100000
+        },
+        {
+            "input": {
+                "value": 123456789.125,
+                "decimals": 1
+            },
+            "output": 123456789.1
+        },
+        {
+            "input": {
+                "value": -987654321.555,
+                "decimals": 1
+            },
+            "output": -987654321.6
+        },
+        {
+            "input": {
+                "value": 999999999999.99,
+                "decimals": 1
+            },
+            "output": 1000000000000
+        },
+        {
+            "input": {
+                "value": -999999999999.99,
+                "decimals": 1
+            },
+            "output": -1000000000000
+        },
+        {
+            "input": {
+                "value": 0,
+                "decimals": 2
+            },
+            "output": 0
+        },
+        {
+            "input": {
+                "value": 0.005,
+                "decimals": 2
+            },
+            "output": 0.01
+        },
+        {
+            "input": {
+                "value": -0.005,
+                "decimals": 2
+            },
+            "output": -0.01
+        },
+        {
+            "input": {
+                "value": 0.015,
+                "decimals": 2
+            },
+            "output": 0.02
+        },
+        {
+            "input": {
+                "value": 1.005,
+                "decimals": 2
+            },
+            "output": 1.01
+        },
+        {
+            "input": {
+                "value": -1.005,
+                "decimals": 2
+            },
+            "output": -1.01
+        },
+        {
+            "input": {
+                "value": 2.345,
+                "decimals": 2
+            },
+            "output": 2.35
+        },
+        {
+            "input": {
+                "value": -2.345,
+                "decimals": 2
+            },
+            "output": -2.35
+        },
+        {
+            "input": {
+                "value": 1.115,
+                "decimals": 2
+            },
+            "output": 1.12
+        },
+        {
+            "input": {
+                "value": 8.675,
+                "decimals": 2
+            },
+            "output": 8.68
+        },
+        {
+            "input": {
+                "value": 10.235,
+                "decimals": 2
+            },
+            "output": 10.24
+        },
+        {
+            "input": {
+                "value": 0.30000000000000004,
+                "decimals": 2
+            },
+            "output": 0.3
+        },
+        {
+            "input": {
+                "value": 0.3333333333333333,
+                "decimals": 2
+            },
+            "output": 0.33
+        },
+        {
+            "input": {
+                "value": -0.6666666666666666,
+                "decimals": 2
+            },
+            "output": -0.67
+        },
+        {
+            "input": {
+                "value": 1234.565,
+                "decimals": 2
+            },
+            "output": 1234.57
+        },
+        {
+            "input": {
+                "value": 99999.995,
+                "decimals": 2
+            },
+            "output": 100000
+        },
+        {
+            "input": {
+                "value": 123456789.125,
+                "decimals": 2
+            },
+            "output": 123456789.13
+        },
+        {
+            "input": {
+                "value": -987654321.555,
+                "decimals": 2
+            },
+            "output": -987654321.56
+        },
+        {
+            "input": {
+                "value": 999999999999.99,
+                "decimals": 2
+            },
+            "output": 999999999999.99
+        },
+        {
+            "input": {
+                "value": -999999999999.99,
+                "decimals": 2
+            },
+            "output": -999999999999.99
+        },
+        {
+            "input": {
+                "value": 0,
+                "decimals": 3
+            },
+            "output": 0
+        },
+        {
+            "input": {
+                "value": 0.005,
+                "decimals": 3
+            },
+            "output": 0.005
+        },
+        {
+            "input": {
+                "value": -0.005,
+                "decimals": 3
+            },
+            "output": -0.005
+        },
+        {
+            "input": {
+                "value": 0.015,
+                "decimals": 3
+            },
+            "output": 0.015
+        },
+        {
+            "input": {
+                "value": 1.005,
+                "decimals": 3
+            },
+            "output": 1.005
+        },
+        {
+            "input": {
+                "value": -1.005,
+                "decimals": 3
+            },
+            "output": -1.005
+        },
+        {
+            "input": {
+                "value": 2.345,
+                "decimals": 3
+            },
+            "output": 2.345
+        },
+        {
+            "input": {
+                "value": -2.345,
+                "decimals": 3
+            },
+            "output": -2.345
+        },
+        {
+            "input": {
+                "value": 1.115,
+                "decimals": 3
+            },
+            "output": 1.115
+        },
+        {
+            "input": {
+                "value": 8.675,
+                "decimals": 3
+            },
+            "output": 8.675
+        },
+        {
+            "input": {
+                "value": 10.235,
+                "decimals": 3
+            },
+            "output": 10.235
+        },
+        {
+            "input": {
+                "value": 0.30000000000000004,
+                "decimals": 3
+            },
+            "output": 0.3
+        },
+        {
+            "input": {
+                "value": 0.3333333333333333,
+                "decimals": 3
+            },
+            "output": 0.333
+        },
+        {
+            "input": {
+                "value": -0.6666666666666666,
+                "decimals": 3
+            },
+            "output": -0.667
+        },
+        {
+            "input": {
+                "value": 1234.565,
+                "decimals": 3
+            },
+            "output": 1234.565
+        },
+        {
+            "input": {
+                "value": 99999.995,
+                "decimals": 3
+            },
+            "output": 99999.995
+        },
+        {
+            "input": {
+                "value": 123456789.125,
+                "decimals": 3
+            },
+            "output": 123456789.125
+        },
+        {
+            "input": {
+                "value": -987654321.555,
+                "decimals": 3
+            },
+            "output": -987654321.555
+        },
+        {
+            "input": {
+                "value": 999999999999.99,
+                "decimals": 3
+            },
+            "output": 999999999999.99
+        },
+        {
+            "input": {
+                "value": -999999999999.99,
+                "decimals": 3
+            },
+            "output": -999999999999.99
+        }
+    ],
+    "money.split": [
+        {
+            "input": {
+                "amount": 1000,
+                "parts": 3,
+                "currency": "BRL"
+            },
+            "output": [
+                "333.34",
+                "333.33",
+                "333.33"
+            ]
+        },
+        {
+            "input": {
+                "amount": 100,
+                "parts": 7,
+                "currency": "BRL"
+            },
+            "output": [
+                "14.32",
+                "14.28",
+                "14.28",
+                "14.28",
+                "14.28",
+                "14.28",
+                "14.28"
+            ]
+        },
+        {
+            "input": {
+                "amount": 0.1,
+                "parts": 3,
+                "currency": "BRL"
+            },
+            "output": [
+                "0.04",
+                "0.03",
+                "0.03"
+            ]
+        },
+        {
+            "input": {
+                "amount": -250.01,
+                "parts": 4,
+                "currency": "BRL"
+            },
+            "output": [
+                "-62.51",
+                "-62.50",
+                "-62.50",
+                "-62.50"
+            ]
+        },
+        {
+            "input": {
+                "amount": 1999.99,
+                "parts": 12,
+                "currency": "BRL"
+            },
+            "output": [
+                "166.73",
+                "166.66",
+                "166.66",
+                "166.66",
+                "166.66",
+                "166.66",
+                "166.66",
+                "166.66",
+                "166.66",
+                "166.66",
+                "166.66",
+                "166.66"
+            ]
+        },
+        {
+            "input": {
+                "amount": 12345.67,
+                "parts": 360,
+                "currency": "BRL"
+            },
+            "output": [
+                "35.56",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29",
+                "34.29"
+            ]
+        },
+        {
+            "input": {
+                "amount": 10,
+                "parts": 3,
+                "currency": "JPY"
+            },
+            "output": [
+                "4",
+                "3",
+                "3"
+            ]
+        },
+        {
+            "input": {
+                "amount": 1,
+                "parts": 3,
+                "currency": "BHD"
+            },
+            "output": [
+                "0.334",
+                "0.333",
+                "0.333"
+            ]
+        }
+    ],
+    "uuid.deriveUuid": [
+        {
+            "input": "bank_statements:00000000-0000-4000-8000-000000000001:2026-03",
+            "output": "25efc235-ed16-5785-bd89-0172b406c410"
+        },
+        {
+            "input": "invoices:00000000-0000-4000-8000-000000000002:2026-12",
+            "output": "e0547b1f-6f3d-5038-ae5a-55fea4d77306"
+        },
+        {
+            "input": "transactions:00000000-0000-4000-8000-000000000003:12",
+            "output": "d3c9defa-e86d-5f61-81b7-793614fabbc7"
+        },
+        {
+            "input": "Ação — São João ☕",
+            "output": "1907779c-3f30-57c8-9256-52bf2472ba6d"
+        },
+        {
+            "input": "",
+            "output": "b24bf8b6-94c1-5b16-b639-d62b1189c486"
+        }
+    ],
+    "uuid.v5": [
+        {
+            "input": {
+                "namespace": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+                "name": "www.example.com"
+            },
+            "output": "2ed6657d-e927-568b-95e1-2665a8aea6a2"
+        }
+    ],
+    "text.nameSortKey": [
+        {
+            "input": "Bebida",
+            "output": "bebida"
+        },
+        {
+            "input": "água",
+            "output": "agua"
+        },
+        {
+            "input": "Água",
+            "output": "agua"
+        },
+        {
+            "input": "Agua",
+            "output": "agua"
+        },
+        {
+            "input": "ônibus",
+            "output": "onibus"
+        },
+        {
+            "input": "Ótica",
+            "output": "otica"
+        },
+        {
+            "input": "Óleo",
+            "output": "oleo"
+        },
+        {
+            "input": "café",
+            "output": "cafe"
+        },
+        {
+            "input": "Café",
+            "output": "cafe"
+        },
+        {
+            "input": "café",
+            "output": "cafe"
+        },
+        {
+            "input": "Cafeteria",
+            "output": "cafeteria"
+        },
+        {
+            "input": "Çedilha",
+            "output": "cedilha"
+        },
+        {
+            "input": "Zebra",
+            "output": "zebra"
+        },
+        {
+            "input": "zebra",
+            "output": "zebra"
+        },
+        {
+            "input": "Ångström",
+            "output": "angstrom"
+        },
+        {
+            "input": "Straße",
+            "output": "strasse"
+        },
+        {
+            "input": "Œuvre",
+            "output": "oeuvre"
+        },
+        {
+            "input": "Mercado",
+            "output": "mercado"
+        },
+        {
+            "input": " Mercado ",
+            "output": "mercado"
+        },
+        {
+            "input": "10 Pães",
+            "output": "10 paes"
+        },
+        {
+            "input": "2 Pães",
+            "output": "2 paes"
+        },
+        {
+            "input": "Ελλάδα",
+            "output": "Ελλάδα"
+        },
+        {
+            "input": "Ônibus",
+            "output": "onibus"
+        },
+        {
+            "input": "Éclair",
+            "output": "eclair"
+        },
+        {
+            "input": "Saúde",
+            "output": "saude"
+        },
+        {
+            "input": "SAÚDE",
+            "output": "saude"
+        },
+        {
+            "input": "Salário",
+            "output": "salario"
+        },
+        {
+            "input": "Sala",
+            "output": "sala"
+        },
+        {
+            "input": "☕ Café",
+            "output": "☕ cafe"
+        }
+    ],
+    "text.compareNames": [
+        {
+            "input": [
+                "Bebida",
+                "água",
+                "Água",
+                "Agua",
+                "ônibus",
+                "Ótica",
+                "Óleo",
+                "café",
+                "Café",
+                "café",
+                "Cafeteria",
+                "Çedilha",
+                "Zebra",
+                "zebra",
+                "Ångström",
+                "Straße",
+                "Œuvre",
+                "Mercado",
+                " Mercado ",
+                "10 Pães",
+                "2 Pães",
+                "Ελλάδα",
+                "Ônibus",
+                "Éclair",
+                "Saúde",
+                "SAÚDE",
+                "Salário",
+                "Sala",
+                "☕ Café"
+            ],
+            "output": [
+                "10 Pães",
+                "2 Pães",
+                "Agua",
+                "Água",
+                "água",
+                "Ångström",
+                "Bebida",
+                "Café",
+                "café",
+                "café",
+                "Cafeteria",
+                "Çedilha",
+                "Éclair",
+                " Mercado ",
+                "Mercado",
+                "Œuvre",
+                "Óleo",
+                "Ônibus",
+                "ônibus",
+                "Ótica",
+                "Sala",
+                "Salário",
+                "SAÚDE",
+                "Saúde",
+                "Straße",
+                "Zebra",
+                "zebra",
+                "Ελλάδα",
+                "☕ Café"
+            ]
+        }
+    ]
+}

@@ -1,6 +1,7 @@
 import type { TransactionId } from '../shared/ids.ts';
 import { LocalDate } from '../shared/LocalDate.ts';
 import { Money } from '../shared/Money.ts';
+import { compareCodeUnits } from '../shared/textOrder.ts';
 import { YearMonth } from '../shared/YearMonth.ts';
 import type { Goal } from './Goal.ts';
 
@@ -129,6 +130,9 @@ export interface GoalProgressInput {
  * - a média mensal vai do mês da 1ª contribuição até o mês de referência (ou o atual, se o de
  *   referência for futuro, porque nada depois de hoje conta), com mês sem aporte valendo zero.
  *
+ * Contribuições do mesmo dia desempatam pela chave do vínculo com `compareCodeUnits`, sem
+ * localidade, para a lista sair igual no desktop e no celular (mobile-shell-design §8).
+ *
  * @param input Meta, transações vinculadas, mês de referência e hoje.
  * @return O progresso e o ritmo.
  */
@@ -138,7 +142,7 @@ export function measureGoalProgress(input: GoalProgressInput): GoalProgress {
     const starting = input.startingBalance ?? Money.zero(currency);
     const contributions = links
         .flatMap((link): GoalContribution[] => (link.paidOn !== null && !today.isBefore(link.paidOn) ? [{ key: link.key, transactionId: link.transactionId, value: link.value, paidOn: link.paidOn }] : []))
-        .sort((a, b) => a.paidOn.compare(b.paidOn) || a.key.localeCompare(b.key));
+        .sort((a, b) => a.paidOn.compare(b.paidOn) || compareCodeUnits(a.key, b.key));
     const counted = new Set(contributions.map((contribution) => contribution.key));
     const pendingLinks = links.filter((link) => !counted.has(link.key));
 

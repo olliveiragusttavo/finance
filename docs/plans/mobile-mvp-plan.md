@@ -189,11 +189,11 @@ explícitos, docblock com motivação e testes no mesmo commit.
 Antes de qualquer app: o que a [mobile-shell-design §8](mobile-shell-design.md#8-paridade-entre-runtimes)
 manda e o código ainda não cumpre.
 
-- [ ] Trocar os `localeCompare` do núcleo por um comparador explícito no domínio: `GoalProgress`, `SpendingSummary`, `PendingItems` (dois) e `CascadeDeletionService`. Os que hoje usam `'pt-BR'` ordenam ignorando acento e maiúscula; o comparador novo dobra acento e caixa por tabela própria, sem ICU, para que "Água" continue antes de "Bebida" no desktop
-- [ ] Regra de lint no `core`: proibir `localeCompare`, `Intl` e `toLocale*` (o `client` já tem a dele)
-- [ ] Vetores de ouro gerados no Node e versionados em JSON: arredondamento de `Money`, divisão de parcelas, UUID v5, ordenação do comparador, saídas dos formatadores do `client` e do parser de valor digitado. Script `pnpm golden:generate`; um teste no Vitest confere que o JSON está em dia com o código
-- [ ] Gerador determinístico de um banco de **dez anos** (perfis, contas, cartões, faturas, parcelados, fixos, metas) pelas rotas do núcleo, para a medição da Fase 5 — o mesmo arquivo serve ao desktop
-- [ ] Testes: comparador (acentos, caixa, empate pelo id), vetores, gerador (o banco gerado passa em `integrity.verifyBalances`)
+- [x] Trocar os `localeCompare` do núcleo por um comparador explícito no domínio: `GoalProgress`, `SpendingSummary`, `PendingItems` (dois) e `CascadeDeletionService`. Os que hoje usam `'pt-BR'` ordenam ignorando acento e maiúscula; o comparador novo dobra acento e caixa por tabela própria, sem ICU, para que "Água" continue antes de "Bebida" no desktop
+- [x] Regra de lint no `core`: proibir `localeCompare`, `Intl` e `toLocale*` (o `client` já tem a dele)
+- [x] Vetores de ouro gerados no Node e versionados em JSON: arredondamento de `Money`, divisão de parcelas, UUID v5, ordenação do comparador, saídas dos formatadores do `client` e do parser de valor digitado. Script `pnpm golden:generate`; um teste no Vitest confere que o JSON está em dia com o código
+- [x] Gerador determinístico de um banco de **dez anos** (perfis, contas, cartões, faturas, parcelados, fixos, metas) pelas rotas do núcleo, para a medição da Fase 5 — o mesmo arquivo serve ao desktop. `pnpm db:history <arquivo.sqlite>`: dois perfis, ~11 mil lançamentos, gerado em ~10 s
+- [x] Testes: comparador (acentos, caixa, empate pelo id), vetores, gerador (o banco gerado passa em `integrity.verifyBalances`)
 
 ### Fase 2 — `packages/sqlite-expo`
 

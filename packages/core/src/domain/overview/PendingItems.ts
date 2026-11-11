@@ -4,6 +4,7 @@ import type { Currency } from '../shared/Currency.ts';
 import type { CreditCardId, InvoiceId, TransactionId } from '../shared/ids.ts';
 import { LocalDate } from '../shared/LocalDate.ts';
 import { Money } from '../shared/Money.ts';
+import { compareCodeUnits, compareNames } from '../shared/textOrder.ts';
 
 /**
  * Sentido de um item em aberto para o perfil, que decide em qual total ele entra:
@@ -115,6 +116,8 @@ export function pendingInvoices(entries: readonly { readonly invoice: Invoice; r
  * Regra de negócio (Visão geral): atrasado é o que venceu **antes de hoje** e não foi pago — o
  * que vence hoje ainda está em dia. A compra no cartão não aparece sozinha: ela é paga junto da
  * fatura, e é a fatura inteira que fica atrasada.
+ * No mesmo dia, a ordem é pelo nome com `compareNames`, e não `localeCompare`, para o Início do
+ * celular e a Visão geral do desktop listarem igual (mobile-shell-design §8); o id desempata.
  *
  * @param today Dia de hoje.
  * @param items Lançamentos e faturas em aberto, em qualquer ordem e de qualquer data.
@@ -125,7 +128,7 @@ export function buildPendingSummary(today: LocalDate, items: readonly PendingIte
     const until = pendingUntil(today);
     const ordered = items
         .filter((item) => !until.isBefore(item.dueDate))
-        .sort((a, b) => a.dueDate.compare(b.dueDate) || a.name.localeCompare(b.name, 'pt-BR'));
+        .sort((a, b) => a.dueDate.compare(b.dueDate) || compareNames(a.name, b.name) || compareCodeUnits(a.id, b.id));
     const overdue = ordered.filter((item) => item.dueDate.isBefore(today));
     const upcoming = ordered.filter((item) => !item.dueDate.isBefore(today));
     return { today, until, overdue, overdueTotals: totals(overdue, currency), upcoming, upcomingTotals: totals(upcoming, currency) };
@@ -157,7 +160,8 @@ export interface NextInvoicesSummary {
 
 /**
  * A próxima fatura de cada cartão: a primeira em aberto, com valor a pagar, que vence de hoje em
- * diante. A que já venceu fica de fora porque está no selo de atrasados.
+ * diante. A que já venceu fica de fora porque está no selo de atrasados. Faturas do mesmo dia
+ * seguem o nome do cartão por `compareNames`, igual em todo runtime (mobile-shell-design §8).
  *
  * @param today Dia de hoje.
  * @param invoices Faturas em aberto com valor a pagar.
@@ -171,5 +175,5 @@ export function nextInvoices(today: LocalDate, invoices: readonly PendingInvoice
             byCard.set(invoice.creditCardId, invoice);
         }
     }
-    return [...byCard.values()].sort((a, b) => a.dueDate.compare(b.dueDate) || a.name.localeCompare(b.name, 'pt-BR'));
+    return [...byCard.values()].sort((a, b) => a.dueDate.compare(b.dueDate) || compareNames(a.name, b.name) || compareCodeUnits(a.id, b.id));
 }

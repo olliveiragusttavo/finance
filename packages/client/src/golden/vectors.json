@@ -1,0 +1,5061 @@
+{
+    "format.money": [
+        {
+            "input": {
+                "amount": 0,
+                "currency": "BRL",
+                "sign": "negative"
+            },
+            "output": "R$ 0,00"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "BRL",
+                "sign": "always"
+            },
+            "output": "R$ 0,00"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "BRL",
+                "sign": "absolute"
+            },
+            "output": "R$ 0,00"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "BRL",
+                "sign": "negative"
+            },
+            "output": "R$ 0,00"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "BRL",
+                "sign": "always"
+            },
+            "output": "R$ 0,00"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "BRL",
+                "sign": "absolute"
+            },
+            "output": "R$ 0,00"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "BRL",
+                "sign": "negative"
+            },
+            "output": "R$ 0,01"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "BRL",
+                "sign": "always"
+            },
+            "output": "+R$ 0,01"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "BRL",
+                "sign": "absolute"
+            },
+            "output": "R$ 0,01"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "BRL",
+                "sign": "negative"
+            },
+            "output": "−R$ 0,01"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "BRL",
+                "sign": "always"
+            },
+            "output": "−R$ 0,01"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "BRL",
+                "sign": "absolute"
+            },
+            "output": "R$ 0,01"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "BRL",
+                "sign": "negative"
+            },
+            "output": "R$ 0,01"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "BRL",
+                "sign": "always"
+            },
+            "output": "+R$ 0,01"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "BRL",
+                "sign": "absolute"
+            },
+            "output": "R$ 0,01"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "BRL",
+                "sign": "negative"
+            },
+            "output": "R$ 1,01"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "BRL",
+                "sign": "always"
+            },
+            "output": "+R$ 1,01"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "BRL",
+                "sign": "absolute"
+            },
+            "output": "R$ 1,01"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "BRL",
+                "sign": "negative"
+            },
+            "output": "−R$ 1,01"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "BRL",
+                "sign": "always"
+            },
+            "output": "−R$ 1,01"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "BRL",
+                "sign": "absolute"
+            },
+            "output": "R$ 1,01"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "BRL",
+                "sign": "negative"
+            },
+            "output": "R$ 9,90"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "BRL",
+                "sign": "always"
+            },
+            "output": "+R$ 9,90"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "BRL",
+                "sign": "absolute"
+            },
+            "output": "R$ 9,90"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "BRL",
+                "sign": "negative"
+            },
+            "output": "R$ 100,00"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "BRL",
+                "sign": "always"
+            },
+            "output": "+R$ 100,00"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "BRL",
+                "sign": "absolute"
+            },
+            "output": "R$ 100,00"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "BRL",
+                "sign": "negative"
+            },
+            "output": "R$ 1.234,56"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "BRL",
+                "sign": "always"
+            },
+            "output": "+R$ 1.234,56"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "BRL",
+                "sign": "absolute"
+            },
+            "output": "R$ 1.234,56"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "BRL",
+                "sign": "negative"
+            },
+            "output": "−R$ 1.234,57"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "BRL",
+                "sign": "always"
+            },
+            "output": "−R$ 1.234,57"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "BRL",
+                "sign": "absolute"
+            },
+            "output": "R$ 1.234,57"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "BRL",
+                "sign": "negative"
+            },
+            "output": "R$ 9.500,00"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "BRL",
+                "sign": "always"
+            },
+            "output": "+R$ 9.500,00"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "BRL",
+                "sign": "absolute"
+            },
+            "output": "R$ 9.500,00"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "BRL",
+                "sign": "negative"
+            },
+            "output": "R$ 1.000.000,00"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "BRL",
+                "sign": "always"
+            },
+            "output": "+R$ 1.000.000,00"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "BRL",
+                "sign": "absolute"
+            },
+            "output": "R$ 1.000.000,00"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "BRL",
+                "sign": "negative"
+            },
+            "output": "−R$ 987.654.321,12"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "BRL",
+                "sign": "always"
+            },
+            "output": "−R$ 987.654.321,12"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "BRL",
+                "sign": "absolute"
+            },
+            "output": "R$ 987.654.321,12"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "BRL",
+                "sign": "negative"
+            },
+            "output": "R$ 999.999.999.999,99"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "BRL",
+                "sign": "always"
+            },
+            "output": "+R$ 999.999.999.999,99"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "BRL",
+                "sign": "absolute"
+            },
+            "output": "R$ 999.999.999.999,99"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "USD",
+                "sign": "negative"
+            },
+            "output": "US$ 0,00"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "USD",
+                "sign": "always"
+            },
+            "output": "US$ 0,00"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "USD",
+                "sign": "absolute"
+            },
+            "output": "US$ 0,00"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "USD",
+                "sign": "negative"
+            },
+            "output": "US$ 0,00"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "USD",
+                "sign": "always"
+            },
+            "output": "US$ 0,00"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "USD",
+                "sign": "absolute"
+            },
+            "output": "US$ 0,00"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "USD",
+                "sign": "negative"
+            },
+            "output": "US$ 0,01"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "USD",
+                "sign": "always"
+            },
+            "output": "+US$ 0,01"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "USD",
+                "sign": "absolute"
+            },
+            "output": "US$ 0,01"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "USD",
+                "sign": "negative"
+            },
+            "output": "−US$ 0,01"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "USD",
+                "sign": "always"
+            },
+            "output": "−US$ 0,01"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "USD",
+                "sign": "absolute"
+            },
+            "output": "US$ 0,01"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "USD",
+                "sign": "negative"
+            },
+            "output": "US$ 0,01"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "USD",
+                "sign": "always"
+            },
+            "output": "+US$ 0,01"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "USD",
+                "sign": "absolute"
+            },
+            "output": "US$ 0,01"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "USD",
+                "sign": "negative"
+            },
+            "output": "US$ 1,01"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "USD",
+                "sign": "always"
+            },
+            "output": "+US$ 1,01"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "USD",
+                "sign": "absolute"
+            },
+            "output": "US$ 1,01"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "USD",
+                "sign": "negative"
+            },
+            "output": "−US$ 1,01"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "USD",
+                "sign": "always"
+            },
+            "output": "−US$ 1,01"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "USD",
+                "sign": "absolute"
+            },
+            "output": "US$ 1,01"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "USD",
+                "sign": "negative"
+            },
+            "output": "US$ 9,90"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "USD",
+                "sign": "always"
+            },
+            "output": "+US$ 9,90"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "USD",
+                "sign": "absolute"
+            },
+            "output": "US$ 9,90"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "USD",
+                "sign": "negative"
+            },
+            "output": "US$ 100,00"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "USD",
+                "sign": "always"
+            },
+            "output": "+US$ 100,00"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "USD",
+                "sign": "absolute"
+            },
+            "output": "US$ 100,00"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "USD",
+                "sign": "negative"
+            },
+            "output": "US$ 1.234,56"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "USD",
+                "sign": "always"
+            },
+            "output": "+US$ 1.234,56"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "USD",
+                "sign": "absolute"
+            },
+            "output": "US$ 1.234,56"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "USD",
+                "sign": "negative"
+            },
+            "output": "−US$ 1.234,57"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "USD",
+                "sign": "always"
+            },
+            "output": "−US$ 1.234,57"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "USD",
+                "sign": "absolute"
+            },
+            "output": "US$ 1.234,57"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "USD",
+                "sign": "negative"
+            },
+            "output": "US$ 9.500,00"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "USD",
+                "sign": "always"
+            },
+            "output": "+US$ 9.500,00"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "USD",
+                "sign": "absolute"
+            },
+            "output": "US$ 9.500,00"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "USD",
+                "sign": "negative"
+            },
+            "output": "US$ 1.000.000,00"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "USD",
+                "sign": "always"
+            },
+            "output": "+US$ 1.000.000,00"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "USD",
+                "sign": "absolute"
+            },
+            "output": "US$ 1.000.000,00"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "USD",
+                "sign": "negative"
+            },
+            "output": "−US$ 987.654.321,12"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "USD",
+                "sign": "always"
+            },
+            "output": "−US$ 987.654.321,12"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "USD",
+                "sign": "absolute"
+            },
+            "output": "US$ 987.654.321,12"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "USD",
+                "sign": "negative"
+            },
+            "output": "US$ 999.999.999.999,99"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "USD",
+                "sign": "always"
+            },
+            "output": "+US$ 999.999.999.999,99"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "USD",
+                "sign": "absolute"
+            },
+            "output": "US$ 999.999.999.999,99"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "EUR",
+                "sign": "negative"
+            },
+            "output": "€ 0,00"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "EUR",
+                "sign": "always"
+            },
+            "output": "€ 0,00"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "EUR",
+                "sign": "absolute"
+            },
+            "output": "€ 0,00"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "EUR",
+                "sign": "negative"
+            },
+            "output": "€ 0,00"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "EUR",
+                "sign": "always"
+            },
+            "output": "€ 0,00"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "EUR",
+                "sign": "absolute"
+            },
+            "output": "€ 0,00"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "EUR",
+                "sign": "negative"
+            },
+            "output": "€ 0,01"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "EUR",
+                "sign": "always"
+            },
+            "output": "+€ 0,01"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "EUR",
+                "sign": "absolute"
+            },
+            "output": "€ 0,01"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "EUR",
+                "sign": "negative"
+            },
+            "output": "−€ 0,01"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "EUR",
+                "sign": "always"
+            },
+            "output": "−€ 0,01"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "EUR",
+                "sign": "absolute"
+            },
+            "output": "€ 0,01"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "EUR",
+                "sign": "negative"
+            },
+            "output": "€ 0,01"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "EUR",
+                "sign": "always"
+            },
+            "output": "+€ 0,01"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "EUR",
+                "sign": "absolute"
+            },
+            "output": "€ 0,01"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "EUR",
+                "sign": "negative"
+            },
+            "output": "€ 1,01"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "EUR",
+                "sign": "always"
+            },
+            "output": "+€ 1,01"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "EUR",
+                "sign": "absolute"
+            },
+            "output": "€ 1,01"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "EUR",
+                "sign": "negative"
+            },
+            "output": "−€ 1,01"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "EUR",
+                "sign": "always"
+            },
+            "output": "−€ 1,01"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "EUR",
+                "sign": "absolute"
+            },
+            "output": "€ 1,01"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "EUR",
+                "sign": "negative"
+            },
+            "output": "€ 9,90"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "EUR",
+                "sign": "always"
+            },
+            "output": "+€ 9,90"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "EUR",
+                "sign": "absolute"
+            },
+            "output": "€ 9,90"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "EUR",
+                "sign": "negative"
+            },
+            "output": "€ 100,00"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "EUR",
+                "sign": "always"
+            },
+            "output": "+€ 100,00"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "EUR",
+                "sign": "absolute"
+            },
+            "output": "€ 100,00"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "EUR",
+                "sign": "negative"
+            },
+            "output": "€ 1.234,56"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "EUR",
+                "sign": "always"
+            },
+            "output": "+€ 1.234,56"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "EUR",
+                "sign": "absolute"
+            },
+            "output": "€ 1.234,56"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "EUR",
+                "sign": "negative"
+            },
+            "output": "−€ 1.234,57"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "EUR",
+                "sign": "always"
+            },
+            "output": "−€ 1.234,57"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "EUR",
+                "sign": "absolute"
+            },
+            "output": "€ 1.234,57"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "EUR",
+                "sign": "negative"
+            },
+            "output": "€ 9.500,00"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "EUR",
+                "sign": "always"
+            },
+            "output": "+€ 9.500,00"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "EUR",
+                "sign": "absolute"
+            },
+            "output": "€ 9.500,00"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "EUR",
+                "sign": "negative"
+            },
+            "output": "€ 1.000.000,00"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "EUR",
+                "sign": "always"
+            },
+            "output": "+€ 1.000.000,00"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "EUR",
+                "sign": "absolute"
+            },
+            "output": "€ 1.000.000,00"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "EUR",
+                "sign": "negative"
+            },
+            "output": "−€ 987.654.321,12"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "EUR",
+                "sign": "always"
+            },
+            "output": "−€ 987.654.321,12"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "EUR",
+                "sign": "absolute"
+            },
+            "output": "€ 987.654.321,12"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "EUR",
+                "sign": "negative"
+            },
+            "output": "€ 999.999.999.999,99"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "EUR",
+                "sign": "always"
+            },
+            "output": "+€ 999.999.999.999,99"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "EUR",
+                "sign": "absolute"
+            },
+            "output": "€ 999.999.999.999,99"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "GBP",
+                "sign": "negative"
+            },
+            "output": "£ 0,00"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "GBP",
+                "sign": "always"
+            },
+            "output": "£ 0,00"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "GBP",
+                "sign": "absolute"
+            },
+            "output": "£ 0,00"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "GBP",
+                "sign": "negative"
+            },
+            "output": "£ 0,00"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "GBP",
+                "sign": "always"
+            },
+            "output": "£ 0,00"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "GBP",
+                "sign": "absolute"
+            },
+            "output": "£ 0,00"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "GBP",
+                "sign": "negative"
+            },
+            "output": "£ 0,01"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "GBP",
+                "sign": "always"
+            },
+            "output": "+£ 0,01"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "GBP",
+                "sign": "absolute"
+            },
+            "output": "£ 0,01"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "GBP",
+                "sign": "negative"
+            },
+            "output": "−£ 0,01"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "GBP",
+                "sign": "always"
+            },
+            "output": "−£ 0,01"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "GBP",
+                "sign": "absolute"
+            },
+            "output": "£ 0,01"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "GBP",
+                "sign": "negative"
+            },
+            "output": "£ 0,01"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "GBP",
+                "sign": "always"
+            },
+            "output": "+£ 0,01"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "GBP",
+                "sign": "absolute"
+            },
+            "output": "£ 0,01"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "GBP",
+                "sign": "negative"
+            },
+            "output": "£ 1,01"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "GBP",
+                "sign": "always"
+            },
+            "output": "+£ 1,01"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "GBP",
+                "sign": "absolute"
+            },
+            "output": "£ 1,01"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "GBP",
+                "sign": "negative"
+            },
+            "output": "−£ 1,01"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "GBP",
+                "sign": "always"
+            },
+            "output": "−£ 1,01"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "GBP",
+                "sign": "absolute"
+            },
+            "output": "£ 1,01"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "GBP",
+                "sign": "negative"
+            },
+            "output": "£ 9,90"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "GBP",
+                "sign": "always"
+            },
+            "output": "+£ 9,90"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "GBP",
+                "sign": "absolute"
+            },
+            "output": "£ 9,90"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "GBP",
+                "sign": "negative"
+            },
+            "output": "£ 100,00"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "GBP",
+                "sign": "always"
+            },
+            "output": "+£ 100,00"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "GBP",
+                "sign": "absolute"
+            },
+            "output": "£ 100,00"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "GBP",
+                "sign": "negative"
+            },
+            "output": "£ 1.234,56"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "GBP",
+                "sign": "always"
+            },
+            "output": "+£ 1.234,56"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "GBP",
+                "sign": "absolute"
+            },
+            "output": "£ 1.234,56"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "GBP",
+                "sign": "negative"
+            },
+            "output": "−£ 1.234,57"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "GBP",
+                "sign": "always"
+            },
+            "output": "−£ 1.234,57"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "GBP",
+                "sign": "absolute"
+            },
+            "output": "£ 1.234,57"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "GBP",
+                "sign": "negative"
+            },
+            "output": "£ 9.500,00"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "GBP",
+                "sign": "always"
+            },
+            "output": "+£ 9.500,00"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "GBP",
+                "sign": "absolute"
+            },
+            "output": "£ 9.500,00"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "GBP",
+                "sign": "negative"
+            },
+            "output": "£ 1.000.000,00"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "GBP",
+                "sign": "always"
+            },
+            "output": "+£ 1.000.000,00"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "GBP",
+                "sign": "absolute"
+            },
+            "output": "£ 1.000.000,00"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "GBP",
+                "sign": "negative"
+            },
+            "output": "−£ 987.654.321,12"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "GBP",
+                "sign": "always"
+            },
+            "output": "−£ 987.654.321,12"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "GBP",
+                "sign": "absolute"
+            },
+            "output": "£ 987.654.321,12"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "GBP",
+                "sign": "negative"
+            },
+            "output": "£ 999.999.999.999,99"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "GBP",
+                "sign": "always"
+            },
+            "output": "+£ 999.999.999.999,99"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "GBP",
+                "sign": "absolute"
+            },
+            "output": "£ 999.999.999.999,99"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "CHF",
+                "sign": "negative"
+            },
+            "output": "CHF 0,00"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "CHF",
+                "sign": "always"
+            },
+            "output": "CHF 0,00"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "CHF",
+                "sign": "absolute"
+            },
+            "output": "CHF 0,00"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "CHF",
+                "sign": "negative"
+            },
+            "output": "CHF 0,00"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "CHF",
+                "sign": "always"
+            },
+            "output": "CHF 0,00"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "CHF",
+                "sign": "absolute"
+            },
+            "output": "CHF 0,00"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "CHF",
+                "sign": "negative"
+            },
+            "output": "CHF 0,01"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "CHF",
+                "sign": "always"
+            },
+            "output": "+CHF 0,01"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "CHF",
+                "sign": "absolute"
+            },
+            "output": "CHF 0,01"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "CHF",
+                "sign": "negative"
+            },
+            "output": "−CHF 0,01"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "CHF",
+                "sign": "always"
+            },
+            "output": "−CHF 0,01"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "CHF",
+                "sign": "absolute"
+            },
+            "output": "CHF 0,01"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "CHF",
+                "sign": "negative"
+            },
+            "output": "CHF 0,01"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "CHF",
+                "sign": "always"
+            },
+            "output": "+CHF 0,01"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "CHF",
+                "sign": "absolute"
+            },
+            "output": "CHF 0,01"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "CHF",
+                "sign": "negative"
+            },
+            "output": "CHF 1,01"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "CHF",
+                "sign": "always"
+            },
+            "output": "+CHF 1,01"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "CHF",
+                "sign": "absolute"
+            },
+            "output": "CHF 1,01"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "CHF",
+                "sign": "negative"
+            },
+            "output": "−CHF 1,01"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "CHF",
+                "sign": "always"
+            },
+            "output": "−CHF 1,01"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "CHF",
+                "sign": "absolute"
+            },
+            "output": "CHF 1,01"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "CHF",
+                "sign": "negative"
+            },
+            "output": "CHF 9,90"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "CHF",
+                "sign": "always"
+            },
+            "output": "+CHF 9,90"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "CHF",
+                "sign": "absolute"
+            },
+            "output": "CHF 9,90"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "CHF",
+                "sign": "negative"
+            },
+            "output": "CHF 100,00"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "CHF",
+                "sign": "always"
+            },
+            "output": "+CHF 100,00"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "CHF",
+                "sign": "absolute"
+            },
+            "output": "CHF 100,00"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "CHF",
+                "sign": "negative"
+            },
+            "output": "CHF 1.234,56"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "CHF",
+                "sign": "always"
+            },
+            "output": "+CHF 1.234,56"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "CHF",
+                "sign": "absolute"
+            },
+            "output": "CHF 1.234,56"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "CHF",
+                "sign": "negative"
+            },
+            "output": "−CHF 1.234,57"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "CHF",
+                "sign": "always"
+            },
+            "output": "−CHF 1.234,57"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "CHF",
+                "sign": "absolute"
+            },
+            "output": "CHF 1.234,57"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "CHF",
+                "sign": "negative"
+            },
+            "output": "CHF 9.500,00"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "CHF",
+                "sign": "always"
+            },
+            "output": "+CHF 9.500,00"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "CHF",
+                "sign": "absolute"
+            },
+            "output": "CHF 9.500,00"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "CHF",
+                "sign": "negative"
+            },
+            "output": "CHF 1.000.000,00"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "CHF",
+                "sign": "always"
+            },
+            "output": "+CHF 1.000.000,00"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "CHF",
+                "sign": "absolute"
+            },
+            "output": "CHF 1.000.000,00"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "CHF",
+                "sign": "negative"
+            },
+            "output": "−CHF 987.654.321,12"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "CHF",
+                "sign": "always"
+            },
+            "output": "−CHF 987.654.321,12"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "CHF",
+                "sign": "absolute"
+            },
+            "output": "CHF 987.654.321,12"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "CHF",
+                "sign": "negative"
+            },
+            "output": "CHF 999.999.999.999,99"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "CHF",
+                "sign": "always"
+            },
+            "output": "+CHF 999.999.999.999,99"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "CHF",
+                "sign": "absolute"
+            },
+            "output": "CHF 999.999.999.999,99"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "JPY",
+                "sign": "negative"
+            },
+            "output": "JPY 0"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "JPY",
+                "sign": "always"
+            },
+            "output": "JPY 0"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "JPY",
+                "sign": "absolute"
+            },
+            "output": "JPY 0"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "JPY",
+                "sign": "negative"
+            },
+            "output": "JPY 0"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "JPY",
+                "sign": "always"
+            },
+            "output": "JPY 0"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "JPY",
+                "sign": "absolute"
+            },
+            "output": "JPY 0"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "JPY",
+                "sign": "negative"
+            },
+            "output": "JPY 0"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "JPY",
+                "sign": "always"
+            },
+            "output": "JPY 0"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "JPY",
+                "sign": "absolute"
+            },
+            "output": "JPY 0"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "JPY",
+                "sign": "negative"
+            },
+            "output": "JPY 0"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "JPY",
+                "sign": "always"
+            },
+            "output": "JPY 0"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "JPY",
+                "sign": "absolute"
+            },
+            "output": "JPY 0"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "JPY",
+                "sign": "negative"
+            },
+            "output": "JPY 0"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "JPY",
+                "sign": "always"
+            },
+            "output": "JPY 0"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "JPY",
+                "sign": "absolute"
+            },
+            "output": "JPY 0"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "JPY",
+                "sign": "negative"
+            },
+            "output": "JPY 1"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "JPY",
+                "sign": "always"
+            },
+            "output": "+JPY 1"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "JPY",
+                "sign": "absolute"
+            },
+            "output": "JPY 1"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "JPY",
+                "sign": "negative"
+            },
+            "output": "−JPY 1"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "JPY",
+                "sign": "always"
+            },
+            "output": "−JPY 1"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "JPY",
+                "sign": "absolute"
+            },
+            "output": "JPY 1"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "JPY",
+                "sign": "negative"
+            },
+            "output": "JPY 10"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "JPY",
+                "sign": "always"
+            },
+            "output": "+JPY 10"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "JPY",
+                "sign": "absolute"
+            },
+            "output": "JPY 10"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "JPY",
+                "sign": "negative"
+            },
+            "output": "JPY 100"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "JPY",
+                "sign": "always"
+            },
+            "output": "+JPY 100"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "JPY",
+                "sign": "absolute"
+            },
+            "output": "JPY 100"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "JPY",
+                "sign": "negative"
+            },
+            "output": "JPY 1.235"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "JPY",
+                "sign": "always"
+            },
+            "output": "+JPY 1.235"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "JPY",
+                "sign": "absolute"
+            },
+            "output": "JPY 1.235"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "JPY",
+                "sign": "negative"
+            },
+            "output": "−JPY 1.235"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "JPY",
+                "sign": "always"
+            },
+            "output": "−JPY 1.235"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "JPY",
+                "sign": "absolute"
+            },
+            "output": "JPY 1.235"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "JPY",
+                "sign": "negative"
+            },
+            "output": "JPY 9.500"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "JPY",
+                "sign": "always"
+            },
+            "output": "+JPY 9.500"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "JPY",
+                "sign": "absolute"
+            },
+            "output": "JPY 9.500"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "JPY",
+                "sign": "negative"
+            },
+            "output": "JPY 1.000.000"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "JPY",
+                "sign": "always"
+            },
+            "output": "+JPY 1.000.000"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "JPY",
+                "sign": "absolute"
+            },
+            "output": "JPY 1.000.000"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "JPY",
+                "sign": "negative"
+            },
+            "output": "−JPY 987.654.321"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "JPY",
+                "sign": "always"
+            },
+            "output": "−JPY 987.654.321"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "JPY",
+                "sign": "absolute"
+            },
+            "output": "JPY 987.654.321"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "JPY",
+                "sign": "negative"
+            },
+            "output": "JPY 1.000.000.000.000"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "JPY",
+                "sign": "always"
+            },
+            "output": "+JPY 1.000.000.000.000"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "JPY",
+                "sign": "absolute"
+            },
+            "output": "JPY 1.000.000.000.000"
+        }
+    ],
+    "format.moneyCompact": [
+        {
+            "input": {
+                "amount": 0,
+                "currency": "BRL"
+            },
+            "output": "0"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "BRL"
+            },
+            "output": "0"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "BRL"
+            },
+            "output": "+0,01"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "BRL"
+            },
+            "output": "−0,01"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "BRL"
+            },
+            "output": "+0,01"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "BRL"
+            },
+            "output": "+1,01"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "BRL"
+            },
+            "output": "−1,01"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "BRL"
+            },
+            "output": "+9,90"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "BRL"
+            },
+            "output": "+100"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "BRL"
+            },
+            "output": "+1.234,56"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "BRL"
+            },
+            "output": "−1.234,57"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "BRL"
+            },
+            "output": "+9.500"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "BRL"
+            },
+            "output": "+1.000.000"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "BRL"
+            },
+            "output": "−987.654.321,12"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "BRL"
+            },
+            "output": "+999.999.999.999,99"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "USD"
+            },
+            "output": "0"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "USD"
+            },
+            "output": "0"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "USD"
+            },
+            "output": "+0,01"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "USD"
+            },
+            "output": "−0,01"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "USD"
+            },
+            "output": "+0,01"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "USD"
+            },
+            "output": "+1,01"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "USD"
+            },
+            "output": "−1,01"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "USD"
+            },
+            "output": "+9,90"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "USD"
+            },
+            "output": "+100"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "USD"
+            },
+            "output": "+1.234,56"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "USD"
+            },
+            "output": "−1.234,57"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "USD"
+            },
+            "output": "+9.500"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "USD"
+            },
+            "output": "+1.000.000"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "USD"
+            },
+            "output": "−987.654.321,12"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "USD"
+            },
+            "output": "+999.999.999.999,99"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "EUR"
+            },
+            "output": "0"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "EUR"
+            },
+            "output": "0"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "EUR"
+            },
+            "output": "+0,01"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "EUR"
+            },
+            "output": "−0,01"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "EUR"
+            },
+            "output": "+0,01"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "EUR"
+            },
+            "output": "+1,01"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "EUR"
+            },
+            "output": "−1,01"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "EUR"
+            },
+            "output": "+9,90"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "EUR"
+            },
+            "output": "+100"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "EUR"
+            },
+            "output": "+1.234,56"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "EUR"
+            },
+            "output": "−1.234,57"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "EUR"
+            },
+            "output": "+9.500"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "EUR"
+            },
+            "output": "+1.000.000"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "EUR"
+            },
+            "output": "−987.654.321,12"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "EUR"
+            },
+            "output": "+999.999.999.999,99"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "GBP"
+            },
+            "output": "0"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "GBP"
+            },
+            "output": "0"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "GBP"
+            },
+            "output": "+0,01"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "GBP"
+            },
+            "output": "−0,01"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "GBP"
+            },
+            "output": "+0,01"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "GBP"
+            },
+            "output": "+1,01"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "GBP"
+            },
+            "output": "−1,01"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "GBP"
+            },
+            "output": "+9,90"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "GBP"
+            },
+            "output": "+100"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "GBP"
+            },
+            "output": "+1.234,56"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "GBP"
+            },
+            "output": "−1.234,57"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "GBP"
+            },
+            "output": "+9.500"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "GBP"
+            },
+            "output": "+1.000.000"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "GBP"
+            },
+            "output": "−987.654.321,12"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "GBP"
+            },
+            "output": "+999.999.999.999,99"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "CHF"
+            },
+            "output": "0"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "CHF"
+            },
+            "output": "0"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "CHF"
+            },
+            "output": "+0,01"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "CHF"
+            },
+            "output": "−0,01"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "CHF"
+            },
+            "output": "+0,01"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "CHF"
+            },
+            "output": "+1,01"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "CHF"
+            },
+            "output": "−1,01"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "CHF"
+            },
+            "output": "+9,90"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "CHF"
+            },
+            "output": "+100"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "CHF"
+            },
+            "output": "+1.234,56"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "CHF"
+            },
+            "output": "−1.234,57"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "CHF"
+            },
+            "output": "+9.500"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "CHF"
+            },
+            "output": "+1.000.000"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "CHF"
+            },
+            "output": "−987.654.321,12"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "CHF"
+            },
+            "output": "+999.999.999.999,99"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "JPY"
+            },
+            "output": "0"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "JPY"
+            },
+            "output": "0"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "JPY"
+            },
+            "output": "0"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "JPY"
+            },
+            "output": "0"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "JPY"
+            },
+            "output": "0"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "JPY"
+            },
+            "output": "+1"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "JPY"
+            },
+            "output": "−1"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "JPY"
+            },
+            "output": "+10"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "JPY"
+            },
+            "output": "+100"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "JPY"
+            },
+            "output": "+1.235"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "JPY"
+            },
+            "output": "−1.235"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "JPY"
+            },
+            "output": "+9.500"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "JPY"
+            },
+            "output": "+1.000.000"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "JPY"
+            },
+            "output": "−987.654.321"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "JPY"
+            },
+            "output": "+1.000.000.000.000"
+        }
+    ],
+    "format.moneyDigits": [
+        {
+            "input": {
+                "amount": 0,
+                "currency": "BRL"
+            },
+            "output": "0,00"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "BRL"
+            },
+            "output": "0,00"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "BRL"
+            },
+            "output": "0,01"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "BRL"
+            },
+            "output": "−0,01"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "BRL"
+            },
+            "output": "0,01"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "BRL"
+            },
+            "output": "1,01"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "BRL"
+            },
+            "output": "−1,01"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "BRL"
+            },
+            "output": "9,90"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "BRL"
+            },
+            "output": "100,00"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "BRL"
+            },
+            "output": "1.234,56"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "BRL"
+            },
+            "output": "−1.234,57"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "BRL"
+            },
+            "output": "9.500,00"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "BRL"
+            },
+            "output": "1.000.000,00"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "BRL"
+            },
+            "output": "−987.654.321,12"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "BRL"
+            },
+            "output": "999.999.999.999,99"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "USD"
+            },
+            "output": "0,00"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "USD"
+            },
+            "output": "0,00"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "USD"
+            },
+            "output": "0,01"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "USD"
+            },
+            "output": "−0,01"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "USD"
+            },
+            "output": "0,01"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "USD"
+            },
+            "output": "1,01"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "USD"
+            },
+            "output": "−1,01"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "USD"
+            },
+            "output": "9,90"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "USD"
+            },
+            "output": "100,00"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "USD"
+            },
+            "output": "1.234,56"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "USD"
+            },
+            "output": "−1.234,57"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "USD"
+            },
+            "output": "9.500,00"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "USD"
+            },
+            "output": "1.000.000,00"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "USD"
+            },
+            "output": "−987.654.321,12"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "USD"
+            },
+            "output": "999.999.999.999,99"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "EUR"
+            },
+            "output": "0,00"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "EUR"
+            },
+            "output": "0,00"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "EUR"
+            },
+            "output": "0,01"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "EUR"
+            },
+            "output": "−0,01"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "EUR"
+            },
+            "output": "0,01"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "EUR"
+            },
+            "output": "1,01"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "EUR"
+            },
+            "output": "−1,01"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "EUR"
+            },
+            "output": "9,90"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "EUR"
+            },
+            "output": "100,00"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "EUR"
+            },
+            "output": "1.234,56"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "EUR"
+            },
+            "output": "−1.234,57"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "EUR"
+            },
+            "output": "9.500,00"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "EUR"
+            },
+            "output": "1.000.000,00"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "EUR"
+            },
+            "output": "−987.654.321,12"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "EUR"
+            },
+            "output": "999.999.999.999,99"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "GBP"
+            },
+            "output": "0,00"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "GBP"
+            },
+            "output": "0,00"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "GBP"
+            },
+            "output": "0,01"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "GBP"
+            },
+            "output": "−0,01"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "GBP"
+            },
+            "output": "0,01"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "GBP"
+            },
+            "output": "1,01"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "GBP"
+            },
+            "output": "−1,01"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "GBP"
+            },
+            "output": "9,90"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "GBP"
+            },
+            "output": "100,00"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "GBP"
+            },
+            "output": "1.234,56"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "GBP"
+            },
+            "output": "−1.234,57"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "GBP"
+            },
+            "output": "9.500,00"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "GBP"
+            },
+            "output": "1.000.000,00"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "GBP"
+            },
+            "output": "−987.654.321,12"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "GBP"
+            },
+            "output": "999.999.999.999,99"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "CHF"
+            },
+            "output": "0,00"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "CHF"
+            },
+            "output": "0,00"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "CHF"
+            },
+            "output": "0,01"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "CHF"
+            },
+            "output": "−0,01"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "CHF"
+            },
+            "output": "0,01"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "CHF"
+            },
+            "output": "1,01"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "CHF"
+            },
+            "output": "−1,01"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "CHF"
+            },
+            "output": "9,90"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "CHF"
+            },
+            "output": "100,00"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "CHF"
+            },
+            "output": "1.234,56"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "CHF"
+            },
+            "output": "−1.234,57"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "CHF"
+            },
+            "output": "9.500,00"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "CHF"
+            },
+            "output": "1.000.000,00"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "CHF"
+            },
+            "output": "−987.654.321,12"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "CHF"
+            },
+            "output": "999.999.999.999,99"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "JPY"
+            },
+            "output": "0"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "JPY"
+            },
+            "output": "0"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "JPY"
+            },
+            "output": "0"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "JPY"
+            },
+            "output": "0"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "JPY"
+            },
+            "output": "0"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "JPY"
+            },
+            "output": "1"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "JPY"
+            },
+            "output": "−1"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "JPY"
+            },
+            "output": "10"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "JPY"
+            },
+            "output": "100"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "JPY"
+            },
+            "output": "1.235"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "JPY"
+            },
+            "output": "−1.235"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "JPY"
+            },
+            "output": "9.500"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "JPY"
+            },
+            "output": "1.000.000"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "JPY"
+            },
+            "output": "−987.654.321"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "JPY"
+            },
+            "output": "1.000.000.000.000"
+        }
+    ],
+    "format.moneyForInput": [
+        {
+            "input": {
+                "amount": 0,
+                "currency": "BRL"
+            },
+            "output": "0,00"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "BRL"
+            },
+            "output": "0,00"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "BRL"
+            },
+            "output": "0,01"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "BRL"
+            },
+            "output": "-0,01"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "BRL"
+            },
+            "output": "0,01"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "BRL"
+            },
+            "output": "1,01"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "BRL"
+            },
+            "output": "-1,01"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "BRL"
+            },
+            "output": "9,90"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "BRL"
+            },
+            "output": "100,00"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "BRL"
+            },
+            "output": "1.234,56"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "BRL"
+            },
+            "output": "-1.234,57"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "BRL"
+            },
+            "output": "9.500,00"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "BRL"
+            },
+            "output": "1.000.000,00"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "BRL"
+            },
+            "output": "-987.654.321,12"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "BRL"
+            },
+            "output": "999.999.999.999,99"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "USD"
+            },
+            "output": "0,00"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "USD"
+            },
+            "output": "0,00"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "USD"
+            },
+            "output": "0,01"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "USD"
+            },
+            "output": "-0,01"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "USD"
+            },
+            "output": "0,01"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "USD"
+            },
+            "output": "1,01"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "USD"
+            },
+            "output": "-1,01"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "USD"
+            },
+            "output": "9,90"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "USD"
+            },
+            "output": "100,00"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "USD"
+            },
+            "output": "1.234,56"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "USD"
+            },
+            "output": "-1.234,57"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "USD"
+            },
+            "output": "9.500,00"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "USD"
+            },
+            "output": "1.000.000,00"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "USD"
+            },
+            "output": "-987.654.321,12"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "USD"
+            },
+            "output": "999.999.999.999,99"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "EUR"
+            },
+            "output": "0,00"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "EUR"
+            },
+            "output": "0,00"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "EUR"
+            },
+            "output": "0,01"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "EUR"
+            },
+            "output": "-0,01"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "EUR"
+            },
+            "output": "0,01"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "EUR"
+            },
+            "output": "1,01"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "EUR"
+            },
+            "output": "-1,01"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "EUR"
+            },
+            "output": "9,90"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "EUR"
+            },
+            "output": "100,00"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "EUR"
+            },
+            "output": "1.234,56"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "EUR"
+            },
+            "output": "-1.234,57"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "EUR"
+            },
+            "output": "9.500,00"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "EUR"
+            },
+            "output": "1.000.000,00"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "EUR"
+            },
+            "output": "-987.654.321,12"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "EUR"
+            },
+            "output": "999.999.999.999,99"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "GBP"
+            },
+            "output": "0,00"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "GBP"
+            },
+            "output": "0,00"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "GBP"
+            },
+            "output": "0,01"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "GBP"
+            },
+            "output": "-0,01"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "GBP"
+            },
+            "output": "0,01"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "GBP"
+            },
+            "output": "1,01"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "GBP"
+            },
+            "output": "-1,01"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "GBP"
+            },
+            "output": "9,90"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "GBP"
+            },
+            "output": "100,00"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "GBP"
+            },
+            "output": "1.234,56"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "GBP"
+            },
+            "output": "-1.234,57"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "GBP"
+            },
+            "output": "9.500,00"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "GBP"
+            },
+            "output": "1.000.000,00"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "GBP"
+            },
+            "output": "-987.654.321,12"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "GBP"
+            },
+            "output": "999.999.999.999,99"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "CHF"
+            },
+            "output": "0,00"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "CHF"
+            },
+            "output": "0,00"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "CHF"
+            },
+            "output": "0,01"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "CHF"
+            },
+            "output": "-0,01"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "CHF"
+            },
+            "output": "0,01"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "CHF"
+            },
+            "output": "1,01"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "CHF"
+            },
+            "output": "-1,01"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "CHF"
+            },
+            "output": "9,90"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "CHF"
+            },
+            "output": "100,00"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "CHF"
+            },
+            "output": "1.234,56"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "CHF"
+            },
+            "output": "-1.234,57"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "CHF"
+            },
+            "output": "9.500,00"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "CHF"
+            },
+            "output": "1.000.000,00"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "CHF"
+            },
+            "output": "-987.654.321,12"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "CHF"
+            },
+            "output": "999.999.999.999,99"
+        },
+        {
+            "input": {
+                "amount": 0,
+                "currency": "JPY"
+            },
+            "output": "0"
+        },
+        {
+            "input": {
+                "amount": 0.004,
+                "currency": "JPY"
+            },
+            "output": "0"
+        },
+        {
+            "input": {
+                "amount": 0.005,
+                "currency": "JPY"
+            },
+            "output": "0"
+        },
+        {
+            "input": {
+                "amount": -0.005,
+                "currency": "JPY"
+            },
+            "output": "0"
+        },
+        {
+            "input": {
+                "amount": 0.01,
+                "currency": "JPY"
+            },
+            "output": "0"
+        },
+        {
+            "input": {
+                "amount": 1.005,
+                "currency": "JPY"
+            },
+            "output": "1"
+        },
+        {
+            "input": {
+                "amount": -1.005,
+                "currency": "JPY"
+            },
+            "output": "-1"
+        },
+        {
+            "input": {
+                "amount": 9.9,
+                "currency": "JPY"
+            },
+            "output": "10"
+        },
+        {
+            "input": {
+                "amount": 100,
+                "currency": "JPY"
+            },
+            "output": "100"
+        },
+        {
+            "input": {
+                "amount": 1234.56,
+                "currency": "JPY"
+            },
+            "output": "1.235"
+        },
+        {
+            "input": {
+                "amount": -1234.565,
+                "currency": "JPY"
+            },
+            "output": "-1.235"
+        },
+        {
+            "input": {
+                "amount": 9500,
+                "currency": "JPY"
+            },
+            "output": "9.500"
+        },
+        {
+            "input": {
+                "amount": 1000000,
+                "currency": "JPY"
+            },
+            "output": "1.000.000"
+        },
+        {
+            "input": {
+                "amount": -987654321.12,
+                "currency": "JPY"
+            },
+            "output": "-987.654.321"
+        },
+        {
+            "input": {
+                "amount": 999999999999.99,
+                "currency": "JPY"
+            },
+            "output": "1.000.000.000.000"
+        }
+    ],
+    "format.percent": [
+        {
+            "input": {
+                "ratio": 0,
+                "sign": "always",
+                "decimals": 0
+            },
+            "output": "0%"
+        },
+        {
+            "input": {
+                "ratio": 0,
+                "sign": "always",
+                "decimals": 1
+            },
+            "output": "0%"
+        },
+        {
+            "input": {
+                "ratio": 0,
+                "sign": "negative",
+                "decimals": 0
+            },
+            "output": "0%"
+        },
+        {
+            "input": {
+                "ratio": 0,
+                "sign": "negative",
+                "decimals": 1
+            },
+            "output": "0%"
+        },
+        {
+            "input": {
+                "ratio": 0.0004,
+                "sign": "always",
+                "decimals": 0
+            },
+            "output": "0%"
+        },
+        {
+            "input": {
+                "ratio": 0.0004,
+                "sign": "always",
+                "decimals": 1
+            },
+            "output": "0%"
+        },
+        {
+            "input": {
+                "ratio": 0.0004,
+                "sign": "negative",
+                "decimals": 0
+            },
+            "output": "0%"
+        },
+        {
+            "input": {
+                "ratio": 0.0004,
+                "sign": "negative",
+                "decimals": 1
+            },
+            "output": "0%"
+        },
+        {
+            "input": {
+                "ratio": -0.0004,
+                "sign": "always",
+                "decimals": 0
+            },
+            "output": "0%"
+        },
+        {
+            "input": {
+                "ratio": -0.0004,
+                "sign": "always",
+                "decimals": 1
+            },
+            "output": "0%"
+        },
+        {
+            "input": {
+                "ratio": -0.0004,
+                "sign": "negative",
+                "decimals": 0
+            },
+            "output": "0%"
+        },
+        {
+            "input": {
+                "ratio": -0.0004,
+                "sign": "negative",
+                "decimals": 1
+            },
+            "output": "0%"
+        },
+        {
+            "input": {
+                "ratio": 0.0005,
+                "sign": "always",
+                "decimals": 0
+            },
+            "output": "0%"
+        },
+        {
+            "input": {
+                "ratio": 0.0005,
+                "sign": "always",
+                "decimals": 1
+            },
+            "output": "+0,1%"
+        },
+        {
+            "input": {
+                "ratio": 0.0005,
+                "sign": "negative",
+                "decimals": 0
+            },
+            "output": "0%"
+        },
+        {
+            "input": {
+                "ratio": 0.0005,
+                "sign": "negative",
+                "decimals": 1
+            },
+            "output": "0,1%"
+        },
+        {
+            "input": {
+                "ratio": 0.166,
+                "sign": "always",
+                "decimals": 0
+            },
+            "output": "+17%"
+        },
+        {
+            "input": {
+                "ratio": 0.166,
+                "sign": "always",
+                "decimals": 1
+            },
+            "output": "+16,6%"
+        },
+        {
+            "input": {
+                "ratio": 0.166,
+                "sign": "negative",
+                "decimals": 0
+            },
+            "output": "17%"
+        },
+        {
+            "input": {
+                "ratio": 0.166,
+                "sign": "negative",
+                "decimals": 1
+            },
+            "output": "16,6%"
+        },
+        {
+            "input": {
+                "ratio": -0.12,
+                "sign": "always",
+                "decimals": 0
+            },
+            "output": "−12%"
+        },
+        {
+            "input": {
+                "ratio": -0.12,
+                "sign": "always",
+                "decimals": 1
+            },
+            "output": "−12,0%"
+        },
+        {
+            "input": {
+                "ratio": -0.12,
+                "sign": "negative",
+                "decimals": 0
+            },
+            "output": "−12%"
+        },
+        {
+            "input": {
+                "ratio": -0.12,
+                "sign": "negative",
+                "decimals": 1
+            },
+            "output": "−12,0%"
+        },
+        {
+            "input": {
+                "ratio": 0.3225,
+                "sign": "always",
+                "decimals": 0
+            },
+            "output": "+32%"
+        },
+        {
+            "input": {
+                "ratio": 0.3225,
+                "sign": "always",
+                "decimals": 1
+            },
+            "output": "+32,3%"
+        },
+        {
+            "input": {
+                "ratio": 0.3225,
+                "sign": "negative",
+                "decimals": 0
+            },
+            "output": "32%"
+        },
+        {
+            "input": {
+                "ratio": 0.3225,
+                "sign": "negative",
+                "decimals": 1
+            },
+            "output": "32,3%"
+        },
+        {
+            "input": {
+                "ratio": 1,
+                "sign": "always",
+                "decimals": 0
+            },
+            "output": "+100%"
+        },
+        {
+            "input": {
+                "ratio": 1,
+                "sign": "always",
+                "decimals": 1
+            },
+            "output": "+100,0%"
+        },
+        {
+            "input": {
+                "ratio": 1,
+                "sign": "negative",
+                "decimals": 0
+            },
+            "output": "100%"
+        },
+        {
+            "input": {
+                "ratio": 1,
+                "sign": "negative",
+                "decimals": 1
+            },
+            "output": "100,0%"
+        },
+        {
+            "input": {
+                "ratio": -1,
+                "sign": "always",
+                "decimals": 0
+            },
+            "output": "−100%"
+        },
+        {
+            "input": {
+                "ratio": -1,
+                "sign": "always",
+                "decimals": 1
+            },
+            "output": "−100,0%"
+        },
+        {
+            "input": {
+                "ratio": -1,
+                "sign": "negative",
+                "decimals": 0
+            },
+            "output": "−100%"
+        },
+        {
+            "input": {
+                "ratio": -1,
+                "sign": "negative",
+                "decimals": 1
+            },
+            "output": "−100,0%"
+        },
+        {
+            "input": {
+                "ratio": 2.5,
+                "sign": "always",
+                "decimals": 0
+            },
+            "output": "+250%"
+        },
+        {
+            "input": {
+                "ratio": 2.5,
+                "sign": "always",
+                "decimals": 1
+            },
+            "output": "+250,0%"
+        },
+        {
+            "input": {
+                "ratio": 2.5,
+                "sign": "negative",
+                "decimals": 0
+            },
+            "output": "250%"
+        },
+        {
+            "input": {
+                "ratio": 2.5,
+                "sign": "negative",
+                "decimals": 1
+            },
+            "output": "250,0%"
+        }
+    ],
+    "format.date": [
+        {
+            "input": "2026-01-01",
+            "output": {
+                "dayMonth": "01/01",
+                "full": "01/01/2026"
+            }
+        },
+        {
+            "input": "2026-10-08",
+            "output": {
+                "dayMonth": "08/10",
+                "full": "08/10/2026"
+            }
+        },
+        {
+            "input": "2024-02-29",
+            "output": {
+                "dayMonth": "29/02",
+                "full": "29/02/2024"
+            }
+        },
+        {
+            "input": "2026-12-31",
+            "output": {
+                "dayMonth": "31/12",
+                "full": "31/12/2026"
+            }
+        }
+    ],
+    "format.month": [
+        {
+            "input": "2026-01",
+            "output": {
+                "long": "Janeiro de 2026",
+                "short": "jan/2026",
+                "abbreviation": "jan"
+            }
+        },
+        {
+            "input": "2026-02",
+            "output": {
+                "long": "Fevereiro de 2026",
+                "short": "fev/2026",
+                "abbreviation": "fev"
+            }
+        },
+        {
+            "input": "2026-03",
+            "output": {
+                "long": "Março de 2026",
+                "short": "mar/2026",
+                "abbreviation": "mar"
+            }
+        },
+        {
+            "input": "2026-04",
+            "output": {
+                "long": "Abril de 2026",
+                "short": "abr/2026",
+                "abbreviation": "abr"
+            }
+        },
+        {
+            "input": "2026-05",
+            "output": {
+                "long": "Maio de 2026",
+                "short": "mai/2026",
+                "abbreviation": "mai"
+            }
+        },
+        {
+            "input": "2026-06",
+            "output": {
+                "long": "Junho de 2026",
+                "short": "jun/2026",
+                "abbreviation": "jun"
+            }
+        },
+        {
+            "input": "2026-07",
+            "output": {
+                "long": "Julho de 2026",
+                "short": "jul/2026",
+                "abbreviation": "jul"
+            }
+        },
+        {
+            "input": "2026-08",
+            "output": {
+                "long": "Agosto de 2026",
+                "short": "ago/2026",
+                "abbreviation": "ago"
+            }
+        },
+        {
+            "input": "2026-09",
+            "output": {
+                "long": "Setembro de 2026",
+                "short": "set/2026",
+                "abbreviation": "set"
+            }
+        },
+        {
+            "input": "2026-10",
+            "output": {
+                "long": "Outubro de 2026",
+                "short": "out/2026",
+                "abbreviation": "out"
+            }
+        },
+        {
+            "input": "2026-11",
+            "output": {
+                "long": "Novembro de 2026",
+                "short": "nov/2026",
+                "abbreviation": "nov"
+            }
+        },
+        {
+            "input": "2026-12",
+            "output": {
+                "long": "Dezembro de 2026",
+                "short": "dez/2026",
+                "abbreviation": "dez"
+            }
+        }
+    ],
+    "parse.moneyInput": [
+        {
+            "input": {
+                "text": "",
+                "currency": "BRL"
+            },
+            "output": {
+                "ok": false,
+                "reason": "empty"
+            }
+        },
+        {
+            "input": {
+                "text": "   ",
+                "currency": "BRL"
+            },
+            "output": {
+                "ok": false,
+                "reason": "empty"
+            }
+        },
+        {
+            "input": {
+                "text": "0",
+                "currency": "BRL"
+            },
+            "output": {
+                "ok": true,
+                "amount": 0
+            }
+        },
+        {
+            "input": {
+                "text": "1",
+                "currency": "BRL"
+            },
+            "output": {
+                "ok": true,
+                "amount": 1
+            }
+        },
+        {
+            "input": {
+                "text": "1,5",
+                "currency": "BRL"
+            },
+            "output": {
+                "ok": true,
+                "amount": 1.5
+            }
+        },
+        {
+            "input": {
+                "text": "1,005",
+                "currency": "BRL"
+            },
+            "output": {
+                "ok": true,
+                "amount": 1.01
+            }
+        },
+        {
+            "input": {
+                "text": "-1,005",
+                "currency": "BRL"
+            },
+            "output": {
+                "ok": true,
+                "amount": -1.01
+            }
+        },
+        {
+            "input": {
+                "text": "1.234,56",
+                "currency": "BRL"
+            },
+            "output": {
+                "ok": true,
+                "amount": 1234.56
+            }
+        },
+        {
+            "input": {
+                "text": "1234,56",
+                "currency": "BRL"
+            },
+            "output": {
+                "ok": true,
+                "amount": 1234.56
+            }
+        },
+        {
+            "input": {
+                "text": "R$ 10",
+                "currency": "BRL"
+            },
+            "output": {
+                "ok": true,
+                "amount": 10
+            }
+        },
+        {
+            "input": {
+                "text": "-R$ 10",
+                "currency": "BRL"
+            },
+            "output": {
+                "ok": true,
+                "amount": -10
+            }
+        },
+        {
+            "input": {
+                "text": "R$-10",
+                "currency": "BRL"
+            },
+            "output": {
+                "ok": true,
+                "amount": -10
+            }
+        },
+        {
+            "input": {
+                "text": "−23,90",
+                "currency": "BRL"
+            },
+            "output": {
+                "ok": true,
+                "amount": -23.9
+            }
+        },
+        {
+            "input": {
+                "text": "+7",
+                "currency": "BRL"
+            },
+            "output": {
+                "ok": true,
+                "amount": 7
+            }
+        },
+        {
+            "input": {
+                "text": "1.5",
+                "currency": "BRL"
+            },
+            "output": {
+                "ok": false,
+                "reason": "invalid"
+            }
+        },
+        {
+            "input": {
+                "text": "1.23",
+                "currency": "BRL"
+            },
+            "output": {
+                "ok": false,
+                "reason": "invalid"
+            }
+        },
+        {
+            "input": {
+                "text": ",99",
+                "currency": "BRL"
+            },
+            "output": {
+                "ok": true,
+                "amount": 0.99
+            }
+        },
+        {
+            "input": {
+                "text": "-",
+                "currency": "BRL"
+            },
+            "output": {
+                "ok": false,
+                "reason": "invalid"
+            }
+        },
+        {
+            "input": {
+                "text": "abc",
+                "currency": "BRL"
+            },
+            "output": {
+                "ok": false,
+                "reason": "invalid"
+            }
+        },
+        {
+            "input": {
+                "text": "1.000.000,00",
+                "currency": "BRL"
+            },
+            "output": {
+                "ok": true,
+                "amount": 1000000
+            }
+        },
+        {
+            "input": {
+                "text": "1000000000000",
+                "currency": "BRL"
+            },
+            "output": {
+                "ok": true,
+                "amount": 1000000000000
+            }
+        },
+        {
+            "input": {
+                "text": "1000000000000,01",
+                "currency": "BRL"
+            },
+            "output": {
+                "ok": false,
+                "reason": "tooLarge"
+            }
+        },
+        {
+            "input": {
+                "text": "9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999",
+                "currency": "BRL"
+            },
+            "output": {
+                "ok": false,
+                "reason": "tooLarge"
+            }
+        },
+        {
+            "input": {
+                "text": "",
+                "currency": "JPY"
+            },
+            "output": {
+                "ok": false,
+                "reason": "empty"
+            }
+        },
+        {
+            "input": {
+                "text": "   ",
+                "currency": "JPY"
+            },
+            "output": {
+                "ok": false,
+                "reason": "empty"
+            }
+        },
+        {
+            "input": {
+                "text": "0",
+                "currency": "JPY"
+            },
+            "output": {
+                "ok": true,
+                "amount": 0
+            }
+        },
+        {
+            "input": {
+                "text": "1",
+                "currency": "JPY"
+            },
+            "output": {
+                "ok": true,
+                "amount": 1
+            }
+        },
+        {
+            "input": {
+                "text": "1,5",
+                "currency": "JPY"
+            },
+            "output": {
+                "ok": true,
+                "amount": 2
+            }
+        },
+        {
+            "input": {
+                "text": "1,005",
+                "currency": "JPY"
+            },
+            "output": {
+                "ok": true,
+                "amount": 1
+            }
+        },
+        {
+            "input": {
+                "text": "-1,005",
+                "currency": "JPY"
+            },
+            "output": {
+                "ok": true,
+                "amount": -1
+            }
+        },
+        {
+            "input": {
+                "text": "1.234,56",
+                "currency": "JPY"
+            },
+            "output": {
+                "ok": true,
+                "amount": 1235
+            }
+        },
+        {
+            "input": {
+                "text": "1234,56",
+                "currency": "JPY"
+            },
+            "output": {
+                "ok": true,
+                "amount": 1235
+            }
+        },
+        {
+            "input": {
+                "text": "R$ 10",
+                "currency": "JPY"
+            },
+            "output": {
+                "ok": true,
+                "amount": 10
+            }
+        },
+        {
+            "input": {
+                "text": "-R$ 10",
+                "currency": "JPY"
+            },
+            "output": {
+                "ok": true,
+                "amount": -10
+            }
+        },
+        {
+            "input": {
+                "text": "R$-10",
+                "currency": "JPY"
+            },
+            "output": {
+                "ok": true,
+                "amount": -10
+            }
+        },
+        {
+            "input": {
+                "text": "−23,90",
+                "currency": "JPY"
+            },
+            "output": {
+                "ok": true,
+                "amount": -24
+            }
+        },
+        {
+            "input": {
+                "text": "+7",
+                "currency": "JPY"
+            },
+            "output": {
+                "ok": true,
+                "amount": 7
+            }
+        },
+        {
+            "input": {
+                "text": "1.5",
+                "currency": "JPY"
+            },
+            "output": {
+                "ok": false,
+                "reason": "invalid"
+            }
+        },
+        {
+            "input": {
+                "text": "1.23",
+                "currency": "JPY"
+            },
+            "output": {
+                "ok": false,
+                "reason": "invalid"
+            }
+        },
+        {
+            "input": {
+                "text": ",99",
+                "currency": "JPY"
+            },
+            "output": {
+                "ok": true,
+                "amount": 1
+            }
+        },
+        {
+            "input": {
+                "text": "-",
+                "currency": "JPY"
+            },
+            "output": {
+                "ok": false,
+                "reason": "invalid"
+            }
+        },
+        {
+            "input": {
+                "text": "abc",
+                "currency": "JPY"
+            },
+            "output": {
+                "ok": false,
+                "reason": "invalid"
+            }
+        },
+        {
+            "input": {
+                "text": "1.000.000,00",
+                "currency": "JPY"
+            },
+            "output": {
+                "ok": true,
+                "amount": 1000000
+            }
+        },
+        {
+            "input": {
+                "text": "1000000000000",
+                "currency": "JPY"
+            },
+            "output": {
+                "ok": true,
+                "amount": 1000000000000
+            }
+        },
+        {
+            "input": {
+                "text": "1000000000000,01",
+                "currency": "JPY"
+            },
+            "output": {
+                "ok": false,
+                "reason": "tooLarge"
+            }
+        },
+        {
+            "input": {
+                "text": "9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999",
+                "currency": "JPY"
+            },
+            "output": {
+                "ok": false,
+                "reason": "tooLarge"
+            }
+        }
+    ],
+    "search.normalize": [
+        {
+            "input": "Café",
+            "output": "cafe"
+        },
+        {
+            "input": "café",
+            "output": "cafe"
+        },
+        {
+            "input": "AÇÚCAR",
+            "output": "acucar"
+        },
+        {
+            "input": "Alimentação › Mercado",
+            "output": "alimentacao › mercado"
+        },
+        {
+            "input": "Ångström",
+            "output": "angstrom"
+        },
+        {
+            "input": "Straße",
+            "output": "straße"
+        },
+        {
+            "input": "Œuvre",
+            "output": "œuvre"
+        },
+        {
+            "input": "naïve",
+            "output": "naive"
+        },
+        {
+            "input": "São João",
+            "output": "sao joao"
+        }
+    ],
+    "search.matchesAllTerms": [
+        {
+            "input": {
+                "query": "cafe",
+                "haystack": "Café da manhã"
+            },
+            "output": true
+        },
+        {
+            "input": {
+                "query": "mercado alim",
+                "haystack": "Alimentação › Mercado"
+            },
+            "output": true
+        },
+        {
+            "input": {
+                "query": "acucar",
+                "haystack": "AÇÚCAR"
+            },
+            "output": true
+        },
+        {
+            "input": {
+                "query": "",
+                "haystack": "qualquer coisa"
+            },
+            "output": true
+        },
+        {
+            "input": {
+                "query": "sao joao",
+                "haystack": "São João"
+            },
+            "output": true
+        },
+        {
+            "input": {
+                "query": "agua",
+                "haystack": "Aguardente"
+            },
+            "output": true
+        },
+        {
+            "input": {
+                "query": "luz",
+                "haystack": "Água"
+            },
+            "output": false
+        }
+    ]
+}

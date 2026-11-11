@@ -1,6 +1,6 @@
 {
     "name": "finance",
-    "version": "1.35.0",
+    "version": "1.36.0",
     "private": true,
     "type": "module",
     "packageManager": "pnpm@12.8.1",
@@ -9,6 +9,8 @@
     },
     "scripts": {
         "embed:migrations": "node scripts/embed-migrations.mjs",
+        "golden:generate": "pnpm --filter @finance/core --filter @finance/client exec vitest run test/golden -u",
+        "db:history": "node --experimental-transform-types --no-warnings=ExperimentalWarning packages/core/scripts/generate-history-database.ts",
         "tokens:css": "pnpm --filter @finance/tokens generate",
         "dev:desktop": "pnpm --filter @finance/desktop dev",
         "build:desktop": "pnpm --filter @finance/desktop build",
