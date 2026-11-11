@@ -1,6 +1,6 @@
 # Plano do MVP Mobile — o desktop no bolso, no Android
 
-**Status:** Planejado — nenhuma fase iniciada. Primeira entrega do app mobile: o
+**Status:** Em andamento — Fase 0. Primeira entrega do app mobile: o
 [design do shell mobile](mobile-shell-design.md) posto em código, no Android, com as
 mesmas funcionalidades do desktop — menos relatórios, calendário e Extrato — sobre o banco
 do próprio celular. A sincronização fica para um plano próprio, logo depois deste.
@@ -77,8 +77,8 @@ o Extrato do desktop: o resultado de cada dia numa tabela dia × mês.
 | Mobile ou sincronização primeiro? | **Mobile primeiro**, sobre o banco do próprio celular; sincronização num plano próprio logo depois | Valida a stack inteira — Hermes, `expo-sqlite` síncrono, NativeWind, orçamento de 50 ms — antes do investimento no sync. Nenhuma tela depende dele. O uso real diário só começa com a sincronização ([§3](#3-relação-com-a-sincronização)) |
 | Plataforma | **Só Android** | O design já punha o Android primeiro; o iOS depende de uma decisão de custo ainda aberta |
 | Onde compila | **No devcontainer**: JDK, SDK e NDK de linha de comando numa camada do `Dockerfile`, cache do Gradle num volume; `expo prebuild` + Gradle geram o APK | Mantém a regra do container ("nada de compiladores no host"). Disco e memória sobram (428 GB livres, 30 GB de RAM) |
-| Onde roda | **Aparelho físico** do usuário no desenvolvimento; **emulador só no CI** | O container não tem `/dev/kvm`, então emulador aqui não roda; os runners Linux do GitHub Actions têm KVM |
-| Ciclo de desenvolvimento | Development build instalado no aparelho, Metro no container; o aparelho alcança o Metro por `adb` sem fio (`adb pair`/`connect` + `adb reverse`) ou pela porta 8081 encaminhada pelo host — escolhido na Fase 0 | O túnel do Expo passa o bundle por um terceiro; fica só como último recurso (código, nunca dados) |
+| Onde roda | **Emulador no devcontainer** no desenvolvimento (`/dev/kvm` repassado pelo compose, janela no desktop pelo mesmo Wayland/X11 do Electron); **aparelho físico** na medição (Fase 5) e na validação final (Fase 19); **emulador no CI** | Testar não depende do celular por perto, e build, `adb`, Metro e emulador ficam no mesmo lugar, sem toolchain no host. O desempenho de um emulador x86 num PC não diz nada do aparelho, por isso os números saem do celular; os runners Linux do GitHub Actions têm KVM |
+| Ciclo de desenvolvimento | Development build instalado no emulador (`pnpm emulator:android`), Metro no container; no celular, quando preciso, o aparelho alcança o Metro por `adb` sem fio (`adb pair`/`connect` + `adb reverse`) ou pelo IP do host, já que o container usa a rede do host | O túnel do Expo passa o bundle por um terceiro; fica só como último recurso (código, nunca dados) |
 | Framework | **Expo**, SDK estável mais recente no início da Fase 4, Nova Arquitetura, Hermes, development build, `android/` gerado e não commitado | [mobile-shell-design §3.5](mobile-shell-design.md#35-expo-com-build-de-desenvolvimento) |
 | Navegação | **Expo Router**: abas da barra inferior, uma pilha por aba, rotas tipadas | É o roteador do Expo, com rotas tipadas como o TanStack Router do desktop, e trata o "voltar" do Android |
 | Mês de referência | Estado do shell, salvo nas preferências do aparelho (`lastPeriod`), e não parâmetro de rota | No desktop, ele é *search param* para sobreviver à URL; no celular não há URL para preservar, e as pilhas por aba perderiam o parâmetro ao trocar de aba |
@@ -177,10 +177,12 @@ explícitos, docblock com motivação e testes no mesmo commit.
 
 ### Fase 0 — Ambiente Android no devcontainer
 
-- [ ] Camada no `.devcontainer/Dockerfile`: JDK na versão que o Gradle do SDK do Expo pede, Android `cmdline-tools`, `platform-tools` (`adb`), `platforms`/`build-tools` do `targetSdk` e o NDK que o SDK do Expo fixa; licenças aceitas na construção da imagem; comentário com o motivo de cada pacote, como as camadas existentes
-- [ ] Volume no `compose.yaml` para `~/.gradle` (e o cache do Android SDK, se ficar fora da imagem), para que o primeiro build lento não se repita a cada container
-- [ ] Validar o ciclo de desenvolvimento com um app Expo descartável: development build instalado no aparelho do usuário, Metro no container, *fast refresh* funcionando. Testar primeiro `adb` sem fio (`adb pair` + `adb connect` + `adb reverse tcp:8081`); se a rede do container não alcançar o aparelho, a porta 8081 encaminhada pelo host. Registrar o caminho escolhido no README do app
-- [ ] Instalar um APK gerado no container pelo caminho que o usuário vai usar no dia a dia (`adb install` ou arquivo copiado)
+- [x] Camada no `.devcontainer/Dockerfile`: JDK na versão que o Gradle do SDK do Expo pede, Android `cmdline-tools`, `platform-tools` (`adb`), `platforms`/`build-tools` do `targetSdk` e o NDK que o SDK do Expo fixa; licenças aceitas na construção da imagem; comentário com o motivo de cada pacote, como as camadas existentes
+- [x] Volume no `compose.yaml` para `~/.gradle` (e o cache do Android SDK, se ficar fora da imagem), para que o primeiro build lento não se repita a cada container
+- [x] Emulador no devcontainer: `/dev/kvm` e o grupo dono repassados pelo compose (GID gravado pelo `initializeCommand`), pacote `emulator` e imagem `android-36/google_apis/x86_64` numa camada própria, `pnpm emulator:android` criando o AVD no volume do `~/.android`
+- [x] Validar o ciclo de desenvolvimento com um app Expo descartável: development build instalado no emulador, Metro no container, *fast refresh* funcionando. Registrar o caminho no README do app (Fase 4). Validado com o Expo SDK 58: `adb reverse tcp:8081 tcp:8081`, `expo start --dev-client` e o app aberto pelo link `exp+<slug>://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081`. O Metro não pode subir com `CI=1`, que desliga o *watch mode* e, com ele, o *fast refresh*
+- [x] Instalar no emulador, por `adb install`, um APK gerado no container (debug, x86_64, ~6 min no primeiro build)
+- [ ] Celular, só quando chegar a Fase 5: ligar o aparelho ao Metro por `adb` sem fio (`adb pair` + `adb connect` + `adb reverse tcp:8081`) ou pelo IP do host
 
 ### Fase 1 — Paridade do núcleo no Hermes
 
@@ -345,7 +347,7 @@ manda e o código ainda não cumpre.
 | Metro e o pnpm isolado não se entenderem (symlinks, duas cópias de React, imports `.ts`) | Primeira tarefa da Fase 4, antes de qualquer tela; `node-linker=hoisted` como alternativa, perguntada antes por afetar o workspace inteiro |
 | NativeWind 5 ainda imaturo no SDK escolhido | NativeWind 4 com saída em JS do gerador de tokens; `StyleSheet` gerado dos tokens como última rota ([mobile-shell-design §9](mobile-shell-design.md#9-telas-e-estilo)) |
 | Hermes estourar o orçamento | Fase 5 é portão: as telas só começam com o número em mãos; `WorkerCoreClient` como rota de escape, trocado só na raiz |
-| Ciclo de desenvolvimento sem emulador ser lento | Validado na Fase 0; a lógica e as telas testadas no Node (Vitest e jest-expo) cobrem a maior parte das mudanças sem aparelho |
+| Emulador no container não abrir janela ou ficar lento (GPU, KVM) | Validado na Fase 0; `-gpu swiftshader_indirect` como alternativa sem GPU; a lógica e as telas testadas no Node (Vitest e jest-expo) cobrem a maior parte das mudanças sem aparelho |
 | Toolchain Android pesada no container | Camada própria no `Dockerfile` e volume para o cache do Gradle; espaço em disco sobra |
 | Trocar `localeCompare` mudar a ordem de listas no desktop | Comparador com dobra de acento e caixa, com testes que fixam a ordem atual |
 | Banco do celular divergir do desktop depois de importar a cópia | É esperado até o sync; aviso na tela e [§3](#3-relação-com-a-sincronização). O banco de teste é descartado ao entrar no grupo |
