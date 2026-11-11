@@ -1,4 +1,4 @@
-import { RegistriesScreen } from '../../../src/screens/PendingScreens.tsx';
+import { RegistriesScreen } from '../../../src/screens/RegistriesScreen.tsx';
 
-/** Rota `/more/registries`: os cadastros. */
+/** Rota `/more/registries`: o índice dos cadastros. */
 export default RegistriesScreen;

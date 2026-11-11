@@ -1,4 +1,4 @@
-import { collectIssues, type FieldTarget, type FormErrors } from '@finance/client';
+import { collectIssues, type FieldTarget, type FormErrors } from './formIssues.ts';
 import type { CoreInput, ProfileResponse } from '@finance/core';
 import { createProfileRequest } from '@finance/core/requests';
 
@@ -64,3 +64,10 @@ export function readProfileForm(values: ProfileFormValues): ProfileFormResult {
     }
     return { ok: false, errors: collectIssues(parsed.error.issues, FIELD_BY_PATH, values.currency, {}) };
 }
+
+/**
+ * Campo do formulário de cada campo que o núcleo pode apontar numa recusa de perfil. Fica ao lado
+ * do formulário para que o desktop e o celular ponham a recusa — a moeda que não muda com
+ * lançamentos — no mesmo campo.
+ */
+export const PROFILE_FIELD_BY_CORE_FIELD: Readonly<Partial<Record<string, ProfileField>>> = { name: 'name', type: 'type', currency: 'currency' };

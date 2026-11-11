@@ -11,6 +11,9 @@ export const ROUTES = {
     more: '/more',
     goals: '/more/goals',
     registries: '/more/registries',
+    categories: '/more/categories',
+    profiles: '/more/profiles',
+    tags: '/more/tags',
     notes: '/more/notes',
     devices: '/more/devices',
     settings: '/more/settings',
@@ -98,4 +101,12 @@ export function goalRoute(goalId: string): `/more/goal/${string}` {
  */
 export function moreTransactionRoute(transactionId: string): `/more/transaction/${string}` {
     return `/more/transaction/${transactionId}`;
+}
+
+/**
+ * @param categoryId Categoria.
+ * @return O caminho do detalhe da categoria, empilhado sobre a lista de Categorias na aba Mais.
+ */
+export function categoryRoute(categoryId: string): `/more/category/${string}` {
+    return `/more/category/${categoryId}`;
 }

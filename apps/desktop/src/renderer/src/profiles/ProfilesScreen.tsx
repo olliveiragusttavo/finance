@@ -1,4 +1,17 @@
-import { currencyOptionsWith, formatProfileSummary, formatProfileType, reportRejection, useCoreMutation } from '@finance/client';
+import {
+    currencyOptionsWith,
+    emptyProfileForm,
+    formatProfileSummary,
+    formatProfileType,
+    PROFILE_FIELD_BY_CORE_FIELD,
+    PROFILE_FIELDS,
+    profileFormFrom,
+    readProfileForm,
+    reportRejection,
+    useCoreMutation,
+    type ProfileContent,
+    type ProfileFormValues,
+} from '@finance/client';
 import type { ProfileResponse } from '@finance/core';
 import { useState, type ReactNode } from 'react';
 import { Controller, useForm, type Resolver } from 'react-hook-form';
@@ -9,7 +22,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useActiveProfile } from '@/shell/activeProfile';
-import { emptyProfileForm, PROFILE_FIELDS, profileFormFrom, readProfileForm, type ProfileContent, type ProfileFormValues } from './profileForm.ts';
 
 /** Tipos de perfil, na ordem do primeiro uso. */
 const PROFILE_TYPES: readonly ProfileFormValues['type'][] = ['personal', 'business'];
@@ -90,9 +102,6 @@ export function ProfilesScreen(): ReactNode {
         </>
     );
 }
-
-/** Campo do formulário de cada campo que o núcleo pode apontar numa recusa de perfil. */
-const PROFILE_FIELD_BY_CORE_FIELD: Readonly<Partial<Record<string, keyof ProfileFormValues>>> = { name: 'name', type: 'type', currency: 'currency' };
 
 /**
  * Criar perfil (nome, tipo, moeda) ou editar (nome e moeda). O tipo não muda depois de criado:

@@ -8,9 +8,9 @@ import { ScreenHeader } from '../shell/ScreenHeader.tsx';
  * tela troca o export daqui pelo arquivo próprio.
  */
 
-/** @return Cadastros (Fase 15). */
-export function RegistriesScreen(): ReactNode {
-    return <PendingScreen header={<ScreenHeader title="Cadastros" back />} />;
+/** @return Tags (Fase 16). */
+export function TagsScreen(): ReactNode {
+    return <PendingScreen header={<ScreenHeader title="Tags" back />} />;
 }
 
 /** @return Anotações (Fase 16). */

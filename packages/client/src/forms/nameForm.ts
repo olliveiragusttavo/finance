@@ -1,11 +1,11 @@
-import { issueMessage } from '@finance/client';
+import { issueMessage } from './formIssues.ts';
 import { registryNameField } from '@finance/core/requests';
 
 /** Resultado da leitura de um nome de cadastro: o nome aparado, ou a mensagem do campo. */
 export type NameFormResult = { readonly ok: true; readonly name: string } | { readonly ok: false; readonly error: string };
 
 /**
- * Lê o nome de uma categoria ou subcategoria — os diálogos que só pedem um nome. Valida com o
+ * Lê o nome de uma categoria, subcategoria ou tag — os formulários que só pedem um nome. Valida com o
  * `registryNameField`, o mesmo campo das rotas de categoria, para que o limite de tamanho não
  * seja repetido aqui. A unicidade sem diferenciar maiúsculas não é conferida na tela: só o
  * núcleo vê todos os nomes, e o conflito volta como `CONFLICT` apontando o campo.

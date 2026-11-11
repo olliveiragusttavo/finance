@@ -550,8 +550,24 @@ Como ficou (proposta aprovada pelo usuário em 11/11/2026, antes do código):
 
 ### Fase 15 — Cadastros: perfis e categorias
 
-- [ ] `MobileCadastros` como índice; perfis (criar, renomear, moeda só sem lançamentos); categorias → detalhe com subcategorias, mover e excluir — no modelo das demais telas mobile, com as informações das telas do desktop ([§5.1](#51-decididas))
-- [ ] Testes de tela
+- [x] `MobileCadastros` como índice; perfis (criar, renomear, moeda só sem lançamentos); categorias → detalhe com subcategorias, mover e excluir — no modelo das demais telas mobile, com as informações das telas do desktop ([§5.1](#51-decididas))
+- [x] Testes de tela
+
+Como ficou:
+
+- **Índice** (`/more/registries`): as linhas do mockup com as contagens. Contas e Cartões levam
+  às abas deles, onde o cadastro já mora (Fases 12 e 13); Categorias, Tags, Perfis e Anotações
+  empilham na aba Mais. "Mover subcategoria para outra categoria" não existe, como no desktop:
+  o núcleo não move. `MenuRow`/`MenuGroup` saíram do Mais para `src/ui/menu.tsx`.
+- **Categorias** (`/more/categories` → `/more/category/[id]`): a busca por categoria ou
+  subcategoria, o resumo e as contagens da Fase 13.12 do desktop; no detalhe, as subcategorias
+  com a contagem, "Adicionar subcategoria" no fim (sem folha, para cadastrar várias seguidas),
+  renomear e excluir da categoria no "⋯" e da subcategoria ao tocar na linha. A exclusão com
+  lançamentos pede o destino (`moveTargets`).
+- **Perfis** (`/more/profiles`): a lista com "Em uso" e "Abrir", a edição em folha ao tocar e o
+  "+". Sem exclusão, como no desktop.
+- **Client:** `nameForm`, `profileForm` e as funções puras de categorias (`categoryView`: busca,
+  contagens, destinos e a frase da exclusão) saíram do desktop.
 
 ### Fase 16 — Tags e Anotações
 

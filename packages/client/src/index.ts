@@ -29,6 +29,8 @@ export * from './forms/coreErrorField.ts';
 export * from './forms/accountForm.ts';
 export * from './forms/creditCardForm.ts';
 export * from './forms/goalForm.ts';
+export * from './forms/nameForm.ts';
+export * from './forms/profileForm.ts';
 // Regras do lançamento que decidem quais campos o formulário mostra, as mesmas do núcleo.
 export { feedsGoal, movesToDestination, withdrawsFromGoal } from '@finance/core';
 // Regras do shell comuns ao desktop e ao celular: mês corrente, mês vizinho e perfil reaberto.
@@ -43,6 +45,7 @@ export * from './viewModels/recurrenceView.ts';
 export * from './viewModels/partnerRoster.ts';
 export * from './viewModels/deletionImpact.ts';
 export * from './viewModels/statementTable.ts';
+export * from './viewModels/categoryView.ts';
 export * from './viewModels/invoiceView.ts';
 export * from './viewModels/movementList.ts';
 export * from './viewModels/goalView.ts';

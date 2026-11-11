@@ -1,4 +1,16 @@
-import { reportRejection, useCategoryTree, useCoreMutation } from '@finance/client';
+import {
+    categoryTransactionCount,
+    describeCategoryDeletion,
+    filterCategories,
+    formatCategoryCount,
+    moveTargets,
+    readNameForm,
+    reportRejection,
+    transactionsToMove,
+    useCategoryTree,
+    useCoreMutation,
+    type CategoryDeletionTarget,
+} from '@finance/client';
 import type { CategoryBranchResponse, SubCategoryUsageResponse } from '@finance/core';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { PencilIcon, SearchIcon, Trash2Icon } from 'lucide-react';
@@ -12,10 +24,8 @@ import { EmptyState, QueryState, Skeleton } from '@/components/states';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/cn';
-import { readNameForm } from '@/lib/nameForm';
 import { useActiveProfile } from '@/shell/activeProfile';
-import { categoryTransactionCount, filterCategories, formatCategoryCount, openCategory, parseCategoriesSearch } from './categoriesSearch.ts';
-import { moveTargets, transactionsToMove, type CategoryDeletionTarget } from './categoryMoves.ts';
+import { openCategory, parseCategoriesSearch } from './categoriesSearch.ts';
 
 /** Rótulo do campo do nome da subcategoria, com artigo, para a frase do campo vazio. */
 const SUB_CATEGORY_NAME_LABEL = 'o nome da subcategoria';
@@ -680,7 +690,7 @@ function CategoryDeletionDialog({
             open
             onClose={onClose}
             title={target.kind === 'category' ? `Excluir a categoria ${name}?` : `Excluir a subcategoria ${name}?`}
-            description={deletionDescription(target, toMove)}
+            description={describeCategoryDeletion(target, toMove)}
             submitLabel={toMove > 0 ? 'Mover e excluir' : 'Excluir'}
             pending={removeCategory.isPending || removeSubCategory.isPending}
             error={generalError}
@@ -712,18 +722,3 @@ function CategoryDeletionDialog({
     );
 }
 
-/**
- * @param target O que será excluído.
- * @param toMove Quantos lançamentos precisam ser movidos.
- * @return A frase sob o título: o que some junto e, havendo lançamentos, que eles serão
- * movidos em vez de apagados.
- */
-function deletionDescription(target: CategoryDeletionTarget, toMove: number): string {
-    const subCategories = target.kind === 'category' ? target.category.subCategories.length : 0;
-    const together =
-        subCategories === 0 ? '' : subCategories === 1 ? 'A subcategoria dela também será excluída. ' : `As ${String(subCategories)} subcategorias dela também serão excluídas. `;
-    if (toMove === 0) {
-        return `${together}Não há lançamentos nesta ${target.kind === 'category' ? 'categoria' : 'subcategoria'}.`;
-    }
-    return `${together}Os lançamentos não são apagados: eles passam para a subcategoria escolhida.`;
-}
