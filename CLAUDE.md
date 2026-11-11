@@ -89,6 +89,7 @@ Cada pacote tem a própria versão SemVer no `package.json`. **Toda alteração 
 | `packages/client/**` | `packages/client/package.json` |
 | `packages/core/**` | `packages/core/package.json` |
 | `packages/sqlite-better/**` ou `db/migrations/**` (banco) | `packages/sqlite-better/package.json` |
+| `packages/sqlite-expo/**` | `packages/sqlite-expo/package.json` |
 | `packages/tokens/**` | `packages/tokens/package.json` |
 | qualquer um dos acima | `package.json` da raiz (versão do produto) |
 

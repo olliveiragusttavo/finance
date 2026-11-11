@@ -197,11 +197,22 @@ manda e o código ainda não cumpre.
 
 ### Fase 2 — `packages/sqlite-expo`
 
-- [ ] Pacote novo em `1.0.0`, com `expo-sqlite` como dependência par; lint de fronteira (só importa a porta do `core`)
-- [ ] `ExpoSqliteDatabase` sobre a API síncrona (`openDatabaseSync`, `runSync`, `getFirstSync`, `getAllSync`, `execSync`, `withTransactionSync`). O SQL do núcleo usa `:nome`, e o `expo-sqlite` espera o prefixo na chave do objeto: o adaptador traduz `{ nome }` em `{ ':nome' }`, com cache por instrução preparada, como o `BetterSqliteDatabase`
-- [ ] `ExpoBackupDirectory` sobre o `expo-file-system`, com a pasta `backups/` ao lado do banco
-- [ ] Conferência na abertura: versão mínima do SQLite e suporte a `STRICT`, com erro explícito
-- [ ] Extrair a suíte de contrato da porta `Database` de `packages/core/test/infrastructure/database.test.ts` para uma função que recebe a fábrica do banco e um `expect` mínimo, sem depender do Vitest — roda no Vitest contra o `better-sqlite3` e, na Fase 3, no Hermes contra o `expo-sqlite`
+- [x] Pacote novo em `1.0.0`, com `expo-sqlite` como dependência par; lint de fronteira (só importa a porta do `core`)
+- [x] `ExpoSqliteDatabase` sobre a API síncrona (`openDatabaseSync`, `runSync`, `getFirstSync`, `getAllSync`, `execSync`, `withTransactionSync`). O SQL do núcleo usa `:nome`, e o `expo-sqlite` espera o prefixo na chave do objeto: o adaptador traduz `{ nome }` em `{ ':nome' }`, com cache por instrução preparada, como o `BetterSqliteDatabase`
+- [x] `ExpoBackupDirectory` sobre o `expo-file-system`, com a pasta `backups/` ao lado do banco
+- [x] Conferência na abertura: versão mínima do SQLite e suporte a `STRICT`, com erro explícito
+- [x] Extrair a suíte de contrato da porta `Database` de `packages/core/test/infrastructure/database.test.ts` para uma função que recebe a fábrica do banco e um `expect` mínimo, sem depender do Vitest — roda no Vitest contra o `better-sqlite3` e, na Fase 3, no Hermes contra o `expo-sqlite`
+
+Como ficou: o adaptador usa `prepareSync` + `executeSync`, com `resetSync` depois de cada
+leitura, e não o `runSync`/`getFirstSync` da conexão, que preparam e finalizam a instrução a
+cada chamada e anulariam o cache. Ele recebe a conexão já aberta por interfaces próprias
+(`ExpoConnection`, `ExpoBackupFolder`), conferidas na compilação contra os tipos reais do SDK
+58, e só `@finance/sqlite-expo/open` carrega código nativo; assim o Vitest roda o adaptador
+inteiro sobre um dublê fiel ao `expo-sqlite` (chave sem `:` ignorada em silêncio, cursor
+aberto até o `resetSync`). A suíte de contrato (`@finance/core/contract`) traz as próprias
+asserções em vez de receber um `expect`, e `runDatabaseContract` devolve a lista de casos que
+falharam, que é o que o app de contrato mostra. Versão mínima do SQLite: 3.38.0 (`STRICT` e
+`json_valid`); o `expo-sqlite` 58 embarca o 3.53.3.
 
 ### Fase 3 — `apps/mobile-contract` no CI
 

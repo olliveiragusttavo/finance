@@ -49,6 +49,22 @@ const clientBoundaryRules = {
 };
 
 /**
+ * Fronteira do adaptador do mobile (mobile-mvp-plan, Fase 2): fino e sem regra, como o do
+ * desktop, ele só conhece as portas do núcleo e a suíte de contrato que as verifica. Importar
+ * Service, Repository ou o `client` levaria regra para dentro do driver; e o Node não existe
+ * no Hermes, onde o pacote roda.
+ */
+const sqliteExpoBoundaryRules = {
+    'no-restricted-imports': ['error', {
+        patterns: [
+            { group: ['node:*', 'fs', 'path', 'crypto', 'os', 'better-sqlite3'], message: 'O sqlite-expo roda no Hermes, sem Node.' },
+            { group: ['@finance/*', '@finance/core/*', '!@finance/core', '!@finance/core/contract'], message: 'O adaptador só conhece as portas do núcleo (@finance/core) e a suíte de contrato.' },
+            { group: ['react-native', 'react-native/*', 'react'], message: 'O adaptador não tem tela: só expo-sqlite e expo-file-system.' },
+        ],
+    }],
+};
+
+/**
  * Os tokens são dados sem dependências, lidos pelo desktop, pelo mobile e pelo gerador
  * (desktop-shell-design §4.5); só o script de geração toca o disco.
  */
@@ -88,6 +104,10 @@ export default tseslint.config(
     {
         files: ['packages/tokens/src/**/*.ts'],
         rules: tokensBoundaryRules,
+    },
+    {
+        files: ['packages/sqlite-expo/src/**/*.ts'],
+        rules: sqliteExpoBoundaryRules,
     },
     {
         // Scripts de build em JavaScript puro: sem anotação de tipo possível, o tipo de
