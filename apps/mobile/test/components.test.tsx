@@ -1,7 +1,7 @@
 import { CoreCallError } from '@finance/client';
-import { act, fireEvent, render, screen, within } from '@testing-library/react-native';
+import { fireEvent, render, screen, within } from '@testing-library/react-native';
 import { useState, type ReactNode } from 'react';
-import { BackHandler, View } from 'react-native';
+import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeRoot } from '../src/theme/ThemeRoot.tsx';
 import { AppText } from '../src/ui/AppText.tsx';
@@ -90,15 +90,6 @@ describe('componentes base (mobile-mvp-plan, Fase 6)', () => {
     });
 
     it('o "voltar" do Android fecha a folha aberta antes de sair da tela', async () => {
-        const handlers: Parameters<typeof BackHandler.addEventListener>[1][] = [];
-        const spy = jest.spyOn(BackHandler, 'addEventListener').mockImplementation((_event, handler) => {
-            handlers.push(handler);
-            return {
-                remove: () => {
-                    handlers.splice(handlers.indexOf(handler), 1);
-                },
-            };
-        });
         /** @return Uma folha aberta, com o estado de quem a abriu. */
         function Opened(): ReactNode {
             const [open, setOpen] = useState(true);
@@ -120,15 +111,10 @@ describe('componentes base (mobile-mvp-plan, Fase 6)', () => {
         await renderUi(<Opened />);
         expect(screen.getByText('Conteúdo')).toBeOnTheScreen();
 
-        let handled: boolean | undefined = false;
-        await act(() => {
-            handled = handlers.at(-1)?.({ type: 'hardwareBackPress', timeStamp: 0 });
-        });
+        // O "voltar" do Android chega ao `Modal` como `onRequestClose`.
+        await fireEvent(screen.getByTestId('sheet-modal'), 'requestClose');
 
-        expect(handled).toBe(true);
         expect(screen.getByText('fechada')).toBeOnTheScreen();
         expect(screen.queryByText('Conteúdo')).toBeNull();
-        expect(handlers).toHaveLength(0);
-        spy.mockRestore();
     });
 });

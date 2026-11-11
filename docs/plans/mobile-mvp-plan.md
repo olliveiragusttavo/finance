@@ -83,7 +83,7 @@ o Extrato do desktop: o resultado de cada dia numa tabela dia × mês.
 | Navegação | **Expo Router**: abas da barra inferior, uma pilha por aba, rotas tipadas | É o roteador do Expo, com rotas tipadas como o TanStack Router do desktop, e trata o "voltar" do Android |
 | Mês de referência | Estado do shell, salvo nas preferências do aparelho (`lastPeriod`), e não parâmetro de rota | No desktop, ele é *search param* para sobreviver à URL; no celular não há URL para preservar, e as pilhas por aba perderiam o parâmetro ao trocar de aba |
 | Estilo | **NativeWind** sobre `packages/tokens`: a v5 lê o mesmo `theme.generated.css`; se ela não estiver estável no SDK escolhido, a v4 com uma saída em JS do mesmo gerador | [mobile-shell-design §9](mobile-shell-design.md#9-telas-e-estilo); validado no esqueleto, antes da primeira tela |
-| Folhas inferiores | `@gorhom/bottom-sheet` num componente `Sheet` próprio | Decisão 12 do README dos mockups ("escolhas em folhas inferiores"), com o mesmo comportamento no Android e, depois, no iOS |
+| Folhas inferiores | Componente `Sheet` próprio sobre o `Modal` do React Native (revisto na Fase 6: o `@gorhom/bottom-sheet` não abria no aparelho) | Decisão 12 do README dos mockups ("escolhas em folhas inferiores"), com o mesmo comportamento no Android e, depois, no iOS |
 | Listas longas | `@shopify/flash-list` em Transações e no extrato da conta; `FlatList` no resto | Um mês tem centenas de linhas; a reciclagem de células mantém a rolagem fluida enquanto a thread JavaScript trabalha |
 | Dados na UI | **TanStack Query** e os hooks do `client`, os mesmos do desktop | [desktop-shell §4.2](desktop-shell-design.md#42-o-que-é-compartilhado-é-a-camada-headless) |
 | Cliente do núcleo | `DirectCoreClient` do `client`, com a execução agendada para depois do frame corrente | [mobile-shell-design §4.3](mobile-shell-design.md#43-o-custo-é-a-thread-javascript): o retorno visual do toque é desenhado antes de a thread bloquear |
@@ -327,10 +327,10 @@ Como ficou a preparação (a medição no S23 FE ainda falta):
 
 - [x] Abas Início · Transações · Contas · Cartões · Mais, com uma pilha por aba; "voltar" do Android coerente com a pilha
 - [x] Faixa do mês de referência (‹ mês ›, "Voltar ao mês atual") nas telas com período; `lastPeriod` nas preferências
-- [ ] Seletor de perfil no cabeçalho, em folha inferior; troca grava `lastProfileId` e invalida todas as queries
+- [x] Seletor de perfil no cabeçalho, em folha inferior; troca grava `lastProfileId` e invalida todas as queries
 - [x] Botão "+" de lançamento nas telas do mockup
 - [x] Menu Mais completo; rotas das telas ainda não feitas levando a uma tela em branco, substituída na fase de cada uma
-- [ ] Componentes base: `Sheet`, botão, campo, seleção em folha, estados (carregando, erro com "Tentar de novo" pelo `describeError`, vazio), alvos de toque ≥ 44 px, movimento reduzido respeitado
+- [x] Componentes base: `Sheet`, botão, campo, seleção em folha, estados (carregando, erro com "Tentar de novo" pelo `describeError`, vazio), alvos de toque ≥ 44 px, movimento reduzido respeitado
 - [x] Preferências do aparelho num arquivo JSON, com leitura tolerante (arquivo corrompido volta aos padrões)
 - [x] Testes: componentes base, mês de referência, troca de perfil
 
@@ -354,23 +354,21 @@ Como ficou:
   faz, e não há espaço para um terceiro botão.
 - **Tema:** o botão do cabeçalho abre uma folha com "Seguir o sistema", "Tema claro" e "Tema
   escuro", como o menu do desktop, e não alterna claro/escuro como o mockup.
-- **Pendente — a folha não abre no aparelho.** No emulador (development build), o `present()`
-  é chamado e o `BottomSheetModal` registra o portal, mas nenhuma view da folha chega à árvore
-  nativa e não há erro no log. Os worklets do Reanimated rodam no thread de UI (conferido), e a
-  mesma combinação de versões funciona em relatos públicos. Os testes no Jest passam porque usam
-  um dublê da folha. Falta decidir entre continuar a investigação no `@gorhom/bottom-sheet` e
-  um `Sheet` próprio sobre o `Modal` do React Native.
-- **Folhas:** `@gorhom/bottom-sheet` 5.2.14 com `react-native-gesture-handler` 3.3.0 (versão
-  do SDK 58). A folha é controlada por `open`, fecha com o "voltar" do Android e anima com o
-  `ReduceMotion.System` do Reanimated. O hospedeiro das folhas fica dentro do `AppShell`,
-  abaixo do núcleo, do cache e do perfil ativo, porque o conteúdo é desenhado no lugar dele.
+- **Folhas sobre o `Modal` do React Native**, e não sobre o `@gorhom/bottom-sheet` da §2: no
+  emulador, o `present()` da biblioteca registrava o portal, mas nenhuma view da folha chegava
+  à árvore nativa, sem erro (com Reanimated 4.7.1 e gesture-handler 3.3.0, que rodavam
+  normalmente). O `Sheet` próprio abre numa janela por cima de tudo, fecha no véu, no "Fechar"
+  e no "voltar" do Android (`onRequestClose`), sobe pela `Animated` no driver nativo e aparece
+  sem animação com "remover animações" ligado. Como é renderizado no lugar, e não num portal,
+  enxerga os contextos de quem o abriu. Perde só o arrastar para fechar.
+- **LogBox:** o aviso de `ImageBackground` obsoleto, disparado pelo NativeWind ao carregar, é
+  ignorado na raiz; a faixa dele cobria a barra inferior e engolia os toques no desenvolvimento.
 - **Preferências** em `preferences.json`, no diretório de documentos (fora da pasta do banco,
   para restaurar o banco não levar o tema junto), com escrita por arquivo temporário.
 - **Mais** diverge do mockup no rodapé e em Dispositivos, que dizem "Dados só neste aparelho"
   enquanto não há sincronização; Dispositivos é uma tela que explica isso.
 - **Testes:** o `renderApp` monta as rotas de verdade de `app/` pelo `renderRouter` do Expo
-  Router, só com a raiz trocada pelo núcleo em memória, e um dublê da folha inferior mostra o
-  conteúdo só com ela aberta. A lint do app passou a aceitar `import type` do núcleo (os DTOs
+  Router, só com a raiz trocada pelo núcleo em memória. A lint do app passou a aceitar `import type` do núcleo (os DTOs
   das respostas), nunca código.
 
 ### Fase 7 — Primeiro uso

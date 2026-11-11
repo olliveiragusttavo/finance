@@ -1,6 +1,6 @@
 {
     "name": "@finance/mobile",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "private": true,
     "main": "expo-router/entry",
     "scripts": {
@@ -17,7 +17,6 @@
         "@finance/core": "workspace:*",
         "@finance/sqlite-expo": "workspace:*",
         "@finance/tokens": "workspace:*",
-        "@gorhom/bottom-sheet": "5.2.14",
         "@tanstack/react-query": "5.104.1",
         "expo": "58.0.23",
         "expo-constants": "58.0.15",

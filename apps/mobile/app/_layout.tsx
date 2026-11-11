@@ -2,6 +2,7 @@
 import '../src/startup/startupTiming.ts';
 import '../global.css';
 import { useState, type ReactNode } from 'react';
+import { LogBox } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { appPreferencesStore } from '../src/preferences/appPreferencesStore.ts';
@@ -13,6 +14,11 @@ import { AppLifecycleRoot } from '../src/startup/AppLifecycle.tsx';
 import { openMobileCore } from '../src/startup/openMobileCore.ts';
 import { StartupGate } from '../src/startup/StartupGate.tsx';
 import { PreferredTheme } from '../src/theme/PreferredTheme.tsx';
+
+// O NativeWind registra o `ImageBackground` ao carregar, e o React Native avisa que ele está
+// obsoleto. O aviso não é do app e, no desenvolvimento, a faixa do LogBox cobre a barra inferior
+// e engole os toques nela.
+LogBox.ignoreLogs(['ImageBackground is deprecated']);
 
 /**
  * Raiz do app no Expo Router: gestos, área segura, preferências do aparelho, tema, ciclo de vida

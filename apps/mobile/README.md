@@ -67,7 +67,6 @@ recusa rodar com o app instalado. A linha de base do Node, com o mesmo roteiro, 
 
 - `pnpm --filter @finance/mobile test` — Jest com jest-expo e React Native Testing Library,
   sobre o núcleo real em `better-sqlite3` em memória. `test/support/renderApp.tsx` monta o app
-  inteiro (as rotas de `app/` pelo `renderRouter`), e `test/support/bottomSheetMock.tsx` troca a
-  folha inferior por uma que só mostra o conteúdo aberta.
+  inteiro (as rotas de `app/` pelo `renderRouter`).
 - `.maestro/smoke.yaml` — teste de fumaça no emulador, rodado no CI pelo workflow `mobile`
   com o APK de release.

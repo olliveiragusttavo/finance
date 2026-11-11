@@ -23,8 +23,6 @@ const TRANSFORMED = [
     // Dependência da navegação por abas do Expo Router, publicada só como ESM.
     'standard-navigation',
     'react-native-gesture-handler',
-    '@gorhom',
-    '@gorhom\\+',
     // Dependência do núcleo (SHA-1 do UUID v5), publicada só como ESM.
     '@noble',
     '@noble\\+',
