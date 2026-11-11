@@ -216,9 +216,31 @@ falharam, que é o que o app de contrato mostra. Versão mínima do SQLite: 3.38
 
 ### Fase 3 — `apps/mobile-contract` no CI
 
-- [ ] App Expo mínimo (`1.0.0`) que, ao abrir, roda a suíte de contrato contra o `ExpoSqliteDatabase`, recalcula os vetores de ouro no Hermes e mostra e registra no log um resultado único (passou / lista de divergências)
-- [ ] Workflow `mobile.yml` no GitHub Actions: build do APK de contrato, emulador com KVM (`reactivecircus/android-emulator-runner`), fluxo Maestro que espera o resultado e falha o job em qualquer divergência. Roda só quando mudam `packages/core`, `packages/client`, `packages/sqlite-expo`, `apps/mobile*` ou `db/migrations`
-- [ ] Handshake Noise e CPace contra vetores do Node ([mobile-shell-design §8](mobile-shell-design.md#8-paridade-entre-runtimes), item 3) **não entram aqui**: vão para o plano de sincronização, junto com a criptografia
+- [x] App Expo mínimo (`1.0.0`) que, ao abrir, roda a suíte de contrato contra o `ExpoSqliteDatabase`, recalcula os vetores de ouro no Hermes e mostra e registra no log um resultado único (passou / lista de divergências)
+- [ ] Workflow `mobile.yml` no GitHub Actions: build do APK de contrato, emulador com KVM (`reactivecircus/android-emulator-runner`), fluxo Maestro que espera o resultado e falha o job em qualquer divergência. Roda só quando mudam `packages/core`, `packages/client`, `packages/sqlite-expo`, `apps/mobile*` ou `db/migrations`. O job e o fluxo (`apps/mobile-contract/.maestro/contract.yaml`) estão escritos e o app foi validado no emulador do devcontainer por `adb`; falta a primeira execução no CI, que depende de um push
+- [x] Handshake Noise e CPace contra vetores do Node ([mobile-shell-design §8](mobile-shell-design.md#8-paridade-entre-runtimes), item 3) **não entram aqui**: vão para o plano de sincronização, junto com a criptografia
+
+Como ficou:
+
+- **Resultado no emulador** (APK de release, Hermes, `expo-sqlite` 58): SQLite 3.53.3, 14 casos
+  do contrato do banco e 842 vetores de ouro (núcleo e `client`), sem divergência. A ordenação
+  de nomes, o arredondamento e os formatadores saem iguais aos do Node.
+- **Dois achados, corrigidos antes do resultado verde:**
+  - `openDatabaseSync(':memory:')` aberto de novo devolveu o mesmo banco, e os casos herdaram as
+    tabelas uns dos outros. O app usa um arquivo por caso numa pasta do cache, apagada antes e
+    depois — o que também roda os casos em WAL, como o app.
+  - **Defeito do adaptador:** o `finalizeSync` do `expo-sqlite` lança de novo o erro da última
+    execução da instrução. Com a instrução que violou uma restrição ainda no cache, o `close`
+    do banco lançava, e o app fechava com exceção fatal. O `ExpoSqliteDatabase` agora tira do
+    cache e finaliza na hora a instrução que falhou, e o dublê `FakeExpoConnection` reproduz o
+    comportamento do driver, com teste.
+- **Os vetores entram pelo bundle** (o Metro embute o `vectors.json` como objeto);
+  `readGoldenVectors` do núcleo confere a forma do valor, como o `parseGoldenVectors` faz com
+  o texto.
+- **Um job só no CI** para o contrato e o teste de fumaça, no mesmo emulador: o contrato roda
+  antes, e na falha o log `[contrato]` vai para a saída do job.
+- Um erro ao fechar um banco também vira falha da lista, e não exceção, para o app mostrar a
+  causa em vez de fechar.
 
 ### Fase 4 — Esqueleto do `apps/mobile`
 

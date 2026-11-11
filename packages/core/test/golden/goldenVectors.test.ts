@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeCoreGoldenVectors, diffGoldenVectors, parseGoldenVectors, type GoldenVectors } from '../../src/golden/goldenVectors.ts';
+import { computeCoreGoldenVectors, diffGoldenVectors, parseGoldenVectors, readGoldenVectors, type GoldenVectors } from '../../src/golden/goldenVectors.ts';
 
 /**
  * Serializa os vetores como o arquivo versionado: indentação de 4 espaços (a do
@@ -41,6 +41,19 @@ describe('parseGoldenVectors', () => {
     it('recusa arquivo fora do formato com a causa, em vez de gerar divergências sem sentido', () => {
         expect(() => parseGoldenVectors('[]')).toThrow('não é um objeto de grupos');
         expect(() => parseGoldenVectors('{"soma": [{"input": 1}]}')).toThrow('o grupo "soma"');
+    });
+});
+
+describe('readGoldenVectors', () => {
+    it('aceita os vetores já lidos como valor, como o Metro embute o JSON no app de contrato', () => {
+        const vectors = computeCoreGoldenVectors();
+
+        expect(diffGoldenVectors(readGoldenVectors(JSON.parse(JSON.stringify(vectors))), vectors)).toEqual([]);
+    });
+
+    it('recusa valor fora do formato com a mesma causa da leitura do texto', () => {
+        expect(() => readGoldenVectors(null)).toThrow('não é um objeto de grupos');
+        expect(() => readGoldenVectors({ soma: 'três' })).toThrow('o grupo "soma"');
     });
 });
 

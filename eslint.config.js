@@ -146,6 +146,12 @@ export default tseslint.config(
         rules: mobileCompositionRules,
     },
     {
+        // O app de contrato (mobile-mvp-plan, Fase 3) é todo raiz de composição: existe para
+        // ligar o núcleo ao `expo-sqlite` e conferir o resultado no Hermes, também sem Node.
+        files: ['apps/mobile-contract/index.ts', 'apps/mobile-contract/src/**/*.{ts,tsx}'],
+        rules: mobileCompositionRules,
+    },
+    {
         // Scripts de build em JavaScript puro: sem anotação de tipo possível, o tipo de
         // retorno fica no JSDoc.
         files: ['**/*.js', '**/*.mjs'],
@@ -159,7 +165,7 @@ export default tseslint.config(
         // Configurações do app do celular que o Metro, o Babel, o Jest e o Tailwind carregam
         // em CommonJS, sem opção de ESM no pacote do app (que não é `type: module`, porque o
         // Expo Router resolve a entrada pelo `main`).
-        files: ['apps/mobile/*.js'],
+        files: ['apps/mobile/*.js', 'apps/mobile-contract/*.js'],
         languageOptions: {
             sourceType: 'commonjs',
             globals: { require: 'readonly', module: 'writable', __dirname: 'readonly' },

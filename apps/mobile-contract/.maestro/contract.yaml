@@ -1,0 +1,12 @@
+# Contrato no Hermes (mobile-mvp-plan, Fase 3): espera o resultado único do app e falha em
+# qualquer divergência. Espera os dois textos, e não só o de sucesso, para que um contrato que
+# falhou derrube o job na hora, e não depois do tempo limite. O detalhe do que divergiu fica
+# na tela e no log (`[contrato]` no `adb logcat`).
+appId: br.com.finance.contract
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "Contrato: (passou|falhou)"
+    timeout: 60000
+- assertVisible: "Contrato: passou"

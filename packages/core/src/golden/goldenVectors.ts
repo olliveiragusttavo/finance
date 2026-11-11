@@ -137,16 +137,28 @@ function isGoldenCase(value: unknown): value is GoldenCase {
 }
 
 /**
- * Lê o arquivo de vetores conferindo a forma, em vez de confiar no tipo. O app de contrato e
- * os testes recebem o JSON como texto ou valor sem tipo; um arquivo corrompido ou de outro
- * formato precisa falhar aqui, com a causa, e não virar uma lista de divergências sem sentido.
+ * Lê o arquivo de vetores conferindo a forma, em vez de confiar no tipo. Os testes recebem o
+ * JSON como texto; um arquivo corrompido ou de outro formato precisa falhar aqui, com a causa,
+ * e não virar uma lista de divergências sem sentido.
  *
  * @param text Conteúdo do arquivo `vectors.json`.
  * @return Os vetores tipados.
  * @throws {Error} Quando o texto não é JSON ou não tem a forma de `GoldenVectors`.
  */
 export function parseGoldenVectors(text: string): GoldenVectors {
-    const raw: unknown = JSON.parse(text);
+    return readGoldenVectors(JSON.parse(text));
+}
+
+/**
+ * Confere a forma de vetores que já chegaram como valor, sem tipo confiável: no app de contrato
+ * o Metro embute o `vectors.json` no bundle como objeto, e o tipo que o TypeScript infere do
+ * arquivo não prova nada sobre o que o bundle trouxe de fato.
+ *
+ * @param raw Conteúdo do `vectors.json` já lido como valor.
+ * @return Os vetores tipados.
+ * @throws {Error} Quando o valor não tem a forma de `GoldenVectors`.
+ */
+export function readGoldenVectors(raw: unknown): GoldenVectors {
     if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
         throw new Error('vetores de ouro: o arquivo não é um objeto de grupos');
     }

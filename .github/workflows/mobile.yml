@@ -1,7 +1,8 @@
-# App do celular no emulador Android (mobile-mvp-plan, Fases 3 e 4): gera o APK de release e
-# roda o teste de fumaça do Maestro — o app abre num banco vazio e chega ao primeiro uso. O que
-# o Vitest e o Jest não alcançam (Hermes, expo-sqlite pela JSI, migrations no aparelho) só
-# aparece aqui. Os runners Linux do GitHub têm KVM, o que deixa o emulador x86_64 rápido.
+# App do celular no emulador Android (mobile-mvp-plan, Fases 3 e 4): gera os APKs de release
+# e roda, no mesmo emulador, o contrato do `apps/mobile-contract` (suíte do `Database` e vetores
+# de ouro no Hermes) e o teste de fumaça do app — abre num banco vazio e chega ao primeiro uso.
+# O que o Vitest e o Jest não alcançam (Hermes, expo-sqlite pela JSI, migrations no aparelho)
+# só aparece aqui. Os runners Linux do GitHub têm KVM, o que deixa o emulador x86_64 rápido.
 #
 # Roda só quando muda algo que entra no bundle do celular, porque o build nativo leva minutos.
 name: mobile
@@ -27,8 +28,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  smoke:
-    name: Teste de fumaça no emulador
+  emulator:
+    name: Contrato e teste de fumaça no emulador
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -53,7 +54,10 @@ jobs:
 
       # Release, e não debug: o APK de debug do development build busca o bundle no Metro.
       # Só x86_64, a arquitetura do emulador, para o build não compilar as outras três.
-      - name: APK de release
+      - name: APK de release do contrato
+        run: pnpm build:mobile-contract
+
+      - name: APK de release do app
         working-directory: apps/mobile
         run: |
           npx expo prebuild --platform android --no-install
@@ -70,8 +74,10 @@ jobs:
           curl -fsSL "https://get.maestro.mobile.dev" | bash
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
 
-      # A mesma imagem do emulador do devcontainer (android-36, google_apis, x86_64).
-      - name: Teste de fumaça
+      # A mesma imagem do emulador do devcontainer (android-36, google_apis, x86_64). O contrato
+      # roda antes: se o núcleo diverge no Hermes, a falha do teste de fumaça seria consequência.
+      # Na falha, o log `[contrato]` vai para a saída do job com a lista do que divergiu.
+      - name: Contrato e teste de fumaça
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 36
@@ -79,5 +85,7 @@ jobs:
           arch: x86_64
           disable-animations: true
           script: |
+            adb install -r apps/mobile-contract/android/app/build/outputs/apk/release/app-release.apk
+            maestro test apps/mobile-contract/.maestro/contract.yaml || { adb logcat -d -s ReactNativeJS:V | grep contrato; exit 1; }
             adb install -r apps/mobile/android/app/build/outputs/apk/release/app-release.apk
             maestro test apps/mobile/.maestro/smoke.yaml

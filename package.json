@@ -1,6 +1,6 @@
 {
     "name": "finance",
-    "version": "1.38.1",
+    "version": "1.39.0",
     "private": true,
     "type": "module",
     "packageManager": "pnpm@12.8.1",
@@ -17,6 +17,7 @@
         "dist:desktop": "pnpm --filter @finance/desktop dist",
         "dev:mobile": "pnpm --filter @finance/mobile dev",
         "build:mobile": "pnpm --filter @finance/mobile build:apk",
+        "build:mobile-contract": "pnpm --filter @finance/mobile-contract build:apk",
         "emulator:android": "bash scripts/android-emulator.sh",
         "lint": "eslint .",
         "typecheck": "pnpm -r typecheck",
