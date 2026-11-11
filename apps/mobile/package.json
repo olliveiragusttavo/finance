@@ -1,12 +1,13 @@
 {
     "name": "@finance/mobile",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "private": true,
     "main": "expo-router/entry",
     "scripts": {
         "dev": "expo start --dev-client",
         "prebuild": "expo prebuild --platform android --no-install",
         "build:apk": "expo prebuild --platform android --no-install && cd android && ./gradlew assembleDebug -PreactNativeArchitectures=x86_64,arm64-v8a",
+        "build:benchmark": "expo prebuild --platform android --no-install && cd android && EXPO_PUBLIC_BENCHMARK=1 ./gradlew assembleDebug assembleRelease -PreactNativeArchitectures=x86_64,arm64-v8a",
         "typecheck": "tsc -p tsconfig.json",
         "test": "jest"
     },

@@ -1,6 +1,7 @@
 import { useCoreQuery } from '@finance/client';
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { View } from 'react-native';
+import { reportFirstScreen } from '../startup/startupTiming.ts';
 import { AppText } from '../ui/AppText.tsx';
 
 /**
@@ -9,10 +10,19 @@ import { AppText } from '../ui/AppText.tsx';
  * fumaça provar que o app abre num banco vazio e chega ao primeiro uso; o formulário do
  * primeiro uso é da Fase 7 e o Início, da Fase 8, com o texto do `MobilePrimeiroUso`.
  *
+ * Quando a primeira consulta responde, a tela está interativa: é o fim do tempo de abertura
+ * que a Fase 5 mede.
+ *
  * @return A tela inicial.
  */
 export function StartScreen(): ReactNode {
     const profiles = useCoreQuery('profiles.list', {});
+    const ready = profiles.data !== undefined;
+    useEffect(() => {
+        if (ready) {
+            reportFirstScreen();
+        }
+    }, [ready]);
     if (profiles.data === undefined) {
         return <View className="flex-1 bg-bg" />;
     }

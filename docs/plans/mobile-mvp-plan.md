@@ -292,9 +292,36 @@ Como ficou:
 ### Fase 5 — Medição (portão antes das telas)
 
 - [ ] Aparelho de referência: **Samsung Galaxy S23 FE** ([§5.1](#51-decididas)); registrar a versão do Android e da One UI junto com os números
-- [ ] Banco de dez anos da Fase 1 levado ao aparelho por uma ação só de build de desenvolvimento (a importação de Ajustes ainda não existe)
+- [x] Banco de dez anos da Fase 1 levado ao aparelho por uma ação só de build de desenvolvimento (a importação de Ajustes ainda não existe)
 - [ ] Medir no build de **release**: tempo da abertura até a primeira tela interativa e p95 de lançar, editar uma transação antiga (o pior caso, que recalcula a cadeia da conta), consultar um mês e abrir uma fatura
 - [ ] Registrar os números na [mobile-shell-design §4.3 e §11](mobile-shell-design.md#11-próximos-passos). **Estourou o orçamento de p95 ≤ 50 ms:** parar e decidir com o usuário entre otimizar a rota culpada e o `WorkerCoreClient` antes de qualquer tela
+
+Como ficou a preparação (a medição no S23 FE ainda falta):
+
+- **Roteiro único** em `@finance/core/benchmark` (`runInteractiveBenchmark`): 40 rodadas de
+  lançar, editar uma despesa avulsa de 2016-11 (o recálculo da cadeia inteira da conta),
+  listar as transações do mês e abrir uma fatura, chamando o núcleo como as telas chamam.
+  Roda no Node (`pnpm bench:core <banco>`, linha de base do desktop) e no Hermes, com o mesmo
+  banco e o mesmo código. Deixa as transações vivas como encontrou; cada rodada deixa só a
+  lápide do lançamento excluído.
+- **No aparelho**, `pnpm bench:android <banco> [--replace]`: instala o development build,
+  copia o banco pelo `run-as` (a ação só de desenvolvimento), instala por cima o APK de
+  release gerado com `EXPO_PUBLIC_BENCHMARK=1` (`build:benchmark`; a mesma chave de depuração
+  mantém os dados), mede seis aberturas e espera a medição das chamadas no logcat. Sem
+  `--replace`, recusa rodar com o app já instalado, para não apagar dado real.
+- **Abertura até a primeira tela interativa:** o app registra em toda abertura
+  `[abertura] primeira-tela epoch=…` quando a primeira consulta da tela inicial responde; o
+  script subtrai o instante do `am start`, os dois pelo relógio do aparelho. A primeira
+  abertura depois de instalar paga a compilação inicial do ART e fica de fora da mediana.
+- **Ensaio** com o banco de dez anos (120 meses, 2 perfis, 9.827 lançamentos):
+
+  | Onde | Abertura | Lançar p95 | Editar antiga p95 | Consultar mês p95 | Abrir fatura p95 |
+  |------|----------|------------|-------------------|-------------------|------------------|
+  | Node 24 (container) | — | 2,1 ms | 5,9 ms | 0,4 ms | 0,2 ms |
+  | Emulador x86_64 (KVM), Android 16 | ~510 ms, ~255 ms dela no núcleo | 4,2 ms | 12,4 ms | 1,8 ms | 0,6 ms |
+
+  O emulador roda em x86_64 sobre a CPU do computador e não vale como referência; serve para
+  mostrar que o roteiro e o script funcionam de ponta a ponta.
 
 ### Fase 6 — Shell e navegação
 

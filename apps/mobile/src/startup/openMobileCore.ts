@@ -5,8 +5,10 @@ import { databaseLocation, openExpoDatabase } from '@finance/sqlite-expo/open';
 import { Paths } from 'expo-file-system';
 import { expoFileSystem, type AppFileSystem } from '../platform/AppFileSystem.ts';
 import { ExpoIdGenerator, FileAppLog } from '../platform/systemAdapters.ts';
+import { BENCHMARK_ENABLED, scheduleBenchmark } from './benchmark.ts';
 import { databaseFiles, fileMarkers } from './databaseFiles.ts';
 import { restoreBackup } from './restoreBackup.ts';
+import { markCoreOpened } from './startupTiming.ts';
 
 /** O app aberto, ou o motivo de não ter aberto, com o que as telas de bloqueio podem fazer. */
 export interface MobileStartup {
@@ -42,6 +44,8 @@ export const afterFrame: CoreCallScheduler = (task) => {
  * núcleo e os adaptadores concretos. Abre `finance.sqlite` pelo `expo-sqlite`, roda a
  * sequência de abertura do `client` — a mesma do desktop — com a pasta de backups, as marcas e
  * o log no diretório do app, e entrega às telas só um `CoreClient` com agendamento pós-frame.
+ * Marca o fim da abertura para a medição do tempo até a primeira tela, e, no APK de medição
+ * (`EXPO_PUBLIC_BENCHMARK=1`), agenda a medição das chamadas interativas (Fase 5).
  *
  * @param files Disco do aparelho; trocado nos testes.
  * @param clock Relógio; trocado nos testes.
@@ -63,6 +67,10 @@ export async function openMobileCore(files: AppFileSystem = expoFileSystem, cloc
         ids: new ExpoIdGenerator(),
         log,
     });
+    markCoreOpened();
+    if (BENCHMARK_ENABLED && outcome.core !== null) {
+        scheduleBenchmark(outcome.core, log);
+    }
     const { status } = outcome;
     return {
         status,

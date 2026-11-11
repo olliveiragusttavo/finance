@@ -4,5 +4,5 @@
         "jsx": "react-jsx",
         "types": ["jest", "node"]
     },
-    "include": ["app", "src", "test", "app.config.ts", "nativewind-env.d.ts", "tailwind.config.d.ts"]
+    "include": ["app", "src", "test", "app.config.ts", "env.d.ts", "nativewind-env.d.ts", "tailwind.config.d.ts"]
 }

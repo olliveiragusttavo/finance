@@ -142,7 +142,7 @@ export default tseslint.config(
         rules: mobileBoundaryRules,
     },
     {
-        files: ['apps/mobile/src/startup/openMobileCore.ts', 'apps/mobile/src/platform/systemAdapters.ts'],
+        files: ['apps/mobile/src/startup/openMobileCore.ts', 'apps/mobile/src/startup/benchmark.ts', 'apps/mobile/src/platform/systemAdapters.ts'],
         rules: mobileCompositionRules,
     },
     {

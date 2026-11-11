@@ -1,6 +1,6 @@
 {
     "name": "@finance/core",
-    "version": "1.27.0",
+    "version": "1.28.0",
     "private": true,
     "type": "module",
     "sideEffects": false,
@@ -8,6 +8,7 @@
         ".": "./src/index.ts",
         "./requests": "./src/requests/index.ts",
         "./contract": "./src/contract/databaseContract.ts",
+        "./benchmark": "./src/benchmark/index.ts",
         "./golden": "./src/golden/goldenVectors.ts",
         "./golden/vectors.json": "./src/golden/vectors.json"
     },

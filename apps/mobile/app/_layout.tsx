@@ -1,3 +1,5 @@
+// Primeiro import: marca o início do JavaScript para a medição da abertura (Fase 5).
+import '../src/startup/startupTiming.ts';
 import '../global.css';
 import { Slot } from 'expo-router';
 import type { ReactNode } from 'react';

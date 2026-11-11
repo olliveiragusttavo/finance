@@ -1,15 +1,10 @@
 import { LocalDate, YearMonth, type Core, type CoreInput, type CoreOutput, type CoreRoute } from '../../src/index.ts';
+import { DEFAULT_HISTORY_OPTIONS, type HistoryOptions } from '../../src/benchmark/referenceHistory.ts';
 import type { FixedClock } from './adapters.ts';
 
-/** O que muda de um banco de histórico para outro; o resto é fixo para o arquivo ser reproduzível. */
-export interface HistoryOptions {
-    /** Último mês com movimento, `YYYY-MM`; "hoje" termina no dia 28 dele. */
-    readonly endMonth: string;
-    /** Quantos anos de movimento terminam no `endMonth`. */
-    readonly years: number;
-    /** Semente dos valores e dias sorteados; a mesma semente gera o mesmo banco byte a byte. */
-    readonly seed: number;
-}
+// As opções e as competências do banco de referência moram em `src/benchmark`, porque o app do
+// celular também as usa; reexportadas aqui para os testes e os scripts do gerador.
+export { DEFAULT_HISTORY_OPTIONS, historyPeriods, type HistoryOptions, type HistoryPeriods } from '../../src/benchmark/referenceHistory.ts';
 
 /** O que o gerador criou, para o teste e o script conferirem o tamanho do banco. */
 export interface HistorySummary {
@@ -18,9 +13,6 @@ export interface HistorySummary {
     readonly transactions: number;
     readonly paidInvoices: number;
 }
-
-/** Padrão do banco da medição da Fase 5 (mobile-mvp-plan): dez anos até o mês corrente do plano. */
-export const DEFAULT_HISTORY_OPTIONS: HistoryOptions = { endMonth: '2026-10', years: 10, seed: 20261111 };
 
 /** Origem de um lançamento, no formato da rota. */
 type Source = CoreInput<'transactions.create'>['source'];

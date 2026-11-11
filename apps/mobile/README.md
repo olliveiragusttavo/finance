@@ -42,6 +42,21 @@ No celular (a partir da Fase 5), o mesmo caminho com `adb pair` + `adb connect` 
 - Cores, tamanhos e raios só pelas classes dos tokens (`bg-surface`, `text-13`,
   `rounded-8`); o teste `tokensOnly` acusa cor literal e classe fora da escala.
 
+## Medição da Fase 5
+
+Com o aparelho no `adb` (o S23 FE por `adb pair` + `adb connect`, ou o emulador para ensaio):
+
+```sh
+pnpm db:history /tmp/history.sqlite # banco de dez anos, uma vez
+pnpm --filter @finance/mobile build:benchmark # development build + APK de release com a medição
+pnpm bench:android /tmp/history.sqlite --replace
+```
+
+`--replace` desinstala o app e apaga os dados dele antes de medir; sem a opção, o script
+recusa rodar com o app instalado. A linha de base do Node, com o mesmo roteiro, é
+`pnpm bench:core /tmp/history.sqlite`. Toda abertura registra no logcat
+`[abertura] primeira-tela …`, também fora da medição.
+
 ## Testes
 
 - `pnpm --filter @finance/mobile test` — Jest com jest-expo e React Native Testing Library,

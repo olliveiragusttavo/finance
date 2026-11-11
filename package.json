@@ -1,6 +1,6 @@
 {
     "name": "finance",
-    "version": "1.39.0",
+    "version": "1.40.0",
     "private": true,
     "type": "module",
     "packageManager": "pnpm@12.8.1",
@@ -11,6 +11,7 @@
         "embed:migrations": "node scripts/embed-migrations.mjs",
         "golden:generate": "pnpm --filter @finance/core --filter @finance/client exec vitest run test/golden -u",
         "db:history": "node --experimental-transform-types --no-warnings=ExperimentalWarning packages/core/scripts/generate-history-database.ts",
+        "bench:core": "node --experimental-transform-types --no-warnings=ExperimentalWarning packages/core/scripts/benchmark-database.ts",
         "tokens:css": "pnpm --filter @finance/tokens generate",
         "dev:desktop": "pnpm --filter @finance/desktop dev",
         "build:desktop": "pnpm --filter @finance/desktop build",
@@ -19,6 +20,7 @@
         "build:mobile": "pnpm --filter @finance/mobile build:apk",
         "build:mobile-contract": "pnpm --filter @finance/mobile-contract build:apk",
         "emulator:android": "bash scripts/android-emulator.sh",
+        "bench:android": "bash scripts/android-benchmark.sh",
         "lint": "eslint .",
         "typecheck": "pnpm -r typecheck",
         "test": "pnpm -r test",
