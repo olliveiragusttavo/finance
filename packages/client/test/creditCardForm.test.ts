@@ -9,7 +9,7 @@ import {
     readCreditCardForm,
     type CreditCardFormResult,
     type CreditCardFormValues,
-} from '../src/renderer/src/cards/creditCardForm.ts';
+} from '../src/forms/creditCardForm.ts';
 
 /** Id de conta válido no formato do núcleo. */
 const ACCOUNT_ID = '11111111-1111-4111-8111-111111111111';

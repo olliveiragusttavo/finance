@@ -1,4 +1,18 @@
-import { describeError, formatMoney, reportRejection, useCoreMutation } from '@finance/client';
+import {
+    closingDayWarning,
+    CREDIT_CARD_FIELD_BY_CORE_FIELD,
+    CREDIT_CARD_FIELDS,
+    creditCardFormFrom,
+    describeError,
+    emptyCreditCardForm,
+    formatMoney,
+    payingAccountOptions,
+    readCreditCardForm,
+    reportRejection,
+    useCoreMutation,
+    type CreditCardContent,
+    type CreditCardFormValues,
+} from '@finance/client';
 import type { AccountResponse, CreditCardResponse } from '@finance/core';
 import { useState, type ReactNode } from 'react';
 import { Controller, useForm, type Resolver } from 'react-hook-form';
@@ -8,16 +22,6 @@ import { FormDialog } from '@/components/entityUi';
 import { Field, fieldAria, toFieldErrors } from '@/components/form';
 import { Input } from '@/components/ui/input';
 import { useActiveProfile } from '@/shell/activeProfile';
-import {
-    closingDayWarning,
-    CREDIT_CARD_FIELDS,
-    creditCardFormFrom,
-    emptyCreditCardForm,
-    payingAccountOptions,
-    readCreditCardForm,
-    type CreditCardContent,
-    type CreditCardFormValues,
-} from './creditCardForm.ts';
 
 /**
  * Desativa ou reativa um cartão, sem confirmação, pelo mesmo motivo das contas: as duas
@@ -70,15 +74,6 @@ export function useToggleDefaultCreditCard(): (creditCard: Pick<CreditCardRespon
         );
     };
 }
-
-/** Campo do formulário de cada campo que o núcleo pode apontar numa recusa de cartão. */
-const CREDIT_CARD_FIELD_BY_CORE_FIELD: Readonly<Partial<Record<string, keyof CreditCardFormValues>>> = {
-    name: 'name',
-    accountId: 'accountId',
-    limit: 'limit',
-    closingDay: 'closingDay',
-    dueDay: 'dueDay',
-};
 
 /**
  * Criar ou editar cartão: nome, conta pagadora, limite, fechamento e vencimento. O cadastro do

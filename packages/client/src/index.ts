@@ -27,6 +27,7 @@ export * from './forms/transactionForm.ts';
 export * from './forms/invoiceForms.ts';
 export * from './forms/coreErrorField.ts';
 export * from './forms/accountForm.ts';
+export * from './forms/creditCardForm.ts';
 // Regras do lançamento que decidem quais campos o formulário mostra, as mesmas do núcleo.
 export { feedsGoal, movesToDestination, withdrawsFromGoal } from '@finance/core';
 // Regras do shell comuns ao desktop e ao celular: mês corrente, mês vizinho e perfil reaberto.

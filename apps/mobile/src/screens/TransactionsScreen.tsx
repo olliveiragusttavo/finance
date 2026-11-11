@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 import { useActiveProfile } from '../shell/ActiveProfile.tsx';
-import { ROUTES, transactionRoute } from '../shell/routes.ts';
+import { invoiceRoute, transactionRoute } from '../shell/routes.ts';
 import { MonthStrip } from '../shell/MonthStrip.tsx';
 import { NewTransactionButton } from '../shell/Screen.tsx';
 import { ScreenHeader } from '../shell/ScreenHeader.tsx';
@@ -107,7 +107,7 @@ export function TransactionsScreen(): ReactNode {
      * @param row Linha tocada.
      */
     const open = (row: TransactionTableRow): void => {
-        router.push(row.kind === 'invoice' ? ROUTES.cards : transactionRoute(row.id));
+        router.push(row.kind === 'invoice' ? invoiceRoute(row.invoice.creditCardId, row.invoice.period) : transactionRoute(row.id));
     };
 
     const header = (

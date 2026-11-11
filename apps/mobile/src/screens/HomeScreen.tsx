@@ -19,7 +19,7 @@ import { useState, type ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
 import { useActiveProfile } from '../shell/ActiveProfile.tsx';
 import { ProfileButton } from '../shell/ProfileSheet.tsx';
-import { ROUTES } from '../shell/routes.ts';
+import { invoiceRoute, ROUTES } from '../shell/routes.ts';
 import { Screen } from '../shell/Screen.tsx';
 import { ScreenHeader } from '../shell/ScreenHeader.tsx';
 import { useReferenceMonth } from '../shell/useReferenceMonth.ts';
@@ -57,10 +57,11 @@ function BlockTitle({ title, link, onLink }: { readonly title: string; readonly 
  * @param props.first Se é a primeira do grupo.
  * @param props.busy Se uma marcação está em andamento.
  * @param props.onMarkPaid Marca o lançamento como pago ou recebido.
- * @param props.onOpenInvoice Abre a fatura (a linha de fatura não se paga daqui).
+ * @param props.onOpenInvoice Abre a fatura da linha, pelo cartão e pela competência (a linha de
+ * fatura não se paga daqui).
  * @return A linha.
  */
-function PendingItem(props: { readonly row: PendingRow; readonly first: boolean; readonly busy: boolean; readonly onMarkPaid: (row: PendingRow, transactionId: string) => void; readonly onOpenInvoice: () => void }): ReactNode {
+function PendingItem(props: { readonly row: PendingRow; readonly first: boolean; readonly busy: boolean; readonly onMarkPaid: (row: PendingRow, transactionId: string) => void; readonly onOpenInvoice: (creditCardId: string, period: string) => void }): ReactNode {
     const { row, first, busy, onMarkPaid, onOpenInvoice } = props;
     const action = row.action;
     return (
@@ -84,7 +85,7 @@ function PendingItem(props: { readonly row: PendingRow; readonly first: boolean;
                         if (action.kind === 'markPaid') {
                             onMarkPaid(row, action.transactionId);
                         } else {
-                            onOpenInvoice();
+                            onOpenInvoice(action.creditCardId, action.period);
                         }
                     }}
                     className="min-h-11 items-center justify-center self-start rounded-10 border border-line px-3 active:bg-line2"
@@ -141,9 +142,14 @@ function PendingSection({ profileId }: { readonly profileId: string }): ReactNod
             {(data) => {
                 const badge = pendingBadge(data);
                 const panel = pendingPanel(data);
-                /** @return Leva à aba Cartões, onde a fatura se paga. */
-                const openInvoice = (): void => {
-                    router.push(ROUTES.cards);
+                /**
+                 * Abre a fatura na aba Cartões, onde ela se paga.
+                 *
+                 * @param creditCardId Cartão da fatura.
+                 * @param invoicePeriod Competência da fatura.
+                 */
+                const openInvoice = (creditCardId: string, invoicePeriod: string): void => {
+                    router.push(invoiceRoute(creditCardId, invoicePeriod));
                 };
                 return (
                     <View className="gap-1.5">
@@ -218,7 +224,7 @@ function AccountItem({ row, first, onPress }: { readonly row: OverviewAccountRow
  *
  * @param props.row Cartão já formatado pelo `overviewCardRows`.
  * @param props.first Se é o primeiro do grupo.
- * @param props.onPress Abre o cartão.
+ * @param props.onPress Abre a fatura do mês do cartão.
  * @return A linha.
  */
 function CardItem({ row, first, onPress }: { readonly row: OverviewCardRow; readonly first: boolean; readonly onPress: () => void }): ReactNode {
@@ -315,7 +321,16 @@ export function HomeScreen(): ReactNode {
                         <View className="gap-1.5">
                             <BlockTitle title="Cartões · fatura do mês" link="Ver todos" onLink={openCards} />
                             <View className="overflow-hidden rounded-12 border border-line bg-surface">
-                                {rows.map((row, index) => <CardItem key={row.creditCardId} row={row} first={index === 0} onPress={openCards} />)}
+                                {rows.map((row, index) => (
+                                    <CardItem
+                                        key={row.creditCardId}
+                                        row={row}
+                                        first={index === 0}
+                                        onPress={() => {
+                                            router.push(invoiceRoute(row.creditCardId, null));
+                                        }}
+                                    />
+                                ))}
                             </View>
                         </View>
                     );

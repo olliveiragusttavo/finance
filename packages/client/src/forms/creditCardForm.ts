@@ -1,4 +1,6 @@
-import { collectIssues, DAY_OF_MONTH_MESSAGE, type FieldTarget, formatMoneyForInput, type FormErrors, moneyInputMessage, parseDayOfMonth, parseMoneyInput } from '@finance/client';
+import { formatMoneyForInput } from '../format/money.ts';
+import { parseMoneyInput } from '../format/parseMoneyInput.ts';
+import { collectIssues, DAY_OF_MONTH_MESSAGE, type FieldTarget, type FormErrors, moneyInputMessage, parseDayOfMonth } from './formIssues.ts';
 import type { AccountResponse, CoreInput, CreditCardResponse } from '@finance/core';
 import { creditCardContentShape } from '@finance/core/requests';
 import { z } from 'zod';
@@ -167,3 +169,15 @@ export function readCreditCardForm(values: CreditCardFormValues, profileCurrency
     }
     return { ok: false, errors: collectIssues(parsed.success ? [] : parsed.error.issues, FIELD_BY_PATH, profileCurrency, initial) };
 }
+
+/**
+ * Campo do formulário de cada campo que o núcleo pode apontar numa recusa de cartão. Fica ao lado
+ * do formulário, e não em cada app, para que o desktop e o celular ponham a recusa no mesmo campo.
+ */
+export const CREDIT_CARD_FIELD_BY_CORE_FIELD: Readonly<Partial<Record<string, CreditCardField>>> = {
+    name: 'name',
+    accountId: 'accountId',
+    limit: 'limit',
+    closingDay: 'closingDay',
+    dueDay: 'dueDay',
+};

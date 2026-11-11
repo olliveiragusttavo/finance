@@ -19,7 +19,7 @@ import { Pressable, View } from 'react-native';
 import { AccountDeletionSheet } from '../accounts/AccountDeletionSheet.tsx';
 import { AccountFormSheet } from '../accounts/AccountFormSheet.tsx';
 import { useActiveProfile } from '../shell/ActiveProfile.tsx';
-import { accountTransactionRoute, ROUTES } from '../shell/routes.ts';
+import { accountTransactionRoute, invoiceRoute, ROUTES } from '../shell/routes.ts';
 import { Screen } from '../shell/Screen.tsx';
 import { ScreenHeader } from '../shell/ScreenHeader.tsx';
 import { useReferenceMonth } from '../shell/useReferenceMonth.ts';
@@ -177,10 +177,9 @@ function StatementMovements({ statement, accounts }: { readonly statement: State
                             row={row}
                             first={index === 0}
                             onPress={() => {
-                                // A fatura abre em Cartões; o detalhe da fatura (`MobileFatura`) chega na Fase 13.
-                                if (row.transactionId === null) {
-                                    router.push(ROUTES.cards);
-                                } else {
+                                if (row.invoice !== null) {
+                                    router.push(invoiceRoute(row.invoice.creditCardId, row.invoice.period));
+                                } else if (row.transactionId !== null) {
                                     router.push(accountTransactionRoute(row.transactionId));
                                 }
                             }}

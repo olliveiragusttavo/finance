@@ -55,3 +55,28 @@ export function accountRoute(accountId: string): `/accounts/${string}` {
 export function accountTransactionRoute(transactionId: string): `/accounts/transaction/${string}` {
     return `/accounts/transaction/${transactionId}`;
 }
+
+/**
+ * Fatura de um cartão, empilhada na aba Cartões (mockup `MobileFatura`). Sem competência, a tela
+ * mostra a fatura do mês de referência; com ela, a pedida — a "ver fatura" de um extrato ou de
+ * Transações abre a fatura daquela linha, que pode ser de outro mês.
+ *
+ * @param creditCardId Cartão.
+ * @param period Competência `YYYY-MM` da fatura, ou `null` para a do mês de referência.
+ * @return O caminho da fatura, com a competência como parâmetro.
+ */
+export function invoiceRoute(creditCardId: string, period: string | null): { readonly pathname: '/cards/[id]'; readonly params: { readonly id: string; readonly invoice?: string } } {
+    return { pathname: '/cards/[id]', params: period === null ? { id: creditCardId } : { id: creditCardId, invoice: period } };
+}
+
+/**
+ * Detalhe de uma compra aberta pela fatura, na pilha da aba Cartões: é ali que se editam as
+ * compras do cartão, que em Transações ficam agrupadas na linha da fatura, e o "voltar" devolve
+ * à fatura.
+ *
+ * @param transactionId Lançamento.
+ * @return O caminho do detalhe do lançamento na aba Cartões.
+ */
+export function cardTransactionRoute(transactionId: string): `/cards/transaction/${string}` {
+    return `/cards/transaction/${transactionId}`;
+}

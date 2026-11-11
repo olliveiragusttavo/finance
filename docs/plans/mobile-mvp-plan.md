@@ -497,11 +497,34 @@ Como ficou:
 
 ### Fase 13 — Cartões, fatura e pagamento
 
-- [ ] `MobileCartoes`: fatura do mês, situação, limite usado, selo "Padrão"
-- [ ] `MobileFatura`: lançamentos, próximas faturas, reabrir
-- [ ] `MobilePagarFatura`: pagamento total e parcial
-- [ ] Criar, editar, desativar, reativar, usar como padrão e excluir em cadeia
-- [ ] Testes de tela e fluxo Maestro: pagar a fatura e ver o saldo da conta pagadora
+- [x] `MobileCartoes`: fatura do mês, situação, limite usado, selo "Padrão"
+- [x] `MobileFatura`: lançamentos, próximas faturas, reabrir
+- [x] `MobilePagarFatura`: pagamento total e parcial
+- [x] Criar, editar, desativar, reativar, usar como padrão e excluir em cadeia
+- [x] Testes de tela
+- [ ] Fluxo Maestro: pagar a fatura e ver o saldo da conta pagadora — não escrito, como os das
+  Fases 8 a 10: o Maestro não está no devcontainer. O teste de tela cobre o mesmo caminho
+  (paga pela folha e confere o extrato da conta pagadora)
+
+Como ficou:
+
+- **Lista:** os totais do núcleo ("Em aberto no mês" e "Total das faturas") num cartão no
+  topo, os ativos com a situação e o valor da fatura do mês, e os desativados à parte, como em
+  Contas. Sem conta ativa, o "+" diz que é preciso uma conta para pagar o cartão.
+- **Fatura** (`/cards/[id]`, com `?invoice=` para outra competência): o resumo do mockup com
+  a nota de onde a fatura pesa, a barra do limite e "Pagar fatura"/"Parcial" ou "Reabrir
+  fatura"; os lançamentos com o total, abrindo a compra na pilha da aba Cartões
+  (`/cards/transaction/[id]`), onde se editam as compras; as próximas faturas, cada uma
+  abrindo a sua. A competência pedida vale até o usuário trocar o mês na faixa; antes disso,
+  um aviso diz que a fatura não é a do mês e leva à dele. Sem o link "Ver todos os
+  lançamentos" do mockup: a fatura já lista todos.
+- **Links:** a linha da fatura em Transações, a "ver fatura" do extrato e as linhas de cartão
+  e de fatura do Início abrem a fatura certa, e não mais a aba Cartões.
+- **Pagar, parcial e reabrir** em folhas, com as frases e as validações do desktop
+  (`describeInvoicePayment`, `readPartialPaymentForm`, `describeInvoiceReopening`). Do
+  pagamento total se passa ao parcial, como no mockup.
+- **Cadastro:** as ações do cartão no "⋯" do cabeçalho da fatura, como em Contas; o
+  `creditCardForm` saiu do desktop para o `client`, e a exclusão usa a `DeletionSheet`.
 
 ### Fase 14 — Metas
 
