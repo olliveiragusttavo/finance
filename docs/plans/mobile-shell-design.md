@@ -1,6 +1,8 @@
 # Design do Shell Mobile
 
-**Status:** Design concluído — não implementado. Fecha as duas questões sobre o mobile
+**Status:** Design concluído — implementação planejada em
+[mobile-mvp-plan.md](mobile-mvp-plan.md) (Android primeiro, sincronização num plano
+próprio depois). Fecha as duas questões sobre o mobile
 que os documentos anteriores deixaram abertas: nativo ou multiplataforma, medido pela
 proporção da lógica do backend que de fato é compartilhada em vez de reimplementada; e
 como o app fala com o banco local — o mesmo mecanismo embarcado ou uma camada de API
@@ -365,8 +367,10 @@ silenciosa, configurada pelo sistema e não pelo usuário.
 **Consequência:** um celular perdido é recuperado **pareando um aparelho novo** a partir
 de qualquer outro membro, que envia o snapshot completo
 ([sync-design.md §6.4](sync-design.md#64-entrando-no-grupo-um-novo-dispositivo-começa-vazio)).
-Se o celular for o único dispositivo, não há de onde recuperar; nesse caso o app lembra
-periodicamente de exportar uma cópia ([§6.2](#62-cópia-exportada-nunca-o-arquivo-vivo)).
+Se o celular for o único dispositivo, não há de onde recuperar além de uma cópia exportada
+pelo usuário ([§6.2](#62-cópia-exportada-nunca-o-arquivo-vivo)). O lembrete periódico de
+exportar foi descartado ([mobile-mvp-plan.md §5.1](mobile-mvp-plan.md#51-decididas)); a
+recuperação desse caso será tratada por outra funcionalidade, ainda não desenhada.
 
 ### 6.2 Cópia exportada, nunca o arquivo vivo
 
