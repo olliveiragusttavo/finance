@@ -23,6 +23,8 @@ const VARIANTS: Readonly<Record<ButtonVariant, { readonly box: string; readonly 
  * @param props.variant Peso visual; `primary` por padrão.
  * @param props.disabled Quando a ação ainda não pode ser feita (formulário incompleto).
  * @param props.busy Ação em andamento.
+ * @param props.large Botão de ação principal da tela (`.bp`/`.bs` dos mockups): 50 px e texto maior.
+ * @param props.accessibilityHint Explica por que o botão está desabilitado, quando está.
  * @param props.className Classes de posição do chamador (largura, margem).
  * @return O botão.
  */
@@ -32,9 +34,11 @@ export function Button(props: {
     readonly variant?: ButtonVariant;
     readonly disabled?: boolean;
     readonly busy?: boolean;
+    readonly large?: boolean;
+    readonly accessibilityHint?: string;
     readonly className?: string;
 }): ReactNode {
-    const { label, onPress, variant = 'primary', disabled = false, busy = false, className = '' } = props;
+    const { label, onPress, variant = 'primary', disabled = false, busy = false, large = false, accessibilityHint, className = '' } = props;
     const style = VARIANTS[variant];
     const inactive = disabled || busy;
     return (
@@ -42,16 +46,17 @@ export function Button(props: {
             accessibilityRole="button"
             accessibilityLabel={label}
             accessibilityState={{ disabled: inactive, busy }}
+            {...(accessibilityHint === undefined ? {} : { accessibilityHint })}
             disabled={inactive}
             onPress={onPress}
-            className={`min-h-11 flex-row items-center justify-center gap-2 rounded-10 px-4 ${style.box} ${disabled ? 'opacity-50' : ''} ${className}`}
+            className={`flex-row items-center justify-center gap-2 px-4 ${large ? 'min-h-12.5 rounded-12' : 'min-h-11 rounded-10'} ${style.box} ${disabled ? 'opacity-50' : ''} ${className}`}
         >
             {busy && (
                 <View>
                     <ActivityIndicator size="small" className={style.label} />
                 </View>
             )}
-            <AppText className={`font-semibold ${style.label}`}>{label}</AppText>
+            <AppText className={`font-semibold ${large ? 'text-16' : ''} ${style.label}`}>{label}</AppText>
         </Pressable>
     );
 }

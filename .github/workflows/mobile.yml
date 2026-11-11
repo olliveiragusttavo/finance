@@ -88,4 +88,4 @@ jobs:
             adb install -r apps/mobile-contract/android/app/build/outputs/apk/release/app-release.apk
             maestro test apps/mobile-contract/.maestro/contract.yaml || { adb logcat -d -s ReactNativeJS:V | grep contrato; exit 1; }
             adb install -r apps/mobile/android/app/build/outputs/apk/release/app-release.apk
-            maestro test apps/mobile/.maestro/smoke.yaml
+            maestro test apps/mobile/.maestro/

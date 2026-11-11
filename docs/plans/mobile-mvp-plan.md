@@ -373,9 +373,21 @@ Como ficou:
 
 ### Fase 7 — Primeiro uso
 
-- [ ] `MobilePrimeiroUso`: perfil e primeira conta por `onboarding.start`; "Entrar num grupo" desabilitado
-- [ ] Sem perfil no banco, o shell não abre
-- [ ] Testes: tela (RNTL) e fluxo Maestro do banco vazio até o Início
+- [x] `MobilePrimeiroUso`: perfil e primeira conta por `onboarding.start`; "Entrar num grupo" desabilitado
+- [x] Sem perfil no banco, o shell não abre
+- [x] Testes: tela (RNTL) e fluxo Maestro do banco vazio até o Início
+
+Como ficou:
+
+- **Validação compartilhada:** o `readOnboardingForm`, o `formIssues` e as moedas saíram do
+  desktop para o `client`; os dois apps mostram a mesma frase para o mesmo erro.
+- **Formulário no padrão do mockup:** grupos com linhas "rótulo à esquerda, valor à direita"
+  (`FormGroup`, `FormRow`, `RowInput`, `Segmented`, `RowSelect` em `src/ui/form.tsx`), com
+  react-hook-form como no desktop.
+- **Sem tipo de conta:** como o mockup, a primeira conta nasce corrente; investimento se
+  escolhe depois, em Contas. O desktop pergunta o tipo.
+- **Ao criar:** o perfil criado vira o aberto e o mês volta ao corrente, como no desktop.
+- **Maestro:** `.maestro/first-use.yaml`; o workflow passou a rodar todos os fluxos da pasta.
 
 ### Fase 8 — Início
 
