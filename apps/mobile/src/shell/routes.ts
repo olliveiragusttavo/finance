@@ -14,6 +14,7 @@ export const ROUTES = {
     categories: '/more/categories',
     profiles: '/more/profiles',
     tags: '/more/tags',
+    partners: '/more/partners',
     notes: '/more/notes',
     devices: '/more/devices',
     settings: '/more/settings',

@@ -1,4 +1,4 @@
-import { formatCategoryCount, useAccounts, useCategoryTree, useCreditCards, useNotes, useTags } from '@finance/client';
+import { formatCategoryCount, useAccounts, useCategoryTree, useCreditCards, useNotes, usePartners, useTags } from '@finance/client';
 import { useRouter } from 'expo-router';
 import type { ReactNode } from 'react';
 import { useActiveProfile } from '../shell/ActiveProfile.tsx';
@@ -25,8 +25,8 @@ function counted(count: number | undefined): { readonly trailing?: string } {
  * empilham na aba Mais. Fora do mês de referência (decisão de interface 2): nenhum número daqui
  * depende do mês — as contagens de contas e cartões usam a consulta do mês só porque é a que já
  * está em cache.
- * Regra de negócio (Perfis): sócios só existem no perfil empresarial, e a frase do mockup diz
- * isso no perfil pessoal.
+ * Regra de negócio (Perfis): sócios só existem no perfil empresarial — a linha Sócios aparece só
+ * nele (mobile-mvp-plan, Fase 17), e a frase do mockup diz isso no perfil pessoal.
  *
  * @return A tela.
  */
@@ -39,6 +39,8 @@ export function RegistriesScreen(): ReactNode {
     const categories = useCategoryTree({ profileId: profile.id });
     const tags = useTags({ profileId: profile.id });
     const notes = useNotes({ profileId: profile.id });
+    // Parada no perfil pessoal, que o núcleo recusa: sócio só existe em perfil empresarial.
+    const partners = usePartners(profile.type === 'business' ? { profileId: profile.id } : null);
 
     /**
      * @param route Tela a abrir.
@@ -59,6 +61,7 @@ export function RegistriesScreen(): ReactNode {
             <MenuGroup>
                 <MenuRow first label="Perfis" trailing={String(profiles.length)} onPress={open(ROUTES.profiles)} />
                 <MenuRow label="Anotações" {...counted(notes.data?.length)} onPress={open(ROUTES.notes)} />
+                {profile.type === 'business' && <MenuRow label="Sócios" {...counted(partners.data?.length)} onPress={open(ROUTES.partners)} />}
             </MenuGroup>
             {profile.type === 'personal' && <AppText className="text-12 text-muted">Sócios aparecem aqui só no perfil empresarial.</AppText>}
         </Screen>

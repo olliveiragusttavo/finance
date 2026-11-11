@@ -591,8 +591,19 @@ Como ficou:
 
 ### Fase 17 — Sócios
 
-- [ ] `MobileSocios`, só no perfil empresarial: nome até 100 caracteres, participação com soma ao vivo e barra de divisão, salvar só com 100%
-- [ ] Testes de tela
+- [x] `MobileSocios`, só no perfil empresarial: nome até 100 caracteres, participação com soma ao vivo e barra de divisão, salvar só com 100%
+- [x] Testes de tela
+
+Como ficou:
+
+- **Sócios** (`/more/partners`), na linha própria de Cadastros só no perfil empresarial: a
+  divisão com a soma ao vivo e a barra, as linhas com nome, participação e remover, "Nome do
+  novo sócio" com "Adicionar" (entra com 0%), o aviso da soma, o dos lançamentos que ficam sem
+  sócio ao remover, "Salvar" só com 100% e "Descartar alterações". Toda a regra e as frases são
+  do `client` (`buildPartnerRosterView`), as mesmas do desktop; as cores dos sócios também.
+  Aberta no perfil pessoal, a tela explica em vez de chamar a rota que o núcleo recusa.
+- O `client` reexporta o `PARTNER_NAME_MAX_LENGTH` do núcleo, porque as telas do celular não
+  importam valores do núcleo.
 
 ### Fase 18 — Ajustes
 

@@ -34,6 +34,8 @@ export * from './forms/noteForm.ts';
 export * from './forms/profileForm.ts';
 // Regras do lançamento que decidem quais campos o formulário mostra, as mesmas do núcleo.
 export { feedsGoal, movesToDestination, withdrawsFromGoal } from '@finance/core';
+// Limite do nome do sócio, o mesmo que o núcleo valida, para o campo cortar onde a rota recusaria.
+export { PARTNER_NAME_MAX_LENGTH } from '@finance/core';
 // Regras do shell comuns ao desktop e ao celular: mês corrente, mês vizinho e perfil reaberto.
 export { currentDate, currentPeriod, isValidPeriod, pickActiveProfile, shiftPeriod } from './shell/referenceMonth.ts';
 export * from './viewModels/otherProfileAccounts.ts';
