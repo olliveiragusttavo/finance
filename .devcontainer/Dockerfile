@@ -66,6 +66,66 @@ ENV GRAPHIFY_OUT=/home/node/.cache/graphify \
     GRAPHIFY_NO_AUTO_REFRESH=1 \
     GRAPHIFY_NO_TIPS=1
 
+# Toolchain Android para gerar o APK do apps/mobile aqui dentro (`expo prebuild` + Gradle),
+# mantendo a regra de nada de compiladores no host (docs/plans/mobile-mvp-plan.md, Fase 0).
+# As versões seguem o Expo SDK 58 (React Native 0.88); ao trocar de SDK, confira o
+# gradle/libs.versions.toml do react-native e ajuste os pacotes abaixo.
+#
+# - JDK 17: é o jvmToolchain do React Native e o mínimo do Gradle 9 e do AGP 9.
+#   Headless porque nada aqui abre janela Java.
+# - libxkbfile1, libxcb-cursor0 e libpulse0: o emulador as carrega ao abrir (teclado e
+#   plugin xcb do Qt 6.5+, áudio); são as únicas que faltam na imagem, o resto já vem com
+#   as bibliotecas do Electron. A libxcb-cursor0 é carregada só em tempo de execução, por
+#   isso não aparece no ldd: sem ela, o Qt não abre a janela e o emulador aborta.
+# - cmdline-tools: traz o CLI `android`, que instala o resto. Versão fixa e conferida pelo
+#   SHA-1 publicado pelo Google, para a imagem não mudar sozinha entre rebuilds.
+ENV ANDROID_HOME=/opt/android-sdk \
+    JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+ENV PATH=${PATH}:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/emulator
+ARG ANDROID_CMDLINE_TOOLS_BUILD=16111833
+ARG ANDROID_CMDLINE_TOOLS_SHA1=e025545c62a8e64c7559119566a569fb1dec5f60
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openjdk-17-jdk-headless libxkbfile1 libxcb-cursor0 libpulse0 \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -fsSL -o /tmp/cmdline-tools.zip \
+        "https://dl.google.com/android/repository/commandlinetools-linux-${ANDROID_CMDLINE_TOOLS_BUILD}_latest.zip" \
+    && echo "${ANDROID_CMDLINE_TOOLS_SHA1}  /tmp/cmdline-tools.zip" | sha1sum -c - \
+    && mkdir -p ${ANDROID_HOME}/cmdline-tools \
+    && unzip -q /tmp/cmdline-tools.zip -d /tmp/cmdline-tools \
+    && mv /tmp/cmdline-tools/cmdline-tools ${ANDROID_HOME}/cmdline-tools/latest \
+    && rm -rf /tmp/cmdline-tools /tmp/cmdline-tools.zip
+
+# Pacotes do SDK pelo CLI `android sdk`, que substituiu o sdkmanager (hoje obsoleto) e não
+# pergunta nada: aceita as licenças e grava licenses/ no SDK, que o Gradle exige para usar
+# os pacotes — sem isso o build pararia esperando um terminal que não existe.
+# --no-metrics desliga a coleta de uso que o CLI faz por padrão.
+# - platform-tools: o adb, para instalar o APK e ligar o aparelho ao Metro.
+# - platforms/android-37.0: o compileSdk 37 do SDK; o targetSdk 36 não pede plataforma própria.
+# - build-tools/37.0.0: aapt2, zipalign e apksigner na versão que o Expo fixa.
+# - ndk/27.1.12297006: o NDK que o Expo impõe a todos os módulos nativos (Hermes, expo-sqlite).
+# - cmake/3.22.1: o CMake padrão do AGP, usado pelos módulos com código C++.
+# O SDK fica com dono node para o AGP baixar sozinho um pacote que uma versão nova do SDK
+# venha a pedir; o que ele baixar some no rebuild, sinal para atualizar esta lista.
+RUN android --no-metrics --sdk=${ANDROID_HOME} sdk install \
+        platform-tools \
+        platforms/android-37.0 \
+        build-tools/37.0.0 \
+        ndk/27.1.12297006 \
+        cmake/3.22.1 \
+    && chown -R node:node ${ANDROID_HOME}
+
+# Emulador para testar o app sem o celular, acelerado pelo /dev/kvm repassado no compose
+# (o aparelho físico fica para a medição e a validação final — mobile-mvp-plan §2).
+# Camada separada porque a imagem de sistema tem ~4 GB descompactada: mudar os pacotes de
+# build acima não obriga a baixá-la de novo. A imagem segue o targetSdk 36, a versão em que
+# o app declara se comportar; google_apis em vez da AOSP pura porque traz o WebView e os
+# serviços do Google que um aparelho real tem. O AVD em si é criado pelo
+# scripts/android-emulator.sh, no volume do ~/.android, e não aqui.
+RUN android --no-metrics --sdk=${ANDROID_HOME} sdk install \
+        emulator \
+        system-images/android-36/google_apis/x86_64 \
+    && chown -R node:node ${ANDROID_HOME}
+
 # O usuário node da imagem já tem UID 1000, igual ao do host: os arquivos criados pelo
 # container no repositório montado ficam com o dono certo, sem precisar de chown.
 #
@@ -73,8 +133,10 @@ ENV GRAPHIFY_OUT=/home/node/.cache/graphify \
 # ponto de montagem da imagem para o volume nomeado na primeira vez — sem isso o volume
 # nasce como root e o pnpm não consegue escrever no store. O XDG_RUNTIME_DIR precisa ser
 # 0700 e do próprio usuário, senão o Chromium recusa o socket do Wayland.
-RUN mkdir -p /home/node/.pnpm-store /home/node/.cache/node/corepack /tmp/runtime-node \
-    && chown -R node:node /home/node/.pnpm-store /home/node/.cache /tmp/runtime-node \
+RUN mkdir -p /home/node/.pnpm-store /home/node/.cache/node/corepack /home/node/.gradle \
+        /home/node/.android /tmp/runtime-node \
+    && chown -R node:node /home/node/.pnpm-store /home/node/.cache /home/node/.gradle \
+        /home/node/.android /tmp/runtime-node \
     && chmod 0700 /tmp/runtime-node
 
 USER node

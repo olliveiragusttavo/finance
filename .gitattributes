@@ -5,3 +5,6 @@
 # fixo, um checkout com CRLF mudaria o hash e quebraria o teste de imutabilidade.
 *.sql text eol=lf
 db/migrations/checksums.lock text eol=lf
+
+# Scripts de shell rodam no container Linux; com CRLF, o bash falha já na primeira linha.
+*.sh text eol=lf

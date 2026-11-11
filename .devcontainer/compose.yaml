@@ -39,6 +39,8 @@ services:
       ELECTRON_OZONE_PLATFORM_HINT: auto
       # Fallback via XWayland para o que ainda não fala Wayland.
       DISPLAY: ${DISPLAY:-:0}
+      # Aponta para o cookie montado em volumes (ver lá o motivo).
+      XAUTHORITY: /tmp/.Xauthority
       # O seccomp padrão do Docker bloqueia os namespaces de usuário de que o sandbox de
       # processo do Chromium precisa; sem isto o Electron aborta ao abrir. O `sandbox: true`
       # das janelas continua valendo (apps/desktop/scripts/electron-vite.mjs).
@@ -55,21 +57,41 @@ services:
       - ${HOME}/.claude-devcontainers/finance:/home/node/.claude
       - pnpm-store:/home/node/.pnpm-store
       - corepack:/home/node/.cache/node/corepack
+      - gradle:/home/node/.gradle
+      - android:/home/node/.android
       - ${XDG_RUNTIME_DIR:-/run/user/1000}/${WAYLAND_DISPLAY:-wayland-0}:/tmp/runtime-node/${WAYLAND_DISPLAY:-wayland-0}
       - /tmp/.X11-unix:/tmp/.X11-unix:ro
+      # Cookie do XWayland do host, para o emulador Android abrir janela: o Qt dele só fala
+      # X11, e sem o cookie o servidor recusa a conexão ("Authorization required"). Repassar
+      # o cookie existente, somente leitura, não afrouxa o controle de acesso do X como um
+      # `xhost` faria. No GNOME o nome do arquivo muda a cada login; como vem da variável, o
+      # compose recria o container quando ela muda. Sem a variável, monta /dev/null e só a
+      # janela do emulador fica de fora.
+      - ${XAUTHORITY:-/dev/null}:/tmp/.Xauthority:ro
     # GPU para o Chromium. No host o acesso a /dev/dri vem da ACL que o logind dá ao
     # usuário logado, mas o nó criado no container não herda essa ACL — então o acesso
     # tem de vir pelos grupos donos dos dispositivos. O GID do render muda de uma máquina
     # para outra; o initializeCommand do devcontainer.json o grava em .devcontainer/.env.
     # Sem o .env (compose rodado à mão), cai no video e só a GPU fica de fora.
+    #
+    # /dev/kvm acelera o emulador Android (scripts/android-emulator.sh); sem ele, a imagem
+    # x86_64 não chega a iniciar. Mesma lógica de grupo: o KVM_GID também vem do .env.
     devices:
       - /dev/dri:/dev/dri
+      - /dev/kvm:/dev/kvm
     group_add:
       - video
       - ${RENDER_GID:-video}
+      - ${KVM_GID:-video}
 
 volumes:
   # Store do pnpm sobrevive a rebuilds da imagem, então reinstalar é só criar links.
   pnpm-store:
   # Binário do pnpm baixado pelo corepack; sem o volume, cada `docker compose run` baixa de novo.
   corepack:
+  # Distribuição do Gradle, dependências Maven e cache de build: o primeiro build do APK
+  # baixa centenas de MB e leva minutos; sem o volume, isso se repetiria a cada container.
+  gradle:
+  # Chave do adb (adbkey) e aparelhos pareados por Wi-Fi: sem o volume, o celular pediria
+  # nova autorização de depuração a cada rebuild da imagem.
+  android:

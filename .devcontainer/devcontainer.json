@@ -4,9 +4,10 @@
     "service": "dev",
     "workspaceFolder": "/workspace",
     "remoteUser": "node",
-    // Roda no host antes do compose: grava o GID do grupo dono do render node da GPU,
-    // que varia por máquina, para o compose repassá-lo ao container via group_add.
-    "initializeCommand": "echo RENDER_GID=$(stat -c %g /dev/dri/renderD128 2>/dev/null || getent group video | cut -d: -f3) > .devcontainer/.env",
+    // Roda no host antes do compose: grava os GIDs dos grupos donos do render node da GPU
+    // e do /dev/kvm (emulador Android), que variam por máquina, para o compose repassá-los
+    // ao container via group_add.
+    "initializeCommand": "echo RENDER_GID=$(stat -c %g /dev/dri/renderD128 2>/dev/null || getent group video | cut -d: -f3) > .devcontainer/.env && echo KVM_GID=$(stat -c %g /dev/kvm 2>/dev/null || getent group video | cut -d: -f3) >> .devcontainer/.env",
     // Instala as dependências dentro do container: o better-sqlite3 é nativo e tem de
     // ser compilado para o Node da imagem, não para um Node do host.
     "postCreateCommand": "pnpm install",
