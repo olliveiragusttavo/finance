@@ -55,3 +55,34 @@ export function EmptyState({ title, body }: { readonly title: string; readonly b
         </View>
     );
 }
+
+/**
+ * Mostra o estado de uma consulta: carregando, erro com "Tentar de novo" — só quando ainda não
+ * há dado, para uma falha ao recarregar não apagar o que já está na tela — ou o conteúdo.
+ *
+ * @param props.query A consulta do TanStack Query.
+ * @param props.loadingLabel O que está sendo aberto, para o leitor de tela.
+ * @param props.children Desenha o dado.
+ * @return O estado da vez.
+ */
+export function QueryView<T>(props: {
+    readonly query: { readonly data: T | undefined; readonly error: CoreCallError | null; readonly refetch: () => unknown };
+    readonly loadingLabel?: string;
+    readonly children: (data: T) => ReactNode;
+}): ReactNode {
+    const { query, loadingLabel, children } = props;
+    if (query.data !== undefined) {
+        return children(query.data);
+    }
+    if (query.error !== null) {
+        return (
+            <ErrorState
+                error={query.error}
+                onRetry={() => {
+                    void query.refetch();
+                }}
+            />
+        );
+    }
+    return <LoadingState {...(loadingLabel === undefined ? {} : { label: loadingLabel })} />;
+}

@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { ProfileButton } from '../shell/ProfileSheet.tsx';
 import { ModalHeader, PendingScreen, Screen } from '../shell/Screen.tsx';
 import { ScreenHeader } from '../shell/ScreenHeader.tsx';
 import { AppText } from '../ui/AppText.tsx';
@@ -9,15 +8,6 @@ import { AppText } from '../ui/AppText.tsx';
  * o "+" que terá, para que a navegação inteira seja usável e testada desde já. A fase de cada
  * tela troca o export daqui pelo arquivo próprio.
  */
-
-/** @return Início (Fase 8), com o seletor de perfil no cabeçalho, como o `MobileInicio`. */
-export function HomeScreen(): ReactNode {
-    return (
-        <Screen header={<ScreenHeader left={<ProfileButton />} />} withMonth withNewTransaction>
-            <AppText className="text-13 text-muted">Esta tela chega numa próxima versão do app.</AppText>
-        </Screen>
-    );
-}
 
 /** @return Transações (Fase 9). */
 export function TransactionsScreen(): ReactNode {

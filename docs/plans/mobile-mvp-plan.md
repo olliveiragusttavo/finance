@@ -391,9 +391,19 @@ Como ficou:
 
 ### Fase 8 — Início
 
-- [ ] Seção de atrasados no topo ([§5.1](#51-decididas)), sobre a rota `overview.pending` e o view-model do desktop: itens vencidos e não pagos (nome, data, "há N dias", conta, valor), totais a pagar e a receber, "Marcar como pago/recebido" com "Desfazer", e o que ainda vence até o fim do mês. Sem atrasos, a seção mostra "Nada atrasado"
-- [ ] Saldo consolidado com o previsto, contas compactas (investimentos fora do total), faturas do mês, com os view-models do desktop (`overviewView`)
-- [ ] Testes de tela e fluxo Maestro: marcar um atrasado como pago e desfazer
+- [x] Seção de atrasados no topo ([§5.1](#51-decididas)), sobre a rota `overview.pending` e o view-model do desktop: itens vencidos e não pagos (nome, data, "há N dias", conta, valor), totais a pagar e a receber, "Marcar como pago/recebido" com "Desfazer", e o que ainda vence até o fim do mês. Sem atrasos, a seção mostra "Nada atrasado"
+- [x] Saldo consolidado com o previsto, contas compactas (investimentos fora do total), faturas do mês, com os view-models do desktop (`overviewView`)
+- [ ] Testes de tela e fluxo Maestro: marcar um atrasado como pago e desfazer — os testes de tela estão feitos; o fluxo Maestro depende de criar um lançamento vencido pela tela e entra com a Fase 10
+
+Como ficou:
+
+- **Atrasados:** o selo do desktop vira o topo da seção (mesmo texto, `pendingBadge`), seguido
+  das linhas do `pendingPanel`, cada uma com a ação embaixo. A linha de fatura leva à aba
+  Cartões; a fatura certa passa a abrir quando a Fase 13 fizer a tela dela.
+- **Contas:** as fora do total ficam num grupo "Fora do saldo total", como no desktop; tocar
+  numa conta leva à aba Contas (o extrato da conta é da Fase 12).
+- **Cenário de teste** (`test/support/scenario.ts`), o mesmo do `ClientWorld` do `client`,
+  para as telas dos dois apps serem testadas sobre os mesmos números.
 
 ### Fase 9 — Transações
 

@@ -1,4 +1,4 @@
-import { HomeScreen } from '../../../src/screens/PendingScreens.tsx';
+import { HomeScreen } from '../../../src/screens/HomeScreen.tsx';
 
 /** Rota `/home`: o Início. */
 export default HomeScreen;
