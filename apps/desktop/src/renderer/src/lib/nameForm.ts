@@ -1,5 +1,5 @@
+import { issueMessage } from '@finance/client';
 import { registryNameField } from '@finance/core/requests';
-import { issueMessage } from './formIssues.ts';
 
 /** Resultado da leitura de um nome de cadastro: o nome aparado, ou a mensagem do campo. */
 export type NameFormResult = { readonly ok: true; readonly name: string } | { readonly ok: false; readonly error: string };

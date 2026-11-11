@@ -1,8 +1,7 @@
-import { formatMoneyForInput, parseMoneyInput } from '@finance/client';
+import { collectIssues, type FieldTarget, formatMoneyForInput, type FormErrors, moneyInputMessage, parseMoneyInput } from '@finance/client';
 import type { AccountResponse, CoreInput } from '@finance/core';
 import { accountContentShape } from '@finance/core/requests';
 import { z } from 'zod';
-import { collectIssues, moneyInputMessage, type FieldTarget, type FormErrors } from '../lib/formIssues.ts';
 
 /**
  * Conteúdo do cadastro da conta, comum à criação e à edição: o que falta para virar a entrada

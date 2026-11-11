@@ -17,6 +17,13 @@ export { formatAccountHeading, formatAccountType } from './format/account.ts';
 export { summarizeNote, type NoteSummary } from './format/note.ts';
 export { matchesAllTerms, normalizeForSearch } from './format/searchText.ts';
 export { parseMoneyInput, type MoneyInputRejection, type MoneyInputResult } from './format/parseMoneyInput.ts';
+// Leitura dos formulários com os schemas do núcleo, comum ao desktop e ao celular
+// (desktop-shell-design §5.4): as mensagens de erro de um campo são as mesmas nos dois apps.
+export * from './forms/formIssues.ts';
+export * from './forms/currencies.ts';
+export * from './forms/onboardingForm.ts';
+// Regras do shell comuns ao desktop e ao celular: mês corrente, mês vizinho e perfil reaberto.
+export { currentDate, currentPeriod, isValidPeriod, pickActiveProfile, shiftPeriod } from './shell/referenceMonth.ts';
 export * from './viewModels/otherProfileAccounts.ts';
 export * from './viewModels/transactionTable.ts';
 export * from './viewModels/transactionEditor.ts';

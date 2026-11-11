@@ -26,7 +26,13 @@ No celular (a partir da Fase 5), o mesmo caminho com `adb pair` + `adb connect` 
 
 ## Como o app é montado
 
-- `app/` — rotas do Expo Router; só montam telas de `src/screens`.
+- `app/` — rotas do Expo Router; só montam telas de `src/screens`. As abas ficam em
+  `app/(tabs)/<aba>/`, cada uma com a própria pilha, e o lançamento em `app/new-transaction.tsx`,
+  por cima delas. Os caminhos usados nas telas vêm de `src/shell/routes.ts`.
+- `src/shell/` — o que toda tela compartilha: perfil ativo, mês de referência (nas preferências
+  do aparelho, `preferences.json`), cabeçalho, faixa do mês, barra inferior e "+".
+- `src/ui/` — componentes base (`Sheet`, `Button`, `TextField`, `SelectField`, estados), com
+  alvo de toque mínimo de 44 px.
 - `src/startup/openMobileCore.ts` — raiz de composição, o único arquivo que conhece o núcleo:
   abre o banco, roda a sequência de abertura do `client` (a mesma do desktop) e entrega às
   telas um `CoreClient` com agendamento pós-frame. O lint recusa `@finance/core` e o banco
@@ -60,6 +66,8 @@ recusa rodar com o app instalado. A linha de base do Node, com o mesmo roteiro, 
 ## Testes
 
 - `pnpm --filter @finance/mobile test` — Jest com jest-expo e React Native Testing Library,
-  sobre o núcleo real em `better-sqlite3` em memória (`test/support/renderWithCore.tsx`).
+  sobre o núcleo real em `better-sqlite3` em memória. `test/support/renderApp.tsx` monta o app
+  inteiro (as rotas de `app/` pelo `renderRouter`), e `test/support/bottomSheetMock.tsx` troca a
+  folha inferior por uma que só mostra o conteúdo aberta.
 - `.maestro/smoke.yaml` — teste de fumaça no emulador, rodado no CI pelo workflow `mobile`
   com o APK de release.

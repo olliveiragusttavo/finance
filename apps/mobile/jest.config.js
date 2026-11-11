@@ -19,6 +19,12 @@ const TRANSFORMED = [
     'react-native-worklets',
     'react-native-safe-area-context',
     'react-native-screens',
+    'react-native-svg',
+    // Dependência da navegação por abas do Expo Router, publicada só como ESM.
+    'standard-navigation',
+    'react-native-gesture-handler',
+    '@gorhom',
+    '@gorhom\\+',
     // Dependência do núcleo (SHA-1 do UUID v5), publicada só como ESM.
     '@noble',
     '@noble\\+',
@@ -34,5 +40,6 @@ const TRANSFORMED = [
 module.exports = {
     preset: 'jest-expo',
     testMatch: ['<rootDir>/test/**/*.test.{ts,tsx}'],
+    setupFiles: ['<rootDir>/test/support/jestSetup.ts'],
     transformIgnorePatterns: [`node_modules/(?!(?:\\.pnpm/)?(?:${TRANSFORMED.join('|')}))`],
 };

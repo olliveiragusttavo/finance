@@ -1,4 +1,4 @@
-import { formatMoneyForInput, parseMoneyInput, type RecurrenceFrequency, type SourceOption } from '@finance/client';
+import { collectIssues, type FieldTarget, formatMoneyForInput, type FormErrors, moneyInputMessage, parseMoneyInput, type RecurrenceFrequency, type SourceOption } from '@finance/client';
 import {
     feedsGoal,
     movesToDestination,
@@ -13,7 +13,6 @@ import {
 import { createTransactionRequest, updateTransactionRequest } from '@finance/core/requests';
 import type { z } from 'zod';
 import { periodOfDate } from '../cards/invoiceForms.ts';
-import { collectIssues, moneyInputMessage, type FieldTarget, type FormErrors } from '../lib/formIssues.ts';
 
 /*
  * Formulário de lançamento (desktop-mvp-plan Fase 9; mockup `DesktopTransacoes`). Valida com os

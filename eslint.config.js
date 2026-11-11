@@ -67,13 +67,17 @@ const sqliteExpoBoundaryRules = {
 /**
  * Fronteira do app do celular (mobile-mvp-plan, Fase 4), a mesma do desktop: as telas só
  * falam com o `client`; o núcleo, o adaptador do banco e o driver entram só pela raiz de
- * composição. Uma tela que chamasse o núcleo direto pularia o agendamento pós-frame e o cache
- * de consultas. `Intl` fica de fora pelo motivo do `client`: formata diferente no Hermes.
+ * composição — do núcleo, as telas leem só os tipos das respostas. Uma tela que chamasse o
+ * núcleo direto pularia o agendamento pós-frame e o cache de consultas. `Intl` fica de fora
+ * pelo motivo do `client`: formata diferente no Hermes.
  */
 const mobileBoundaryRules = {
     'no-restricted-imports': ['error', {
         patterns: [
-            { group: ['@finance/core', '@finance/core/*', '@finance/sqlite-expo', '@finance/sqlite-expo/*', 'expo-sqlite'], message: 'Telas falam só com o client; o núcleo e o banco entram pela raiz de composição (src/startup/openMobileCore.ts).' },
+            // Os tipos do núcleo (DTOs de resposta) passam: são o contrato que os hooks do client
+            // devolvem, sem código em tempo de execução que pulasse o client.
+            { group: ['@finance/core', '@finance/core/*'], allowTypeImports: true, message: 'Telas falam só com o client; o núcleo entra pela raiz de composição (src/startup/openMobileCore.ts). Só tipos podem vir do núcleo.' },
+            { group: ['@finance/sqlite-expo', '@finance/sqlite-expo/*', 'expo-sqlite'], message: 'Telas falam só com o client; o banco entra pela raiz de composição (src/startup/openMobileCore.ts).' },
             { group: ['node:*', 'fs', 'path', 'crypto', 'os', 'better-sqlite3', '@finance/sqlite-better'], message: 'O app roda no Hermes, sem Node.' },
         ],
     }],

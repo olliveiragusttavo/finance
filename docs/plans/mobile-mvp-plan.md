@@ -325,14 +325,53 @@ Como ficou a preparação (a medição no S23 FE ainda falta):
 
 ### Fase 6 — Shell e navegação
 
-- [ ] Abas Início · Transações · Contas · Cartões · Mais, com uma pilha por aba; "voltar" do Android coerente com a pilha
-- [ ] Faixa do mês de referência (‹ mês ›, "Voltar ao mês atual") nas telas com período; `lastPeriod` nas preferências
+- [x] Abas Início · Transações · Contas · Cartões · Mais, com uma pilha por aba; "voltar" do Android coerente com a pilha
+- [x] Faixa do mês de referência (‹ mês ›, "Voltar ao mês atual") nas telas com período; `lastPeriod` nas preferências
 - [ ] Seletor de perfil no cabeçalho, em folha inferior; troca grava `lastProfileId` e invalida todas as queries
-- [ ] Botão "+" de lançamento nas telas do mockup
-- [ ] Menu Mais completo; rotas das telas ainda não feitas levando a uma tela em branco, substituída na fase de cada uma
+- [x] Botão "+" de lançamento nas telas do mockup
+- [x] Menu Mais completo; rotas das telas ainda não feitas levando a uma tela em branco, substituída na fase de cada uma
 - [ ] Componentes base: `Sheet`, botão, campo, seleção em folha, estados (carregando, erro com "Tentar de novo" pelo `describeError`, vazio), alvos de toque ≥ 44 px, movimento reduzido respeitado
-- [ ] Preferências do aparelho num arquivo JSON, com leitura tolerante (arquivo corrompido volta aos padrões)
-- [ ] Testes: componentes base, mês de referência, troca de perfil
+- [x] Preferências do aparelho num arquivo JSON, com leitura tolerante (arquivo corrompido volta aos padrões)
+- [x] Testes: componentes base, mês de referência, troca de perfil
+
+Como ficou:
+
+- **Rotas** em `app/(tabs)/{home,transactions,accounts,cards,more}`, cada pasta com a própria
+  pilha (`TabStack`), e o lançamento em `app/new-transaction.tsx`, por cima das abas, na pilha
+  raiz (`AppNavigation`). Os caminhos ficam em `src/shell/routes.ts`: as rotas tipadas do Expo
+  Router dependem dos tipos que o servidor de desenvolvimento gera, e o `pnpm check` roda sem
+  ele. Na raiz de uma aba, o "voltar" leva ao Início (`backBehavior: firstRoute`); tocar na
+  aba aberta volta ao topo da pilha dela.
+- **Barra inferior própria** (`BottomBar`), com o desenho do mockup, que emite o `tabPress`
+  como a padrão. Ícones dos mockups pelo `react-native-svg`, com a cor do token pela
+  propriedade (`useThemeColor`), sem cor literal.
+- **Regras de shell no `client`:** `currentPeriod`, `currentDate`, `shiftPeriod`,
+  `isValidPeriod` e `pickActiveProfile` saíram do desktop para o `client`, e os dois apps usam
+  as mesmas. O celular não tem a guarda de alteração não salva da troca de perfil: o seletor
+  só existe no Início e no Mais, que não têm formulário.
+- **Faixa do mês:** fora do mês corrente, o rótulo "Mês de referência" vira "Voltar ao mês
+  atual", e o toque no centro volta a ele — o mockup deixa o centro como botão sem dizer o que
+  faz, e não há espaço para um terceiro botão.
+- **Tema:** o botão do cabeçalho abre uma folha com "Seguir o sistema", "Tema claro" e "Tema
+  escuro", como o menu do desktop, e não alterna claro/escuro como o mockup.
+- **Pendente — a folha não abre no aparelho.** No emulador (development build), o `present()`
+  é chamado e o `BottomSheetModal` registra o portal, mas nenhuma view da folha chega à árvore
+  nativa e não há erro no log. Os worklets do Reanimated rodam no thread de UI (conferido), e a
+  mesma combinação de versões funciona em relatos públicos. Os testes no Jest passam porque usam
+  um dublê da folha. Falta decidir entre continuar a investigação no `@gorhom/bottom-sheet` e
+  um `Sheet` próprio sobre o `Modal` do React Native.
+- **Folhas:** `@gorhom/bottom-sheet` 5.2.14 com `react-native-gesture-handler` 3.3.0 (versão
+  do SDK 58). A folha é controlada por `open`, fecha com o "voltar" do Android e anima com o
+  `ReduceMotion.System` do Reanimated. O hospedeiro das folhas fica dentro do `AppShell`,
+  abaixo do núcleo, do cache e do perfil ativo, porque o conteúdo é desenhado no lugar dele.
+- **Preferências** em `preferences.json`, no diretório de documentos (fora da pasta do banco,
+  para restaurar o banco não levar o tema junto), com escrita por arquivo temporário.
+- **Mais** diverge do mockup no rodapé e em Dispositivos, que dizem "Dados só neste aparelho"
+  enquanto não há sincronização; Dispositivos é uma tela que explica isso.
+- **Testes:** o `renderApp` monta as rotas de verdade de `app/` pelo `renderRouter` do Expo
+  Router, só com a raiz trocada pelo núcleo em memória, e um dublê da folha inferior mostra o
+  conteúdo só com ela aberta. A lint do app passou a aceitar `import type` do núcleo (os DTOs
+  das respostas), nunca código.
 
 ### Fase 7 — Primeiro uso
 

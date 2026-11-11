@@ -1,11 +1,5 @@
+import { EMPTY_ONBOARDING_FORM, ONBOARDING_FIELDS, type OnboardingFormResult, type OnboardingFormValues, readOnboardingForm } from '../src/index.ts';
 import { describe, expect, it } from 'vitest';
-import {
-    EMPTY_ONBOARDING_FORM,
-    ONBOARDING_FIELDS,
-    readOnboardingForm,
-    type OnboardingFormResult,
-    type OnboardingFormValues,
-} from '../src/renderer/src/firstUse/onboardingForm.ts';
 
 /**
  * @param changes Campos que o teste preenche; o resto fica como no formulário em branco.

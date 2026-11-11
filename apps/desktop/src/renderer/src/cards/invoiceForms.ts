@@ -1,7 +1,6 @@
-import { formatMoney, parseMoneyInput } from '@finance/client';
+import { collectIssues, type FieldTarget, formatMoney, type FormErrors, moneyInputMessage, parseMoneyInput } from '@finance/client';
 import { LocalDate, type AccountResponse, type CoreInput, type MoneyResponse } from '@finance/core';
 import { createTransactionRequest, payInvoiceRequest } from '@finance/core/requests';
-import { collectIssues, moneyInputMessage, type FieldTarget, type FormErrors } from '../lib/formIssues.ts';
 
 /*
  * Formulários de pagamento da fatura (desktop-mvp-plan Fase 8): pagar a fatura inteira e o

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { isItemActive, MENU, menuFor, showsPeriodRange, showsReferenceMonth, trailFor, type MenuItem } from '../src/renderer/src/shell/navigation.ts';
-import { pickActiveProfile } from '../src/renderer/src/shell/pickActiveProfile.ts';
-import { currentPeriod, parseShellSearch, resolveReferenceMonth, shiftPeriod } from '../src/renderer/src/shell/referenceMonth.ts';
+import { parseShellSearch, resolveReferenceMonth } from '../src/renderer/src/shell/referenceMonth.ts';
 import { shortcutFor, type KeyPress } from '../src/renderer/src/shell/shortcuts.ts';
 
 /**
@@ -87,16 +86,6 @@ describe('mês de referência', () => {
         expect(resolveReferenceMonth({}, '2026-09', '2026-10')).toBe('2026-09');
         expect(resolveReferenceMonth({}, null, '2026-10')).toBe('2026-10');
     });
-
-    it('o mês corrente é o do calendário local', () => {
-        expect(currentPeriod(new Date(2026, 9, 31, 23, 59))).toBe('2026-10');
-        expect(currentPeriod(new Date(2027, 0, 1, 0, 0))).toBe('2027-01');
-    });
-
-    it('anda um mês para cada lado, com a virada de ano', () => {
-        expect(shiftPeriod('2026-01', -1)).toBe('2025-12');
-        expect(shiftPeriod('2026-12', 1)).toBe('2027-01');
-    });
 });
 
 describe('atalhos globais', () => {
@@ -126,17 +115,5 @@ describe('atalhos globais', () => {
         expect(shortcutFor({ ...plain, key: '[' }, withoutMonth)).toBeNull();
         expect(shortcutFor({ ...plain, key: ']' }, withoutMonth)).toBeNull();
         expect(shortcutFor(plain, withoutMonth)).toBe('newTransaction');
-    });
-});
-
-describe('perfil ativo', () => {
-    const personal = { id: 'a', name: 'Gustavo', type: 'personal', currency: 'BRL', defaultAccountId: null, defaultCreditCardId: null } as const;
-    const business = { id: 'b', name: 'Estúdio GO', type: 'business', currency: 'BRL', defaultAccountId: null, defaultCreditCardId: null } as const;
-
-    it('reabre o último perfil do aparelho e cai no primeiro quando ele não existe mais', () => {
-        expect(pickActiveProfile([personal, business], 'b')).toBe(business);
-        expect(pickActiveProfile([personal, business], 'excluído')).toBe(personal);
-        expect(pickActiveProfile([personal, business], null)).toBe(personal);
-        expect(pickActiveProfile([], 'b')).toBeNull();
     });
 });

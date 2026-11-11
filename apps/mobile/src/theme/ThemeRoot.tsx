@@ -1,4 +1,4 @@
-import { themeVariables, type ThemeName } from '@finance/tokens';
+import { colorTokens, themeVariables, type ColorTokenName, type HexColor, type ThemeName } from '@finance/tokens';
 import { StatusBar } from 'expo-status-bar';
 import { vars } from 'nativewind';
 import { createContext, useContext, type ReactNode } from 'react';
@@ -32,7 +32,7 @@ export function resolveTheme(preference: ThemePreference, system: string | null 
  * Raiz do tema (decisão de interface 1 dos mockups): aplica as variáveis de cor do tema
  * efetivo na raiz, e toda classe de cor (`bg-surface`, `text-ink`) lê a variável — o mesmo
  * mecanismo da classe `.dark` no desktop, com os mesmos tokens. A preferência vem das
- * preferências do aparelho; até a tela de Ajustes existir, é sempre `system`.
+ * preferências do aparelho (botão de tema do cabeçalho e, depois, Ajustes).
  *
  * @param props.preference Escolha do aparelho.
  * @param props.children O app.
@@ -53,4 +53,16 @@ export function ThemeRoot({ preference = 'system', children }: { readonly prefer
 /** @return O tema efetivo, para quem precisa do valor e não da classe. */
 export function useTheme(): ThemeName {
     return useContext(ThemeContext);
+}
+
+/**
+ * Cor de um token no tema efetivo, para o que recebe cor por propriedade e não por classe: o
+ * traço de um ícone SVG, o fundo de um componente nativo. Lê os mesmos tokens das classes, então
+ * o valor nunca é literal na tela.
+ *
+ * @param name Token de cor.
+ * @return O valor hexadecimal do token no tema aberto.
+ */
+export function useThemeColor(name: ColorTokenName): HexColor {
+    return colorTokens[name][useTheme()];
 }

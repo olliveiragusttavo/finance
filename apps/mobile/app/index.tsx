@@ -1,12 +1,13 @@
+import { Redirect } from 'expo-router';
 import type { ReactNode } from 'react';
-import { StartScreen } from '../src/screens/StartScreen.tsx';
+import { ROUTES } from '../src/shell/routes.ts';
 
 /**
- * Rota `/`: a tela inicial. As rotas só montam telas de `src/screens`, para que a tela seja
- * testada sem o roteador.
+ * Rota `/`: o app abre no Início. O primeiro uso não passa por aqui — sem perfil, o shell nem
+ * monta a navegação (`AppShell`).
  *
- * @return A tela inicial.
+ * @return O redirecionamento.
  */
 export default function Index(): ReactNode {
-    return <StartScreen />;
+    return <Redirect href={ROUTES.home} />;
 }

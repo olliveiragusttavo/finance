@@ -1,6 +1,7 @@
-import { formatMoneyForInput, type MoneyInputRejection } from '@finance/client';
 import { MONEY_MAX_AMOUNT } from '@finance/core';
 import type { z } from 'zod';
+import { formatMoneyForInput } from '../format/money.ts';
+import type { MoneyInputRejection } from '../format/parseMoneyInput.ts';
 
 /*
  * Tradução dos problemas de validação para as mensagens dos formulários. Os formulários
@@ -27,7 +28,7 @@ export interface FieldTarget<F extends string> {
  * Sinal que o campo de dinheiro aceita, para a mensagem do teto não sugerir um valor que o
  * campo recusaria (um limite de cartão negativo, por exemplo).
  */
-export type MoneySign = 'signed' | 'nonNegative';
+export type MoneyFieldSign = 'signed' | 'nonNegative';
 
 /** Mensagem por campo; só os campos com problema aparecem. */
 export type FormErrors<F extends string> = Partial<Record<F, string>>;
@@ -41,7 +42,7 @@ export type FormErrors<F extends string> = Partial<Record<F, string>>;
  * negativo", senão quem segue a mensagem e digita um negativo recebe outro erro.
  * @return A frase que aparece abaixo do campo de dinheiro.
  */
-export function moneyLimitMessage(currencyCode: string, sign: MoneySign): string {
+export function moneyLimitMessage(currencyCode: string, sign: MoneyFieldSign): string {
     const limit = formatMoneyForInput({ amount: MONEY_MAX_AMOUNT, currency: currencyCode });
     return sign === 'signed' ? `Use um valor de até ${limit}, positivo ou negativo.` : `Use um valor de até ${limit}.`;
 }
@@ -55,7 +56,7 @@ export function moneyLimitMessage(currencyCode: string, sign: MoneySign): string
  * @param sign Sinal que o campo aceita, para a mensagem do teto não sugerir um valor recusado.
  * @return A frase que aparece abaixo do campo, ou `undefined` para o campo vazio.
  */
-export function moneyInputMessage(reason: MoneyInputRejection, currencyCode: string, sign: MoneySign): string | undefined {
+export function moneyInputMessage(reason: MoneyInputRejection, currencyCode: string, sign: MoneyFieldSign): string | undefined {
     if (reason === 'empty') {
         return undefined;
     }

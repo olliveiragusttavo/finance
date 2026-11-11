@@ -1,23 +1,35 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { StartScreen } from '../src/screens/StartScreen.tsx';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { FirstUseScreen } from '../src/screens/FirstUseScreen.tsx';
+import { AppShell } from '../src/shell/AppShell.tsx';
 import type { MobileStartup } from '../src/startup/openMobileCore.ts';
 import { StartupGate } from '../src/startup/StartupGate.tsx';
 import { ThemeRoot } from '../src/theme/ThemeRoot.tsx';
-import { readyStartup, renderWithCore, testCore, testQueryClient } from './support/renderWithCore.tsx';
+import { AppText } from '../src/ui/AppText.tsx';
+import { DevicePreferencesProvider, DevicePreferencesStore } from '../src/preferences/devicePreferences.tsx';
+import { MemoryFileSystem } from './support/MemoryFileSystem.ts';
+import { PREFERENCES_URI, renderApp, TEST_METRICS } from './support/renderApp.tsx';
+import { readyStartup, testCore, testQueryClient } from './support/renderWithCore.tsx';
 
 /**
- * Renderiza a raiz do app (tema, portão da abertura e tela inicial) com uma abertura pronta,
- * sem tocar no `expo-sqlite`.
+ * Renderiza a raiz do app (tema, portão da abertura e shell) com uma abertura pronta, sem tocar
+ * no `expo-sqlite`; no lugar da navegação, um marcador.
  *
  * @param startup Abertura que o portão vai receber.
  */
 async function renderGate(startup: MobileStartup): Promise<void> {
     await render(
-        <ThemeRoot preference="light">
-            <StartupGate open={() => Promise.resolve(startup)} queryClient={testQueryClient()}>
-                <StartScreen />
-            </StartupGate>
-        </ThemeRoot>,
+        <SafeAreaProvider initialMetrics={TEST_METRICS}>
+            <DevicePreferencesProvider store={new DevicePreferencesStore(new MemoryFileSystem(), PREFERENCES_URI)}>
+                <ThemeRoot preference="light">
+                    <StartupGate open={() => Promise.resolve(startup)} queryClient={testQueryClient()}>
+                        <AppShell whenEmpty={<FirstUseScreen />}>
+                            <AppText>App aberto</AppText>
+                        </AppShell>
+                    </StartupGate>
+                </ThemeRoot>
+            </DevicePreferencesProvider>
+        </SafeAreaProvider>,
     );
 }
 
@@ -35,9 +47,9 @@ describe('abertura do app (mobile-mvp-plan, Fase 4)', () => {
             account: { name: 'Conta', type: 'checking' },
         });
 
-        await renderWithCore(<StartScreen />, core);
+        await renderApp(core);
 
-        expect(await screen.findByText('Início')).toBeOnTheScreen();
+        expect(await screen.findByRole('tab', { name: 'Início', selected: true })).toBeOnTheScreen();
     });
 
     it('banco mais novo que o app: bloqueia com o texto compartilhado com o desktop, sem oferecer restauração', async () => {

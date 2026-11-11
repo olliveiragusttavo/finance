@@ -1,6 +1,6 @@
+import { collectIssues, type FieldTarget, type FormErrors } from '@finance/client';
 import type { CoreInput, ProfileResponse } from '@finance/core';
 import { createProfileRequest } from '@finance/core/requests';
-import { collectIssues, type FieldTarget, type FormErrors } from '../lib/formIssues.ts';
 
 /** Entrada de `profiles.create`: o cadastro completo do perfil. */
 export type ProfileContent = CoreInput<'profiles.create'>;

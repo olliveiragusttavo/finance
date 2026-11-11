@@ -1,5 +1,7 @@
-import { LocalDate, YearMonth } from '@finance/core';
-import { z } from 'zod';
+import { isValidPeriod } from '@finance/client';
+
+// O mês corrente, a data de hoje e o mês vizinho são regras comuns ao celular e moram no `client`.
+export { currentDate, currentPeriod, shiftPeriod } from '@finance/client';
 
 /*
  * Mês de referência global (desktop-mvp-plan Fase 4; decisão de interface 2 dos mockups). Fica
@@ -14,9 +16,6 @@ export interface ShellSearch {
     readonly period?: string;
 }
 
-/** Mesmo formato que o núcleo aceita nas rotas por período. */
-const periodSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
-
 /**
  * Valida a busca da URL. A URL é editável (e pode vir de um histórico antigo), então um mês
  * inválido é descartado em vez de derrubar a rota: a tela cai no mês padrão, que é o que o
@@ -26,44 +25,8 @@ const periodSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
  * @return Só o mês, quando ele é válido; nada mais passa adiante.
  */
 export function parseShellSearch(search: Readonly<Record<string, unknown>>): ShellSearch {
-    const parsed = periodSchema.safeParse(search['period']);
-    if (!parsed.success || !isSupportedYear(parsed.data)) {
-        return {};
-    }
-    return { period: parsed.data };
-}
-
-/**
- * @param period Mês `YYYY-MM` já no formato certo.
- * @return Se o ano está na faixa que o núcleo aceita (`YearMonth`); fora dela, toda rota
- * recusaria o mês com erro de validação.
- */
-function isSupportedYear(period: string): boolean {
-    try {
-        YearMonth.parse(period);
-        return true;
-    } catch {
-        return false;
-    }
-}
-
-/**
- * @param now Instante atual, no fuso do aparelho.
- * @return O mês corrente `YYYY-MM`. Usa o calendário local, e não UTC, porque "o mês atual"
- * é o do relógio de parede do usuário: em UTC, a noite do último dia já seria o mês seguinte
- * no Brasil.
- */
-export function currentPeriod(now: Date): string {
-    return YearMonth.of(now.getFullYear(), now.getMonth() + 1).toString();
-}
-
-/**
- * @param now Instante atual, no fuso do aparelho.
- * @return A data de hoje `YYYY-MM-DD`, pelo calendário local e pelo mesmo motivo do
- * `currentPeriod`: a data sugerida para um pagamento é a do relógio de parede do usuário.
- */
-export function currentDate(now: Date): string {
-    return LocalDate.of(now.getFullYear(), now.getMonth() + 1, now.getDate()).toString();
+    const period = search['period'];
+    return typeof period === 'string' && isValidPeriod(period) ? { period } : {};
 }
 
 /**
@@ -78,15 +41,4 @@ export function currentDate(now: Date): string {
  */
 export function resolveReferenceMonth(search: ShellSearch, lastPeriod: string | null, today: string): string {
     return search.period ?? lastPeriod ?? today;
-}
-
-/**
- * @param period Mês `YYYY-MM`.
- * @param direction `-1` para o anterior, `1` para o seguinte.
- * @return O mês vizinho, com a virada de ano resolvida pelo `YearMonth`.
- * @throws {InvalidValueError} Ao sair da faixa de anos do núcleo (antes de 1900 ou depois de 9999).
- */
-export function shiftPeriod(period: string, direction: -1 | 1): string {
-    const month = YearMonth.parse(period);
-    return (direction === 1 ? month.next() : month.previous()).toString();
 }

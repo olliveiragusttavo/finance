@@ -1,7 +1,7 @@
-import { parseMoneyInput } from '@finance/client';
 import type { CoreInput } from '@finance/core';
 import { startOnboardingRequest } from '@finance/core/requests';
-import { collectIssues, moneyInputMessage, type FieldTarget, type FormErrors } from '../lib/formIssues.ts';
+import { parseMoneyInput } from '../format/parseMoneyInput.ts';
+import { collectIssues, moneyInputMessage, type FieldTarget, type FormErrors } from './formIssues.ts';
 
 /** Entrada da rota `onboarding.start`, o que o formulário entrega ao núcleo. */
 export type OnboardingInput = CoreInput<'onboarding.start'>;

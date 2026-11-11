@@ -1,4 +1,4 @@
-import { callOrThrow, describeError, formatAccountType, formatMoney, formatProfileType, invalidateAfter, useCoreClient, type CoreCallError } from '@finance/client';
+import { callOrThrow, type CoreCallError, CURRENCY_OPTIONS, describeError, EMPTY_ONBOARDING_FORM, formatAccountType, formatMoney, formatProfileType, invalidateAfter, ONBOARDING_FIELDS, type OnboardingFormValues, type OnboardingInput, readOnboardingForm, useCoreClient } from '@finance/client';
 import type { OnboardingResponse } from '@finance/core';
 import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
@@ -7,16 +7,8 @@ import { Field, fieldAria, SectionTitle, toFieldErrors } from '@/components/form
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CURRENCY_OPTIONS } from '@/lib/currencies';
 import { useDevicePreferences } from '@/lib/devicePreferences';
 import { ThemeMenu } from '@/shell/ThemeMenu';
-import {
-    EMPTY_ONBOARDING_FORM,
-    ONBOARDING_FIELDS,
-    readOnboardingForm,
-    type OnboardingFormValues,
-    type OnboardingInput,
-} from './onboardingForm.ts';
 
 /** Tipos de perfil, na ordem do mockup. */
 const PROFILE_TYPES: readonly OnboardingFormValues['profileType'][] = ['personal', 'business'];

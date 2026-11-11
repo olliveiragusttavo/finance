@@ -1,10 +1,9 @@
-import { invalidateAllCoreQueries, useProfiles } from '@finance/client';
+import { invalidateAllCoreQueries, pickActiveProfile, useProfiles } from '@finance/client';
 import type { ProfileResponse } from '@finance/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { ErrorState, LoadingState } from '@/components/states';
 import { useDevicePreferences } from '@/lib/devicePreferences';
-import { pickActiveProfile } from './pickActiveProfile.ts';
 
 /**
  * Pergunta à tela aberta, antes de trocar o perfil, se ela pode ser deixada. A troca de perfil

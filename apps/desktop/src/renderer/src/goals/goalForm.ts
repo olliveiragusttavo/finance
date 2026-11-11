@@ -1,8 +1,7 @@
-import { formatMoneyForInput, parseMoneyInput } from '@finance/client';
+import { collectIssues, type FieldTarget, formatMoneyForInput, type FormErrors, moneyInputMessage, parseMoneyInput } from '@finance/client';
 import type { CoreInput, GoalResponse } from '@finance/core';
 import { goalContentShape, goalFundingField } from '@finance/core/requests';
 import { z } from 'zod';
-import { collectIssues, moneyInputMessage, type FieldTarget, type FormErrors } from '../lib/formIssues.ts';
 
 /*
  * Formulário de meta (mockup `DesktopMetas`; desktop-mvp-plan Fase 9.3). Valida com o schema do

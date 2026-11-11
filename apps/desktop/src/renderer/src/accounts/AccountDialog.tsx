@@ -1,4 +1,4 @@
-import { describeError, formatAccountType, formatMoney, useCoreMutation } from '@finance/client';
+import { currencyOptionsWith, describeError, formatAccountType, formatMoney, useCoreMutation } from '@finance/client';
 import type { AccountResponse } from '@finance/core';
 import { useState, type ReactNode } from 'react';
 import { Controller, useForm, type Resolver } from 'react-hook-form';
@@ -8,7 +8,6 @@ import { Field, fieldAria, toFieldErrors } from '@/components/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { reportRejection } from '@/lib/coreErrorField';
-import { currencyOptionsWith } from '@/lib/currencies';
 import { useActiveProfile } from '@/shell/activeProfile';
 import { ACCOUNT_FIELDS, accountFormFrom, emptyAccountForm, readAccountForm, type AccountContent, type AccountFormValues } from './accountForm.ts';
 
