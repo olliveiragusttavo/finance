@@ -1,24 +1,4 @@
-import {
-    buildCalendarView,
-    buildTransactionTable,
-    formatDate,
-    NO_TRANSACTION_FILTERS,
-    useAccounts,
-    useCategoryTree,
-    useCreditCards,
-    useProfileInvoices,
-    useRecurrences,
-    useStatements,
-    useTransactions,
-    useTransferTargets,
-    type CalendarDay,
-    type CalendarEntry,
-    type CalendarEntryState,
-    type CalendarKpi,
-    type CalendarLine,
-    type CalendarMode,
-    type CalendarView,
-} from '@finance/client';
+import { buildCalendarView, buildTransactionTable, type CalendarDay, type CalendarEntry, type CalendarEntryState, type CalendarKpi, type CalendarLine, type CalendarMode, type CalendarView, formatDate, NO_TRANSACTION_FILTERS, useAccounts, useCategoryTree, useCreditCards, useMonthInvoices, useProfileInvoices, useRecurrences, useStatements, useTransactions, useTransferTargets } from '@finance/client';
 import type { CoreInput } from '@finance/core';
 import { useMemo, useState, type ReactNode } from 'react';
 import { ErrorState, Skeleton } from '@/components/states';
@@ -27,7 +7,6 @@ import { cn } from '@/lib/cn';
 import { useActiveProfile } from '@/shell/activeProfile';
 import { currentDate } from '@/shell/referenceMonth';
 import { useReferenceMonth } from '@/shell/useReferenceMonth';
-import { useMonthInvoices } from '@/transactions/TransactionsScreen';
 import { useTransactionActions } from '@/transactions/useTransactionActions';
 
 /** Nomes curtos dos dias no cabeçalho da grade, de domingo a sábado, como no mockup. */

@@ -302,6 +302,9 @@ importers:
       '@finance/tokens':
         specifier: workspace:*
         version: link:../../packages/tokens
+      '@shopify/flash-list':
+        specifier: 2.3.2
+        version: 2.3.2(@babel/runtime@7.29.7)(react-native@0.88.1(@babel/core@7.29.7(supports-color@7.2.0))(@react-native/metro-config@0.88.1(@babel/core@7.29.7(supports-color@7.2.0))(supports-color@7.2.0))(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0))(react@19.3.0)
       '@tanstack/react-query':
         specifier: 5.104.1
         version: 5.104.1(react@19.3.0)
@@ -3172,6 +3175,13 @@ packages:
     resolution: {integrity: sha512-nl+CTWIgOGszQmUz/kanfgrfFZ4qiwxKIfT/ryl3N3Ewk5tqizmYtNXiqb7Bu/fDtNgu1kyxdFiAUJNur3iysg==}
     cpu: [x64]
     os: [win32]
+
+  '@shopify/flash-list@2.3.2':
+    resolution: {integrity: sha512-vQnd0y0Ag11yzS30llaeCrtIU3xYTMe7KEOP3dveLImnVjQEUw6BEg1+Ztja6aODlVNz1BpvxtlQ5eZGxiLwKw==}
+    peerDependencies:
+      '@babel/runtime': '*'
+      react: '*'
+      react-native: '*'
 
   '@sinclair/typebox@0.27.12':
     resolution: {integrity: sha512-hhyNJ+nbR6ZR7pToHvllEFun9TL0sbL+tk/ON75lo+Xas054uez98qRbsuNt7MBCyZKK4+8Yli/OAGZhmfBZ/g==}
@@ -10560,6 +10570,12 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.64.0':
     optional: true
+
+  '@shopify/flash-list@2.3.2(@babel/runtime@7.29.7)(react-native@0.88.1(@babel/core@7.29.7(supports-color@7.2.0))(@react-native/metro-config@0.88.1(@babel/core@7.29.7(supports-color@7.2.0))(supports-color@7.2.0))(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0))(react@19.3.0)':
+    dependencies:
+      '@babel/runtime': 7.29.7
+      react: 19.3.0
+      react-native: 0.88.1(@babel/core@7.29.7(supports-color@7.2.0))(@react-native/metro-config@0.88.1(@babel/core@7.29.7(supports-color@7.2.0))(supports-color@7.2.0))(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0)
 
   '@sinclair/typebox@0.27.12': {}
 

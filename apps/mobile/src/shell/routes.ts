@@ -19,3 +19,11 @@ export const ROUTES = {
 
 /** Um dos caminhos do app. */
 export type AppRoute = (typeof ROUTES)[keyof typeof ROUTES];
+
+/**
+ * @param transactionId Lançamento.
+ * @return O caminho do detalhe do lançamento, empilhado na aba Transações.
+ */
+export function transactionRoute(transactionId: string): `/transactions/${string}` {
+    return `/transactions/${transactionId}`;
+}

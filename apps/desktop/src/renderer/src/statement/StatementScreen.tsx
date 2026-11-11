@@ -1,24 +1,4 @@
-import {
-    adjustStatementRange,
-    buildDailyStatementView,
-    buildTransactionTable,
-    formatMonthShort,
-    statementMonthOptions,
-    statementPeriods,
-    statementPresets,
-    useAccounts,
-    useCategoryTree,
-    useCreditCards,
-    useProfileInvoicesByPeriods,
-    useRecurrences,
-    useTags,
-    useTransactionsByPeriods,
-    useTransferTargets,
-    type DailyStatementCell,
-    type DailyStatementKind,
-    type DailyStatementView,
-    type TransactionFilters,
-} from '@finance/client';
+import { adjustStatementRange, buildDailyStatementView, buildTransactionTable, type DailyStatementCell, type DailyStatementKind, type DailyStatementView, formatMonthShort, statementMonthOptions, statementPeriods, statementPresets, type TransactionFilters, useAccounts, useCategoryTree, useCreditCards, useMonthInvoices, useProfileInvoicesByPeriods, useRecurrences, useTags, useTransactionsByPeriods, useTransferTargets } from '@finance/client';
 import type { CoreInput } from '@finance/core';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { useId, useMemo, useState, type ReactNode } from 'react';
@@ -30,7 +10,7 @@ import { ViewToggle } from '@/components/ViewToggle';
 import { cn } from '@/lib/cn';
 import { useActiveProfile } from '@/shell/activeProfile';
 import { currentDate, currentPeriod } from '@/shell/referenceMonth';
-import { TransactionFilterFields, useMonthInvoices } from '@/transactions/TransactionsScreen';
+import { TransactionFilterFields } from '@/transactions/TransactionsScreen';
 import { filtersFromSearch, searchFromFilters, withFilters } from '@/transactions/transactionsSearch';
 import { parseStatementSearch, resolveStatementRange } from './statementSearch.ts';
 

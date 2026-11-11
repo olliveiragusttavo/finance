@@ -6,7 +6,8 @@
  * duplicaria o mapa. `integrity.verifyBalances` também não tem: quem a chama é o shell na
  * abertura, não uma tela.
  */
-import type { CoreInput, CoreOutput, InvoiceResponse, StatementResponse } from '@finance/core';
+import type { CoreInput, CoreOutput, InvoiceResponse, StatementResponse, TransactionResponse } from '@finance/core';
+import { useMemo } from 'react';
 import type { UseQueryResult } from '@tanstack/react-query';
 import type { CoreCallError } from '../errors/CoreCallError.ts';
 import type { ReadRoute } from '../queries/routes.ts';
@@ -437,4 +438,31 @@ export function useTransactionsByPeriods(inputs: readonly CoreInput<'transaction
  */
 export function useProfileInvoicesByPeriods(inputs: readonly CoreInput<'statements.profileInvoices'>[]): PeriodsQuery<CoreOutput<'statements.profileInvoices'>> {
     return useCoreQueries('statements.profileInvoices', inputs, joinPeriods<CoreOutput<'statements.profileInvoices'>>);
+}
+
+/**
+ * Faturas em que caíram as compras no cartão do mês, para a situação "Na fatura"/"Fat. paga". Uma
+ * consulta por cartão, a partir da fatura mais antiga que o mês usa — `invoices.listByCard` traz
+ * dali em diante as que existem.
+ * No `client` porque o Calendário e o Extrato do desktop e as Transações do celular montam a
+ * mesma tabela e precisam da mesma situação das compras.
+ *
+ * @param transactions Lançamentos do mês; `undefined` enquanto carregam.
+ * @return As faturas conhecidas, com identidade estável entre renders; enquanto carregam, a
+ * tabela mostra as compras como "Na fatura", o caso conservador (`buildTransactionTable`).
+ */
+export function useMonthInvoices(transactions: readonly TransactionResponse[] | undefined): readonly InvoiceResponse[] {
+    const inputs = useMemo(() => {
+        const earliest = new Map<string, string>();
+        for (const { container } of transactions ?? []) {
+            if (container.kind === 'invoice') {
+                const known = earliest.get(container.creditCardId);
+                if (known === undefined || container.period < known) {
+                    earliest.set(container.creditCardId, container.period);
+                }
+            }
+        }
+        return [...earliest].map(([creditCardId, from]): CoreInput<'invoices.listByCard'> => ({ creditCardId, from }));
+    }, [transactions]);
+    return useInvoicesByCards(inputs).invoices;
 }

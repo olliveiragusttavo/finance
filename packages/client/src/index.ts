@@ -26,6 +26,8 @@ export * from './forms/onboardingForm.ts';
 export { currentDate, currentPeriod, isValidPeriod, pickActiveProfile, shiftPeriod } from './shell/referenceMonth.ts';
 export * from './viewModels/otherProfileAccounts.ts';
 export * from './viewModels/transactionTable.ts';
+// Lista de Transações do celular (mockup `MobileTransacoes`): dias e totais da mesma tabela.
+export * from './viewModels/transactionDays.ts';
 export * from './viewModels/transactionEditor.ts';
 export * from './viewModels/recurrenceView.ts';
 export * from './viewModels/partnerRoster.ts';

@@ -1,22 +1,12 @@
 import type { ReactNode } from 'react';
-import { ModalHeader, PendingScreen, Screen } from '../shell/Screen.tsx';
+import { ModalHeader, PendingScreen } from '../shell/Screen.tsx';
 import { ScreenHeader } from '../shell/ScreenHeader.tsx';
-import { AppText } from '../ui/AppText.tsx';
 
 /*
  * Telas ainda em branco (mobile-mvp-plan, Fase 6): cada uma já tem o cabeçalho, a faixa do mês e
  * o "+" que terá, para que a navegação inteira seja usável e testada desde já. A fase de cada
  * tela troca o export daqui pelo arquivo próprio.
  */
-
-/** @return Transações (Fase 9). */
-export function TransactionsScreen(): ReactNode {
-    return (
-        <Screen header={<ScreenHeader title="Transações" />} withMonth withNewTransaction>
-            <AppText className="text-13 text-muted">Esta tela chega numa próxima versão do app.</AppText>
-        </Screen>
-    );
-}
 
 /** @return Contas (Fase 12). */
 export function AccountsScreen(): ReactNode {

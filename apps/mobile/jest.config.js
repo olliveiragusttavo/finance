@@ -20,6 +20,8 @@ const TRANSFORMED = [
     'react-native-safe-area-context',
     'react-native-screens',
     'react-native-svg',
+    '@shopify',
+    '@shopify\\+',
     // Dependência da navegação por abas do Expo Router, publicada só como ESM.
     'standard-navigation',
     'react-native-gesture-handler',

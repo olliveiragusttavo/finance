@@ -407,10 +407,23 @@ Como ficou:
 
 ### Fase 9 — Transações
 
-- [ ] `MobileTransacoes`: lista do mês em `FlashList`, agrupada por dia, entrada/saída sem depender da cor (sinal, ⇄, rótulo); filtros em folha inferior e busca, pelos view-models do `client` (`transactionTable`, `movementList`)
-- [ ] Compras do cartão agrupadas na linha da fatura, como no desktop (Fase 11.1); tocar na linha abre `MobileFatura` ([§5.1](#51-decididas))
-- [ ] `MobileTransacaoDetalhe`: dados do lançamento, marcar pago/recebido, editar, excluir (com o escopo da Fase 11 quando for recorrente)
-- [ ] Testes de tela e fluxo Maestro: filtrar, marcar pago, excluir
+- [x] `MobileTransacoes`: lista do mês em `FlashList`, agrupada por dia, entrada/saída sem depender da cor (sinal, ⇄, rótulo); filtros em folha inferior e busca, pelos view-models do `client` (`transactionTable`, `movementList`)
+- [x] Compras do cartão agrupadas na linha da fatura, como no desktop (Fase 11.1); tocar na linha abre `MobileFatura` ([§5.1](#51-decididas)) — por enquanto leva à aba Cartões; a fatura certa abre com a Fase 13
+- [ ] `MobileTransacaoDetalhe`: dados do lançamento, marcar pago/recebido, editar, excluir (com o escopo da Fase 11 quando for recorrente) — feito o detalhe, marcar e excluir o avulso; editar entra com a Fase 10 e o escopo, com a 11
+- [x] Testes de tela e fluxo Maestro: filtrar, marcar pago, excluir — os de tela; o fluxo Maestro entra junto com o do lançamento (Fase 10), que cria os dados pela tela
+
+Como ficou:
+
+- **Mesma tabela do desktop:** o hook `useTransactionTable` faz as mesmas consultas e chama o
+  `buildTransactionTable`; o `useMonthInvoices` saiu do desktop para o `client`.
+- **Novo no `client`:** `groupTransactionsByDay` e `formatWeekdayDayMonth` ("Seg, 12/10") e
+  `transactionTotals`, que soma entradas e saídas com a mesma regra do resultado (sem as
+  transferências dentro do perfil), para os três números do topo sempre fecharem.
+- **Detalhe:** monta a linha pelo mesmo `buildTransactionTable` (sem as faturas do mês, para a
+  compra no cartão aparecer ela mesma); "Marcar como pago" segue o `movementPermissions` do
+  desktop, e a exclusão usa o texto do `describeTransactionDeletion`. Anexos (no mockup) não
+  existem no núcleo e ficaram de fora.
+- **Filtros:** cada escolha abre uma folha por cima da de filtros e muda a lista na hora.
 
 ### Fase 10 — Lançamento
 
