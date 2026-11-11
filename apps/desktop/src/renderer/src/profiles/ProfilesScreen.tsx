@@ -1,4 +1,4 @@
-import { currencyOptionsWith, formatProfileSummary, formatProfileType, useCoreMutation } from '@finance/client';
+import { currencyOptionsWith, formatProfileSummary, formatProfileType, reportRejection, useCoreMutation } from '@finance/client';
 import type { ProfileResponse } from '@finance/core';
 import { useState, type ReactNode } from 'react';
 import { Controller, useForm, type Resolver } from 'react-hook-form';
@@ -8,7 +8,6 @@ import { Field, fieldAria, toFieldErrors } from '@/components/form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { reportRejection } from '@/lib/coreErrorField';
 import { useActiveProfile } from '@/shell/activeProfile';
 import { emptyProfileForm, PROFILE_FIELDS, profileFormFrom, readProfileForm, type ProfileContent, type ProfileFormValues } from './profileForm.ts';
 

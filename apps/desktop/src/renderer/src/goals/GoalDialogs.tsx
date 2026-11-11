@@ -1,4 +1,4 @@
-import { describeError, describeGoalDeletion, describeGoalFundingChange, formatMoney, useAccounts, useCoreMutation } from '@finance/client';
+import { describeError, describeGoalDeletion, describeGoalFundingChange, formatMoney, reportRejection, useAccounts, useCoreMutation } from '@finance/client';
 import type { GoalProgressResponse, GoalResponse } from '@finance/core';
 import { useState, type ReactNode } from 'react';
 import { Controller, useForm, type Resolver } from 'react-hook-form';
@@ -8,7 +8,6 @@ import { Field, fieldAria, toFieldErrors } from '@/components/form';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { reportRejection } from '@/lib/coreErrorField';
 import { FormDialog } from '@/components/entityUi';
 import { cn } from '@/lib/cn';
 import { useActiveProfile } from '@/shell/activeProfile';

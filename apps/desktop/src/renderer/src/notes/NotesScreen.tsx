@@ -1,4 +1,4 @@
-import { describeError, summarizeNote, useCoreMutation, useNotes } from '@finance/client';
+import { describeError, reportRejection, summarizeNote, useCoreMutation, useNotes } from '@finance/client';
 import type { NoteResponse } from '@finance/core';
 import { useBlocker, useSearch } from '@tanstack/react-router';
 import { useCallback, useState, type ReactNode } from 'react';
@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/cn';
-import { reportRejection } from '@/lib/coreErrorField';
 import { useActiveProfile, useProfileSwitchGuard } from '@/shell/activeProfile';
 import { filterNotes, noteTitle, readNoteForm } from './noteForm.ts';
 import { parseNotesSearch } from './notesSearch.ts';

@@ -1,4 +1,3 @@
-import { collectIssues, type FieldTarget, formatMoneyForInput, type FormErrors, moneyInputMessage, parseMoneyInput, type RecurrenceFrequency, type SourceOption } from '@finance/client';
 import {
     feedsGoal,
     movesToDestination,
@@ -12,7 +11,12 @@ import {
 } from '@finance/core';
 import { createTransactionRequest, updateTransactionRequest } from '@finance/core/requests';
 import type { z } from 'zod';
-import { periodOfDate } from '../cards/invoiceForms.ts';
+import { formatMoneyForInput } from '../format/money.ts';
+import { parseMoneyInput } from '../format/parseMoneyInput.ts';
+import type { RecurrenceFrequency } from '../viewModels/recurrenceView.ts';
+import type { SourceOption } from '../viewModels/transactionEditor.ts';
+import { collectIssues, type FieldTarget, type FormErrors, moneyInputMessage } from './formIssues.ts';
+import { periodOfDate } from './invoiceForms.ts';
 
 /*
  * Formulário de lançamento (desktop-mvp-plan Fase 9; mockup `DesktopTransacoes`). Valida com os
@@ -544,3 +548,22 @@ export function cashPeriodOf(values: TransactionFormValues, suggestedInvoice: st
 export function movesProfile(values: Pick<TransactionFormValues, 'profileId'>, transaction: Pick<TransactionResponse, 'profileId'>): boolean {
     return values.profileId !== transaction.profileId;
 }
+
+/** Campo do formulário de cada campo que o núcleo aponta numa recusa. */
+export const TRANSACTION_FIELD_BY_CORE_FIELD: Readonly<Partial<Record<string, TransactionErrorField>>> = {
+    profileId: 'profileId',
+    accountId: 'source',
+    creditCardId: 'source',
+    invoicePeriod: 'invoicePeriod',
+    destinationAccountId: 'destinationAccountId',
+    subCategoryId: 'subCategoryId',
+    tagIds: 'tagIds',
+    goalId: 'goalId',
+    // A retirada é parte da escolha da meta: o erro dela aparece no campo "Meta".
+    goalWithdrawal: 'goalId',
+    partnerId: 'partnerId',
+    dueDate: 'dueDate',
+    paymentDate: 'paymentDate',
+    name: 'name',
+    value: 'amount',
+};

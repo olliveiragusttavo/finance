@@ -1,4 +1,4 @@
-import { useCategoryTree, useCoreMutation } from '@finance/client';
+import { reportRejection, useCategoryTree, useCoreMutation } from '@finance/client';
 import type { CategoryBranchResponse, SubCategoryUsageResponse } from '@finance/core';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { PencilIcon, SearchIcon, Trash2Icon } from 'lucide-react';
@@ -12,7 +12,6 @@ import { EmptyState, QueryState, Skeleton } from '@/components/states';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/cn';
-import { reportRejection } from '@/lib/coreErrorField';
 import { readNameForm } from '@/lib/nameForm';
 import { useActiveProfile } from '@/shell/activeProfile';
 import { categoryTransactionCount, filterCategories, formatCategoryCount, openCategory, parseCategoriesSearch } from './categoriesSearch.ts';

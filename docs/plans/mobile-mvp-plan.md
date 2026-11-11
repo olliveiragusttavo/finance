@@ -427,11 +427,30 @@ Como ficou:
 
 ### Fase 10 — Lançamento
 
-- [ ] `MobileLancamento` sobre os mesmos schemas Zod e o mesmo editor do desktop (`transactionEditor`): despesa, receita, transferência; valor pelo `parseMoneyInput`; teclado numérico
-- [ ] Fatura sugerida (`invoices.suggest`) para compra no cartão
-- [ ] Atalho débito/crédito com conta e cartão padrão; nome sugerido (`transactions.nameSuggestions`) só no lançamento novo (regras da Fase 15.2 do desktop)
-- [ ] Tags, meta (`goals.options`) e, no perfil empresarial, sócio
-- [ ] Testes de tela e fluxo Maestro: do "+" ao lançamento no extrato da conta
+- [x] `MobileLancamento` sobre os mesmos schemas Zod e o mesmo editor do desktop (`transactionEditor`): despesa, receita, transferência; valor pelo `parseMoneyInput`; teclado numérico
+- [x] Fatura sugerida (`invoices.suggest`) para compra no cartão
+- [x] Atalho débito/crédito com conta e cartão padrão; nome sugerido (`transactions.nameSuggestions`) só no lançamento novo (regras da Fase 15.2 do desktop)
+- [x] Tags, meta (`goals.options`) e, no perfil empresarial, sócio
+- [ ] Testes de tela e fluxo Maestro: do "+" ao lançamento no extrato da conta — os de tela estão feitos; os fluxos Maestro das Fases 8 a 10 ficam para quando o Maestro puder rodar fora do CI (não está na imagem do devcontainer), para não entrarem no CI sem validação
+
+Como ficou:
+
+- **Leitura do formulário no `client`:** `transactionForm` e `invoiceForms` saíram do desktop,
+  com o `coreErrorField` (erro do núcleo → campo), o mapa `TRANSACTION_FIELD_BY_CORE_FIELD`, o
+  `useInvoiceChoice` (fatura sugerida, escolhas e aviso de reabertura) e o
+  `suggestedSourceOption`. O `client` reexporta `feedsGoal`, `movesToDestination` e
+  `withdrawsFromGoal` do núcleo, para as telas do celular não importarem o núcleo.
+- **Uma rota para criar e editar:** `/new-transaction`, e `?id=` abre a edição pelo detalhe. O
+  tipo não muda na edição, como no desktop.
+- **Valor:** campo com o teclado decimal do sistema, e não o teclado próprio do mockup; o valor
+  com o sinal e a etiqueta "estorno" aparecem embaixo (`previewTransactionValue`), e o "±"
+  inverte o sinal.
+- **Data:** sem módulo nativo de data, uma folha com o calendário do mês (`monthGrid`) e o
+  rótulo "Hoje, 06/10" (`formatDateChoice`), os dois no `client`.
+- **Escolhas longas** (contas, categorias) em folha com busca (`matchesAllTerms`), tags em folha
+  de múltipla escolha; perfil, encargos, meta, sócio e descrição em "Mais detalhes".
+- **Repetir e editar ocorrência de série** ficam para a Fase 11: o detalhe ainda não oferece
+  editar nem excluir um lançamento recorrente.
 
 ### Fase 11 — Recorrências
 

@@ -5,6 +5,7 @@ import {
     formatTransactionSituation,
     type MovementColumn,
     movementsFromTransactions,
+    sourceKey,
     TRANSACTION_SITUATIONS,
     type TransactionFilters,
     type TransactionTable,
@@ -31,7 +32,6 @@ import { useActiveProfile } from '@/shell/activeProfile';
 import { useTransactionPanel, useTransactionPanelHost } from '@/shell/TransactionPanel';
 import { useReferenceMonth } from '@/shell/useReferenceMonth';
 import { MovementGrid } from './MovementGrid.tsx';
-import { sourceKey } from './transactionForm.ts';
 import { useTransactionActions } from './useTransactionActions.tsx';
 import {
     categoryFilterValue,

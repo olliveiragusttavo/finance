@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { ModalHeader, PendingScreen } from '../shell/Screen.tsx';
+import { PendingScreen } from '../shell/Screen.tsx';
 import { ScreenHeader } from '../shell/ScreenHeader.tsx';
 
 /*
@@ -36,9 +36,4 @@ export function NotesScreen(): ReactNode {
 /** @return Ajustes (Fase 18). */
 export function SettingsScreen(): ReactNode {
     return <PendingScreen header={<ScreenHeader title="Ajustes" back />} />;
-}
-
-/** @return Lançamento (Fase 10), por cima das abas e sem a faixa do mês. */
-export function NewTransactionScreen(): ReactNode {
-    return <PendingScreen header={<ModalHeader title="Novo lançamento" />} />;
 }

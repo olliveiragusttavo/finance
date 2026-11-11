@@ -27,3 +27,11 @@ export type AppRoute = (typeof ROUTES)[keyof typeof ROUTES];
 export function transactionRoute(transactionId: string): `/transactions/${string}` {
     return `/transactions/${transactionId}`;
 }
+
+/**
+ * @param transactionId Lançamento a editar.
+ * @return O caminho do formulário de lançamento aberto na edição dele.
+ */
+export function editTransactionRoute(transactionId: string): { readonly pathname: typeof ROUTES.newTransaction; readonly params: { readonly id: string } } {
+    return { pathname: ROUTES.newTransaction, params: { id: transactionId } };
+}

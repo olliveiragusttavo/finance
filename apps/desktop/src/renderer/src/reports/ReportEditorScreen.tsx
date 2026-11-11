@@ -12,15 +12,16 @@ import {
     REPORT_STATUS_LABELS,
     REPORT_TAG_MATCH_LABELS,
     reportDimensionsFor,
+    type ReportDraft,
+    type ReportDraftField,
+    type ReportLookups,
+    reportRejection,
     toCreateReportInput,
     toUpdateReportInput,
     TRANSACTION_TYPE_ORDER,
     useCoreMutation,
     useReport,
     useReportPreview,
-    type ReportDraft,
-    type ReportDraftField,
-    type ReportLookups,
 } from '@finance/client';
 import {
     REPORT_DATE_BASES,
@@ -43,7 +44,6 @@ import { QueryState, Skeleton } from '@/components/states';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { reportRejection } from '@/lib/coreErrorField';
 import { useActiveProfile } from '@/shell/activeProfile';
 import { useReferenceMonth } from '@/shell/useReferenceMonth';
 import { ReportResult } from './ReportResult.tsx';

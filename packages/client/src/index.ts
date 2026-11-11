@@ -9,6 +9,7 @@ export { invalidatedBy, isRehearsalRoute, REHEARSAL_ROUTES, type RehearsalRoute 
 export { CoreClientProvider, useCoreClient } from './hooks/CoreClientContext.tsx';
 export { callOrThrow, createQueryClient, invalidateAfter, invalidateAllCoreQueries, useCoreMutation, useCoreQueries, useCoreQuery } from './hooks/coreHooks.ts';
 export * from './hooks/routeHooks.ts';
+export * from './hooks/transactionForm.ts';
 export { formatMoney, formatMoneyCompact, formatMoneyDigits, formatMoneyForInput, MINUS, type MoneySign } from './format/money.ts';
 export { formatDate, formatDayMonth, formatMonthAbbreviation, formatMonthLong, formatMonthShort } from './format/dates.ts';
 export { formatPercent } from './format/percent.ts';
@@ -22,12 +23,18 @@ export { parseMoneyInput, type MoneyInputRejection, type MoneyInputResult } from
 export * from './forms/formIssues.ts';
 export * from './forms/currencies.ts';
 export * from './forms/onboardingForm.ts';
+export * from './forms/transactionForm.ts';
+export * from './forms/invoiceForms.ts';
+export * from './forms/coreErrorField.ts';
+// Regras do lançamento que decidem quais campos o formulário mostra, as mesmas do núcleo.
+export { feedsGoal, movesToDestination, withdrawsFromGoal } from '@finance/core';
 // Regras do shell comuns ao desktop e ao celular: mês corrente, mês vizinho e perfil reaberto.
 export { currentDate, currentPeriod, isValidPeriod, pickActiveProfile, shiftPeriod } from './shell/referenceMonth.ts';
 export * from './viewModels/otherProfileAccounts.ts';
 export * from './viewModels/transactionTable.ts';
 // Lista de Transações do celular (mockup `MobileTransacoes`): dias e totais da mesma tabela.
 export * from './viewModels/transactionDays.ts';
+export * from './viewModels/datePicker.ts';
 export * from './viewModels/transactionEditor.ts';
 export * from './viewModels/recurrenceView.ts';
 export * from './viewModels/partnerRoster.ts';

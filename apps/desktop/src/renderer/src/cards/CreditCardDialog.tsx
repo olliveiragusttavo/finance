@@ -1,4 +1,4 @@
-import { describeError, formatMoney, useCoreMutation } from '@finance/client';
+import { describeError, formatMoney, reportRejection, useCoreMutation } from '@finance/client';
 import type { AccountResponse, CreditCardResponse } from '@finance/core';
 import { useState, type ReactNode } from 'react';
 import { Controller, useForm, type Resolver } from 'react-hook-form';
@@ -7,7 +7,6 @@ import { Combobox } from '@/components/Combobox';
 import { FormDialog } from '@/components/entityUi';
 import { Field, fieldAria, toFieldErrors } from '@/components/form';
 import { Input } from '@/components/ui/input';
-import { reportRejection } from '@/lib/coreErrorField';
 import { useActiveProfile } from '@/shell/activeProfile';
 import {
     closingDayWarning,

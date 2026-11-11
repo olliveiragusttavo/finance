@@ -24,6 +24,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { useActiveProfile } from '../shell/ActiveProfile.tsx';
+import { editTransactionRoute } from '../shell/routes.ts';
 import { Screen } from '../shell/Screen.tsx';
 import { ScreenHeader } from '../shell/ScreenHeader.tsx';
 import { useReferenceMonth } from '../shell/useReferenceMonth.ts';
@@ -193,6 +194,15 @@ export function TransactionDetailScreen(): ReactNode {
                             busy={setPaid.isPending}
                             onPress={() => {
                                 setPaid.mutate({ id: transaction.id, paid: !transaction.paid });
+                            }}
+                        />
+                    )}
+                    {transaction.recurrenceId === null && (
+                        <Button
+                            label="Editar"
+                            variant="secondary"
+                            onPress={() => {
+                                router.push(editTransactionRoute(transaction.id));
                             }}
                         />
                     )}

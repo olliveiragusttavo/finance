@@ -1,12 +1,13 @@
 import {
     buildPartnerRosterView,
     draftFromPartners,
-    toSavePartnersInput,
-    useCoreMutation,
-    usePartners,
     type PartnerDraftRow,
     type PartnerRosterRow,
     type PartnerRosterView,
+    reportRejection,
+    toSavePartnersInput,
+    useCoreMutation,
+    usePartners,
 } from '@finance/client';
 import { PARTNER_NAME_MAX_LENGTH, type PartnerResponse } from '@finance/core';
 import { XIcon } from 'lucide-react';
@@ -17,7 +18,6 @@ import { EmptyState, QueryState } from '@/components/states';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/cn';
-import { reportRejection } from '@/lib/coreErrorField';
 import { useActiveProfile } from '@/shell/activeProfile';
 
 /**

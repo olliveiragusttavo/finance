@@ -1,5 +1,6 @@
 import type { Core } from '@finance/core';
 import { act, fireEvent, screen, waitFor, within } from 'expo-router/testing-library';
+import { fixToday, restoreToday } from './support/fixedToday.ts';
 import { renderApp } from './support/renderApp.tsx';
 import { testCore } from './support/renderWithCore.tsx';
 
@@ -83,7 +84,7 @@ describe('shell e navegação (mobile-mvp-plan, Fase 6)', () => {
     });
 
     it('fora do mês corrente, o centro da faixa volta ao mês atual', async () => {
-        jest.useFakeTimers({ now: new Date(2026, 9, 20, 12, 0), doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask', 'requestAnimationFrame', 'setTimeout', 'setInterval', 'clearTimeout', 'clearInterval'] });
+        fixToday(2026, 10, 20);
         try {
             const { core } = testCore();
             await createProfile(core, 'Gustavo');
@@ -94,7 +95,7 @@ describe('shell e navegação (mobile-mvp-plan, Fase 6)', () => {
             expect(await screen.findByText('Outubro de 2026')).toBeOnTheScreen();
             expect(screen.getByText('Mês de referência')).toBeOnTheScreen();
         } finally {
-            jest.useRealTimers();
+            restoreToday();
         }
     });
 

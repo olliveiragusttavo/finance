@@ -1,5 +1,6 @@
-import { CoreCallError, describeError } from '@finance/client';
 import type { CoreError } from '@finance/core';
+import { CoreCallError } from '../errors/CoreCallError.ts';
+import { describeError } from '../errors/describeError.ts';
 
 /** Onde a tela mostra uma recusa do núcleo: abaixo de um campo, ou no aviso geral do diálogo. */
 export type CoreErrorPlacement<F extends string> =

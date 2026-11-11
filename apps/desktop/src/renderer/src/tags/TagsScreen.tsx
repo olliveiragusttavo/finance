@@ -1,4 +1,4 @@
-import { formatDate, formatMoney, useCoreMutation, useTags } from '@finance/client';
+import { formatDate, formatMoney, reportRejection, useCoreMutation, useTags } from '@finance/client';
 import type { TagUsageResponse } from '@finance/core';
 import { Link } from '@tanstack/react-router';
 import { XIcon } from 'lucide-react';
@@ -10,7 +10,6 @@ import { EmptyState, QueryState } from '@/components/states';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/cn';
-import { reportRejection } from '@/lib/coreErrorField';
 import { readNameForm } from '@/lib/nameForm';
 import { useActiveProfile } from '@/shell/activeProfile';
 

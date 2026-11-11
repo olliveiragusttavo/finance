@@ -41,5 +41,8 @@ module.exports = {
     preset: 'jest-expo',
     testMatch: ['<rootDir>/test/**/*.test.{ts,tsx}'],
     setupFiles: ['<rootDir>/test/support/jestSetup.ts'],
+    setupFilesAfterEnv: ['<rootDir>/test/support/jestAfterEnv.ts'],
+    // Cada teste de tela monta o app inteiro; o padrão de 5 s não deixa folga para a espera das consultas.
+    testTimeout: 20000,
     transformIgnorePatterns: [`node_modules/(?!(?:\\.pnpm/)?(?:${TRANSFORMED.join('|')}))`],
 };

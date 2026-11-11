@@ -1,35 +1,50 @@
 import {
+    cashPeriodOf,
+    changesSeries,
+    contributionProfileId,
     destinationAccountOptions,
-    formatDayMonth,
-    formatMonthShort,
+    destinationKey,
+    type EditScope,
     formatTransactionType,
+    formChangesSeries,
     goalChoices,
-    invoiceChoices,
-    invoiceReopenWarning,
     matchNameSuggestions,
+    movesProfile,
+    newTransactionForm,
+    NO_PARTNER_CONTEXT,
     parseMoneyInput,
+    parseSourceKey,
+    type PartnerContext,
+    type PaymentMethod,
     paymentMethodSource,
     previewTransactionValue,
+    readTransactionForm,
     recalculationNotice,
+    reportRejection,
+    sourceKey,
+    type SourceOption,
+    type SourceOptions,
     subCategoryOptions,
+    suggestedSourceOption,
+    TRANSACTION_FIELDS,
     TRANSACTION_TYPE_ORDER,
+    TRANSACTION_FIELD_BY_CORE_FIELD,
+    transactionFormFrom,
+    type TransactionFormTarget,
+    type TransactionFormValues,
     transactionSourceOptions,
+    type TransactionSubmission,
     useAccounts,
     useCategoryTree,
     useCoreMutation,
     useCreditCards,
     useGoalOptions,
-    useInvoicesByCard,
-    useInvoiceSuggestion,
+    useInvoiceChoice,
     usePartners,
     useRecurrences,
     useTags,
     useTransactionNameSuggestions,
     useTransferTargets,
-    type EditScope,
-    type PaymentMethod,
-    type SourceOption,
-    type SourceOptions,
 } from '@finance/client';
 import {
     feedsGoal,
@@ -49,7 +64,6 @@ import {
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Controller, useForm, type Resolver } from 'react-hook-form';
 import { toast } from 'sonner';
-import { periodOfDate } from '@/cards/invoiceForms';
 import { Skeleton } from '@/components/states';
 import { Field, fieldAria, toFieldErrors } from '@/components/form';
 import { Button } from '@/components/ui/button';
@@ -58,55 +72,16 @@ import { Input } from '@/components/ui/input';
 import { Combobox, type ComboboxOption } from '@/components/Combobox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/cn';
-import { reportRejection } from '@/lib/coreErrorField';
 import { StatusTag } from '@/components/entityUi';
 import { useActiveProfile } from '@/shell/activeProfile';
-import { currentDate, shiftPeriod } from '@/shell/referenceMonth';
+import { currentDate } from '@/shell/referenceMonth';
 import { useReferenceMonth } from '@/shell/useReferenceMonth';
 import { NameAutocomplete } from './NameAutocomplete.tsx';
 import { TagPicker, SubCategoryPicker } from './pickers.tsx';
 import { RepeatSection } from './RepeatSection.tsx';
 import { ScopeDialog } from './ScopeDialog.tsx';
 import { SeriesReviewDialog } from './SeriesReviewDialog.tsx';
-import {
-    cashPeriodOf,
-    contributionProfileId,
-    changesSeries,
-    destinationKey,
-    formChangesSeries,
-    movesProfile,
-    newTransactionForm,
-    NO_PARTNER_CONTEXT,
-    parseSourceKey,
-    readTransactionForm,
-    sourceKey,
-    TRANSACTION_FIELDS,
-    transactionFormFrom,
-    type PartnerContext,
-    type TransactionErrorField,
-    type TransactionFormTarget,
-    type TransactionFormValues,
-    type TransactionSubmission,
-} from './transactionForm.ts';
 
-/** Campo do formulário de cada campo que o núcleo aponta numa recusa. */
-const FIELD_BY_CORE_FIELD: Readonly<Partial<Record<string, TransactionErrorField>>> = {
-    profileId: 'profileId',
-    accountId: 'source',
-    creditCardId: 'source',
-    invoicePeriod: 'invoicePeriod',
-    destinationAccountId: 'destinationAccountId',
-    subCategoryId: 'subCategoryId',
-    tagIds: 'tagIds',
-    goalId: 'goalId',
-    // A retirada é parte da escolha da meta: o erro dela aparece no campo "Meta".
-    goalWithdrawal: 'goalId',
-    partnerId: 'partnerId',
-    dueDate: 'dueDate',
-    paymentDate: 'paymentDate',
-    name: 'name',
-    value: 'amount',
-};
 
 /**
  * Valor do item "Sem meta" no seletor, que distingue a escolha de "nenhuma meta" do campo ainda
@@ -417,7 +392,7 @@ function LoadedTransactionForm({ transaction, initialSource, onClose, onSaved, o
             setPending(null);
             reportRejection(
                 error,
-                FIELD_BY_CORE_FIELD,
+                TRANSACTION_FIELD_BY_CORE_FIELD,
                 (field, message) => {
                     form.setError(field, { type: 'core', message });
                 },
@@ -900,16 +875,6 @@ function missingDefaultHint(method: PaymentMethod): string {
     return method === 'credit' ? 'Defina um cartão padrão na tela Cartões para ele já vir escolhido no crédito.' : 'Defina uma conta padrão na tela Contas para ela já vir escolhida no débito.';
 }
 
-/**
- * @param suggestion Sugestão do campo "Nome".
- * @param options Origens oferecidas no lançamento novo.
- * @return A conta ou o cartão da sugestão, ou `null` quando ele já não é escolha (desativado ou excluído).
- */
-function suggestedSourceOption(suggestion: TransactionNameSuggestionResponse, options: SourceOptions): SourceOption | null {
-    const { source } = suggestion;
-    const found = source.kind === 'account' ? options.accounts.find((option) => option.id === source.accountId) : options.creditCards.find((option) => option.id === source.creditCardId);
-    return found ?? null;
-}
 
 /**
  * Rótulo curto de cada tipo no seletor, como no mockup `MobileLancamento` ("Transf.", "Invest."):
@@ -1062,51 +1027,4 @@ function sourceLabel(option: SourceOption): string {
     return option.disabled ? `${option.name} (desativado)` : option.name;
 }
 
-/** A fatura da compra no cartão: a sugerida, as opções da troca e os avisos. */
-interface InvoiceChoiceState {
-    /** Competência sugerida pela data da compra; `null` fora do cartão ou sem data válida. */
-    readonly suggestedPeriod: string | null;
-    readonly choices: ReturnType<typeof invoiceChoices>;
-    /** "Sugerida pela data da compra: nov/2026, vence 10/11." */
-    readonly hint: string | null;
-    readonly warning: string | null;
-}
 
-/**
- * Consulta a fatura sugerida e as faturas do cartão em volta dela, e monta a escolha da fatura.
- *
- * @param params.card Cartão escolhido; `null` quando a origem é uma conta.
- * @param params.values Valores do formulário (data da compra e fatura escolhida).
- * @param params.transaction Lançamento editado, cuja fatura atual continua oferecida.
- * @param params.accounts Contas do perfil, para o nome da conta pagadora no aviso.
- * @return O estado da escolha.
- */
-function useInvoiceChoice(params: {
-    readonly card: CreditCardInPeriodResponse | null;
-    readonly values: TransactionFormValues;
-    readonly transaction: TransactionResponse | null;
-    readonly accounts: readonly AccountInPeriodResponse[];
-}): InvoiceChoiceState {
-    const { card, values, transaction } = params;
-    const validDate = periodOfDate(values.dueDate) !== null;
-    const suggestion = useInvoiceSuggestion(card !== null && validDate ? { creditCardId: card.id, purchaseDate: values.dueDate } : null);
-    const suggestedPeriod = card === null ? null : (suggestion.data?.period ?? null);
-    const cycles = useInvoicesByCard(card !== null && suggestedPeriod !== null ? { creditCardId: card.id, from: shiftPeriod(suggestedPeriod, -1) } : null);
-    if (card === null || suggestion.data === undefined || suggestedPeriod === null) {
-        return { suggestedPeriod: null, choices: [], hint: null, warning: null };
-    }
-    const container = transaction?.container;
-    const currentPeriod = container?.kind === 'invoice' && container.creditCardId === card.id ? container.period : null;
-    const invoices = (cycles.data ?? []).flatMap((cycle) => (cycle.invoice === null ? [] : [cycle.invoice]));
-    const chosen = values.invoicePeriod === '' ? suggestedPeriod : values.invoicePeriod;
-    return {
-        suggestedPeriod,
-        choices: invoiceChoices({ suggestedPeriod, currentPeriod, invoices }),
-        hint: `Sugerida pela data da compra: ${formatMonthShort(suggestedPeriod)}, vence ${formatDayMonth(suggestion.data.dueDate)}.`,
-        warning: invoiceReopenWarning({
-            invoice: invoices.find((invoice) => invoice.period === chosen) ?? null,
-            current: chosen === currentPeriod,
-            payingAccountName: params.accounts.find((account) => account.id === card.accountId)?.name ?? '—',
-        }),
-    };
-}
