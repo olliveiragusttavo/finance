@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import type { MigrationFailureMarker, RestoreMarker } from '@finance/client/startup';
 import { z } from 'zod';
 
 /** Onde estão o banco, os backups e a marca de restauração em andamento. */
@@ -17,20 +18,11 @@ export interface DatabaseFiles {
     readonly migrationFailureMarkerPath: string;
 }
 
-/** O que a marca de restauração guarda: onde ficou o banco tirado do lugar. */
-export interface RestoreMarker {
-    /** Cópia do banco que falhou; `null` quando a marca não pôde ser lida. */
-    readonly failedCopy: string | null;
-}
+// As marcas são da sequência de abertura compartilhada; aqui fica só o formato em arquivo.
+export type { MigrationFailureMarker, RestoreMarker } from '@finance/client/startup';
 
 /** Formato gravado no arquivo da marca. */
 const restoreMarkerSchema = z.object({ failedCopy: z.string() });
-
-/** O que a marca de migration que falhou guarda: o backup de antes da primeira tentativa. */
-export interface MigrationFailureMarker {
-    /** Backup gravado na primeira tentativa que falhou; `null` quando o banco era novo. */
-    readonly backupFile: string | null;
-}
 
 /** Formato gravado no arquivo da marca de migration que falhou. */
 const migrationFailureMarkerSchema = z.object({ backupFile: z.string().nullable() });

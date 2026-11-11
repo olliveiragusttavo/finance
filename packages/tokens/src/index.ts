@@ -2,3 +2,4 @@
 // consumido pelo desktop, pelo mobile e pelo gerador (desktop-shell-design §4.5).
 export * from './tokens.ts';
 export { colorTokenNames, DARK_THEME_CLASS, renderThemeCss } from './themeCss.ts';
+export { nativewindTheme, renderNativewindPreset, themeVariables, type NativewindTheme } from './nativewindPreset.ts';

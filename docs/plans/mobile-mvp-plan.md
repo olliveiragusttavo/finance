@@ -222,19 +222,50 @@ falharam, que é o que o app de contrato mostra. Versão mínima do SQLite: 3.38
 
 ### Fase 4 — Esqueleto do `apps/mobile`
 
-- [ ] App Expo (`1.0.0`, `com.finance.app` ou o identificador que o usuário escolher), `app.config.ts`, Nova Arquitetura, Hermes; `android/` no `.gitignore`
-- [ ] Metro no monorepo pnpm: `watchFolders` na raiz, resolução dos pacotes `workspace:*` por symlink, imports com extensão `.ts` do núcleo, **uma só cópia de React** (o `client` tem React como dependência par). Se o modo isolado do pnpm não funcionar com o Metro, avaliar `node-linker=hoisted` antes de seguir — a mudança afeta o workspace inteiro e precisa ser perguntada
-- [ ] *Config plugin*: `allowBackup` desligado e exclusão do backup automático ([mobile-shell-design §6.1](mobile-shell-design.md#61-fora-do-backup-em-nuvem)); nenhuma permissão além das que o Expo exige
-- [ ] Raiz de composição: abre `finance.sqlite` com o `ExpoSqliteDatabase`, roda `openDatabase` com o `ExpoBackupDirectory`, monta `createCore` com `Clock` do sistema e `IdGenerator` sobre `expo-crypto`, roda `integrity.verifyBalances` e grava desvios e erros inesperados num log no diretório do app
-- [ ] Estado da abertura: extrair do desktop (`utility/openCore.ts` e o processo principal) a parte que é regra — banco mais novo que o app, falha de migration, falha do backup, arquivo que não abre — para o `client`, e usar nos dois shells. Telas de bloqueio do mobile com "restaurar backup"
-- [ ] `DirectCoreClient` com agendamento pós-frame (opção no `client`, testada no Vitest com um agendador falso)
-- [ ] Ciclo de vida (`AppState`) num ponto só da raiz, ainda sem uso: é onde o sync liga e desliga o listener ([mobile-shell-design §5.3](mobile-shell-design.md#53-ciclo-de-vida-do-app))
-- [ ] NativeWind lendo `packages/tokens` (v5 ou v4, [§2](#2-decisões-em-resumo)); IBM Plex Sans pelo `expo-font`; tema claro/escuro/sistema pelas mesmas variáveis; teste de que nenhuma cor literal aparece em `apps/mobile` (regra de lint, como no desktop)
-- [ ] Lint de fronteira em `apps/mobile`: telas só falam com o `client`; o `core` só entra na raiz de composição
-- [ ] jest-expo + React Native Testing Library configurados, com um `renderWithCore` de teste sobre `better-sqlite3` em memória
-- [ ] Scripts na raiz: `pnpm dev:mobile`, `pnpm build:mobile` (APK de debug) e `pnpm check` cobrindo lint, tipos e testes do app
-- [ ] `CLAUDE.md`: linhas `apps/mobile/**`, `apps/mobile-contract/**` e `packages/sqlite-expo/**` na tabela de versionamento
-- [ ] Teste de fumaça Maestro no CI: abre o app num banco vazio e chega ao primeiro uso
+- [x] App Expo (`1.0.0`, `com.finance.app` ou o identificador que o usuário escolher), `app.config.ts`, Nova Arquitetura, Hermes; `android/` no `.gitignore`
+- [x] Metro no monorepo pnpm: `watchFolders` na raiz, resolução dos pacotes `workspace:*` por symlink, imports com extensão `.ts` do núcleo, **uma só cópia de React** (o `client` tem React como dependência par). Se o modo isolado do pnpm não funcionar com o Metro, avaliar `node-linker=hoisted` antes de seguir — a mudança afeta o workspace inteiro e precisa ser perguntada
+- [x] *Config plugin*: `allowBackup` desligado e exclusão do backup automático ([mobile-shell-design §6.1](mobile-shell-design.md#61-fora-do-backup-em-nuvem)); nenhuma permissão além das que o Expo exige
+- [x] Raiz de composição: abre `finance.sqlite` com o `ExpoSqliteDatabase`, roda `openDatabase` com o `ExpoBackupDirectory`, monta `createCore` com `Clock` do sistema e `IdGenerator` sobre `expo-crypto`, roda `integrity.verifyBalances` e grava desvios e erros inesperados num log no diretório do app
+- [x] Estado da abertura: extrair do desktop (`utility/openCore.ts` e o processo principal) a parte que é regra — banco mais novo que o app, falha de migration, falha do backup, arquivo que não abre — para o `client`, e usar nos dois shells. Telas de bloqueio do mobile com "restaurar backup"
+- [x] `DirectCoreClient` com agendamento pós-frame (opção no `client`, testada no Vitest com um agendador falso)
+- [x] Ciclo de vida (`AppState`) num ponto só da raiz, ainda sem uso: é onde o sync liga e desliga o listener ([mobile-shell-design §5.3](mobile-shell-design.md#53-ciclo-de-vida-do-app))
+- [x] NativeWind lendo `packages/tokens` (v5 ou v4, [§2](#2-decisões-em-resumo)); IBM Plex Sans pelo `expo-font`; tema claro/escuro/sistema pelas mesmas variáveis; teste de que nenhuma cor literal aparece em `apps/mobile` (regra de lint, como no desktop)
+- [x] Lint de fronteira em `apps/mobile`: telas só falam com o `client`; o `core` só entra na raiz de composição
+- [x] jest-expo + React Native Testing Library configurados, com um `renderWithCore` de teste sobre `better-sqlite3` em memória
+- [x] Scripts na raiz: `pnpm dev:mobile`, `pnpm build:mobile` (APK de debug) e `pnpm check` cobrindo lint, tipos e testes do app
+- [x] `CLAUDE.md`: linhas `apps/mobile/**`, `apps/mobile-contract/**` e `packages/sqlite-expo/**` na tabela de versionamento
+- [ ] Teste de fumaça Maestro no CI: abre o app num banco vazio e chega ao primeiro uso. O fluxo (`apps/mobile/.maestro/smoke.yaml`) e o workflow `mobile.yml` estão escritos, e o mesmo caminho foi validado no emulador do devcontainer por `adb` (o Maestro não está na imagem); falta a primeira execução no CI, que depende de um push
+
+Como ficou:
+
+- **Identificador:** `br.com.finance.app`, escolhido pelo usuário.
+- **Metro no modo isolado do pnpm**, sem `node-linker=hoisted`: o `metro.config.js` resolve
+  todo pacote que o app declara (mais `react-native` e `expo-modules-core`) a partir do
+  próprio app. Sem isso, o `client` e o `sqlite-expo` levavam ao bundle outra variante de
+  `react-native`, do `expo-modules-core` e do `expo-sqlite` (mesma versão, contexto de
+  dependência par diferente no store). O source map do bundle confere que nenhum pacote
+  entra duas vezes. Pelo mesmo motivo, o app declara o que as configurações dele carregam
+  pelo nome e que no modo isolado não estaria ao alcance: o `react-native-css-interop` (o
+  Babel do NativeWind injeta o import dele em cada arquivo), o `babel-preset-expo` e o
+  `@babel/plugin-transform-react-jsx` (o preset do NativeWind o pede sem declarar). Os dois
+  últimos só faltavam no bundle de release do Gradle (`export:embed`), não no Metro de
+  desenvolvimento.
+- **NativeWind 4.2.7**, porque a v5 ainda está em RC. O `packages/tokens` gera
+  `nativewind-preset.generated.cjs` a partir dos mesmos dados do CSS do desktop. O preset do
+  NativeWind declara `fontFamily.sans` em `theme.extend`, que vence o `theme` de qualquer
+  preset, e o app saía na Roboto: o preset dos tokens repete a família em `extend`, e um teste
+  do app resolve o tema completo para pegar a colisão.
+- **Fonte:** IBM Plex Sans embutida pelo plugin do `expo-font`, como uma família com os pesos
+  400, 500 e 600, para `font-medium` e `font-semibold` funcionarem como no desktop. A escala
+  de tamanhos ganhou o 26, do título do `MobilePrimeiroUso`.
+- **Abertura compartilhada:** `openCoreSequence`, `StartupStatus`, os textos das telas de
+  bloqueio e o `SystemClock` saíram do desktop para o `client` (`@finance/client/startup`,
+  sem React). O desktop passou a usá-los sem mudar comportamento, e os testes da abertura do
+  desktop passam sem alteração. A restauração do backup no celular segue os passos do
+  `replaceDatabase` do desktop, sobre o `expo-file-system`.
+- **Validado no emulador** (development build com Metro e *fast refresh*, temas claro e
+  escuro): o log do aparelho registra SQLite 3.53.3, as 8 migrations aplicadas, integridade
+  sem desvio e o complemento das recorrências.
 
 ### Fase 5 — Medição (portão antes das telas)
 

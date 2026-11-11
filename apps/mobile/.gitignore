@@ -1,0 +1,6 @@
+# Gerado pelo `expo prebuild` a cada build: nunca versionado (mobile-mvp-plan §2).
+/android
+/ios
+# Cache e tipos gerados pelo Expo CLI.
+/.expo
+expo-env.d.ts

@@ -1,3 +1,4 @@
+import type { RestoreResult, StartupStatus } from '@finance/client/startup';
 import type { CoreClient, MappingTemplate } from '@finance/client';
 
 /** Tema escolhido no aparelho; `system` acompanha o sistema operacional. */
@@ -15,44 +16,12 @@ export interface DevicePreferences {
     readonly lastPeriod: string | null;
 }
 
-/**
- * Como terminou a abertura do banco no `utilityProcess` (backend-design §4.5). Só `ready`
- * deixa o app seguir; as outras viram telas de bloqueio, porque abrir mesmo assim produziria
- * número errado ou gravaria num banco pela metade.
+/*
+ * Como terminou a abertura do banco no `utilityProcess` (backend-design §4.5) e o resultado da
+ * restauração de backup. Os tipos moram no `client` porque o celular bloqueia pelos mesmos
+ * motivos (mobile-mvp-plan, Fase 4); só `ready` deixa o app seguir.
  */
-export type StartupStatus =
-    /** `schemaVersion`: o `user_version` do banco depois de migrar, mostrado em Ajustes. */
-    | { readonly kind: 'ready'; readonly schemaVersion: number }
-    /** O banco é de uma versão mais nova do app (backend-design §4.8). */
-    | { readonly kind: 'schemaNewerThanApp'; readonly databaseVersion: number; readonly appVersion: number }
-    /** Uma migration falhou e foi desfeita; `backupFile` é a cópia de antes, quando há uma. */
-    | { readonly kind: 'migrationFailed'; readonly backupFile: string | null }
-    /** A cópia de segurança falhou, e por isso nada foi migrado: o banco continua intacto. */
-    | { readonly kind: 'backupFailed' }
-    /** O arquivo não pôde ser aberto (corrompido, sem permissão). */
-    | { readonly kind: 'openFailed' }
-    /**
-     * Uma restauração de backup começou e não terminou (o app caiu no meio, ou o disco recusou
-     * desfazê-la). O banco não é aberto: abrir criaria um arquivo vazio no lugar, e os dados
-     * ficariam esquecidos em `failedCopy`.
-     */
-    | { readonly kind: 'restoreIncomplete'; readonly failedCopy: string | null }
-    /** Falha não prevista depois de migrar (montar o núcleo, verificar a integridade). */
-    | { readonly kind: 'unexpected' };
-
-/** Resultado de restaurar o backup na tela de falha de migration. */
-export type RestoreResult =
-    | { readonly ok: true; readonly restoredFrom: string; readonly failedCopy: string }
-    /**
-     * `io-error`: o disco recusou uma etapa e tudo foi desfeito, o banco está no lugar.
-     * `core-busy`: o processo do núcleo não liberou o banco a tempo; nada foi tocado.
-     */
-    | { readonly ok: false; readonly reason: 'no-backup' | 'not-blocked' | 'io-error' | 'core-busy' }
-    /**
-     * A restauração falhou e não foi possível devolver o banco ao lugar: ele está em
-     * `failedCopy`. O app fica bloqueado até alguém resolver, em vez de abrir um banco vazio.
-     */
-    | { readonly ok: false; readonly reason: 'database-moved'; readonly failedCopy: string };
+export type { RestoreResult, StartupStatus } from '@finance/client/startup';
 
 /**
  * Falha que derruba o app em funcionamento e vem de fora do renderer: o processo do núcleo

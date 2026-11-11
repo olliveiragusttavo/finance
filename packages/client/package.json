@@ -1,11 +1,12 @@
 {
     "name": "@finance/client",
-    "version": "1.24.0",
+    "version": "1.25.0",
     "private": true,
     "type": "module",
     "sideEffects": false,
     "exports": {
         ".": "./src/index.ts",
+        "./startup": "./src/startup/index.ts",
         "./golden": "./src/golden/goldenVectors.ts",
         "./golden/vectors.json": "./src/golden/vectors.json"
     },

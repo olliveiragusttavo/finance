@@ -65,6 +65,34 @@ const sqliteExpoBoundaryRules = {
 };
 
 /**
+ * Fronteira do app do celular (mobile-mvp-plan, Fase 4), a mesma do desktop: as telas só
+ * falam com o `client`; o núcleo, o adaptador do banco e o driver entram só pela raiz de
+ * composição. Uma tela que chamasse o núcleo direto pularia o agendamento pós-frame e o cache
+ * de consultas. `Intl` fica de fora pelo motivo do `client`: formata diferente no Hermes.
+ */
+const mobileBoundaryRules = {
+    'no-restricted-imports': ['error', {
+        patterns: [
+            { group: ['@finance/core', '@finance/core/*', '@finance/sqlite-expo', '@finance/sqlite-expo/*', 'expo-sqlite'], message: 'Telas falam só com o client; o núcleo e o banco entram pela raiz de composição (src/startup/openMobileCore.ts).' },
+            { group: ['node:*', 'fs', 'path', 'crypto', 'os', 'better-sqlite3', '@finance/sqlite-better'], message: 'O app roda no Hermes, sem Node.' },
+        ],
+    }],
+    'no-restricted-globals': ['error',
+        { name: 'Intl', message: 'Formate com os formatadores do client: Intl difere entre Chromium e Hermes (mobile-shell-design §8).' },
+    ],
+};
+
+/**
+ * A raiz de composição e os adaptadores das portas do núcleo: os únicos arquivos do app que
+ * conhecem o núcleo e o banco. Continuam sem Node.
+ */
+const mobileCompositionRules = {
+    'no-restricted-imports': ['error', {
+        patterns: [{ group: ['node:*', 'fs', 'path', 'crypto', 'os', 'better-sqlite3', '@finance/sqlite-better'], message: 'O app roda no Hermes, sem Node.' }],
+    }],
+};
+
+/**
  * Os tokens são dados sem dependências, lidos pelo desktop, pelo mobile e pelo gerador
  * (desktop-shell-design §4.5); só o script de geração toca o disco.
  */
@@ -75,7 +103,7 @@ const tokensBoundaryRules = {
 };
 
 export default tseslint.config(
-    { ignores: ['**/node_modules/**', '**/dist/**', '**/out/**', '**/test-results/**', '**/playwright-report/**', '**/release/**', '**/*.generated.ts'] },
+    { ignores: ['**/node_modules/**', '**/dist/**', '**/out/**', '**/test-results/**', '**/playwright-report/**', '**/release/**', '**/*.generated.ts', '**/*.generated.cjs'] },
     js.configs.recommended,
     ...tseslint.configs.strictTypeChecked,
     {
@@ -110,6 +138,14 @@ export default tseslint.config(
         rules: sqliteExpoBoundaryRules,
     },
     {
+        files: ['apps/mobile/app/**/*.{ts,tsx}', 'apps/mobile/src/**/*.{ts,tsx}'],
+        rules: mobileBoundaryRules,
+    },
+    {
+        files: ['apps/mobile/src/startup/openMobileCore.ts', 'apps/mobile/src/platform/systemAdapters.ts'],
+        rules: mobileCompositionRules,
+    },
+    {
         // Scripts de build em JavaScript puro: sem anotação de tipo possível, o tipo de
         // retorno fica no JSDoc.
         files: ['**/*.js', '**/*.mjs'],
@@ -117,6 +153,19 @@ export default tseslint.config(
         rules: {
             ...tseslint.configs.disableTypeChecked.rules,
             '@typescript-eslint/explicit-function-return-type': 'off',
+        },
+    },
+    {
+        // Configurações do app do celular que o Metro, o Babel, o Jest e o Tailwind carregam
+        // em CommonJS, sem opção de ESM no pacote do app (que não é `type: module`, porque o
+        // Expo Router resolve a entrada pelo `main`).
+        files: ['apps/mobile/*.js'],
+        languageOptions: {
+            sourceType: 'commonjs',
+            globals: { require: 'readonly', module: 'writable', __dirname: 'readonly' },
+        },
+        rules: {
+            '@typescript-eslint/no-require-imports': 'off',
         },
     },
 );

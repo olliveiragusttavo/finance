@@ -74,7 +74,7 @@ export const fontFamilies = {
  * o número no nome, quem lê o mockup acha a classe sem tabela de conversão, e um tamanho
  * fora da lista simplesmente não existe como classe.
  */
-export const fontSizesPx = [11, 12, 13, 14, 15, 16, 17, 18, 20, 22, 24, 28, 30] as const;
+export const fontSizesPx = [11, 12, 13, 14, 15, 16, 17, 18, 20, 22, 24, 26, 28, 30] as const;
 
 /**
  * Tamanho de fonte permitido. Fecha o tipo na escala para que um tamanho fora dos mockups

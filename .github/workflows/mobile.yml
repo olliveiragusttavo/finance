@@ -1,0 +1,83 @@
+# App do celular no emulador Android (mobile-mvp-plan, Fases 3 e 4): gera o APK de release e
+# roda o teste de fumaça do Maestro — o app abre num banco vazio e chega ao primeiro uso. O que
+# o Vitest e o Jest não alcançam (Hermes, expo-sqlite pela JSI, migrations no aparelho) só
+# aparece aqui. Os runners Linux do GitHub têm KVM, o que deixa o emulador x86_64 rápido.
+#
+# Roda só quando muda algo que entra no bundle do celular, porque o build nativo leva minutos.
+name: mobile
+
+on:
+  push:
+    branches: [master]
+    paths: &mobile-paths
+      - packages/core/**
+      - packages/client/**
+      - packages/sqlite-expo/**
+      - packages/tokens/**
+      - apps/mobile/**
+      - apps/mobile-contract/**
+      - db/migrations/**
+      - pnpm-lock.yaml
+      - .github/workflows/mobile.yml
+  pull_request:
+    paths: *mobile-paths
+
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Teste de fumaça no emulador
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      # JDK 17: o jvmToolchain do React Native, o mesmo do devcontainer.
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v5
+
+      - run: pnpm install --frozen-lockfile
+
+      # Release, e não debug: o APK de debug do development build busca o bundle no Metro.
+      # Só x86_64, a arquitetura do emulador, para o build não compilar as outras três.
+      - name: APK de release
+        working-directory: apps/mobile
+        run: |
+          npx expo prebuild --platform android --no-install
+          cd android && ./gradlew assembleRelease -PreactNativeArchitectures=x86_64
+
+      - name: Liga o KVM para o emulador
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Instala o Maestro
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      # A mesma imagem do emulador do devcontainer (android-36, google_apis, x86_64).
+      - name: Teste de fumaça
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          script: |
+            adb install -r apps/mobile/android/app/build/outputs/apk/release/app-release.apk
+            maestro test apps/mobile/.maestro/smoke.yaml

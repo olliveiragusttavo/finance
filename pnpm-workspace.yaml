@@ -5,3 +5,7 @@ allowBuilds:
   esbuild: true
   electron: true
   electron-winstaller: false
+  # Observador de arquivos do Jest 30 (`jest-haste-map`), usado nos testes do app do celular:
+  # os binários vêm prontos pelas dependências opcionais por plataforma, e o script só
+  # compilaria de novo.
+  "@parcel/watcher": false

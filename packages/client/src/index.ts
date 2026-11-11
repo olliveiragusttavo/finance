@@ -1,7 +1,7 @@
 // API pública do `client`: a camada headless compartilhada entre desktop e mobile
 // (desktop-shell-design §4.2) — contrato do núcleo, hooks de dados, formatadores e
 // view-models. Nada aqui importa React DOM, React Native, Electron ou Node.
-export { DirectCoreClient, type CoreClient } from './core/CoreClient.ts';
+export { DirectCoreClient, type CoreCallScheduler, type CoreClient } from './core/CoreClient.ts';
 export { CoreCallError } from './errors/CoreCallError.ts';
 export { describeError, type ErrorDescription } from './errors/describeError.ts';
 export { allRoutes, coreQueryKey, coreRouteKey, CORE_QUERY_ROOT, isReadRoute, type ReadRoute, type WriteRoute } from './queries/routes.ts';
@@ -47,3 +47,5 @@ export * from './import/importTable.ts';
 export * from './import/interpretRows.ts';
 export * from './import/importReview.ts';
 export * from './import/mappingTemplates.ts';
+export { blockingCopy, canTryRestore, restoreMessage, type BlockedStatus, type BlockingCopy, type RestoreState } from './startup/blockingCopy.ts';
+export type { RestoreResult, StartupStatus } from './startup/openCoreSequence.ts';

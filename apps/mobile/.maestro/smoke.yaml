@@ -1,0 +1,11 @@
+# Teste de fumaça (mobile-mvp-plan, Fase 4): o app instalado abre num banco vazio e chega ao
+# primeiro uso. Prova o que o Jest não alcança — Hermes, expo-sqlite pela JSI, migrations no
+# aparelho, NativeWind e a fonte embutida — com o APK de release, que traz o bundle dentro.
+appId: br.com.finance.app
+---
+- clearState
+- launchApp
+- extendedWaitUntil:
+    visible: "Vamos começar"
+    timeout: 30000
+- assertVisible: "Seus dados ficam só neste aparelho e nos dispositivos que você parear."

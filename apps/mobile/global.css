@@ -1,0 +1,4 @@
+/* Diretivas do Tailwind para o NativeWind 4; o tema vem do preset de packages/tokens. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

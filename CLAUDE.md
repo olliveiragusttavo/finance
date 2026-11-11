@@ -86,6 +86,8 @@ Cada pacote tem a própria versão SemVer no `package.json`. **Toda alteração 
 | Caminho alterado | Versão a ajustar |
 |------------------|------------------|
 | `apps/desktop/**` | `apps/desktop/package.json` |
+| `apps/mobile/**` | `apps/mobile/package.json` |
+| `apps/mobile-contract/**` | `apps/mobile-contract/package.json` |
 | `packages/client/**` | `packages/client/package.json` |
 | `packages/core/**` | `packages/core/package.json` |
 | `packages/sqlite-better/**` ou `db/migrations/**` (banco) | `packages/sqlite-better/package.json` |

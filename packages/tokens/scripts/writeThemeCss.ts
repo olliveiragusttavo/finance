@@ -1,4 +1,5 @@
 import { writeFileSync } from 'node:fs';
+import { renderNativewindPreset } from '../src/nativewindPreset.ts';
 import { renderThemeCss } from '../src/themeCss.ts';
 
 /*
@@ -7,3 +8,4 @@ import { renderThemeCss } from '../src/themeCss.ts';
  * Metro do mobile não precise rodar o gerador; o teste de sincronia falha se ele ficar velho.
  */
 writeFileSync(new URL('../src/theme.generated.css', import.meta.url), renderThemeCss());
+writeFileSync(new URL('../src/nativewind-preset.generated.cjs', import.meta.url), renderNativewindPreset());
