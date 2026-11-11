@@ -567,3 +567,37 @@ export const TRANSACTION_FIELD_BY_CORE_FIELD: Readonly<Partial<Record<string, Tr
     name: 'name',
     value: 'amount',
 };
+
+/**
+ * Entrada da prévia, só quando o formulário já tem o que decide datas, valores e faturas: um
+ * campo incompleto não pode virar consulta.
+ *
+ * @param values Valores dos campos.
+ * @param profileId Perfil.
+ * @param currency Moeda do perfil.
+ * @return A entrada de `recurrences.preview`, ou `null` enquanto falta algo.
+ */
+export function repeatPreviewInput(values: TransactionFormValues, profileId: string, currency: string): (CoreInput<'recurrences.preview'> & { readonly repeat: NonNullable<CoreInput<'transactions.create'>['repeat']> }) | null {
+    const amount = parseMoneyInput(values.amount, currency);
+    const source = parseSourceKey(values.source);
+    const installments = /^\d{1,3}$/.test(values.installments.trim()) ? Number(values.installments.trim()) : null;
+    if (values.repeatKind === 'none' || !amount.ok || amount.amount <= 0 || source === null || periodOfDate(values.dueDate) === null) {
+        return null;
+    }
+    if (values.repeatKind === 'installments' && (installments === null || installments < 2 || installments > 360)) {
+        return null;
+    }
+    if (values.repeatKind === 'fixed' && values.endAt !== '' && periodOfDate(values.endAt) === null) {
+        return null;
+    }
+    const repeat = values.repeatKind === 'installments'
+        ? { kind: 'installments' as const, frequency: values.frequency, installments: installments ?? 2, valueType: values.valueType }
+        : { kind: 'fixed' as const, frequency: values.frequency, endAt: values.endAt === '' ? null : values.endAt };
+    return {
+        profileId,
+        source: source.kind === 'account' ? source : { ...source, invoicePeriod: values.invoicePeriod === '' ? null : values.invoicePeriod },
+        dueDate: values.dueDate,
+        value: values.inverted ? 0 - amount.amount : amount.amount,
+        repeat,
+    };
+}

@@ -1,11 +1,13 @@
 import {
     cashPeriodOf,
+    changesSeries,
     contributionProfileId,
     currentDate,
     describeError,
     destinationAccountOptions,
     destinationKey,
     feedsGoal,
+    formChangesSeries,
     formatTransactionType,
     goalChoices,
     matchNameSuggestions,
@@ -33,17 +35,20 @@ import {
     useCreditCards,
     useGoalOptions,
     useInvoiceChoice,
+    useRecurrences,
     usePartners,
     useTags,
     useTransactionNameSuggestions,
     useTransferTargets,
     withdrawsFromGoal,
+    type EditScope,
     type PartnerContext,
     type PaymentMethod,
     type TransactionFormTarget,
     type TransactionFormValues,
+    type TransactionSubmission,
 } from '@finance/client';
-import type { ProfileResponse, TransactionNameSuggestionResponse, TransactionResponse } from '@finance/core';
+import type { ProfileResponse, RecurrenceResponse, TransactionNameSuggestionResponse, TransactionResponse } from '@finance/core';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Controller, useForm, type Resolver } from 'react-hook-form';
 import { Pressable, ScrollView, Switch, TextInput, View } from 'react-native';
@@ -56,6 +61,7 @@ import { AppText } from '../ui/AppText.tsx';
 import { Button } from '../ui/Button.tsx';
 import { FormGroup, FormRow, RowInput, RowSelect, Segmented, toFieldErrors } from '../ui/form.tsx';
 import { RowDate, RowMultiSelect, RowSearchSelect } from '../ui/pickers.tsx';
+import { RepeatRow, ScopeSheet, SeriesReviewSheet } from './series.tsx';
 import type { SelectOption } from '../ui/Select.tsx';
 
 /** Tipos na ordem do mockup `MobileLancamento`, com os rótulos curtos que cabem na linha. */
@@ -83,6 +89,15 @@ const NONE = 'none';
 
 /** Cor do valor em destaque pelo sentido. */
 const PREVIEW_TONE = { in: 'text-in', out: 'text-out', transfer: 'text-ink', none: 'text-ink' } as const;
+
+/**
+ * Passo da gravação de uma série (database-design §4.12): a escolha do escopo, na edição de uma
+ * ocorrência, e a revisão do que entra, sai ou muda, de onde "Voltar" retorna ao escopo quando ele
+ * veio antes.
+ */
+type PendingSave =
+    | { readonly step: 'scope'; readonly submission: TransactionSubmission }
+    | { readonly step: 'review'; readonly submission: TransactionSubmission; readonly scope: EditScope | null; readonly from: 'form' | 'scope' };
 
 /** Os cadastros que o formulário precisa, do perfil do lançamento. */
 interface Registries {
@@ -140,8 +155,11 @@ function debitSource(profile: ProfileResponse, registries: Registries): string {
 export function TransactionFormScreen({ transaction }: { readonly transaction: TransactionResponse | null }): ReactNode {
     const { profile } = useActiveProfile();
     const registries = useRegistries(transaction?.profileId ?? profile.id);
+    const recurring = transaction?.recurrenceId !== null && transaction !== null;
+    const recurrences = useRecurrences(recurring ? { profileId: transaction.profileId } : null);
+    const recurrence = recurring ? (recurrences.data?.find((item) => item.id === transaction.recurrenceId) ?? null) : null;
     const title = transaction === null ? 'Novo lançamento' : 'Editar lançamento';
-    if (registries === null) {
+    if (registries === null || (recurring && recurrences.data === undefined)) {
         return (
             <View className="flex-1 bg-bg">
                 <ModalHeader title={title} />
@@ -149,7 +167,7 @@ export function TransactionFormScreen({ transaction }: { readonly transaction: T
             </View>
         );
     }
-    return <LoadedForm transaction={transaction} initialSource={transaction === null ? debitSource(profile, registries) : ''} title={title} />;
+    return <LoadedForm transaction={transaction} recurrence={recurrence} initialSource={transaction === null ? debitSource(profile, registries) : ''} title={title} />;
 }
 
 /**
@@ -157,14 +175,17 @@ export function TransactionFormScreen({ transaction }: { readonly transaction: T
  * mesmo do desktop, que aplica o schema da rota — e reproduz as regras de tela do desktop: o
  * atalho débito/crédito e o nome sugerido só no lançamento novo (Fase 15.2), a fatura sugerida pela
  * data da compra, o destino só em transferência e investimento, a meta só onde ela é alimentada e
- * o sócio só num aporte em perfil empresarial. Repetir e o escopo de séries são da Fase 11.
+ * o sócio só num aporte em perfil empresarial. Criar uma série e editar uma ocorrência passam pela
+ * revisão e, na edição, pela escolha do escopo, como no desktop (Fase 11).
  *
  * @param props.transaction Lançamento editado; `null` no novo.
+ * @param props.recurrence Série da ocorrência editada; `null` no lançamento avulso.
  * @param props.initialSource Origem do lançamento novo (o débito padrão).
  * @param props.title Título do cabeçalho.
  * @return O formulário.
  */
-function LoadedForm({ transaction, initialSource, title }: { readonly transaction: TransactionResponse | null; readonly initialSource: string; readonly title: string }): ReactNode {
+function LoadedForm(props: { readonly transaction: TransactionResponse | null; readonly recurrence: RecurrenceResponse | null; readonly initialSource: string; readonly title: string }): ReactNode {
+    const { transaction, recurrence, initialSource, title } = props;
     const insets = useSafeAreaInsets();
     const close = useCloseModal();
     const placeholder = useThemeColor('muted');
@@ -175,7 +196,7 @@ function LoadedForm({ transaction, initialSource, title }: { readonly transactio
     const profileChoices = profiles.filter((item) => item.currency === home.currency);
     const { currency } = home;
     const creating = transaction === null;
-    const target: TransactionFormTarget = creating ? { mode: 'create', currency } : { mode: 'update', transaction, recurrence: null };
+    const target: TransactionFormTarget = creating ? { mode: 'create', currency } : { mode: 'update', transaction, recurrence };
     const partnerContext = useRef<PartnerContext>(NO_PARTNER_CONTEXT);
     /**
      * @param values Valores dos campos.
@@ -288,7 +309,7 @@ function LoadedForm({ transaction, initialSource, title }: { readonly transactio
      * @param next Perfil escolhido.
      */
     const changeProfile = (next: string): void => {
-        const original = transaction !== null && next === transaction.profileId ? transactionFormFrom(transaction, today) : null;
+        const original = transaction !== null && next === transaction.profileId ? transactionFormFrom(transaction, today, recurrence) : null;
         form.setValue('profileId', next);
         form.setValue('source', original?.source ?? '');
         if (creating) {
@@ -305,21 +326,26 @@ function LoadedForm({ transaction, initialSource, title }: { readonly transactio
         form.clearErrors();
     };
 
-    const submit = form.handleSubmit(async (current) => {
-        const result = readTransactionForm(current, target, partnerContext.current);
-        if (!result.ok) {
-            return;
-        }
+    const [pending, setPending] = useState<PendingSave | null>(null);
+
+    /**
+     * Grava a chamada pronta; numa ocorrência de série, com o escopo escolhido.
+     *
+     * @param submission Criação ou edição lida do formulário.
+     * @param scope Escopo da edição de uma ocorrência; ausente no lançamento avulso.
+     */
+    const save = async (submission: TransactionSubmission, scope?: EditScope): Promise<void> => {
         setGeneralError(null);
         try {
-            const { submission } = result;
             if (submission.route === 'transactions.create') {
                 await create.mutateAsync(submission.input);
             } else {
-                await update.mutateAsync(submission.input);
+                await update.mutateAsync(scope === undefined ? submission.input : { ...submission.input, scope });
             }
+            setPending(null);
             close();
         } catch (error) {
+            setPending(null);
             reportRejection(
                 error,
                 TRANSACTION_FIELD_BY_CORE_FIELD,
@@ -329,6 +355,32 @@ function LoadedForm({ transaction, initialSource, title }: { readonly transactio
                 setGeneralError,
             );
         }
+    };
+
+    // Regra de negócio (Recorrências, database-design §4.12): criar uma série passa pela revisão;
+    // editar uma ocorrência pergunta antes o escopo — menos quando a série muda, o que vale para a
+    // editada e as futuras, e quando o perfil muda, o que leva a série inteira: os dois vão direto
+    // para a revisão, e juntos não cabem numa edição só.
+    const submit = form.handleSubmit(async (current) => {
+        const result = readTransactionForm(current, target, partnerContext.current);
+        if (!result.ok) {
+            return;
+        }
+        const { submission } = result;
+        if (submission.route === 'transactions.create' && submission.input.repeat !== null) {
+            setPending({ step: 'review', submission, scope: null, from: 'form' });
+            return;
+        }
+        if (submission.route === 'transactions.update' && recurrence !== null) {
+            const seriesChanged = changesSeries(recurrence, submission.input.repeat ?? null);
+            if (moved && seriesChanged) {
+                setGeneralError('Mude o perfil e a repetição em edições separadas: mudar de perfil leva a série inteira, e mudar a repetição vale para este lançamento e os seguintes.');
+                return;
+            }
+            setPending(moved ? { step: 'review', submission, scope: 'all', from: 'form' } : seriesChanged ? { step: 'review', submission, scope: 'future', from: 'form' } : { step: 'scope', submission });
+            return;
+        }
+        await save(submission);
     });
 
     const saving = create.isPending || update.isPending;
@@ -527,6 +579,7 @@ function LoadedForm({ transaction, initialSource, title }: { readonly transactio
                             <Controller control={form.control} name="paymentDate" render={({ field }) => <RowDate label="Data do pagamento" value={field.value} onChange={field.onChange} />} />
                         </FormRow>
                     )}
+                    {(creating || recurrence !== null) && <RepeatRow form={form} mode={creating ? 'create' : 'edit'} seriesKind={recurrence?.kind ?? null} profileId={values.profileId} currency={currency} />}
                 </FormGroup>
                 {card !== null && invoice.hint !== null && <AppText className="text-12 text-muted">{invoice.hint}</AppText>}
                 {invoice.warning !== null && <AppText accessibilityRole="alert" className="rounded-8 bg-warn-bg px-3 py-2 text-13 text-warn-ink">{invoice.warning}</AppText>}
@@ -630,6 +683,15 @@ function LoadedForm({ transaction, initialSource, title }: { readonly transactio
                 )}
 
                 {moved && <AppText className="rounded-8 bg-warn-bg px-3 py-2 text-13 text-warn-ink">Ao salvar, o lançamento sai de {home.name} e vai para {owner.name}, com a conta, a categoria e as tags escolhidas lá.</AppText>}
+                {recurrence !== null && (
+                    <AppText className="rounded-8 bg-warn-bg px-3 py-2 text-13 text-warn-ink">
+                        {moved
+                            ? `Mudar de perfil leva a série inteira para ${owner.name}. Antes de salvar, você revisa o que muda.`
+                            : formChangesSeries(values, recurrence)
+                              ? 'Mudar a repetição vale para este lançamento e os seguintes. Antes de salvar, você revisa o que será excluído e criado.'
+                              : 'Ao salvar, perguntaremos: somente esta, esta e as futuras, ou todas. Em “esta e as futuras” e “todas”, você revisa o que muda antes de confirmar.'}
+                    </AppText>
+                )}
                 {notice !== null && <AppText className="rounded-8 bg-warn-bg px-3 py-2 text-13 text-warn-ink">{notice}</AppText>}
                 {generalError !== null && <AppText accessibilityRole="alert" className="text-13 text-danger">{generalError}</AppText>}
                 {create.isError && generalError === null && Object.keys(errors).length === 0 && <AppText accessibilityRole="alert" className="text-13 text-danger">{describeError(create.error.error).message}</AppText>}
@@ -643,6 +705,49 @@ function LoadedForm({ transaction, initialSource, title }: { readonly transactio
                     }}
                 />
             </ScrollView>
+            {transaction !== null && (
+                <ScopeSheet
+                    open={pending?.step === 'scope'}
+                    transaction={transaction}
+                    title={`Salvar “${transaction.name}”`}
+                    action="edit"
+                    pending={update.isPending}
+                    error={null}
+                    onConfirm={(scope) => {
+                        if (pending?.step !== 'scope') {
+                            return;
+                        }
+                        // "Somente esta" grava direto: a revisão só repetiria a linha editada.
+                        if (scope === 'single') {
+                            void save(pending.submission, scope);
+                        } else {
+                            setPending({ step: 'review', submission: pending.submission, scope, from: 'scope' });
+                        }
+                    }}
+                    onClose={() => {
+                        setPending(null);
+                    }}
+                />
+            )}
+            {pending?.step === 'review' && (
+                <SeriesReviewSheet
+                    open
+                    request={
+                        pending.submission.route === 'transactions.create'
+                            ? { action: 'create', input: pending.submission.input }
+                            : { action: 'edit', input: { ...pending.submission.input, scope: pending.scope ?? 'single' } }
+                    }
+                    accounts={accounts}
+                    pending={saving}
+                    error={generalError}
+                    onConfirm={() => {
+                        void save(pending.submission, pending.scope ?? undefined);
+                    }}
+                    onClose={() => {
+                        setPending(pending.from === 'scope' && pending.submission.route === 'transactions.update' ? { step: 'scope', submission: pending.submission } : null);
+                    }}
+                />
+            )}
         </View>
     );
 }

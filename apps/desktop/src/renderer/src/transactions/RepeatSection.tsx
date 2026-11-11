@@ -1,5 +1,4 @@
-import { describeRepeatPreview, formatFrequency, parseMoneyInput, parseSourceKey, periodOfDate, RECURRENCE_FREQUENCY_ORDER, type RepeatKind, type TransactionFormValues, useRecurrencePreview } from '@finance/client';
-import type { CoreInput } from '@finance/core';
+import { describeRepeatPreview, formatFrequency, RECURRENCE_FREQUENCY_ORDER, repeatPreviewInput, type RepeatKind, type TransactionFormValues, useRecurrencePreview } from '@finance/client';
 import type { ReactNode } from 'react';
 import { Controller, type UseFormReturn } from 'react-hook-form';
 import { Field, fieldAria } from '@/components/form';
@@ -49,7 +48,7 @@ export function RepeatSection({
     const { errors } = form.formState;
     const values = form.watch();
     const kinds = mode === 'create' ? REPEAT_KINDS : REPEAT_KINDS.filter((option) => option.kind !== 'none');
-    const previewInput = mode === 'create' ? previewInputOf(values, profileId, currency) : null;
+    const previewInput = mode === 'create' ? repeatPreviewInput(values, profileId, currency) : null;
     const preview = useRecurrencePreview(previewInput);
     const description = previewInput === null || preview.data === undefined
         ? null
@@ -156,36 +155,3 @@ export function RepeatSection({
     );
 }
 
-/**
- * Entrada da prévia, só quando o formulário já tem o que decide datas, valores e faturas: um
- * campo incompleto não pode virar consulta.
- *
- * @param values Valores dos campos.
- * @param profileId Perfil.
- * @param currency Moeda do perfil.
- * @return A entrada de `recurrences.preview`, ou `null` enquanto falta algo.
- */
-function previewInputOf(values: TransactionFormValues, profileId: string, currency: string): (CoreInput<'recurrences.preview'> & { readonly repeat: NonNullable<CoreInput<'transactions.create'>['repeat']> }) | null {
-    const amount = parseMoneyInput(values.amount, currency);
-    const source = parseSourceKey(values.source);
-    const installments = /^\d{1,3}$/.test(values.installments.trim()) ? Number(values.installments.trim()) : null;
-    if (values.repeatKind === 'none' || !amount.ok || amount.amount <= 0 || source === null || periodOfDate(values.dueDate) === null) {
-        return null;
-    }
-    if (values.repeatKind === 'installments' && (installments === null || installments < 2 || installments > 360)) {
-        return null;
-    }
-    if (values.repeatKind === 'fixed' && values.endAt !== '' && periodOfDate(values.endAt) === null) {
-        return null;
-    }
-    const repeat = values.repeatKind === 'installments'
-        ? { kind: 'installments' as const, frequency: values.frequency, installments: installments ?? 2, valueType: values.valueType }
-        : { kind: 'fixed' as const, frequency: values.frequency, endAt: values.endAt === '' ? null : values.endAt };
-    return {
-        profileId,
-        source: source.kind === 'account' ? source : { ...source, invoicePeriod: values.invoicePeriod === '' ? null : values.invoicePeriod },
-        dueDate: values.dueDate,
-        value: values.inverted ? 0 - amount.amount : amount.amount,
-        repeat,
-    };
-}

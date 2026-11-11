@@ -17,6 +17,7 @@ import {
     useTags,
     useTransaction,
     useTransferTargets,
+    type EditScope,
     type TransactionRow,
 } from '@finance/client';
 import type { TransactionResponse } from '@finance/core';
@@ -24,7 +25,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { useActiveProfile } from '../shell/ActiveProfile.tsx';
-import { editTransactionRoute } from '../shell/routes.ts';
+import { ScopeSheet, SeriesReviewSheet } from '../transactions/series.tsx';
+import { editTransactionRoute, ROUTES } from '../shell/routes.ts';
 import { Screen } from '../shell/Screen.tsx';
 import { ScreenHeader } from '../shell/ScreenHeader.tsx';
 import { useReferenceMonth } from '../shell/useReferenceMonth.ts';
@@ -99,7 +101,8 @@ function useTransactionRow(transaction: TransactionResponse | undefined, profile
  * destaque, os dados do lançamento e as ações. "Marcar como pago" só aparece onde o desktop
  * deixa: a compra no cartão segue a fatura e a transferência que chega de outro perfil é só
  * leitura (`movementPermissions`). Excluir pede confirmação com o texto do desktop
- * (`describeTransactionDeletion`).
+ * (`describeTransactionDeletion`); numa ocorrência de série, o escopo e a revisão (mockup
+ * `MobileEscopo`; Fase 11).
  *
  * @return A tela.
  */
@@ -118,6 +121,8 @@ export function TransactionDetailScreen(): ReactNode {
     const setPaid = useCoreMutation('transactions.setPaid');
     const remove = useCoreMutation('transactions.delete');
     const [confirming, setConfirming] = useState(false);
+    // Exclusão de uma ocorrência de série: o escopo e, fora "somente esta", a revisão do que sai.
+    const [deleting, setDeleting] = useState<{ readonly step: 'scope' } | { readonly step: 'review'; readonly scope: EditScope } | null>(null);
 
     const header = <ScreenHeader title="Detalhe" back />;
     if (transaction === undefined || row === null) {
@@ -149,6 +154,26 @@ export function TransactionDetailScreen(): ReactNode {
     const goal = transaction.goalId === null ? null : (goals.data?.find((option) => option.id === transaction.goalId)?.name ?? null);
     const deletion = describeTransactionDeletion({ transaction, accounts: accounts.data?.accounts ?? [], creditCards: creditCards.data?.creditCards ?? [] });
     const onCard = transaction.container.kind === 'invoice' && transaction.destinationAccountId === null;
+
+    /**
+     * Exclui e volta à lista: o lançamento aberto deixou de existir.
+     *
+     * @param scope Quais ocorrências da série; `single` no lançamento avulso.
+     */
+    const removeWith = (scope: EditScope): void => {
+        remove.mutate({ id: transaction.id, scope }, {
+            onSuccess: () => {
+                setConfirming(false);
+                setDeleting(null);
+                // Aberto por um link (a linha do Início), o detalhe pode não ter tela atrás.
+                if (router.canGoBack()) {
+                    router.back();
+                } else {
+                    router.replace(ROUTES.transactions);
+                }
+            },
+        });
+    };
 
     return (
         <Screen header={header}>
@@ -197,12 +222,19 @@ export function TransactionDetailScreen(): ReactNode {
                             }}
                         />
                     )}
-                    {transaction.recurrenceId === null && (
+                    <Button
+                        label="Editar"
+                        variant="secondary"
+                        onPress={() => {
+                            router.push(editTransactionRoute(transaction.id));
+                        }}
+                    />
+                    {transaction.recurrenceId !== null && (
                         <Button
-                            label="Editar"
-                            variant="secondary"
+                            label="Excluir"
+                            variant="danger"
                             onPress={() => {
-                                router.push(editTransactionRoute(transaction.id));
+                                setDeleting({ step: 'scope' });
                             }}
                         />
                     )}
@@ -216,6 +248,41 @@ export function TransactionDetailScreen(): ReactNode {
                         />
                     )}
                 </View>
+            )}
+            {transaction.recurrenceId !== null && (
+                <ScopeSheet
+                    open={deleting?.step === 'scope'}
+                    transaction={transaction}
+                    title={deletion.title}
+                    action="delete"
+                    pending={remove.isPending}
+                    error={remove.isError ? describeError(remove.error.error).message : null}
+                    onConfirm={(scope) => {
+                        if (scope === 'single') {
+                            removeWith(scope);
+                        } else {
+                            setDeleting({ step: 'review', scope });
+                        }
+                    }}
+                    onClose={() => {
+                        setDeleting(null);
+                    }}
+                />
+            )}
+            {deleting?.step === 'review' && (
+                <SeriesReviewSheet
+                    open
+                    request={{ action: 'delete', input: { id: transaction.id, scope: deleting.scope } }}
+                    accounts={accounts.data?.accounts ?? []}
+                    pending={remove.isPending}
+                    error={remove.isError ? describeError(remove.error.error).message : null}
+                    onConfirm={() => {
+                        removeWith(deleting.scope);
+                    }}
+                    onClose={() => {
+                        setDeleting({ step: 'scope' });
+                    }}
+                />
             )}
             <Sheet
                 open={confirming}
@@ -231,12 +298,7 @@ export function TransactionDetailScreen(): ReactNode {
                     variant="danger"
                     busy={remove.isPending}
                     onPress={() => {
-                        remove.mutate({ id: transaction.id, scope: 'single' }, {
-                            onSuccess: () => {
-                                setConfirming(false);
-                                router.back();
-                            },
-                        });
+                        removeWith('single');
                     }}
                 />
                 <Button

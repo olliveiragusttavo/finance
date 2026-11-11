@@ -409,7 +409,7 @@ Como ficou:
 
 - [x] `MobileTransacoes`: lista do mês em `FlashList`, agrupada por dia, entrada/saída sem depender da cor (sinal, ⇄, rótulo); filtros em folha inferior e busca, pelos view-models do `client` (`transactionTable`, `movementList`)
 - [x] Compras do cartão agrupadas na linha da fatura, como no desktop (Fase 11.1); tocar na linha abre `MobileFatura` ([§5.1](#51-decididas)) — por enquanto leva à aba Cartões; a fatura certa abre com a Fase 13
-- [ ] `MobileTransacaoDetalhe`: dados do lançamento, marcar pago/recebido, editar, excluir (com o escopo da Fase 11 quando for recorrente) — feito o detalhe, marcar e excluir o avulso; editar entra com a Fase 10 e o escopo, com a 11
+- [x] `MobileTransacaoDetalhe`: dados do lançamento, marcar pago/recebido, editar, excluir (com o escopo da Fase 11 quando for recorrente)
 - [x] Testes de tela e fluxo Maestro: filtrar, marcar pago, excluir — os de tela; o fluxo Maestro entra junto com o do lançamento (Fase 10), que cria os dados pela tela
 
 Como ficou:
@@ -449,14 +449,26 @@ Como ficou:
   rótulo "Hoje, 06/10" (`formatDateChoice`), os dois no `client`.
 - **Escolhas longas** (contas, categorias) em folha com busca (`matchesAllTerms`), tags em folha
   de múltipla escolha; perfil, encargos, meta, sócio e descrição em "Mais detalhes".
-- **Repetir e editar ocorrência de série** ficam para a Fase 11: o detalhe ainda não oferece
-  editar nem excluir um lançamento recorrente.
+- **Repetir e editar ocorrência de série** entraram na Fase 11.
 
 ### Fase 11 — Recorrências
 
-- [ ] `MobileParcelar`: parcelado e fixo, com a prévia (`recurrences.preview`)
-- [ ] `MobileEscopo`: "somente esta", "esta e as futuras", "todas" na edição e na exclusão (`recurrences.planUpdate`, `recurrences.planDelete`)
-- [ ] Testes: os casos de mesa da Fase 9.2 do desktop pela tela
+- [x] `MobileParcelar`: parcelado e fixo, com a prévia (`recurrences.preview`)
+- [x] `MobileEscopo`: "somente esta", "esta e as futuras", "todas" na edição e na exclusão (`recurrences.planUpdate`, `recurrences.planDelete`)
+- [x] Testes: os casos de mesa da Fase 9.2 do desktop pela tela — parcelar em 3x com revisão, editar só esta ocorrência e excluir esta e as futuras com revisão
+
+Como ficou:
+
+- **Mesmo fluxo do desktop:** criar uma série passa pela revisão (`recurrences.planCreate`);
+  editar uma ocorrência pergunta o escopo, e fora "somente esta" revisa o que muda; mudar a
+  repetição vai direto à revisão de "esta e as futuras", e mudar o perfil, à de "todas". Os
+  textos vêm do `client` (`scopeChoices`, `describeSeriesPlan`, `describeRepeatPreview`); o
+  `repeatPreviewInput` saiu do desktop para o `client`.
+- **Repetir** é uma linha do formulário ("Parcelado · 12x mensal") que abre uma folha com o
+  tipo, a frequência, as parcelas ou o fim e a prévia.
+- **Testes:** o preset do jest-expo usa temporizadores falsos, e um `waitFor` com função
+  assíncrona deixava o teste seguinte sem montar o app; os testes esperam o estado da tela e
+  consultam o núcleo depois. O "hoje" das telas é fixado por um `Date` próprio (`fixToday`).
 
 ### Fase 12 — Contas e extrato da conta
 
