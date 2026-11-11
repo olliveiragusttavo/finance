@@ -1,4 +1,20 @@
-import { describeError, describeGoalDeletion, describeGoalFundingChange, formatMoney, reportRejection, useAccounts, useCoreMutation } from '@finance/client';
+import {
+    describeError,
+    describeGoalDeletion,
+    describeGoalFundingChange,
+    emptyGoalForm,
+    formatMoney,
+    GOAL_FIELD_BY_CORE_FIELD,
+    GOAL_FIELDS,
+    GOAL_FUNDING_KINDS,
+    goalFormFrom,
+    readGoalForm,
+    reportRejection,
+    useAccounts,
+    useCoreMutation,
+    type GoalContent,
+    type GoalFormValues,
+} from '@finance/client';
 import type { GoalProgressResponse, GoalResponse } from '@finance/core';
 import { useState, type ReactNode } from 'react';
 import { Controller, useForm, type Resolver } from 'react-hook-form';
@@ -12,21 +28,6 @@ import { FormDialog } from '@/components/entityUi';
 import { cn } from '@/lib/cn';
 import { useActiveProfile } from '@/shell/activeProfile';
 import { useReferenceMonth } from '@/shell/useReferenceMonth';
-import { emptyGoalForm, GOAL_FIELDS, goalFormFrom, readGoalForm, type GoalContent, type GoalFormValues } from './goalForm.ts';
-
-/** Campo do formulário de cada campo que o núcleo pode apontar numa recusa de meta. */
-const GOAL_FIELD_BY_CORE_FIELD: Readonly<Partial<Record<string, keyof GoalFormValues>>> = {
-    name: 'name',
-    accountId: 'accountId',
-    value: 'value',
-    targetDate: 'targetDate',
-};
-
-/** Os dois tipos de meta, com o rótulo do seletor e a explicação do diálogo. */
-const FUNDING_KINDS: readonly { readonly kind: GoalFormValues['fundingKind']; readonly label: string; readonly description: string }[] = [
-    { kind: 'transactions', label: 'Por lançamentos', description: 'O progresso soma as receitas e transferências vinculadas à meta e já pagas; a transferência de retirada desconta.' },
-    { kind: 'account', label: 'Saldo de uma conta', description: 'O progresso é o saldo consolidado de hoje de uma conta de investimento; nenhum lançamento é vinculado.' },
-];
 
 /**
  * Criar ou editar meta: nome, tipo, valor-alvo e data-alvo opcional (brief §3, Meta). Segue o
@@ -95,7 +96,7 @@ export function GoalDialog({ goal, onClose, onCreated }: { readonly goal: GoalPr
             open
             onClose={onClose}
             title={goal === null ? 'Nova meta' : `Editar ${goal.name}`}
-            description={FUNDING_KINDS.find((item) => item.kind === fundingKind)?.description ?? ''}
+            description={GOAL_FUNDING_KINDS.find((item) => item.kind === fundingKind)?.description ?? ''}
             submitLabel={goal === null ? 'Criar meta' : 'Salvar'}
             pending={create.isPending || update.isPending}
             error={generalError}
@@ -111,7 +112,7 @@ export function GoalDialog({ goal, onClose, onCreated }: { readonly goal: GoalPr
                 name="fundingKind"
                 render={({ field }) => (
                     <div role="radiogroup" aria-label="Tipo da meta" className="grid grid-cols-2 gap-0.5 rounded-8 bg-surface2 p-0.5 text-13 ring-1 ring-line">
-                        {FUNDING_KINDS.map((item) => (
+                        {GOAL_FUNDING_KINDS.map((item) => (
                             <button
                                 key={item.kind}
                                 type="button"

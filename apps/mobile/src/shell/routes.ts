@@ -80,3 +80,22 @@ export function invoiceRoute(creditCardId: string, period: string | null): { rea
 export function cardTransactionRoute(transactionId: string): `/cards/transaction/${string}` {
     return `/cards/transaction/${transactionId}`;
 }
+
+/**
+ * @param goalId Meta.
+ * @return O caminho do detalhe da meta, empilhado na aba Mais, acima da lista de Metas.
+ */
+export function goalRoute(goalId: string): `/more/goal/${string}` {
+    return `/more/goal/${goalId}`;
+}
+
+/**
+ * Detalhe de uma transação vinculada aberta pela meta, na pilha da aba Mais: o "voltar" devolve à
+ * meta, onde se nota a vinculada errada.
+ *
+ * @param transactionId Lançamento.
+ * @return O caminho do detalhe do lançamento na aba Mais.
+ */
+export function moreTransactionRoute(transactionId: string): `/more/transaction/${string}` {
+    return `/more/transaction/${transactionId}`;
+}

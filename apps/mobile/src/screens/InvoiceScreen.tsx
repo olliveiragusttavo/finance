@@ -33,6 +33,7 @@ import { AppText } from '../ui/AppText.tsx';
 import { Button } from '../ui/Button.tsx';
 import { FormGroup, FormSection } from '../ui/form.tsx';
 import { IconButton } from '../ui/IconButton.tsx';
+import { ProgressBar } from '../ui/ProgressBar.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 import { EmptyState, LoadingState, QueryView } from '../ui/states.tsx';
 
@@ -108,11 +109,7 @@ function InvoiceSummary(props: {
                 <AppText className="text-12 text-muted">{dueNote}</AppText>
             </View>
             <View className="gap-1.5">
-                {usage.share !== null && (
-                    <View className="h-1.5 overflow-hidden rounded-full bg-track">
-                        <View style={{ width: `${String(usage.share * 100)}%` }} className={`h-full ${usage.exceeded ? 'bg-out' : 'bg-accent'}`} />
-                    </View>
-                )}
+                {usage.share !== null && <ProgressBar ratio={usage.share} exceeded={usage.exceeded} />}
                 <View className="flex-row justify-between">
                     <AppText className={`text-12 ${usage.exceeded ? 'text-out' : 'text-muted'}`}>
                         Limite usado {usage.percentText}

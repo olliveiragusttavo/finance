@@ -1,4 +1,6 @@
-import { collectIssues, type FieldTarget, formatMoneyForInput, type FormErrors, moneyInputMessage, parseMoneyInput } from '@finance/client';
+import { formatMoneyForInput } from '../format/money.ts';
+import { parseMoneyInput } from '../format/parseMoneyInput.ts';
+import { collectIssues, type FieldTarget, type FormErrors, moneyInputMessage } from './formIssues.ts';
 import type { CoreInput, GoalResponse } from '@finance/core';
 import { goalContentShape, goalFundingField } from '@finance/core/requests';
 import { z } from 'zod';
@@ -117,3 +119,32 @@ export function readGoalForm(values: GoalFormValues, profileCurrency: string): G
     }
     return { ok: false, errors: collectIssues(parsed.success ? [] : parsed.error.issues, FIELD_BY_PATH, profileCurrency, initial) };
 }
+
+/**
+ * Campo do formulário de cada campo que o núcleo pode apontar numa recusa de meta. Fica ao lado
+ * do formulário para que o desktop e o celular ponham a recusa no mesmo campo.
+ */
+export const GOAL_FIELD_BY_CORE_FIELD: Readonly<Partial<Record<string, keyof GoalFormValues>>> = {
+    name: 'name',
+    accountId: 'accountId',
+    value: 'value',
+    targetDate: 'targetDate',
+};
+
+/** Um tipo de meta no seletor do formulário: o rótulo e o que ele significa para o progresso. */
+export interface GoalFundingKindOption {
+    readonly kind: GoalFormValues['fundingKind'];
+    readonly label: string;
+    readonly description: string;
+}
+
+/**
+ * Os dois tipos de meta, com o rótulo e a explicação que o formulário mostra.
+ * Regra de negócio (Metas, desktop-mvp-plan Fase 13.3): a meta por lançamentos soma as receitas
+ * e transferências vinculadas e já pagas, e a transferência de retirada desconta; a vinculada a
+ * conta acompanha o saldo consolidado de hoje de uma conta de investimento.
+ */
+export const GOAL_FUNDING_KINDS: readonly GoalFundingKindOption[] = [
+    { kind: 'transactions', label: 'Por lançamentos', description: 'O progresso soma as receitas e transferências vinculadas à meta e já pagas; a transferência de retirada desconta.' },
+    { kind: 'account', label: 'Saldo de uma conta', description: 'O progresso é o saldo consolidado de hoje de uma conta de investimento; nenhum lançamento é vinculado.' },
+];

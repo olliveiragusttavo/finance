@@ -163,8 +163,9 @@ runtime secundário, se a medição estourar o orçamento — troca só a raiz d
 Perguntada no início da fase em que aparece, antes do código. O mockup é proposta, não
 regra.
 
-1. **Metas (Fase 14):** tipos de meta, retirada e arquivadas (Fases 13.3 e 13.4 do
-   desktop) não estão no `MobileMetas`. O usuário analisa a tela quando a fase chegar.
+1. ~~**Metas (Fase 14):** tipos de meta, retirada e arquivadas (Fases 13.3 e 13.4 do
+   desktop) não estão no `MobileMetas`. O usuário analisa a tela quando a fase chegar.~~
+   Resolvida: a proposta foi aprovada em 11/11/2026 (ver Fase 14).
 
 ---
 
@@ -528,9 +529,24 @@ Como ficou:
 
 ### Fase 14 — Metas
 
-- [ ] Apresentar a tela ao usuário, que a analisa antes do código ([pendência 1](#52-decisões-pendentes))
-- [ ] `MobileMetas`: lista com progresso → detalhe com quanto falta, data-alvo, ritmo necessário e contribuições; tipos, retirada, arquivar e desarquivar
-- [ ] Testes de tela
+- [x] Apresentar a tela ao usuário, que a analisa antes do código ([pendência 1](#52-decisões-pendentes))
+- [x] `MobileMetas`: lista com progresso → detalhe com quanto falta, data-alvo, ritmo necessário e contribuições; tipos, retirada, arquivar e desarquivar
+- [x] Testes de tela
+
+Como ficou (proposta aprovada pelo usuário em 11/11/2026, antes do código):
+
+- **Lista:** os cartões do mockup, com a escolha "Ativas · Atingidas · Arquivadas" no topo
+  (as visualizações do desktop, Fase 13.4), a etiqueta "Arquivada", a conta de onde vem o
+  saldo na meta vinculada a conta e o ritmo "Para chegar lá" enquanto falta.
+- **Detalhe** (`/more/goal/[id]`, que o mockup não desenha): o progresso com a barra, os três
+  números do desktop (`goalFigures`), a projeção e as transações vinculadas com o total — tocar
+  abre o lançamento na pilha da aba Mais (`/more/transaction/[id]`). Na meta vinculada a conta,
+  no lugar das vinculadas, o link para o extrato. Editar, arquivar/reativar e excluir no "⋯".
+- **Cadastro** em folha: nome, valor-alvo, data-alvo opcional (com "Tirar a data-alvo"), o
+  tipo e a conta de investimento, com o aviso dos vínculos desfeitos. O `goalForm` saiu do
+  desktop para o `client`, com o mapa de recusas e os rótulos dos tipos.
+- **Retirada:** "Guardar/Retirar" na transferência vinculada já estava no lançamento desde a
+  Fase 10.
 
 ### Fase 15 — Cadastros: perfis e categorias
 

@@ -8,11 +8,6 @@ import { ScreenHeader } from '../shell/ScreenHeader.tsx';
  * tela troca o export daqui pelo arquivo próprio.
  */
 
-/** @return Metas (Fase 14). */
-export function GoalsScreen(): ReactNode {
-    return <PendingScreen header={<ScreenHeader title="Metas" back />} withMonth />;
-}
-
 /** @return Cadastros (Fase 15). */
 export function RegistriesScreen(): ReactNode {
     return <PendingScreen header={<ScreenHeader title="Cadastros" back />} />;

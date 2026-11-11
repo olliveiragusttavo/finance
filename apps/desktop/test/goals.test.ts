@@ -1,6 +1,5 @@
 import type { GoalProgressResponse } from '@finance/core';
 import { describe, expect, it } from 'vitest';
-import { emptyGoalForm, GOAL_FIELDS, goalFormFrom, readGoalForm } from '../src/renderer/src/goals/goalForm.ts';
 import { goalListView, openGoal, parseGoalsSearch } from '../src/renderer/src/goals/goalsSearch.ts';
 
 const TRIP = '11111111-1111-4111-8111-111111111111';
@@ -36,42 +35,6 @@ function goal(id: string, name: string, states: { readonly reached?: boolean; re
         archived: states.archived ?? false,
     };
 }
-
-describe('formulário de meta (desktop-mvp-plan Fase 9.3)', () => {
-    it('lê nome aparado, valor em pt-BR e data-alvo opcional', () => {
-        expect(readGoalForm({ ...emptyGoalForm(), name: '  Viagem Floripa ', value: '4.000,00', targetDate: '2027-01-15' }, 'BRL')).toEqual({
-            ok: true,
-            content: { name: 'Viagem Floripa', funding: { kind: 'transactions' }, value: 4000, targetDate: '2027-01-15' },
-        });
-        expect(readGoalForm({ ...emptyGoalForm(), name: 'Reserva', value: '30000', targetDate: '' }, 'BRL')).toEqual({ ok: true, content: { name: 'Reserva', funding: { kind: 'transactions' }, value: 30000, targetDate: null } });
-    });
-
-    it('Regra de negócio (Metas): valor-alvo maior que zero; aponta todos os campos no mesmo envio', () => {
-        expect(readGoalForm(emptyGoalForm(), 'BRL')).toEqual({ ok: false, errors: { name: 'Informe o nome da meta.', value: 'Informe o valor-alvo.' } });
-        expect(readGoalForm({ ...emptyGoalForm(), name: 'Carro', value: '0,00', targetDate: '' }, 'BRL')).toEqual({ ok: false, errors: { value: 'Use um valor-alvo maior que zero.' } });
-        expect(readGoalForm({ ...emptyGoalForm(), name: 'Carro', value: '-5', targetDate: '' }, 'BRL')).toEqual({ ok: false, errors: { value: 'Use um valor-alvo maior que zero.' } });
-        expect(readGoalForm({ ...emptyGoalForm(), name: 'x'.repeat(46), value: '1.5', targetDate: '' }, 'BRL')).toEqual({ ok: false, errors: { name: 'Use no máximo 45 caracteres.', value: 'Digite um valor como 1.234,56.' } });
-    });
-
-    it('a edição parte da meta gravada, e todo campo do formulário é conhecido', () => {
-        expect(goalFormFrom(goal(TRIP, 'Viagem'))).toEqual({ name: 'Viagem', fundingKind: 'transactions', accountId: '', value: '4.000,00', targetDate: '2027-01-15' });
-        expect(goalFormFrom({ ...goal(TRIP, 'Casa'), funding: { kind: 'account', accountId: ACCOUNT } })).toMatchObject({ fundingKind: 'account', accountId: ACCOUNT });
-        expect(goalFormFrom({ ...goal(TRIP, 'Viagem'), targetDate: null }).targetDate).toBe('');
-        expect([...GOAL_FIELDS].sort()).toEqual(Object.keys(emptyGoalForm()).sort());
-    });
-});
-
-describe('meta vinculada a conta no formulário (desktop-mvp-plan Fase 13.3)', () => {
-    it('pede a conta de investimento e grava o tipo; a por lançamentos não leva conta', () => {
-        expect(readGoalForm({ ...emptyGoalForm(), name: 'Casa', value: '20.000,00', fundingKind: 'account' }, 'BRL')).toEqual({ ok: false, errors: { accountId: 'Escolha a conta de investimento.' } });
-        expect(readGoalForm({ ...emptyGoalForm(), name: 'Casa', value: '20.000,00', fundingKind: 'account', accountId: ACCOUNT }, 'BRL')).toEqual({
-            ok: true,
-            content: { name: 'Casa', funding: { kind: 'account', accountId: ACCOUNT }, value: 20000, targetDate: null },
-        });
-        const backToTransactions = readGoalForm({ ...emptyGoalForm(), name: 'Casa', value: '20.000,00', fundingKind: 'transactions', accountId: ACCOUNT }, 'BRL');
-        expect(backToTransactions.ok && backToTransactions.content.funding).toEqual({ kind: 'transactions' });
-    });
-});
 
 describe('meta aberta na URL', () => {
     it('descarta id malformado e cai na primeira meta quando a da URL não existe mais', () => {
