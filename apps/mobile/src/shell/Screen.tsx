@@ -67,22 +67,6 @@ export function Screen(props: {
 }
 
 /**
- * Tela de uma rota que ainda não foi feita (mobile-mvp-plan, Fase 6): a navegação inteira
- * existe desde já, e cada fase troca a tela em branco pela de verdade.
- *
- * @param props.header O cabeçalho da tela, o mesmo que ela terá.
- * @param props.withMonth Se a tela vai depender do mês.
- * @return A tela.
- */
-export function PendingScreen({ header, withMonth = false }: { readonly header: ReactNode; readonly withMonth?: boolean }): ReactNode {
-    return (
-        <Screen header={header} withMonth={withMonth}>
-            <AppText className="text-13 text-muted">Esta tela chega numa próxima versão do app.</AppText>
-        </Screen>
-    );
-}
-
-/**
  * @return O "voltar à tela anterior" de quem não está numa pilha (o lançamento, que abre por
  * cima das abas): volta quando há para onde, senão vai ao Início.
  */

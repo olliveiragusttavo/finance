@@ -607,11 +607,40 @@ Como ficou:
 
 ### Fase 18 — Ajustes
 
-- [ ] Tema; versões do app, do núcleo e do schema
-- [ ] Exportar a cópia (`VACUUM INTO` num arquivo temporário → folha de compartilhamento do sistema → arquivo removido); data da última cópia nas preferências. Sem lembrete periódico ([§5.1](#51-decididas))
-- [ ] Importar a cópia (seletor de documentos → validação do arquivo, schema não mais novo que o app → backup → substituição → reabertura do núcleo), com o aviso da [§3](#3-relação-com-a-sincronização)
-- [ ] Relatar problema: o log do app pela folha de compartilhamento
-- [ ] Testes de tela e fluxo Maestro da exportação
+- [x] Tema; versões do app, do núcleo e do schema
+- [x] Exportar a cópia (`VACUUM INTO` num arquivo temporário → folha de compartilhamento do sistema → arquivo removido); data da última cópia nas preferências. Sem lembrete periódico ([§5.1](#51-decididas))
+- [x] Importar a cópia (seletor de documentos → validação do arquivo, schema não mais novo que o app → backup → substituição → reabertura do núcleo), com o aviso da [§3](#3-relação-com-a-sincronização)
+- [x] Relatar problema: o log do app pela folha de compartilhamento
+- [x] Testes de tela
+- [ ] Fluxo Maestro da exportação — não escrito, como os das Fases 8 a 10 e 13: o Maestro não
+  está no devcontainer. A exportação e a importação foram conferidas à mão no emulador, com o
+  APK novo (folha de compartilhamento aberta com a cópia; cópia escolhida em Downloads,
+  importada, núcleo reaberto e banco anterior em `backups/`)
+
+Como ficou:
+
+- **Módulos nativos:** `expo-sharing` (com o plugin no `app.config.ts`) e
+  `expo-document-picker`, num adaptador só (`src/platform/sharing.ts`). Pedem um build novo do
+  APK de desenvolvimento.
+- **Exportar:** a raiz de composição grava a cópia com o `copyDatabaseTo` do núcleo no cache
+  (`financas-{instante}.sqlite`), a folha de compartilhamento a entrega e o temporário é
+  apagado; a data vai para `lastExportAt` e aparece na linha com a frase do desktop.
+- **Importar:** aviso da §3 numa folha antes do seletor; a cópia vem para o cache, é conferida
+  pelo `inspectDatabaseCopy` do núcleo (aberta pelo `openExpoDatabaseFile` do `sqlite-expo`) e
+  só então o banco fecha e é trocado (`replaceWithCopy`, no molde da restauração de backup: o
+  provisório `{banco}.importando`, a marca `restore-pending.json` e o banco anterior em
+  `backups/antes-da-importacao-{instante}.sqlite`). O `StartupGate` reabre o núcleo (migrations
+  e verificação, como em toda abertura) e mostra o resultado numa folha por cima do app, que
+  reabre no Início.
+- **Relatar problema:** o `core.log` do app pela folha de compartilhamento.
+- **Versões:** a do app e a do núcleo (pelo `extra` do `app.config.ts`) e a do banco
+  (`schemaVersion` da abertura).
+- **Divergências do `MobileAjustes`:** sem "Bloquear com biometria" (fora do MVP) e sem
+  "Lembrete de exportação" (descartado, §5.1); com "Importar cópia do banco" e "Relatar
+  problema", que o plano pede. "Perfil atual" e "Moeda" levam a Perfis.
+- **Client:** os tipos e as frases da cópia do banco e do tema (`settingsView`) saíram do
+  desktop, que reexporta os tipos no `bridge`.
+- As telas em branco da Fase 6 (`PendingScreens`) acabaram e saíram.
 
 ### Fase 19 — Empacotamento e validação
 

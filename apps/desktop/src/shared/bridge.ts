@@ -1,8 +1,8 @@
 import type { RestoreResult, StartupStatus } from '@finance/client/startup';
-import type { CoreClient, MappingTemplate } from '@finance/client';
+import type { CoreClient, DatabaseExportFailure, DatabaseImportFailure, DatabaseImportResult, MappingTemplate, ThemePreference } from '@finance/client';
 
-/** Tema escolhido no aparelho; `system` acompanha o sistema operacional. */
-export type ThemePreference = 'system' | 'light' | 'dark';
+// Os tipos da cópia do banco e do tema moram no `client`, que dá as frases deles ao desktop e ao celular.
+export type { DatabaseExportFailure, DatabaseImportFailure, DatabaseImportResult, ThemePreference };
 
 /**
  * Preferências do **aparelho**, não do perfil: ficam num JSON em `userData`, fora do banco,
@@ -76,42 +76,6 @@ export type DatabaseExportResult =
      * `unavailable`: o núcleo não está com o banco aberto (caiu ou bloqueou).
      */
     | { readonly ok: false; readonly reason: DatabaseExportFailure };
-
-/** Por que uma exportação não gravou a cópia. */
-export type DatabaseExportFailure = 'canceled' | 'same-as-database' | 'write-failed' | 'unavailable';
-
-/** Resultado de importar uma cópia do banco no lugar do atual. */
-export type DatabaseImportResult =
-    /**
-     * `file`: a cópia importada, como escolhida no diálogo; `previousCopy`: onde ficou o banco que
-     * saiu do lugar, para o usuário voltar a ele se escolheu a cópia errada.
-     */
-    | { readonly ok: true; readonly file: string; readonly previousCopy: string }
-    | { readonly ok: false; readonly reason: DatabaseImportFailure }
-    /**
-     * A troca falhou e não foi possível devolver o banco ao lugar: ele está em `failedCopy`. O
-     * app fica bloqueado até alguém resolver, como na restauração de backup.
-     */
-    | { readonly ok: false; readonly reason: 'database-moved'; readonly failedCopy: string };
-
-/**
- * Por que uma importação não trocou o banco. `canceled`: o usuário fechou o diálogo de abrir.
- * `same-as-database`: o arquivo escolhido é o próprio banco do app. `unreadable`: não é SQLite ou
- * está corrompido. `not-app-database`: é SQLite, mas não deste app. `newer-than-app`: é de uma
- * versão mais nova do app. `write-failed`: o disco recusou o arquivo provisório. `unavailable`:
- * o núcleo não está com o banco aberto. `core-busy`: o núcleo não liberou o banco a tempo.
- * `io-error`: o disco recusou a troca, e tudo foi desfeito. Em todos, o banco é o de antes.
- */
-export type DatabaseImportFailure =
-    | 'canceled'
-    | 'same-as-database'
-    | 'unreadable'
-    | 'not-app-database'
-    | 'newer-than-app'
-    | 'write-failed'
-    | 'unavailable'
-    | 'core-busy'
-    | 'io-error';
 
 /** Arquivo escolhido para importar (desktop-mvp-plan Fase 13.1). */
 export type ImportFileResult =

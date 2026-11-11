@@ -49,6 +49,7 @@ export * from './viewModels/partnerRoster.ts';
 export * from './viewModels/deletionImpact.ts';
 export * from './viewModels/statementTable.ts';
 export * from './viewModels/categoryView.ts';
+export * from './viewModels/settingsView.ts';
 export * from './viewModels/invoiceView.ts';
 export * from './viewModels/movementList.ts';
 export * from './viewModels/goalView.ts';

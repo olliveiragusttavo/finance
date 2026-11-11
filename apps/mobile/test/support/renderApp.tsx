@@ -7,6 +7,7 @@ import { DEFAULT_PREFERENCES, DevicePreferencesProvider, DevicePreferencesStore,
 import { FirstUseScreen } from '../../src/screens/FirstUseScreen.tsx';
 import { AppNavigation } from '../../src/shell/AppNavigation.tsx';
 import { AppShell } from '../../src/shell/AppShell.tsx';
+import type { DatabaseCopies } from '../../src/startup/databaseCopy.ts';
 import { StartupGate } from '../../src/startup/StartupGate.tsx';
 import { PreferredTheme } from '../../src/theme/PreferredTheme.tsx';
 import { MemoryFileSystem } from './MemoryFileSystem.ts';
@@ -33,15 +34,16 @@ export const TEST_METRICS = { frame: { x: 0, y: 0, width: 390, height: 844 }, in
  * @param core Núcleo do teste.
  * @param options.preferences Preferências já gravadas no aparelho.
  * @param options.initialUrl Rota em que o app abre; o Início por padrão.
+ * @param options.copies Dublê da cópia do banco, para os testes de Ajustes.
  * @return O app renderizado.
  */
-export async function renderApp(core: Core, options: { readonly preferences?: Partial<DevicePreferences>; readonly initialUrl?: string } = {}): Promise<RenderedApp> {
+export async function renderApp(core: Core, options: { readonly preferences?: Partial<DevicePreferences>; readonly initialUrl?: string; readonly copies?: DatabaseCopies } = {}): Promise<RenderedApp> {
     const files = new MemoryFileSystem();
     if (options.preferences !== undefined) {
         files.writeText(PREFERENCES_URI, JSON.stringify({ ...DEFAULT_PREFERENCES, ...options.preferences }));
     }
     const store = new DevicePreferencesStore(files, PREFERENCES_URI);
-    const startup = readyStartup(core);
+    const startup = readyStartup(core, options.copies ?? null);
     const queryClient = testQueryClient();
 
     /** @return A raiz do app sobre o núcleo do teste. */

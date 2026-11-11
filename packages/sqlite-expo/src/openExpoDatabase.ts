@@ -60,3 +60,19 @@ export function openExpoDatabase(location: ExpoDatabaseLocation = databaseLocati
         throw error;
     }
 }
+
+/**
+ * Abre um arquivo SQLite qualquer do aparelho numa conexão própria, para conferir uma cópia
+ * escolhida pelo usuário antes de ela entrar no lugar do banco (mobile-mvp-plan, Fase 18). Sem a
+ * conferência das capacidades do SQLite e sem configurar a conexão: quem chama só lê, com o
+ * `inspectDatabaseCopy` do núcleo, e fecha.
+ *
+ * @param fileUri Arquivo `file://`, no cache ou na pasta do app.
+ * @return A conexão aberta; quem chama fecha.
+ * @throws {Error} Quando a URI não é local ou o `expo-sqlite` não abre o arquivo.
+ */
+export function openExpoDatabaseFile(fileUri: string): ExpoSqliteDatabase {
+    const path = fileUriToPath(fileUri);
+    const slash = path.lastIndexOf('/');
+    return ExpoSqliteDatabase.wrap(openDatabaseSync(path.slice(slash + 1), { useNewConnection: true }, path.slice(0, slash)));
+}

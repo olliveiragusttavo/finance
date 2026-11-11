@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { AndroidConfig, withAndroidManifest, withDangerousMod, type ConfigPlugin } from 'expo/config-plugins';
 import type { ExpoConfig } from 'expo/config';
+import corePackageJson from '../../packages/core/package.json';
 import packageJson from './package.json';
 
 /** Pacote Android escolhido pelo usuário (mobile-mvp-plan, Fase 4). Nunca mudar: é a identidade do app instalado. */
@@ -68,6 +69,8 @@ const config: ExpoConfig = {
     slug: 'finance',
     scheme: 'finance',
     version: packageJson.version,
+    // A versão do núcleo embarcado, para Ajustes mostrar junto da do app (mobile-mvp-plan, Fase 18).
+    extra: { coreVersion: corePackageJson.version },
     orientation: 'portrait',
     userInterfaceStyle: 'automatic',
     android: {
@@ -85,6 +88,8 @@ const config: ExpoConfig = {
     plugins: [
         'expo-router',
         'expo-sqlite',
+        // Folha de compartilhamento da cópia do banco e do log (mobile-mvp-plan, Fase 18).
+        'expo-sharing',
         [
             'expo-font',
             {

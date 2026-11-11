@@ -1,3 +1,4 @@
+import { exportFailureMessage, formatSchemaVersion, importResultMessage, lastExportText, THEME_OPTIONS } from '@finance/client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -8,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { bridge } from '@/lib/bridge';
 import { useDevicePreferences } from '@/lib/devicePreferences';
 import type { AppInfo, DatabaseImportResult } from '../../../shared/bridge.ts';
-import { exportFailureMessage, formatSchemaVersion, importResultMessage, lastExportText, SHORTCUT_GUIDE, THEME_OPTIONS } from './settingsView.ts';
+import { SHORTCUT_GUIDE } from './settingsView.ts';
 
 /**
  * Chave do cache das informações do app. Não é rota do núcleo — vem do processo principal —, e

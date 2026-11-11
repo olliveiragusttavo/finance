@@ -58,6 +58,7 @@ describe('abertura do app (mobile-mvp-plan, Fase 4)', () => {
             client: null,
             close: () => undefined,
             restore: () => ({ ok: false, reason: 'not-blocked' }),
+            copies: null,
         });
 
         expect(await screen.findByText('Este banco é de uma versão mais nova do app')).toBeOnTheScreen();
@@ -66,7 +67,7 @@ describe('abertura do app (mobile-mvp-plan, Fase 4)', () => {
 
     it('migration que falhou: oferece a cópia e diz onde ficou o banco depois de restaurar', async () => {
         const restore = jest.fn(() => ({ ok: true, restoredFrom: 'pre-v4.sqlite', failedCopy: 'falha-20260315-120000.sqlite' }) as const);
-        await renderGate({ status: { kind: 'migrationFailed', backupFile: 'pre-v4.sqlite' }, client: null, close: () => undefined, restore });
+        await renderGate({ status: { kind: 'migrationFailed', backupFile: 'pre-v4.sqlite' }, client: null, close: () => undefined, restore, copies: null });
 
         await fireEvent.press(await screen.findByText('Restaurar a cópia anterior'));
 

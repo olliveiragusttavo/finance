@@ -1,11 +1,13 @@
 import { DirectCoreClient, type CoreCallScheduler, type CoreClient } from '@finance/client';
 import { openCoreSequence, SystemClock, type RestoreResult, type StartupStatus } from '@finance/client/startup';
-import type { Clock } from '@finance/core';
-import { databaseLocation, openExpoDatabase } from '@finance/sqlite-expo/open';
+import { copyDatabaseTo, inspectDatabaseCopy, type Clock, type Database } from '@finance/core';
+import { fileUriToPath } from '@finance/sqlite-expo';
+import { databaseLocation, openExpoDatabase, openExpoDatabaseFile } from '@finance/sqlite-expo/open';
 import { Paths } from 'expo-file-system';
-import { expoFileSystem, type AppFileSystem } from '../platform/AppFileSystem.ts';
+import { expoFileSystem, joinUri, type AppFileSystem } from '../platform/AppFileSystem.ts';
 import { ExpoIdGenerator, FileAppLog } from '../platform/systemAdapters.ts';
 import { BENCHMARK_ENABLED, scheduleBenchmark } from './benchmark.ts';
+import { replaceWithCopy, type DatabaseCopies } from './databaseCopy.ts';
 import { databaseFiles, fileMarkers } from './databaseFiles.ts';
 import { restoreBackup } from './restoreBackup.ts';
 import { markCoreOpened } from './startupTiming.ts';
@@ -23,6 +25,8 @@ export interface MobileStartup {
      * @return O resultado; `not-blocked` em qualquer outro estado.
      */
     readonly restore: () => RestoreResult;
+    /** Exportar e importar a cópia do banco e o log, para Ajustes; `null` em qualquer bloqueio. */
+    readonly copies: DatabaseCopies | null;
 }
 
 /**
@@ -72,19 +76,100 @@ export async function openMobileCore(files: AppFileSystem = expoFileSystem, cloc
         scheduleBenchmark(outcome.core, log);
     }
     const { status } = outcome;
+    // Fechar duas vezes acontece de propósito: a importação fecha o banco, e a raiz fecha de
+    // novo ao reabrir o núcleo. A segunda vez não faz nada.
+    let closed = false;
+    const close = (): void => {
+        if (!closed) {
+            closed = true;
+            outcome.close();
+        }
+    };
     return {
         status,
         client: outcome.core === null ? null : new DirectCoreClient(outcome.core, afterFrame),
-        close: outcome.close,
+        close,
+        copies: outcome.database === null ? null : databaseCopies({ database: outcome.database, files, paths, clock, log, close }),
         restore: () => {
             if (status.kind !== 'migrationFailed' || status.backupFile === null) {
                 return { ok: false, reason: 'not-blocked' };
             }
-            outcome.close();
+            close();
             const result = restoreBackup(files, paths, status.backupFile, backupInstant(clock));
             log.write(result.ok ? 'info' : 'error', 'database.restore', { ...result });
             return result;
         },
+    };
+}
+
+/**
+ * Exportar e importar a cópia do banco (mobile-mvp-plan, Fase 18; mobile-shell-design §6.2). Fica
+ * na raiz de composição porque só ela conhece o banco aberto e o núcleo: a exportação usa o
+ * `copyDatabaseTo` — `VACUUM INTO`, nunca o arquivo vivo, que está em WAL — e a importação confere
+ * a cópia pelo `inspectDatabaseCopy`, as mesmas regras do desktop, antes de fechar o banco.
+ *
+ * @param deps.database Banco aberto.
+ * @param deps.files Disco do aparelho.
+ * @param deps.paths Onde ficam o banco, os backups, as marcas e o log.
+ * @param deps.clock Relógio, para o nome dos arquivos.
+ * @param deps.log Log do app, que registra cada exportação e importação.
+ * @param deps.close Fecha o banco antes da troca.
+ * @return As operações de Ajustes.
+ */
+function databaseCopies(deps: {
+    readonly database: Database;
+    readonly files: AppFileSystem;
+    readonly paths: ReturnType<typeof databaseFiles>;
+    readonly clock: Clock;
+    readonly log: FileAppLog;
+    readonly close: () => void;
+}): DatabaseCopies {
+    const { database, files, paths, clock, log, close } = deps;
+    return {
+        exportCopy: () => {
+            const fileName = `financas-${backupInstant(clock)}.sqlite`;
+            const uri = joinUri(Paths.cache.uri, fileName);
+            try {
+                if (files.exists(uri)) {
+                    files.remove(uri);
+                }
+                copyDatabaseTo(database, fileUriToPath(uri));
+            } catch (error: unknown) {
+                log.write('error', 'database.export', { message: error instanceof Error ? error.message : String(error) });
+                return { ok: false, reason: 'write-failed' };
+            }
+            log.write('info', 'database.export', { fileName });
+            return { ok: true, uri, fileName };
+        },
+        discard: (uri) => {
+            try {
+                files.remove(uri);
+            } catch {
+                // O sistema limpa o cache sozinho; sobrar a cópia não impede nada.
+            }
+        },
+        importCopy: (uri, fileName) => {
+            let inspection: ReturnType<typeof inspectDatabaseCopy>;
+            try {
+                const copy = openExpoDatabaseFile(uri);
+                try {
+                    inspection = inspectDatabaseCopy(copy);
+                } finally {
+                    copy.close();
+                }
+            } catch {
+                inspection = { ok: false, reason: 'unreadable' };
+            }
+            if (!inspection.ok) {
+                log.write('info', 'database.import', { result: inspection.reason });
+                return { result: { ok: false, reason: inspection.reason }, closed: false };
+            }
+            close();
+            const result = replaceWithCopy(files, paths, uri, fileName, backupInstant(clock));
+            log.write(result.ok ? 'info' : 'error', 'database.import', { ...result });
+            return { result, closed: true };
+        },
+        logUri: () => (files.exists(paths.logUri) ? paths.logUri : null),
     };
 }
 

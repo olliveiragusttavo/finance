@@ -4,6 +4,7 @@ import { BetterSqliteDatabase } from '@finance/sqlite-better';
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { render } from '@testing-library/react-native';
 import type { ReactElement } from 'react';
+import type { DatabaseCopies } from '../../src/startup/databaseCopy.ts';
 import type { MobileStartup } from '../../src/startup/openMobileCore.ts';
 import { ThemeRoot } from '../../src/theme/ThemeRoot.tsx';
 
@@ -39,15 +40,17 @@ export function testCore(today = '2026-03-15'): TestCore {
 
 /**
  * @param core Núcleo do teste.
+ * @param copies Dublê da cópia do banco, para os testes de Ajustes; `null` nos outros.
  * @return Uma abertura pronta sobre esse núcleo, para o `StartupGate` nos testes. O agendador é o
  * imediato: no Jest não há frame a esperar.
  */
-export function readyStartup(core: Core): MobileStartup {
+export function readyStartup(core: Core, copies: DatabaseCopies | null = null): MobileStartup {
     return {
         status: { kind: 'ready', schemaVersion: 1 },
         client: new DirectCoreClient(core),
         close: () => undefined,
         restore: () => ({ ok: false, reason: 'not-blocked' }),
+        copies,
     };
 }
 
