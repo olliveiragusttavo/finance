@@ -250,6 +250,15 @@ O container usa a rede do host (Metro/Expo e o sync precisam da rede local) e re
 socket do Wayland e a GPU, para a janela do Electron abrir direto no desktop. Fora do
 Docker, o requisito é Node 24 e pnpm 12.
 
+As imagens base do [Dockerfile](.devcontainer/Dockerfile) são fixadas por digest, para o
+rebuild reaproveitar o cache em vez de baixar os ~16 GB da imagem a cada nova versão
+publicada da tag. Para atualizar uma base, pegue o digest atual e troque-o na linha do
+`FROM`:
+
+```sh
+docker buildx imagetools inspect node:24-bookworm
+```
+
 `pnpm check` roda lint, tipos e testes.
 Depois de alterar `db/migrations`, `pnpm embed:migrations` regenera as migrations
 embutidas no núcleo — um teste falha se elas divergirem dos arquivos `.sql`.
