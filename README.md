@@ -280,3 +280,96 @@ root, e distribuições que restringem namespaces de usuário (Ubuntu 24.04+) fa
 Chromium abortar sem ele; o renderer continua isolado (`contextIsolation`, `sandbox: true`
 da janela, CSP). No host, os dados ficam em `~/.config/@finance/desktop/`, separados dos
 do container. Esse modo não tem recarga: após mudar o código, rode o build de novo.
+
+#### Celular (Android)
+
+O SDK do Android, o `adb` e o emulador vêm na imagem do devcontainer; o celular não
+precisa de nada além do modo de desenvolvedor. Os detalhes de cada passo estão no
+[README do app](apps/mobile/README.md), e o plano no
+[mobile-mvp-plan](docs/plans/mobile-mvp-plan.md).
+
+Existem três APKs do mesmo app (`br.com.finance.app`), e a diferença importa:
+
+| APK | Comando | Assinatura | Para quê |
+|---|---|---|---|
+| Development build | `pnpm build:mobile` | chave de depuração | desenvolver com o Metro e *fast refresh* |
+| Release de teste | `prebuild` + `assembleRelease` (abaixo) | chave de depuração | testar o app como ele roda de verdade, sem o Metro |
+| Release distribuído | `pnpm dist:mobile` | a sua chave | instalar no celular para usar |
+
+Os dois primeiros se instalam um por cima do outro mantendo os dados. O distribuído não:
+o Android só aceita atualizar um app assinado pela mesma chave, e trocar entre ele e os
+outros exige `adb uninstall br.com.finance.app`, **que apaga o banco do aparelho**.
+Antes de trocar, exporte a cópia em **Mais → Ajustes → Exportar cópia do banco**.
+
+##### Testar no emulador
+
+```sh
+pnpm emulator:android # num terminal próprio; cria o AVD na primeira vez
+```
+
+Com o development build, para mexer no código enquanto testa:
+
+```sh
+pnpm build:mobile
+adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+adb reverse tcp:8081 tcp:8081
+pnpm dev:mobile # sem CI=1, que desliga o fast refresh
+```
+
+E abra o app pela lista do development build no emulador.
+
+Com o release de teste, que traz o bundle embutido e é o mais próximo do celular:
+
+```sh
+cd apps/mobile
+npx expo prebuild --platform android --no-install
+cd android && ./gradlew assembleRelease -PreactNativeArchitectures=x86_64
+adb install -r app/build/outputs/apk/release/app-release.apk
+```
+
+Se o `adb install` falhar com `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, o emulador tem um APK
+assinado com outra chave: desinstale antes. Se o emulador recusar abrir com
+`A snapshot operation … is pending`, sobrou a trava de uma execução anterior: confira que
+nenhum emulador está rodando e apague `~/.android/avd/finance.avd/*.lock`.
+
+##### Testar no celular
+
+1. **Gere a chave uma vez**, fora do repositório, e guarde-a com backup — sem ela, o app
+   instalado não pode mais ser atualizado sem desinstalar:
+
+   ```sh
+   keytool -genkeypair -v -keystore ~/chaves/finance-release.jks -alias finance \
+       -keyalg RSA -keysize 4096 -validity 10000
+   ```
+
+2. **Gere o APK distribuído:**
+
+   ```sh
+   export FINANCE_ANDROID_KEYSTORE=~/chaves/finance-release.jks
+   export FINANCE_ANDROID_KEYSTORE_PASSWORD='…'
+   export FINANCE_ANDROID_KEY_ALIAS=finance
+   export FINANCE_ANDROID_KEY_PASSWORD='…'
+   pnpm dist:mobile # apps/mobile/dist/finance-<versão>.apk
+   ```
+
+3. **Instale no celular**, de um destes jeitos:
+   - Pelo `adb` sem fio: no celular, **Opções do desenvolvedor → Depuração por Wi-Fi →
+     Parear dispositivo com código**; no container, `adb pair <ip>:<porta-de-pareamento>`
+     com o código mostrado, depois `adb connect <ip>:<porta>` (a porta da tela principal da
+     depuração por Wi-Fi) e `adb install -r apps/mobile/dist/finance-<versão>.apk`. O
+     container usa a rede do host, então basta o celular estar na mesma rede.
+   - Pelo arquivo: copie o APK para o celular (cabo, nuvem) e abra-o no gerenciador de
+     arquivos, permitindo a instalação de fontes desconhecidas para ele.
+
+4. **Leve os dados do desktop**, para o teste de paridade: no desktop, **Ajustes →
+   Exportar cópia do banco**; copie o arquivo para o celular (com o `adb`,
+   `adb push <cópia>.sqlite /sdcard/Download/`); no celular, **Mais → Ajustes → Importar
+   cópia do banco**. O banco do celular é substituído inteiro, com o anterior guardado em
+   `backups/`, e a partir daí os dois divergem a cada lançamento — não há sincronização
+   ainda. Confira, tela a tela, saldos de contas, faturas e metas contra o desktop.
+
+5. **Se algo der errado**, **Mais → Ajustes → Relatar problema** compartilha o log do app.
+
+A medição de desempenho no aparelho (`pnpm bench:android`) usa o development build e
+**apaga o app instalado**; rode-a antes de instalar o APK distribuído ou num aparelho sem
+dados que importem. O passo a passo está no [README do app](apps/mobile/README.md#medição-da-fase-5).
