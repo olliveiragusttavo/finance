@@ -96,10 +96,32 @@ vez. O que o mobile escreve são adaptadores que traduzem uma porta para uma API
 plataforma — cada um verificado por uma suíte de contrato
 ([backend-design.md §5.10](backend-design.md#510-contrato-dos-adaptadores)) — e as telas.
 
-Em volume, a expectativa é de algumas centenas de linhas de adaptadores contra alguns
-milhares de linhas de núcleo; o número real é medido quando o monorepo existir
-([§11](#11-próximos-passos)). O que importa não é a porcentagem, e sim que **nenhuma
+Em volume, a expectativa era de algumas centenas de linhas de adaptadores contra alguns
+milhares de linhas de núcleo. O que importa não é a porcentagem, e sim que **nenhuma
 regra de negócio nem de convergência exista duas vezes**.
+
+**Medido no fim do MVP do celular** (mobile-mvp-plan, Fase 19, 12/11/2026, `core` 1.28.0 e
+`mobile` 1.14.0, antes da sincronização). Linhas de código TypeScript em `src/`, sem
+testes, linhas em branco nem comentários — os docblocks obrigatórios do projeto quase
+dobrariam todos os números:
+
+| Peça | Onde vive | Linhas |
+|---|---|---|
+| Núcleo: domínio, Requests, Controllers, Services, Repositories e SQL | `packages/core/src` | 15.534 |
+| Migrations | `db/migrations` (SQL) | 455 |
+| Contrato, hooks, view-models, formatadores, abertura | `packages/client/src` | 8.752 |
+| **Adaptador `Database` e pasta de backups** | `packages/sqlite-expo/src` | **222** |
+| **`Clock`, `IdGenerator`, arquivos, compartilhamento, versões** | `apps/mobile/src/platform` | **113** |
+| Raiz de composição, abertura, restauração e cópia do banco, ciclo de vida | `apps/mobile/src/startup` | 521 |
+| Telas e navegação | `apps/mobile/app` e o resto de `apps/mobile/src` | 7.914 |
+
+Os adaptadores do celular somam **335 linhas** contra **24.286** de núcleo e `client`
+compartilhados — 1,4%. Para comparação, o adaptador do desktop (`packages/sqlite-better`)
+tem 54. As 521 linhas da abertura são cola de plataforma, sem regra: a sequência e as
+frases das telas de bloqueio vêm do `client` (`@finance/client/startup`), e a troca do
+banco segue os passos do desktop sobre o `expo-file-system`. As telas do celular (7.914)
+ficam na ordem das do desktop (16.094 no `renderer`), que tem mais telas e tabelas; o que
+elas têm de regra veio para o `client` ao longo do plano, fase a fase.
 
 ### 3.3 As alternativas medidas pelo inventário
 
@@ -539,5 +561,6 @@ tela ([§11](#11-próximos-passos)).
    decidir entre ela e o módulo próprio ([§5.2](#52-os-adaptadores-do-mobile)).
 6. **Medir a vazão da cifra no Hermes** com um snapshot e anexos reais
    ([§5.1](#51-protocolo-e-criptografia-ficam-no-núcleo)).
-7. **Contar as linhas** de núcleo e de adaptadores quando o monorepo existir, para
-   que a [§3.2](#32-o-inventário-do-que-é-compartilhado) se apoie em número.
+7. ~~**Contar as linhas** de núcleo e de adaptadores quando o monorepo existir, para
+   que a [§3.2](#32-o-inventário-do-que-é-compartilhado) se apoie em número.~~ Feito na
+   Fase 19 do mobile-mvp-plan: 335 linhas de adaptadores contra 24.286 compartilhadas.

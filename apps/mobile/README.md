@@ -63,6 +63,38 @@ recusa rodar com o app instalado. A linha de base do Node, com o mesmo roteiro, 
 `pnpm bench:core /tmp/history.sqlite`. Toda abertura registra no logcat
 `[abertura] primeira-tela …`, também fora da medição.
 
+## APK de release
+
+O APK que vai para o celular por instalação direta, assinado com a sua chave:
+
+```sh
+# Uma vez: a chave, FORA do repositório (o script recusa um keystore dentro dele)
+keytool -genkeypair -v -keystore ~/chaves/finance-release.jks -alias finance \
+    -keyalg RSA -keysize 4096 -validity 10000
+
+export FINANCE_ANDROID_KEYSTORE=~/chaves/finance-release.jks
+export FINANCE_ANDROID_KEYSTORE_PASSWORD='…'
+export FINANCE_ANDROID_KEY_ALIAS=finance
+export FINANCE_ANDROID_KEY_PASSWORD='…'
+pnpm dist:mobile # apps/mobile/dist/finance-<versão>.apk
+```
+
+O script confere as variáveis, abre o keystore antes do build (senha ou alias errados falham
+em um segundo), gera o release para `arm64-v8a` (aparelho) e `x86_64` (emulador) e recusa o
+APK que tenha saído com a chave de depuração. No fim, mostra o SHA-256 do certificado e do
+APK. O `versionCode` vem da versão do `package.json` (`1.15.0` → `1015000`), então o Android
+recusa instalar um APK mais antigo por cima.
+
+- **Guarde a chave e as senhas com backup.** O Android só aceita a atualização de um app
+  assinado pela mesma chave; sem ela, a única saída é desinstalar — e desinstalar apaga o
+  banco do aparelho.
+- **O APK distribuído e o development build não convivem.** Os dois usam o pacote
+  `br.com.finance.app`, e o development build é assinado pela chave de depuração: instalar um
+  por cima do outro falha com `INSTALL_FAILED_UPDATE_INCOMPATIBLE`. Trocar exige desinstalar
+  e perder os dados; exporte a cópia do banco em Ajustes antes.
+- Sem as variáveis, o Gradle continua assinando o release com a chave de depuração: é o que
+  o CI e a medição da Fase 5 usam. Só o `pnpm dist:mobile` exige a chave.
+
 ## Testes
 
 - `pnpm --filter @finance/mobile test` — Jest com jest-expo e React Native Testing Library,

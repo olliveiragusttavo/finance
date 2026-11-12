@@ -644,11 +644,35 @@ Como ficou:
 
 ### Fase 19 — Empacotamento e validação
 
-- [ ] APK de release assinado com uma chave local fora do repositório (caminho e senha por variável de ambiente), `pnpm dist:mobile`
-- [ ] Teste do APK de release no emulador do CI (Maestro: primeiro uso → lançamento → fatura paga)
-- [ ] **Teste de paridade:** importar no celular a cópia do banco real do desktop e conferir, tela a tela, saldos de contas, faturas e metas de três meses — centavo a centavo
-- [ ] Repetir a medição da Fase 5 com o app completo e atualizar o registro
-- [ ] Contar as linhas de núcleo e de adaptadores e registrar na [mobile-shell-design §3.2](mobile-shell-design.md#32-o-inventário-do-que-é-compartilhado)
+- [x] APK de release assinado com uma chave local fora do repositório (caminho e senha por variável de ambiente), `pnpm dist:mobile`
+- [ ] Teste do APK de release no emulador do CI (Maestro: primeiro uso → lançamento → fatura paga) — não escrito, como os fluxos das Fases 8 a 10, 13 e 18: o Maestro não está no devcontainer
+- [ ] **Teste de paridade:** importar no celular a cópia do banco real do desktop e conferir, tela a tela, saldos de contas, faturas e metas de três meses — centavo a centavo. Depende do aparelho e do banco real do usuário
+- [ ] Repetir a medição da Fase 5 com o app completo e atualizar o registro — depende do S23 FE, como a própria Fase 5
+- [x] Contar as linhas de núcleo e de adaptadores e registrar na [mobile-shell-design §3.2](mobile-shell-design.md#32-o-inventário-do-que-é-compartilhado)
+
+Como ficou:
+
+- **Assinatura:** o plugin `withReleaseSigning` do `app.config.ts` troca, no `build.gradle`
+  gerado, a chave de depuração do release por uma configuração lida das variáveis
+  `FINANCE_ANDROID_KEYSTORE`, `…_KEYSTORE_PASSWORD`, `…_KEY_ALIAS` e `…_KEY_PASSWORD`. Sem
+  elas, o release continua com a chave de depuração, porque o CI e a medição da Fase 5 (que
+  instala o release por cima do development build, mantendo os dados) dependem disso. Se o
+  template do Expo mudar e a âncora sumir, o `prebuild` falha em vez de assinar em silêncio
+  com a chave de depuração.
+- **`pnpm dist:mobile`** (`scripts/android-dist.sh`): recusa variável faltando, keystore dentro
+  do repositório e senha ou alias que não abrem a chave, tudo antes do build; gera o release
+  para `arm64-v8a` e `x86_64`, confere pelo `apksigner` que o certificado não é o de
+  depuração e copia para `apps/mobile/dist/finance-<versão>.apk`, com o SHA-256 do
+  certificado e do arquivo.
+- **`versionCode`** derivado da versão do app (`maior × 1.000.000 + menor × 1.000 + correção`),
+  no lugar do `1` fixo do template: o Android recusa instalar um APK mais antigo por cima.
+- **Validado no emulador** com uma chave descartável: build de ~2,5 min com o cache do
+  Gradle, APK de 62 MB, instalado e aberto no primeiro uso. Instalar por cima do app assinado
+  com a chave de depuração falha com `INSTALL_FAILED_UPDATE_INCOMPATIBLE`: o APK distribuído e
+  o development build não convivem no mesmo aparelho, e trocar um pelo outro exige
+  desinstalar, o que apaga o banco. O README do app avisa e manda exportar a cópia antes.
+- **Linhas:** 335 de adaptadores do celular (`sqlite-expo` e `platform`) contra 24.286 de
+  núcleo e `client` compartilhados; os números por peça estão na mobile-shell-design §3.2.
 
 ---
 

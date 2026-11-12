@@ -1,8 +1,9 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { AndroidConfig, withAndroidManifest, withDangerousMod, type ConfigPlugin } from 'expo/config-plugins';
+import { AndroidConfig, withAndroidManifest, withAppBuildGradle, withDangerousMod, type ConfigPlugin } from 'expo/config-plugins';
 import type { ExpoConfig } from 'expo/config';
 import corePackageJson from '../../packages/core/package.json';
+import { addReleaseSigning, versionCodeOf } from './config/releaseSigning.ts';
 import packageJson from './package.json';
 
 /** Pacote Android escolhido pelo usuário (mobile-mvp-plan, Fase 4). Nunca mudar: é a identidade do app instalado. */
@@ -58,6 +59,20 @@ const withNoDataExtraction: ConfigPlugin = (config) => {
 };
 
 /**
+ * Assina o APK de release com a chave do usuário, fora do repositório (mobile-mvp-plan, Fase
+ * 19). A regra da troca e o motivo de cair na chave de depuração sem ela estão no
+ * `addReleaseSigning`.
+ *
+ * @param config Configuração do Expo recebida da cadeia de plugins.
+ * @return A configuração com o `app/build.gradle` ajustado no `prebuild`.
+ * @throws Error Quando o `build.gradle` gerado não tem a assinatura de release esperada.
+ */
+const withReleaseSigning: ConfigPlugin = (config) => withAppBuildGradle(config, (modConfig) => {
+    modConfig.modResults.contents = addReleaseSigning(modConfig.modResults.contents);
+    return modConfig;
+});
+
+/**
  * Configuração do app (mobile-mvp-plan, Fase 4): Expo SDK 58 — em que a Nova Arquitetura, o
  * Hermes e o edge-to-edge são o único modo, sem chave na configuração —, development build e
  * `android/` gerado pelo `prebuild`, nunca versionado. As permissões que
@@ -75,6 +90,8 @@ const config: ExpoConfig = {
     userInterfaceStyle: 'automatic',
     android: {
         package: ANDROID_PACKAGE,
+        // Sobe com a versão do app, para o Android recusar instalar um APK antigo por cima (Fase 19).
+        versionCode: versionCodeOf(packageJson.version),
         allowBackup: false,
         permissions: [],
         blockedPermissions: [
@@ -110,4 +127,4 @@ const config: ExpoConfig = {
     ],
 };
 
-export default withNoDataExtraction(config);
+export default withReleaseSigning(withNoDataExtraction(config));
