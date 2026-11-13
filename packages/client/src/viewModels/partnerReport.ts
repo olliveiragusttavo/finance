@@ -55,6 +55,27 @@ export interface PartnerTransfer {
     readonly amount: string;
 }
 
+/** O aporte de um sócio na cobertura do saldo negativo, com o nome. */
+export interface PartnerCoverageItem {
+    readonly partnerId: string;
+    readonly name: string;
+    /** `R$ 238,86`. */
+    readonly amount: string;
+    /** O sócio não precisa aportar: o que já aportou basta para a parte dele. */
+    readonly nothing: boolean;
+}
+
+/** O quadro "Cobrir o saldo negativo": quanto cada sócio aporta na empresa. */
+export interface PartnerCoverageView {
+    /** `Saldo previsto de out/2026: −R$ 398,10`. */
+    readonly headline: string;
+    readonly items: readonly PartnerCoverageItem[];
+    /** `R$ 398,10`: a soma dos aportes, que pode passar do déficit (reports-design §8, P6). */
+    readonly total: string;
+    /** Por que o total passa do déficit; `null` quando é exatamente o déficit. */
+    readonly surplusNote: string | null;
+}
+
 /** O relatório por sócio pronto para a tela. */
 export interface PartnerReportView {
     readonly kpis: { readonly contributions: PartnerKpi; readonly month: PartnerKpi; readonly unassigned: PartnerKpi };
@@ -68,6 +89,12 @@ export interface PartnerReportView {
     /** Aviso de participações que não somam 100%; `null` quando somam. */
     readonly sharesWarning: string | null;
     readonly hasPartners: boolean;
+    /**
+     * A cobertura do saldo negativo do mês, que toma o lugar do acerto entre sócios — os aportes
+     * dela já equilibram a divisão; `null` quando o saldo previsto não fica negativo ou quando não
+     * há como dividir.
+     */
+    readonly coverage: PartnerCoverageView | null;
 }
 
 /**
@@ -76,10 +103,11 @@ export interface PartnerReportView {
  * Regra de negócio (Sócios — aportes, P1–P4): a tabela e o acerto são dos aportes de **todos os
  * períodos** — o que cada sócio pôs na empresa contra a parte dele no total aportado. O mês de
  * referência só aparece nos dois indicadores do mês: os aportes dele e as entradas sem sócio, que
- * ficam fora da divisão (a receita de serviço é lucro, não aporte).
+ * ficam fora da divisão (a receita de serviço é lucro, não aporte) — e no saldo previsto que, quando
+ * negativo, os sócios cobrem com aportes pela participação (P6).
  *
  * @param report Relatório do núcleo.
- * @return Indicadores, tabela, gráfico e acerto.
+ * @return Indicadores, tabela, gráfico, acerto e cobertura do saldo negativo.
  */
 export function buildPartnerReportView(report: PartnerReportResponse): PartnerReportView {
     const names = new Map(report.partners.map((partner) => [partner.partnerId, partner.name]));
@@ -88,6 +116,7 @@ export function buildPartnerReportView(report: PartnerReportResponse): PartnerRe
     const currency = report.contributions.currency;
     const expectedTotal = report.partners.reduce((total, partner) => total.add(moneyOf(partner.expected)), Money.zero(Currency.of(currency)));
     const month = formatMonthShort(report.period);
+    const coverage = coverageOf(report, names, month);
     return {
         kpis: {
             contributions: { label: 'Total de aportes', value: formatMoney(report.contributions), sub: 'todos os períodos · base da divisão' },
@@ -118,11 +147,45 @@ export function buildPartnerReportView(report: PartnerReportResponse): PartnerRe
             to: names.get(settlement.toPartnerId) ?? '',
             amount: formatMoney(settlement.amount, 'absolute'),
         })),
-        note: report.settlements.length > 0 ? null : noteOf(report, complete),
+        note: report.settlements.length > 0 || coverage !== null ? null : noteOf(report, complete),
         sharesWarning: complete || report.partners.length === 0
             ? null
             : `As participações dos sócios somam ${shareText(report.sharesTotal)}, e não 100%. A divisão usa cada participação como está, e o acerto só aparece quando a soma der 100%.`,
         hasPartners: report.partners.length > 0,
+        coverage,
+    };
+}
+
+/**
+ * O quadro de cobertura do saldo negativo. Mostra todos os sócios, inclusive o que não precisa
+ * aportar, para que fique claro que ele foi considerado e por quê.
+ * Regra de negócio (Relatórios, P6): o total passa do déficit só quando um sócio já aportou mais
+ * que a parte dele; a nota explica a sobra, que fica no caixa da empresa.
+ *
+ * @param report Relatório do núcleo.
+ * @param names Nome de cada sócio pelo id.
+ * @param month Mês de referência por extenso curto (`out/2026`).
+ * @return O quadro, ou `null` quando o núcleo não sugere cobertura.
+ */
+function coverageOf(report: PartnerReportResponse, names: ReadonlyMap<string, string>, month: string): PartnerCoverageView | null {
+    if (report.coverage.length === 0) {
+        return null;
+    }
+    const zero = Money.zero(Currency.of(report.deficit.currency));
+    const total = report.coverage.reduce((sum, item) => sum.add(moneyOf(item.amount)), zero).rounded();
+    const surplus = total.subtract(moneyOf(report.deficit).rounded());
+    return {
+        headline: `Saldo previsto de ${month}: ${formatMoney(report.projectedBalance, 'negative')}`,
+        items: report.coverage.map((item) => ({
+            partnerId: item.partnerId,
+            name: names.get(item.partnerId) ?? '',
+            amount: formatMoney(item.amount, 'absolute'),
+            nothing: isZero(item.amount),
+        })),
+        total: formatMoney({ amount: total.amount, currency: report.deficit.currency }, 'absolute'),
+        surplusNote: surplus.isZero()
+            ? null
+            : `O total passa do déficit em ${formatMoney({ amount: surplus.amount, currency: report.deficit.currency }, 'absolute')}, que fica no caixa da empresa: um sócio já aportou mais que a parte dele, e os outros completam a proporção.`,
     };
 }
 

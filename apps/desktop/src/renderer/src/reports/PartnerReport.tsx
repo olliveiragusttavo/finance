@@ -10,6 +10,7 @@ import {
     usePartnerReport,
     useTags,
     useTransferTargets,
+    type PartnerCoverageView,
     type PartnerKpi,
     type PartnerReportView,
     type UnassignedEntryRow,
@@ -30,8 +31,8 @@ import { useReferenceMonth } from '@/shell/useReferenceMonth';
 /**
  * Distribuição por sócio, fixada no topo dos Relatórios do perfil empresarial (reports-design §8;
  * desktop-mvp-plan Fases 13.6 e 13.8): quanto cada sócio aportou contra quanto deveria pela
- * participação no total de aportes, o acerto e as entradas do mês sem sócio, que podem ser
- * atribuídas ali mesmo.
+ * participação no total de aportes, o acerto ou, com o saldo previsto do mês negativo, quanto cada
+ * um aporta para cobri-lo, e as entradas do mês sem sócio, que podem ser atribuídas ali mesmo.
  * Regra de negócio (Sócios — aportes, reports-design §8): toda despesa é paga pela empresa; os
  * aportes são as receitas e as transferências vindas de outro perfil com sócio, de todos os
  * períodos. O mês de referência só recorta os indicadores do mês e a lista de entradas sem sócio.
@@ -259,12 +260,17 @@ function PartnerBarsTable({ view }: { readonly view: PartnerReportView }): React
 }
 
 /**
- * O quadro do acerto: as transferências que equilibram os aportes, ou por que não há nenhuma.
+ * O quadro do acerto: com o saldo previsto do mês negativo, quanto cada sócio aporta para cobri-lo
+ * (os aportes já equilibram a divisão, e o acerto entre sócios sairia dobrado); senão, as
+ * transferências que equilibram os aportes, ou por que não há nenhuma.
  *
  * @param props.view Relatório pronto do `client`.
  * @return O quadro.
  */
 function Settlement({ view }: { readonly view: PartnerReportView }): ReactNode {
+    if (view.coverage !== null) {
+        return <Coverage coverage={view.coverage} />;
+    }
     if (view.transfers.length === 0) {
         return <p className="rounded-8 bg-soft px-3.5 py-3 text-14 text-soft-ink">{view.note}</p>;
     }
@@ -278,6 +284,38 @@ function Settlement({ view }: { readonly view: PartnerReportView }): ReactNode {
                     </li>
                 ))}
             </ul>
+        </div>
+    );
+}
+
+/**
+ * "Cobrir o saldo negativo" (reports-design §8, P6): o saldo previsto do mês e o aporte de cada
+ * sócio, que leva o dinheiro para a empresa. No tom de aviso, porque é dinheiro que falta; o saldo
+ * leva o sinal de menos, para não depender só da cor (decisão de interface 7).
+ *
+ * @param props.coverage Quadro pronto do `client`.
+ * @return O quadro.
+ */
+function Coverage({ coverage }: { readonly coverage: PartnerCoverageView }): ReactNode {
+    return (
+        <div role="group" aria-label="Cobrir o saldo negativo" className="rounded-8 bg-warn-bg px-3.5 py-3 text-14 text-warn-ink">
+            <p className="font-semibold tabular-nums">{coverage.headline}</p>
+            <p className="mt-1">Para cobrir o saldo e manter os aportes na participação:</p>
+            <ul aria-label="Aportes para cobrir o saldo" className="mt-1 flex flex-col gap-0.5">
+                {coverage.items.map((item) => (
+                    <li key={item.partnerId}>
+                        {item.nothing ? (
+                            <>{item.name} não precisa aportar: já aportou a parte dele.</>
+                        ) : (
+                            <>
+                                {item.name} aporta <b className="tabular-nums">{item.amount}</b> na empresa.
+                            </>
+                        )}
+                    </li>
+                ))}
+            </ul>
+            <p className="mt-1 tabular-nums">Total: {coverage.total}</p>
+            {coverage.surplusNote !== null && <p className="mt-1 text-13">{coverage.surplusNote}</p>}
         </div>
     );
 }

@@ -1,6 +1,7 @@
 import {
     BALANCE_PROJECTION_MONTHS,
     buildBalanceProjection,
+    closingAt,
     projectionBasisMonths,
     type BalanceProjection,
     type BalanceProjectionBasis,
@@ -48,7 +49,10 @@ export class FixedReportService {
 
     /**
      * Relatório por sócio: quanto cada sócio aportou, em todos os períodos, contra quanto deveria
-     * pela participação no total de aportes, os números do mês e o acerto (reports-design §8, P1–P5).
+     * pela participação no total de aportes, os números do mês, o acerto e a cobertura do saldo
+     * negativo do mês (reports-design §8, P1–P6). O saldo previsto sai dos fechamentos já
+     * calculados dos extratos, os mesmos da projeção de saldo, para que os dois relatórios
+     * concordem sobre o fim do mês.
      *
      * @param profileId Perfil consultado.
      * @param reference Mês de referência, que recorta os aportes e as entradas sem sócio do mês.
@@ -59,11 +63,16 @@ export class FixedReportService {
     public byPartner(profileId: ProfileId, reference: YearMonth): PartnerReport {
         return this.unitOfWork.run(() => {
             const profile = this.requireBusiness(profileId);
+            const zero = Money.zero(profile.currency);
+            const histories = this.reports.closingHistories(profileId, reference, reference, profile.currency);
             return buildPartnerReport({
                 reference,
                 partners: this.partners.listByProfile(profileId),
                 totals: this.reports.contributionTotalsByPartner(profileId, reference, profile.currency),
-                zero: Money.zero(profile.currency),
+                // Regra de negócio (Relatórios, P6): o saldo previsto conta os lançamentos em aberto
+                // do mês, para que os sócios cubram as contas a pagar antes de vencerem.
+                projectedBalance: histories.reduce((total, history) => total.add(closingAt(history, reference).projected), zero),
+                zero,
             });
         });
     }

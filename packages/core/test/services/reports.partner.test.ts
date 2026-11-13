@@ -20,12 +20,14 @@ interface Scenario {
 /**
  * Hoje é 03/10/2026.
  *
+ * @param openingBalance Saldo inicial da conta da empresa; os testes do saldo negativo (P6) partem
+ * do zero para que o déficit seja só o que eles lançam.
  * @return O mundo e os ids semeados.
  */
-function scenario(): Scenario {
+function scenario(openingBalance = 10000): Scenario {
     const world = new TestWorld('2026-10-03');
     const profileId = world.profile({ type: 'business' });
-    const accountId = world.account(profileId, { openingBalance: 10000 });
+    const accountId = world.account(profileId, { openingBalance });
     const personalId = world.profile();
     return {
         world,
@@ -255,6 +257,79 @@ describe('Por sócio — divisão e acerto (P3, P4)', () => {
         await launch(scene, scene.gustavo, { value: 400 });
 
         expect((await report(scene)).settlements).toEqual([]);
+    });
+});
+
+describe('Por sócio — cobertura do saldo negativo (reports-design §8, P6)', () => {
+    /**
+     * @param result Relatório.
+     * @return O aporte de cada sócio, em número, na ordem do relatório.
+     */
+    function coverage(result: PartnerReportResponse): readonly (readonly [string, number])[] {
+        return result.coverage.map((item) => [item.partnerId, item.amount.amount] as const);
+    }
+
+    it('aportes já na proporção: o déficit de R$ 398,10 se divide em R$ 238,86 (60%) e R$ 159,24 (40%)', async () => {
+        const scene = scenario(0);
+        await launch(scene, scene.matheus, { value: 2438.36 });
+        await launch(scene, scene.gustavo, { value: 1625.58 });
+        await launch(scene, null, { type: 'expense', value: 4462.04 });
+
+        const result = await report(scene);
+
+        expect(result.projectedBalance).toEqualMoney('-398.1');
+        expect(result.deficit).toEqualMoney('398.1');
+        expect(coverage(result)).toEqual([[scene.matheus, 238.86], [scene.gustavo, 159.24]]);
+    });
+
+    it('quem aportou a mais não aporta: o outro completa a proporção, e a empresa recebe mais que o déficit', async () => {
+        const scene = scenario(0);
+        await launch(scene, scene.matheus, { value: 1000 });
+        await launch(scene, scene.gustavo, { value: 1000 });
+        await launch(scene, null, { type: 'expense', value: 2100 });
+
+        // O novo total de R$ 2.100,00 daria a Gustavo só R$ 840,00, menos que os R$ 1.000,00 que ele
+        // já aportou; o total sobe para R$ 2.500,00, e Matheus completa os 60% com R$ 500,00.
+        expect(coverage(await report(scene))).toEqual([[scene.matheus, 500], [scene.gustavo, 0]]);
+    });
+
+    it('o saldo negativo conta os lançamentos em aberto do mês, e não só os pagos', async () => {
+        const scene = scenario(0);
+        await launch(scene, scene.matheus, { value: 600, dueDate: '2026-10-02', paymentDate: '2026-10-02' });
+        await launch(scene, scene.gustavo, { value: 400, dueDate: '2026-10-02', paymentDate: '2026-10-02' });
+        await launch(scene, null, { type: 'expense', value: 1100, dueDate: '2026-10-20', paymentDate: null });
+
+        const result = await report(scene);
+
+        expect(result.deficit).toEqualMoney('100');
+        expect(coverage(result)).toEqual([[scene.matheus, 60], [scene.gustavo, 40]]);
+    });
+
+    it('sem saldo negativo no mês não há cobertura, e o acerto entre sócios continua', async () => {
+        const scene = scenario();
+        await launch(scene, scene.matheus, { value: 1000 });
+        await launch(scene, scene.gustavo, { value: 1000 });
+
+        const result = await report(scene);
+
+        expect(result.deficit).toEqualMoney('0');
+        expect(result.coverage).toEqual([]);
+        expect(result.settlements).toHaveLength(1);
+    });
+
+    it('participações que não somam 100% não sugerem cobertura', async () => {
+        const world = new TestWorld('2026-10-03');
+        const profileId = world.profile({ type: 'business' });
+        const accountId = world.account(profileId, { openingBalance: 0 });
+        const subCategoryId = world.subCategory(profileId);
+        world.partner(profileId, { name: 'A', percentage: 50 });
+        world.partner(profileId, { name: 'B', percentage: 40 });
+        await world.create({ profileId, subCategoryId }, { source: { kind: 'account', accountId }, type: 'expense', value: 300, dueDate: '2026-10-02' });
+
+        const result = await world.ok('reports.byPartner', { profileId, period: '2026-10' });
+
+        expect(result.deficit).toEqualMoney('300');
+        expect(result.coverage).toEqual([]);
     });
 });
 

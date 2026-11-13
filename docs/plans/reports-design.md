@@ -258,6 +258,7 @@ dinheiro da empresa; o que cada sócio põe na empresa é o dinheiro que entra v
 | P3 | "Deveria ter aportado" | Total de aportes **com sócio** × participação. Ex.: Matheus (60%) e Gustavo (40%) aportaram R$ 1.000,00 cada; do total de R$ 2.000,00, Matheus deveria R$ 1.200,00 e Gustavo R$ 800,00. Entradas sem sócio ficam **fora da divisão**: a receita de serviço é lucro, não aporte (a distribuição do lucro pela participação é assunto futuro). Com as participações somando 100%, a sobra do arredondamento vai para os maiores restos e a divisão soma exatamente o total |
 | P4 | Acerto | Diferença = aportou − deveria. O maior devedor paga o maior credor até zerar um dos dois — no exemplo, "Matheus transfere R$ 200,00 para Gustavo". **Sem acerto** quando as participações não somam 100%: as diferenças não fechariam em zero |
 | P5 | Entradas sem sócio | As entradas do mês (P2) sem sócio vivo do perfil, com a mesma CTE das somas (`PARTNER_ENTRIES_CTE`): a lista soma o indicador. A transferência aparece como "Transferência recebida", com a conta de origem do outro perfil |
+| P6 | Saldo negativo do mês | Quando o **saldo previsto** das contas do perfil ao fim do mês de referência (com os lançamentos em aberto, para cobrir as contas a pagar antes de vencerem) fica negativo, os sócios cobrem o déficit com **aportes na empresa**, e não com transferências entre si. Novo total = aportes + déficit, dividido pela participação (P3); cada sócio aporta a parte dele menos o que já aportou. Ex.: 60% com R$ 2.438,36 e 40% com R$ 1.625,58 aportados e R$ 398,10 de déficit → aportam R$ 238,86 e R$ 159,24. Se um sócio já aportou mais que a parte dele no novo total, o total sobe até alcançá-la: ele não aporta, os outros completam a proporção e a sobra fica no caixa. A cobertura toma o lugar do acerto (P4) na tela, porque os aportes já equilibram a divisão. **Sem cobertura** quando as participações não somam 100% |
 
 Decisões de implementação:
 
@@ -271,7 +272,10 @@ Decisões de implementação:
   mais quem aportou, e a lista pede para atribuir de novo.
 - **Todos os sócios vivos aparecem**, mesmo sem aporte, pela participação (maior primeiro) e depois
   pelo nome.
-- **Centavos inteiros:** a divisão e o acerto trabalham em unidades menores, para que a soma das
+- **Saldo previsto do mês (P6):** sai dos fechamentos dos extratos (`closingHistories` e
+  `closingAt`), os mesmos da projeção de saldo (§9), para que os dois relatórios concordem sobre o
+  fim do mês; mês sem extrato repete o fechamento anterior.
+- **Centavos inteiros:** a divisão, o acerto e a cobertura trabalham em unidades menores, para que a soma das
   partes seja o total e o acerto zere as diferenças sem sobra.
 - **Tela:** os indicadores, a tabela dos sócios, "Aportou × deveria" com o acerto e as entradas
   sem sócio ficam empilhados no detalhe: ao lado da lista de relatórios, a tabela e o gráfico lado a

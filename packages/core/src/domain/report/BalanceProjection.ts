@@ -200,13 +200,14 @@ function standardDeviation(values: readonly number[], mean: number, currency: Cu
 /**
  * Regra de negócio (Extrato): mês sem extrato não teve movimento e repete o fechamento do extrato
  * vivo anterior; antes do primeiro extrato vale o saldo inicial da conta — por isso a conta aberta
- * no meio da janela não conta o saldo inicial como entrada.
+ * no meio da janela não conta o saldo inicial como entrada. Exportada para que o saldo previsto do
+ * relatório por sócio (reports-design §8, P6) leia o fim do mês pela mesma regra da projeção.
  *
  * @param history Fechamentos de uma conta, em ordem cronológica.
  * @param period Mês consultado.
  * @return O fechamento do último extrato até o mês, ou o saldo inicial da conta.
  */
-function closingAt(history: AccountClosingHistory, period: YearMonth): BalancePair {
+export function closingAt(history: AccountClosingHistory, period: YearMonth): BalancePair {
     let closing = history.opening;
     for (const statement of history.statements) {
         if (period.isBefore(statement.period)) {

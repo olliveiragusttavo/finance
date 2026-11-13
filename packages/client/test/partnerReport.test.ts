@@ -24,6 +24,9 @@ const REPORT: PartnerReportResponse = {
     partners: [MATHEUS, GUSTAVO],
     sharesTotal: 1,
     settlements: [{ fromPartnerId: 'matheus', toPartnerId: 'gustavo', amount: brl(200) }],
+    projectedBalance: brl(1500),
+    deficit: brl(0),
+    coverage: [],
 };
 
 describe('relatório por sócio — aportes', () => {
@@ -47,6 +50,40 @@ describe('relatório por sócio — aportes', () => {
         expect(view.transfers).toEqual([{ from: 'Matheus', to: 'Gustavo', amount: 'R$ 200,00' }]);
         expect(view.note).toBeNull();
         expect(view.sharesWarning).toBeNull();
+        expect(view.coverage).toBeNull();
+    });
+
+    it('com o saldo previsto negativo, a cobertura toma o lugar do acerto (P6)', () => {
+        const view = buildPartnerReportView({
+            ...REPORT,
+            projectedBalance: brl(-398.1),
+            deficit: brl(398.1),
+            coverage: [{ partnerId: 'matheus', amount: brl(238.86) }, { partnerId: 'gustavo', amount: brl(159.24) }],
+        });
+
+        expect(view.coverage).toEqual({
+            headline: 'Saldo previsto de out/2026: −R$ 398,10',
+            items: [
+                { partnerId: 'matheus', name: 'Matheus', amount: 'R$ 238,86', nothing: false },
+                { partnerId: 'gustavo', name: 'Gustavo', amount: 'R$ 159,24', nothing: false },
+            ],
+            total: 'R$ 398,10',
+            surplusNote: null,
+        });
+        expect(view.note).toBeNull();
+    });
+
+    it('a cobertura explica quando o total passa do déficit e marca quem não precisa aportar', () => {
+        const view = buildPartnerReportView({
+            ...REPORT,
+            projectedBalance: brl(-100),
+            deficit: brl(100),
+            coverage: [{ partnerId: 'matheus', amount: brl(500) }, { partnerId: 'gustavo', amount: brl(0) }],
+        });
+
+        expect(view.coverage?.items.map((item) => item.nothing)).toEqual([false, true]);
+        expect(view.coverage?.total).toBe('R$ 500,00');
+        expect(view.coverage?.surplusNote).toContain('passa do déficit em R$ 400,00');
     });
 
     it('sem entrada sem sócio no mês, o indicador diz que não há', () => {

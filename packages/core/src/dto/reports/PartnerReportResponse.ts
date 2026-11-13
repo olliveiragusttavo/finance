@@ -1,4 +1,4 @@
-import type { PartnerLine, PartnerReport, PartnerSettlement } from '../../domain/report/PartnerReport.ts';
+import type { PartnerCoverage, PartnerLine, PartnerReport, PartnerSettlement } from '../../domain/report/PartnerReport.ts';
 import type { EntriesWithoutPartnerView } from '../../services/report/FixedReportViews.ts';
 import { toMoneyResponse, type MoneyResponse } from '../shared/MoneyResponse.ts';
 import { toTransactionResponse, type TransactionResponse } from '../transactions/TransactionResponse.ts';
@@ -26,6 +26,13 @@ export interface PartnerSettlementResponse {
     readonly amount: MoneyResponse;
 }
 
+/** O aporte de um sócio para cobrir o saldo negativo do mês. */
+export interface PartnerCoverageResponse {
+    readonly partnerId: string;
+    /** Zero quando o que o sócio já aportou basta para a parte dele. */
+    readonly amount: MoneyResponse;
+}
+
 /** Relatório por sócio (rota `reports.byPartner`). */
 export interface PartnerReportResponse {
     /** Mês de referência, que recorta os números do mês. */
@@ -44,6 +51,12 @@ export interface PartnerReportResponse {
     readonly sharesTotal: number;
     /** Vazio quando já está equilibrado ou quando as participações não somam 100%. */
     readonly settlements: readonly PartnerSettlementResponse[];
+    /** Saldo previsto das contas do perfil ao fim do mês de referência. */
+    readonly projectedBalance: MoneyResponse;
+    /** O quanto o saldo previsto fica negativo, em valor positivo; zero quando não fica. */
+    readonly deficit: MoneyResponse;
+    /** Aporte de cada sócio, na ordem de `partners`; vazio sem déficit ou sem 100% de participação. */
+    readonly coverage: readonly PartnerCoverageResponse[];
 }
 
 /** Entradas do mês sem sócio (rota `reports.entriesWithoutPartner`). */
@@ -80,6 +93,14 @@ function toSettlementResponse(settlement: PartnerSettlement): PartnerSettlementR
 }
 
 /**
+ * @param coverage Aporte do domínio.
+ * @return O aporte serializável.
+ */
+function toCoverageResponse(coverage: PartnerCoverage): PartnerCoverageResponse {
+    return { partnerId: coverage.partnerId, amount: toMoneyResponse(coverage.amount) };
+}
+
+/**
  * @param report Relatório montado pelo domínio.
  * @return O relatório serializável.
  */
@@ -94,6 +115,9 @@ export function toPartnerReportResponse(report: PartnerReport): PartnerReportRes
         partners: report.partners.map(toLineResponse),
         sharesTotal: report.sharesTotal,
         settlements: report.settlements.map(toSettlementResponse),
+        projectedBalance: toMoneyResponse(report.projectedBalance),
+        deficit: toMoneyResponse(report.deficit),
+        coverage: report.coverage.map(toCoverageResponse),
     };
 }
 

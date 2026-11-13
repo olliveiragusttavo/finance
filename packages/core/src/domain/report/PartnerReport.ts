@@ -27,6 +27,13 @@ export interface PartnerSettlement {
     readonly amount: Money;
 }
 
+/** O aporte que um sócio faz para cobrir o saldo negativo do mês e deixar os aportes na participação. */
+export interface PartnerCoverage {
+    readonly partnerId: PartnerId;
+    /** Quanto o sócio aporta na empresa; zero quando o que já aportou basta para a parte dele. */
+    readonly amount: Money;
+}
+
 /** O relatório por sócio de um perfil empresarial, com o mês de referência para a lista do mês. */
 export interface PartnerReport {
     readonly reference: YearMonth;
@@ -47,6 +54,15 @@ export interface PartnerReport {
      * está equilibrado ou quando as participações não somam 100%.
      */
     readonly settlements: readonly PartnerSettlement[];
+    /** Saldo previsto das contas do perfil ao fim do mês de referência. */
+    readonly projectedBalance: Money;
+    /** O quanto o saldo previsto fica negativo, em valor positivo; zero quando não fica. */
+    readonly deficit: Money;
+    /**
+     * Quanto cada sócio aporta para cobrir o déficit e equilibrar os aportes, na ordem dos sócios.
+     * Vazio quando não há déficit ou quando as participações não somam 100%.
+     */
+    readonly coverage: readonly PartnerCoverage[];
 }
 
 /** Dados de entrada do montador, lidos pelo Service na mesma unidade de trabalho. */
@@ -54,6 +70,8 @@ export interface PartnerReportInput {
     readonly reference: YearMonth;
     readonly partners: readonly Partner[];
     readonly totals: readonly PartnerContributionTotals[];
+    /** Saldo previsto das contas do perfil ao fim do mês de referência, de onde sai o déficit. */
+    readonly projectedBalance: Money;
     readonly zero: Money;
 }
 
@@ -71,12 +89,14 @@ const SHARES_EPSILON = 1e-9;
  * **todos os períodos** é dividido pela participação: Matheus (60%) e Gustavo (40%) aportaram
  * R$ 1.000,00 cada; do total de R$ 2.000,00, Matheus deveria ter aportado R$ 1.200,00 e Gustavo
  * R$ 800,00. As entradas sem sócio ficam fora da divisão: a receita de serviço é lucro, não aporte.
- * O mês de referência só recorta os números do mês (aportes e entradas sem sócio a atribuir).
+ * O mês de referência só recorta os números do mês (aportes e entradas sem sócio a atribuir) e
+ * dá o saldo previsto cujo negativo os sócios cobrem (P6).
  *
  * Os valores trabalham em unidades menores inteiras para que a divisão feche exatamente na base e
  * o acerto zere todas as diferenças, sem sobra de centavo.
  *
- * @param input Mês, sócios vivos do perfil, somas por sócio e o zero na moeda do perfil.
+ * @param input Mês, sócios vivos do perfil, somas por sócio, saldo previsto do mês e o zero na
+ * moeda do perfil.
  * @return O relatório, com os sócios pela participação (maior primeiro).
  */
 export function buildPartnerReport(input: PartnerReportInput): PartnerReport {
@@ -104,6 +124,7 @@ export function buildPartnerReport(input: PartnerReportInput): PartnerReport {
     const sharesTotal = ordered.reduce((total, partner) => total + partner.share(), 0);
     const complete = Math.abs(sharesTotal - 1) < SHARES_EPSILON;
     const expectedCents = allocateByShares(baseCents, ordered.map((partner) => partner.share()), complete);
+    const deficitCents = Math.max(0, -toMinor(input.projectedBalance));
     const lines = ordered.map((partner, index): PartnerLine => {
         const contributed = contributedCents.get(partner.id) ?? 0;
         const expected = expectedCents[index] ?? 0;
@@ -129,6 +150,11 @@ export function buildPartnerReport(input: PartnerReportInput): PartnerReport {
         // Regra de negócio (Relatórios, P4): sem as participações somando 100% as diferenças não
         // fecham em zero, e qualquer acerto sugerido deixaria alguém aportando a parte de outro.
         settlements: complete ? settle(lines, zero) : [],
+        projectedBalance: input.projectedBalance.rounded(),
+        deficit: fromMinor(deficitCents, zero),
+        // Regra de negócio (Relatórios, P6): o mesmo motivo do acerto — sem 100% não há como
+        // dividir o déficit sem que alguém cubra a parte de outro.
+        coverage: complete && deficitCents > 0 ? cover(lines, deficitCents, zero) : [],
     };
 }
 
@@ -205,6 +231,34 @@ function settle(lines: readonly PartnerLine[], zero: Money): readonly PartnerSet
         }
     }
     return settlements;
+}
+
+/**
+ * Quanto cada sócio aporta para que a empresa cubra o saldo negativo do mês e, depois dos aportes,
+ * o total aportado fique dividido como as participações. Substitui o acerto entre sócios quando há
+ * déficit: o dinheiro vai para a empresa, que é quem precisa dele, e não de um sócio para o outro.
+ * Regra de negócio (Relatórios, P6): o novo total é o total aportado mais o déficit, dividido pela
+ * participação (P3), e cada sócio aporta a parte dele menos o que já aportou. Ex.: com R$ 2.438,36
+ * (60%) e R$ 1.625,58 (40%) aportados e R$ 398,10 de déficit, o novo total de R$ 4.462,04 dá
+ * R$ 2.677,22 e R$ 1.784,82, e os sócios aportam R$ 238,86 e R$ 159,24. Quando um sócio já aportou
+ * mais que a parte dele no novo total, o total sobe até a parte dele alcançar o que aportou — sócio
+ * nenhum tira dinheiro da empresa —, e a empresa recebe mais que o déficit.
+ *
+ * @param lines Sócios, com a participação e o que aportaram; as participações somam 100%.
+ * @param deficitCents Déficit em unidades menores, maior que zero.
+ * @param zero Zero na moeda do perfil.
+ * @return O aporte de cada sócio, na ordem de `lines`; a soma é pelo menos o déficit.
+ */
+function cover(lines: readonly PartnerLine[], deficitCents: number, zero: Money): readonly PartnerCoverage[] {
+    const contributed = lines.map((line) => toMinor(line.contributed));
+    const base = contributed.reduce((total, cents) => total + cents, 0);
+    // O menor total em que a parte de cada sócio alcança o que ele já aportou; o sócio sem
+    // participação não tem parte, e o que ele aportou não pesa no total.
+    const target = lines.reduce((total, line, index) => (line.share > 0 ? Math.max(total, Math.ceil((contributed[index] ?? 0) / line.share - SHARES_EPSILON)) : total), base + deficitCents);
+    const parts = allocateByShares(target, lines.map((line) => line.share), true);
+    // O arredondamento da divisão pode deixar a parte um centavo abaixo do que o sócio aportou; aí
+    // ele não aporta nada, em vez de receber um centavo de volta.
+    return lines.map((line, index) => ({ partnerId: line.partnerId, amount: fromMinor(Math.max(0, (parts[index] ?? 0) - (contributed[index] ?? 0)), zero) }));
 }
 
 /**
